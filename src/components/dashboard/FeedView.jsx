@@ -75,33 +75,45 @@ function FeedSkeleton({ feedName }) {
         <div className="w-16 h-4 bg-[#1a2538] rounded animate-pulse" />
       </div>
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        <div className="bg-[#0a1628] border border-[#1a2538] rounded-xl p-6 animate-pulse">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-20 h-5 bg-[#1a2538] rounded-full" />
-            <div className="w-24 h-3 bg-[#1a2538] rounded" />
-          </div>
-          <div className="w-full h-6 bg-[#1a2538] rounded mb-3" />
-          <div className="w-5/6 h-6 bg-[#1a2538] rounded mb-4" />
-          <div className="w-full h-4 bg-[#1a2538] rounded mb-2" />
-          <div className="w-3/4 h-4 bg-[#1a2538] rounded mb-5" />
-          <div className="flex gap-2">
-            <div className="w-16 h-6 bg-[#1a2538] rounded-full" />
-            <div className="w-16 h-6 bg-[#1a2538] rounded-full" />
+        {/* Hero skeleton with image */}
+        <div className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden animate-pulse">
+          <div className="flex flex-row">
+            <div className="w-[60%] p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-20 h-5 bg-[#1a2538] rounded-full" />
+                <div className="w-24 h-3 bg-[#1a2538] rounded" />
+              </div>
+              <div className="w-full h-6 bg-[#1a2538] rounded mb-3" />
+              <div className="w-5/6 h-6 bg-[#1a2538] rounded mb-4" />
+              <div className="w-full h-4 bg-[#1a2538] rounded mb-2" />
+              <div className="w-3/4 h-4 bg-[#1a2538] rounded mb-5" />
+              <div className="flex gap-2">
+                <div className="w-16 h-6 bg-[#1a2538] rounded-full" />
+                <div className="w-16 h-6 bg-[#1a2538] rounded-full" />
+              </div>
+            </div>
+            <div className="w-[40%] bg-[#1a2538]" />
           </div>
         </div>
+        {/* Regular card skeletons with image */}
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-[#0a1628] border border-[#1a2538] rounded-xl p-5 animate-pulse">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-16 h-4 bg-[#1a2538] rounded-full" />
-              <div className="w-20 h-3 bg-[#1a2538] rounded" />
-            </div>
-            <div className="w-full h-5 bg-[#1a2538] rounded mb-2" />
-            <div className="w-2/3 h-5 bg-[#1a2538] rounded mb-3" />
-            <div className="w-full h-3 bg-[#1a2538] rounded mb-2" />
-            <div className="w-4/5 h-3 bg-[#1a2538] rounded mb-4" />
-            <div className="flex gap-2">
-              <div className="w-14 h-5 bg-[#1a2538] rounded-full" />
-              <div className="w-14 h-5 bg-[#1a2538] rounded-full" />
+          <div key={i} className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden animate-pulse">
+            <div className="flex flex-row">
+              <div className="w-[60%] p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-16 h-4 bg-[#1a2538] rounded-full" />
+                  <div className="w-20 h-3 bg-[#1a2538] rounded" />
+                </div>
+                <div className="w-full h-5 bg-[#1a2538] rounded mb-2" />
+                <div className="w-2/3 h-5 bg-[#1a2538] rounded mb-3" />
+                <div className="w-full h-3 bg-[#1a2538] rounded mb-2" />
+                <div className="w-4/5 h-3 bg-[#1a2538] rounded mb-4" />
+                <div className="flex gap-2">
+                  <div className="w-14 h-5 bg-[#1a2538] rounded-full" />
+                  <div className="w-14 h-5 bg-[#1a2538] rounded-full" />
+                </div>
+              </div>
+              <div className="w-[40%] min-h-[140px] bg-[#1a2538]" />
             </div>
           </div>
         ))}
@@ -228,6 +240,17 @@ function ArticleReader({ item, onBack }) {
             )}
           </div>
 
+          {/* Hero image */}
+          {(article?.image || item?.image) && (
+            <div className="rounded-xl overflow-hidden mb-8 border border-[#1a2538]">
+              <CardImage
+                src={article?.image || item?.image}
+                alt={stripCitations(article?.title || item?.title || '')}
+                className="w-full max-h-[360px] object-cover"
+              />
+            </div>
+          )}
+
           {/* Ticker pills */}
           {item?.tickers && item.tickers.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap mb-6">
@@ -335,11 +358,27 @@ function ArticleReader({ item, onBack }) {
   )
 }
 
+// ─── Thumbnail with error fallback ───────────────────────────────────
+function CardImage({ src, alt, className }) {
+  const [failed, setFailed] = useState(false)
+  if (!src || failed) return null
+  return (
+    <img
+      src={src}
+      alt={alt || ''}
+      className={className}
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 // ─── Hero Card (first item) ──────────────────────────────────────────
 function HeroCard({ item, onClick }) {
   const cat = CATEGORY_STYLES[item.category] || CATEGORY_STYLES.NEWS
   const CatIcon = cat.icon
   const sentiment = SENTIMENT_BADGE[item.sentiment] || SENTIMENT_BADGE.neutral
+  const hasImage = !!item.image
 
   return (
     <motion.div
@@ -347,43 +386,55 @@ function HeroCard({ item, onClick }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       onClick={() => onClick(item)}
-      className="bg-[#0a1628] border border-[#1a2538] rounded-xl p-6 hover:border-[#2a3548] hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 relative group cursor-pointer"
+      className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden hover:border-[#2a3548] hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 relative group cursor-pointer"
     >
-      <div className="flex items-center gap-2.5 mb-4">
-        <span className={`${cat.bg} ${cat.text} px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5`}>
-          <CatIcon size={12} strokeWidth={2} />
-          {item.category}
-        </span>
-        <span className="text-gray-500 text-xs">{stripCitations(item.source)}</span>
-        <span className="text-gray-600 text-xs">{item.time}</span>
-      </div>
+      <div className={`flex ${hasImage ? 'flex-row' : ''}`}>
+        {/* Text content */}
+        <div className={`p-6 flex flex-col justify-between ${hasImage ? 'w-[60%]' : 'w-full'}`}>
+          <div>
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className={`${cat.bg} ${cat.text} px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5`}>
+                <CatIcon size={12} strokeWidth={2} />
+                {item.category}
+              </span>
+              <span className="text-gray-500 text-xs">{stripCitations(item.source)}</span>
+              <span className="text-gray-600 text-xs">{item.time}</span>
+            </div>
 
-      <h2 className="text-white text-xl font-semibold leading-snug mb-3">
-        {highlightTickers(item.title)}
-      </h2>
+            <h2 className="text-white text-xl font-semibold leading-snug mb-3 antialiased">
+              {highlightTickers(item.title)}
+            </h2>
 
-      <p className="text-gray-400 text-sm leading-relaxed mb-5">
-        {highlightTickers(item.summary)}
-      </p>
+            <p className="text-gray-400 text-sm leading-relaxed mb-5 antialiased">
+              {highlightTickers(item.summary)}
+            </p>
+          </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        {item.tickers && item.tickers.map(t => (
-          <span key={t} className="font-mono text-xs text-blue-400 bg-blue-500/10 rounded-full px-2.5 py-0.5">
-            {stripCitations(t)}
-          </span>
-        ))}
-        {item.sentiment && (
-          <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full ml-auto ${sentiment}`}>
-            {item.sentiment}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {item.tickers && item.tickers.map(t => (
+              <span key={t} className="font-mono text-xs text-blue-400 bg-blue-500/10 rounded-full px-2.5 py-0.5">
+                {stripCitations(t)}
+              </span>
+            ))}
+            {item.sentiment && (
+              <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full ml-auto ${sentiment}`}>
+                {item.sentiment}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Thumbnail */}
+        {hasImage && (
+          <div className="w-[40%] relative">
+            <CardImage
+              src={item.image}
+              alt={stripCitations(item.title)}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          </div>
         )}
       </div>
-
-      {item.url && (
-        <div className="absolute top-5 right-5 text-gray-600 group-hover:text-gray-400 transition-colors">
-          <ExternalLink size={14} strokeWidth={1.5} />
-        </div>
-      )}
     </motion.div>
   )
 }
@@ -393,6 +444,7 @@ function NewsCard({ item, index, onClick }) {
   const cat = CATEGORY_STYLES[item.category] || CATEGORY_STYLES.NEWS
   const CatIcon = cat.icon
   const sentiment = SENTIMENT_BADGE[item.sentiment] || SENTIMENT_BADGE.neutral
+  const hasImage = !!item.image
 
   return (
     <motion.div
@@ -400,43 +452,55 @@ function NewsCard({ item, index, onClick }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.25 }}
       onClick={() => onClick(item)}
-      className="bg-[#0a1628] border border-[#1a2538] rounded-xl p-5 hover:border-[#2a3548] hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 relative group cursor-pointer"
+      className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden hover:border-[#2a3548] hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 relative group cursor-pointer"
     >
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className={`${cat.bg} ${cat.text} px-2 py-0.5 rounded-full text-[11px] font-medium inline-flex items-center gap-1`}>
-          <CatIcon size={11} strokeWidth={2} />
-          {item.category}
-        </span>
-        <span className="text-gray-500 text-xs">{stripCitations(item.source)}</span>
-        <span className="text-gray-600 text-xs">{item.time}</span>
-      </div>
+      <div className={`flex ${hasImage ? 'flex-row' : ''}`}>
+        {/* Text content */}
+        <div className={`p-5 flex flex-col justify-between ${hasImage ? 'w-[60%]' : 'w-full'}`}>
+          <div>
+            <div className="flex items-center gap-2.5 mb-3">
+              <span className={`${cat.bg} ${cat.text} px-2 py-0.5 rounded-full text-[11px] font-medium inline-flex items-center gap-1`}>
+                <CatIcon size={11} strokeWidth={2} />
+                {item.category}
+              </span>
+              <span className="text-gray-500 text-xs">{stripCitations(item.source)}</span>
+              <span className="text-gray-600 text-xs">{item.time}</span>
+            </div>
 
-      <h3 className="text-white text-lg font-semibold leading-snug mb-2">
-        {highlightTickers(item.title)}
-      </h3>
+            <h3 className="text-white text-lg font-semibold leading-snug mb-2 antialiased">
+              {highlightTickers(item.title)}
+            </h3>
 
-      <p className="text-gray-400 text-sm leading-relaxed mb-4">
-        {highlightTickers(item.summary)}
-      </p>
+            <p className="text-gray-400 text-sm leading-relaxed mb-4 antialiased">
+              {highlightTickers(item.summary)}
+            </p>
+          </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        {item.tickers && item.tickers.map(t => (
-          <span key={t} className="font-mono text-xs text-blue-400 bg-blue-500/10 rounded-full px-2.5 py-0.5">
-            {stripCitations(t)}
-          </span>
-        ))}
-        {item.sentiment && (
-          <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full ml-auto ${sentiment}`}>
-            {item.sentiment}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {item.tickers && item.tickers.map(t => (
+              <span key={t} className="font-mono text-xs text-blue-400 bg-blue-500/10 rounded-full px-2.5 py-0.5">
+                {stripCitations(t)}
+              </span>
+            ))}
+            {item.sentiment && (
+              <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full ml-auto ${sentiment}`}>
+                {item.sentiment}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Thumbnail */}
+        {hasImage && (
+          <div className="w-[40%] min-h-[140px] relative">
+            <CardImage
+              src={item.image}
+              alt={stripCitations(item.title)}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          </div>
         )}
       </div>
-
-      {item.url && (
-        <div className="absolute top-4 right-4 text-gray-600 group-hover:text-gray-400 transition-colors">
-          <ExternalLink size={13} strokeWidth={1.5} />
-        </div>
-      )}
     </motion.div>
   )
 }

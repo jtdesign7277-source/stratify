@@ -198,6 +198,7 @@ After searching, return ONLY a valid JSON array (no markdown, no backticks, no e
 - "summary": 1-2 sentence summary of the actual article (max 120 chars)
 - "source": real source name (e.g. "Reuters", "Bloomberg", "CNBC", "WSJ", "Yahoo Finance", "MarketWatch")
 - "url": the actual URL of the article (or null if unavailable)
+- "image": the og:image or thumbnail URL from the source article if visible in search results, or null if unavailable
 - "ticker": primary relevant ticker with $ prefix (e.g. "$NVDA") or null
 - "tickers": array of all relevant tickers mentioned (e.g. ["$NVDA", "$AMD", "$TSM"])
 - "sentiment": "bullish", "bearish", or "neutral"
@@ -237,6 +238,15 @@ Do NOT include any citation tags, HTML tags, or markdown in your response. Plain
     items.forEach(item => {
       item.title = stripCitations(item.title)
       item.summary = stripCitations(item.summary)
+      // Validate image URL — must be a real http(s) URL or null
+      if (item.image && typeof item.image === 'string') {
+        item.image = item.image.trim()
+        if (!item.image.startsWith('http://') && !item.image.startsWith('https://')) {
+          item.image = null
+        }
+      } else {
+        item.image = null
+      }
     })
 
     console.log(`[feeds] Parsed ${items.length} news items for #${feed}`)

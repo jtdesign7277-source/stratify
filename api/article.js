@@ -177,6 +177,25 @@ function extractAuthor(root) {
   return null
 }
 
+// Extract og:image
+function extractImage(root) {
+  const ogImage = root.querySelector('meta[property="og:image"]')
+  if (ogImage) {
+    const content = ogImage.getAttribute('content')
+    if (content && (content.startsWith('http://') || content.startsWith('https://'))) {
+      return content.trim()
+    }
+  }
+  const twitterImage = root.querySelector('meta[name="twitter:image"]')
+  if (twitterImage) {
+    const content = twitterImage.getAttribute('content')
+    if (content && (content.startsWith('http://') || content.startsWith('https://'))) {
+      return content.trim()
+    }
+  }
+  return null
+}
+
 // Extract published date
 function extractDate(root) {
   const timeMeta = root.querySelector('meta[property="article:published_time"]')
@@ -262,6 +281,7 @@ export default async function handler(req, res) {
     const description = extractDescription(root)
     const author = extractAuthor(root)
     const publishedAt = extractDate(root)
+    const image = extractImage(root)
 
     // Build content — paragraphs joined, or fallback to description
     let content = null
@@ -284,6 +304,7 @@ export default async function handler(req, res) {
       source: sourceName,
       author,
       publishedAt,
+      image,
       url,
       paragraphs: paragraphs || (description ? [description] : []),
       fetchedAt: new Date().toISOString(),
