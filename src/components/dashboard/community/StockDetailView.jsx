@@ -162,14 +162,14 @@ export default function StockDetailView({ ticker, onBack }) {
           className="mx-3 mt-3 mb-6 rounded-2xl overflow-hidden border"
           style={{ borderColor: T.border, backgroundColor: T.bg }}
         >
-          {/* Symbol info strip — no individual rounding */}
-          <div className="border-b" style={{ borderColor: T.border }}>
-            <TvSymbolInfo tvSymbol={tvSymbol} />
-          </div>
-
           {/* Advanced chart — fills the unified card, rounded corners come from parent */}
           <div style={{ height: '620px', width: '100%' }}>
             <TvAdvancedChart tvSymbol={tvSymbol} />
+          </div>
+
+          {/* Symbol info strip — no individual rounding */}
+          <div className="border-t" style={{ borderColor: T.border }}>
+            <TvSymbolInfo tvSymbol={tvSymbol} />
           </div>
           {/* Bottom breathing room */}
           <div style={{ height: 8 }} />
