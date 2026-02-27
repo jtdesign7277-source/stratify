@@ -625,11 +625,13 @@ export const makeMockReactionRows = (index) => {
   }));
 };
 
-export const generateMockFeed = (mockAuthors, mockBaseSetups) => {
+export const generateMockFeed = (mockAuthors = MOCK_AUTHORS, mockBaseSetups = MOCK_BASE_SETUPS) => {
+  const safeAuthors = Array.isArray(mockAuthors) && mockAuthors.length > 0 ? mockAuthors : MOCK_AUTHORS;
+  const safeSetups = Array.isArray(mockBaseSetups) && mockBaseSetups.length > 0 ? mockBaseSetups : MOCK_BASE_SETUPS;
   const now = Date.now();
   const rows = Array.from({ length: 36 }).map((_, index) => {
-    const setup = mockBaseSetups[index % mockBaseSetups.length];
-    const author = mockAuthors[index % mockAuthors.length];
+    const setup = safeSetups[index % safeSetups.length];
+    const author = safeAuthors[index % safeAuthors.length];
     const createdAt = new Date(now - ((index * 19) + 4) * 60 * 1000).toISOString();
     const reactionRows = makeMockReactionRows(index);
     const shouldBePnl = index % 5 === 0 || index % 11 === 0;
@@ -714,7 +716,7 @@ export const generateMockFeed = (mockAuthors, mockBaseSetups) => {
       is_mock: true,
       mock_replies: repliesCount > 0
         ? Array.from({ length: Math.min(3, repliesCount) }).map((__, replyIdx) => {
-            const replyAuthor = mockAuthors[(index + replyIdx + 1) % mockAuthors.length];
+            const replyAuthor = safeAuthors[(index + replyIdx + 1) % safeAuthors.length];
             return {
               id: `mock-reply-${index + 1}-${replyIdx + 1}`,
               user_id: `mock-user-${replyAuthor.id}`,
