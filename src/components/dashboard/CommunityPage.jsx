@@ -5451,14 +5451,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
             />
 
             <div className="flex-1 min-w-0 min-h-0 overflow-y-hidden overflow-x-visible flex flex-col">
-              {filter ? (
-                <FeedView feedName={filter} onClose={() => handleFeedFilterChange(null)} />
-              ) : (
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
                 <div className="w-[92px] flex-shrink-0" aria-hidden />
 
                 <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-                  <div className="mx-auto flex h-full w-full min-w-0 max-w-[750px] flex-col transition-all duration-200">
+                  <div className={`mx-auto flex h-full w-full min-w-0 flex-col transition-all duration-200${filter ? '' : ' max-w-[750px]'}`}>
+                    {!filter && (
                     <div className="px-3 pb-2">
                       <div className="flex items-center justify-end">
                         <div className="relative" ref={priceAlertPopoverRef}>
@@ -5545,7 +5543,13 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                         </div>
                       </div>
                     </div>
+                    )}
 
+                    {filter ? (
+                      <div className="flex-1 min-h-0 overflow-y-auto">
+                        <FeedView feedName={filter} onClose={() => handleFeedFilterChange(null)} />
+                      </div>
+                    ) : (
                     <div className="flex-1 min-h-0 overflow-y-auto px-3">
                       <div className="w-full space-y-2">
                         {aiSearchPending.map((pending) => (
@@ -5667,6 +5671,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                         )}
                       </div>
                     </div>
+                    )}
 
                     <div className="px-3 pb-3 pt-3">
                       <ChatInputBar
@@ -5687,7 +5692,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
                 <RightSidebar quoteMap={quoteMap} />
               </div>
-              )}
             </div>
           </div>
         </div>
