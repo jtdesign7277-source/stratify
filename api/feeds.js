@@ -1,10 +1,11 @@
-// api/feeds.js — Hashtag feed generator (Vercel serverless)
-// Generates community feed content for any of 50 hashtag topics
-// Cache-first with Redis (Upstash) — 7-day TTL per skill rules
+// api/feeds.js — Real news feed endpoint (Vercel serverless)
+// Uses Claude API with web_search tool to pull actual current news
+// Cache-first with Redis (Upstash) — 7-day TTL
 
 import { Redis } from '@upstash/redis'
 
 const CACHE_TTL = 604800 // 7 days
+
 const FEED_CATEGORIES = {
   'Market Pulse': [
     'Earnings', 'Momentum', 'Macro', 'Options', 'Sentiment',
@@ -33,10 +34,8 @@ const FEED_CATEGORIES = {
   ],
 }
 
-// Flatten all valid feed names for validation
 const ALL_FEEDS = Object.values(FEED_CATEGORIES).flat()
 
-// Topic-specific prompts for better quality content
 const FEED_PROMPTS = {
   Earnings:          'Recent and upcoming earnings reports, beats, misses, and guidance updates for major companies.',
   Momentum:          'Stocks showing strong directional momentum today — big movers, trend continuations, unusual strength or weakness.',
@@ -97,6 +96,15 @@ function getRedis() {
   return new Redis({ url, token })
 }
 
+// Extract text blocks from Claude's web_search response
+function extractTextFromResponse(content) {
+  if (!Array.isArray(content)) return ''
+  return content
+    .filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('\n')
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET')
@@ -129,10 +137,9 @@ export default async function handler(req, res) {
     redis = getRedis()
   } catch (err) {
     console.error('[feeds] Redis init failed:', err.message)
-    // Fall through to API call without caching
   }
 
-  const cacheKey = `feed:${feed.toLowerCase()}`
+  const cacheKey = `feed:v2:${feed.toLowerCase()}`
 
   if (redis) {
     try {
@@ -148,11 +155,11 @@ export default async function handler(req, res) {
     }
   }
 
-  // Step 2: Generate feed content via Claude API
+  // Step 2: Call Claude API with web_search tool for real news
   const topicPrompt = FEED_PROMPTS[feed] || `Trending content about ${feed} in the stock market.`
 
   try {
-    console.log(`[feeds] Calling Claude API for #${feed}...`)
+    console.log(`[feeds] Calling Claude API with web_search for #${feed}...`)
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -162,26 +169,26 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
+        max_tokens: 3000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `You are a financial social media feed generator for a stock trading platform called Stratify. Generate a realistic social media feed for the hashtag #${feed}.
+          content: `Search the web for the latest real news about: ${topicPrompt}
 
-Topic context: ${topicPrompt}
+Find 8-12 current, real news stories from the past few days. Use web search to find actual articles.
 
-Return ONLY a valid JSON array (no markdown, no backticks, no explanation). Generate 8-12 posts. Each post must have:
-- "id": unique string (e.g. "post_1", "post_2")
-- "username": realistic trading username (e.g. "ThetaNomad", "MacroMaven", "ChartSurgeon", "VolatilityVera") — be creative, make them feel like real traders
-- "avatar": null
-- "content": the post text (50-200 chars). Make it sound like a real trader posting. Include relevant $TICKER mentions where appropriate. Be specific with numbers, levels, and trade details.
-- "tag": one of "P&L", "TRADE", "ALERT", "ANALYSIS", "NEWS", "MEME", "DISCUSSION" — pick the most appropriate for each post
-- "ticker": primary ticker mentioned (with $ prefix) or null
-- "pnl": if tag is "P&L", include a realistic P&L object { "amount": number (positive or negative), "percent": number, "ticker": "$SYMBOL" }, otherwise null
-- "time": relative timestamp like "2m", "15m", "1h", "3h"
-- "likes": random number 0-50
-- "replies": random number 0-15
+After searching, return ONLY a valid JSON array (no markdown, no backticks, no explanation before or after). Each item must have:
+- "title": real headline (max 80 chars)
+- "summary": 1-2 sentence summary of the actual article (max 120 chars)
+- "source": real source name (e.g. "Reuters", "Bloomberg", "CNBC", "WSJ", "Yahoo Finance", "MarketWatch")
+- "url": the actual URL of the article (or null if unavailable)
+- "ticker": primary relevant ticker with $ prefix (e.g. "$NVDA") or null
+- "tickers": array of all relevant tickers mentioned (e.g. ["$NVDA", "$AMD", "$TSM"])
+- "sentiment": "bullish", "bearish", or "neutral"
+- "time": relative time like "2h ago", "5h ago", "1d ago", "2d ago"
+- "category": one of "NEWS", "ANALYSIS", "DATA", "ALERT", "EARNINGS", "REGULATORY"
 
-Make the content feel authentic — mix of wins, losses, analysis, alerts, and discussion. Vary the tone from casual to professional. Include specific price levels, percentages, and trade details where relevant.`
+Return real news only. No fabricated stories. JSON array only.`
         }],
       }),
     })
@@ -193,17 +200,28 @@ Make the content feel authentic — mix of wins, losses, analysis, alerts, and d
     }
 
     const data = await response.json()
-    const content = data.content?.[0]?.text || '[]'
-    const clean = content.replace(/```json|```/g, '').trim()
-    const posts = JSON.parse(clean)
 
-    console.log(`[feeds] Generated ${posts.length} posts for #${feed}`)
+    // web_search responses have multiple content blocks (search results + text)
+    // Extract only text blocks and parse the JSON from them
+    const textContent = extractTextFromResponse(data.content)
+    console.log(`[feeds] Raw response (first 300 chars):`, textContent.substring(0, 300))
+
+    const clean = textContent.replace(/```json|```/g, '').trim()
+
+    // Find the JSON array in the text — it might have surrounding text
+    const jsonMatch = clean.match(/\[[\s\S]*\]/)
+    if (!jsonMatch) {
+      throw new Error('No JSON array found in Claude response')
+    }
+
+    const items = JSON.parse(jsonMatch[0])
+    console.log(`[feeds] Parsed ${items.length} news items for #${feed}`)
 
     const result = {
       feed,
-      posts,
+      items,
       generatedAt: new Date().toISOString(),
-      postCount: posts.length,
+      itemCount: items.length,
     }
 
     // Step 3: Cache the result
@@ -218,7 +236,7 @@ Make the content feel authentic — mix of wins, losses, analysis, alerts, and d
 
     return res.status(200).json({ ...result, source: 'api', cacheHit: false })
   } catch (err) {
-    console.error(`[feeds] Error generating #${feed}:`, err.message)
+    console.error(`[feeds] Error fetching #${feed}:`, err.message)
 
     // Try stale cache
     if (redis) {
@@ -232,10 +250,11 @@ Make the content feel authentic — mix of wins, losses, analysis, alerts, and d
     }
 
     return res.status(500).json({
-      error: 'Failed to generate feed',
+      error: 'Failed to fetch feed',
       details: err.message,
+      step: 'claude-web-search',
       feed,
-      posts: [],
+      items: [],
     })
   }
 }
