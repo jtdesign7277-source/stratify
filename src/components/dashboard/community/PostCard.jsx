@@ -18,7 +18,7 @@ import ReactionBar from './ReactionBar';
 
 const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayName }) => {
   const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(toFiniteNumber(post.likes_count ?? post.likes, 0));
+  const [likesCount, setLikesCount] = useState(toFiniteNumber(post?.likes_count ?? post?.likes, 0));
   const [showReplies, setShowReplies] = useState(false);
   const [replies, setReplies] = useState([]);
   const [replyContent, setReplyContent] = useState('');
@@ -27,6 +27,8 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const isMock = Boolean(post?.is_mock);
+
+  if (!post) return null;
   const resolvedDisplayName = String(displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader').trim() || 'Trader';
   const resolvedReplyAvatar = String(currentUserAvatarUrl || currentUser?.avatar_url || buildCurrentUserAvatarUrl(resolvedDisplayName)).trim();
 

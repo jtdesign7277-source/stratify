@@ -7,7 +7,7 @@ const SuggestionPopover = ({
   open,
   mode = 'post',
   loading,
-  suggestions,
+  suggestions = [],
   activeIndex,
   onPick,
 }) => (

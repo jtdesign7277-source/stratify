@@ -25,7 +25,7 @@ import { UserAvatar, XLogoIcon } from './CommunityShared';
 const ChatInputBar = ({
   currentUser,
   currentUserAvatarUrl,
-  trackedSymbols,
+  trackedSymbols = [],
   quoteMap,
   streamStatus,
   searchMode,
@@ -35,7 +35,7 @@ const ChatInputBar = ({
   onSearch,
   onFeedSelect,
   activeFeed,
-  enabledFeeds,
+  enabledFeeds = [],
 }) => {
   const [message, setMessage] = useState('');
   const [selectedHashtags, setSelectedHashtags] = useState([]);
@@ -102,7 +102,7 @@ const ChatInputBar = ({
       }
 
       const localUniverse = [...new Set([
-        ...trackedSymbols,
+        ...(Array.isArray(trackedSymbols) ? trackedSymbols : []),
         ...DEFAULT_TICKERS,
         ...Object.keys(quoteMap || {}),
       ].map(normalizeSymbolKey).filter(Boolean))];

@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS } from './communityConstants';
 
-const FeedCustomizerModal = ({ open, onClose, enabledFeeds, onToggle }) => {
-  const atLimit = enabledFeeds.length >= MAX_VISIBLE_FEED_HASHTAGS;
+const FeedCustomizerModal = ({ open, onClose, enabledFeeds = [], onToggle }) => {
+  const safeEnabledFeeds = Array.isArray(enabledFeeds) ? enabledFeeds : [];
+  const atLimit = safeEnabledFeeds.length >= MAX_VISIBLE_FEED_HASHTAGS;
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -41,7 +42,7 @@ const FeedCustomizerModal = ({ open, onClose, enabledFeeds, onToggle }) => {
                 {atLimit ? <span className="text-[#f0883e] font-medium">Limit reached — disable one to add another.</span> : null}
               </p>
               {ALL_FEED_HASHTAGS.map((feed) => {
-                const isEnabled = enabledFeeds.includes(feed.id);
+                const isEnabled = safeEnabledFeeds.includes(feed.id);
                 const isDisabledByLimit = !isEnabled && atLimit;
                 return (
                   <button
@@ -63,7 +64,7 @@ const FeedCustomizerModal = ({ open, onClose, enabledFeeds, onToggle }) => {
               })}
             </div>
             <div className="px-5 py-3 border-t border-white/6 flex items-center justify-between">
-              <span className="text-xs text-[#7d8590]">{enabledFeeds.length} / {MAX_VISIBLE_FEED_HASHTAGS} slots used</span>
+              <span className="text-xs text-[#7d8590]">{safeEnabledFeeds.length} / {MAX_VISIBLE_FEED_HASHTAGS} slots used</span>
               <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-[#58a6ff] text-black text-sm font-semibold hover:bg-[#79b8ff] transition">Done</button>
             </div>
           </motion.div>
