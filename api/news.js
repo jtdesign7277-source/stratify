@@ -1,5 +1,6 @@
 // api/news.js — Sidebar news endpoint (Vercel serverless)
 // Fetches real headlines from Marketaux API, cached in Redis (30-min TTL)
+// Primary fetch: 12 articles from last 72h; fallback: broader query from last 7d
 
 import { Redis } from '@upstash/redis'
 
@@ -123,17 +124,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    // Primary fetch: 12 articles from last 72 hours
+    const threeDaysAgo = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString().split('T')[0]
     const params = new URLSearchParams({
       api_token: apiKey,
       language: 'en',
-      limit: '7',
+      limit: '12',
       sort: 'entity_match_score',
-      published_after: oneDayAgo,
+      published_after: threeDaysAgo,
     })
 
     const url = `https://api.marketaux.com/v1/news/all?${params.toString()}`
-    console.log('[news] Fetching Marketaux...')
+    console.log('[news] Fetching Marketaux (primary)...')
 
     const response = await fetch(url, {
       signal: AbortSignal.timeout(10000),
@@ -148,11 +150,55 @@ export default async function handler(req, res) {
     const data = await response.json()
     const rawArticles = data.data || []
 
-    console.log(`[news] Marketaux returned ${rawArticles.length} articles`)
+    console.log(`[news] Marketaux primary returned ${rawArticles.length} articles`)
 
-    const articles = rawArticles
+    let articles = rawArticles
       .map(transformArticle)
       .filter((a) => a.title && a.title.length > 10)
+
+    // Fallback fetch if fewer than 7 articles after filtering
+    if (articles.length < 7) {
+      console.log(`[news] Only ${articles.length} articles, running fallback fetch...`)
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        const fallbackParams = new URLSearchParams({
+          api_token: apiKey,
+          language: 'en',
+          limit: '10',
+          sort: 'entity_match_score',
+          search: 'stock market finance trading',
+          published_after: sevenDaysAgo,
+        })
+
+        const fallbackRes = await fetch(
+          `https://api.marketaux.com/v1/news/all?${fallbackParams.toString()}`,
+          { signal: AbortSignal.timeout(10000) },
+        )
+
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json()
+          const fallbackRaw = (fallbackData.data || [])
+            .map(transformArticle)
+            .filter((a) => a.title && a.title.length > 10)
+
+          console.log(`[news] Fallback returned ${fallbackRaw.length} articles`)
+
+          // Deduplicate by title
+          const seen = new Set(articles.map((a) => a.title))
+          for (const a of fallbackRaw) {
+            if (!seen.has(a.title)) {
+              seen.add(a.title)
+              articles.push(a)
+            }
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('[news] Fallback fetch failed:', fallbackErr.message)
+      }
+    }
+
+    // Cap at 10 articles max
+    articles = articles.slice(0, 10)
 
     const result = {
       articles,
@@ -163,7 +209,7 @@ export default async function handler(req, res) {
     if (redis) {
       try {
         await redis.set(CACHE_KEY, JSON.stringify(result), { ex: CACHE_TTL })
-        console.log(`[news] Cached with ${CACHE_TTL}s TTL`)
+        console.log(`[news] Cached ${articles.length} articles with ${CACHE_TTL}s TTL`)
       } catch (err) {
         console.error('[news] Redis SET failed:', err.message)
       }
