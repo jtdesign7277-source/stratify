@@ -264,14 +264,14 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
             </div>
           )}
 
-          <div className="mt-2 pt-2 border-t flex flex-wrap items-center gap-3" style={{ borderColor: T.border }}>
+          <div className="mt-2 pt-2 border-t flex flex-wrap items-center gap-5" style={{ borderColor: T.border }}>
             <button
               type="button"
               onClick={() => void toggleLike()}
-              className="inline-flex items-center gap-1.5 text-base transition-colors hover:text-[#e6edf3]"
+              className="inline-flex items-center gap-1.5 text-sm transition-colors hover:text-[#e6edf3]"
               style={{ color: liked ? T.red : T.muted }}
             >
-              <Heart className="h-[18px] w-[18px]" fill={liked ? 'currentColor' : 'none'} />
+              <Heart className="h-[18px] w-[18px]" strokeWidth={1.5} fill={liked ? 'currentColor' : 'none'} />
               <span>Like</span>
               {likesCount > 0 ? <span className="text-sm" style={{ color: T.muted }}>{likesCount}</span> : null}
             </button>
@@ -279,23 +279,25 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
             <button
               type="button"
               onClick={toggleReplies}
-              className="inline-flex items-center gap-1.5 text-base transition-colors hover:text-[#e6edf3]"
+              className="inline-flex items-center gap-1.5 text-sm transition-colors hover:text-[#e6edf3]"
               style={{ color: T.muted }}
             >
-              <MessageCircle className="h-[18px] w-[18px]" />
+              <MessageCircle className="h-[18px] w-[18px]" strokeWidth={1.5} />
               <span>Reply</span>
               {repliesCount > 0 ? <span className="text-sm" style={{ color: T.muted }}>{repliesCount}</span> : null}
             </button>
 
-            <button
-              type="button"
-              onClick={() => shareToX(post)}
-              className="inline-flex items-center gap-1.5 text-base cursor-pointer transition-colors hover:text-[#e6edf3]"
-              style={{ color: T.muted }}
-            >
-              <XLogoIcon className="h-[18px] w-[18px]" />
-              <span>Share</span>
-            </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => shareToX(post)}
+                className="inline-flex items-center gap-1.5 text-sm cursor-pointer transition-colors hover:text-[#e6edf3]"
+                style={{ color: T.muted }}
+              >
+                <XLogoIcon className="h-[18px] w-[18px]" />
+                <span>Share</span>
+              </button>
+            )}
 
             <ReactionBar
               postId={post.id}

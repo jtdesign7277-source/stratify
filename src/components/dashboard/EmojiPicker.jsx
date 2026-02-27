@@ -361,9 +361,11 @@ const EmojiPicker = ({ onSelect, onClose, align = 'left' }) => {
                         handlePick(emoji);
                       }}
                       title={title}
-                      className="w-9 h-9 flex items-center justify-center text-xl rounded-lg hover:bg-white/10 active:scale-95 transition cursor-pointer"
+                      className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/10 active:scale-95 transition-all duration-150 cursor-pointer group"
                     >
-                      <EmojiGlyph emoji={emoji} size={19} />
+                      <span className="text-xl inline-block transition-transform duration-150 group-hover:scale-110">
+                        <EmojiGlyph emoji={emoji} size={20} />
+                      </span>
                     </button>
                   );
                 })}
