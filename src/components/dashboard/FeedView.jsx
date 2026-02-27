@@ -1,5 +1,5 @@
 // FeedView.jsx — Perplexity Discover-style news feed with article reader
-// Full-width card feed + slide-in article reader overlay
+// Full-width card feed + slide-in article reader overlay (Marketaux API)
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -113,7 +113,7 @@ function FeedSkeleton({ feedName }) {
                   <div className="w-14 h-5 bg-[#1a2538] rounded-full" />
                 </div>
               </div>
-              <div className="w-[40%] min-h-[140px] bg-[#1a2538]" />
+              <div className="w-[40%] h-28 bg-[#1a2538] rounded-r-xl" />
             </div>
           </div>
         ))}
@@ -492,11 +492,11 @@ function NewsCard({ item, index, onClick }) {
 
         {/* Thumbnail */}
         {hasImage && (
-          <div className="w-[40%] min-h-[140px] relative">
+          <div className="w-[40%] h-28 relative flex-shrink-0">
             <CardImage
               src={item.image}
               alt={stripCitations(item.title)}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover rounded-r-xl"
             />
           </div>
         )}

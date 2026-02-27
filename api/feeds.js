@@ -1,10 +1,9 @@
-// api/feeds.js — Real news feed endpoint (Vercel serverless)
-// Uses Claude API with web_search tool to pull actual current news
-// Cache-first with Redis (Upstash) — 7-day TTL
+// api/feeds.js — News feed endpoint powered by Marketaux API
+// Cache-first with Redis (Upstash) — 4-hour TTL
 
 import { Redis } from '@upstash/redis'
 
-const CACHE_TTL = 604800 // 7 days
+const CACHE_TTL = 14400 // 4 hours
 
 const FEED_CATEGORIES = {
   'Market Pulse': [
@@ -36,57 +35,75 @@ const FEED_CATEGORIES = {
 
 const ALL_FEEDS = Object.values(FEED_CATEGORIES).flat()
 
-const FEED_PROMPTS = {
-  Earnings:          'Recent and upcoming earnings reports, beats, misses, and guidance updates for major companies.',
-  Momentum:          'Stocks showing strong directional momentum today — big movers, trend continuations, unusual strength or weakness.',
-  Macro:             'Federal Reserve updates, interest rate expectations, inflation data, GDP, jobs reports, and macroeconomic news.',
-  Options:           'Unusual options activity, large sweeps, notable flow, put/call ratio changes, and options strategy ideas.',
-  Sentiment:         'Market sentiment indicators — VIX movement, fear/greed index, put/call ratios, retail vs institutional flow.',
-  PreMarket:         'Pre-market movers, gap ups and gap downs, overnight catalysts, and early morning trade setups.',
-  AfterHours:        'After-hours earnings movers, post-close news catalysts, and AH volume spikes.',
-  Sectors:           'Sector rotation updates, relative strength between sectors, and sector-specific catalysts.',
-  Indices:           'S&P 500, Nasdaq, Dow Jones, Russell 2000 analysis — key levels, trends, and market structure.',
-  Volume:            'Unusual volume alerts, dark pool prints, block trades, and volume-based signals.',
-  Trending:          'The most talked-about and actively traded tickers across social media and trading platforms right now.',
-  MemeStocks:        'Meme stock activity — GME, AMC, and other retail-favorite stocks. Short squeeze potential, Reddit/WSB sentiment.',
-  Runners:           'Stocks running 10%+ intraday, momentum plays, and multi-day runners with catalysts.',
-  Squeezes:          'Short squeeze setups — high short interest stocks, rising borrow costs, and covering signals.',
-  IPOs:              'Recent and upcoming IPOs, first-day performance, lockup expirations, and new listing analysis.',
-  SPACs:             'SPAC deals, definitive agreement announcements, redemption rates, and post-merger performance.',
-  PennyStocks:       'Sub-$5 stock movers, small cap runners, and micro-cap catalysts. High risk/reward setups.',
-  Breakouts:         'Stocks breaking out of key technical levels — resistance breaks, range expansions, and volume confirmations.',
-  BigTech:           'Apple, Microsoft, Google, Meta, Amazon news — product launches, earnings, regulatory, and market moves.',
-  AI:                'Artificial intelligence stocks and news — NVDA, AI chip demand, model releases, enterprise AI adoption.',
-  Semis:             'Semiconductor industry updates — chip stocks, fab capacity, export controls, SOX index movement.',
-  EVs:               'Electric vehicle stocks — Tesla, Rivian, Lucid, BYD, charging infrastructure, EV sales data.',
-  Fintech:           'Fintech stocks and news — SoFi, Robinhood, Block, PayPal, digital banking, payments innovation.',
-  Biotech:           'Biotech catalysts — FDA approvals, clinical trial results, drug pipeline updates, M&A activity.',
-  SpaceTech:         'Space industry stocks — SpaceX updates, Rocket Lab, satellite companies, defense/space contracts.',
-  FedWatch:          'Federal Reserve watch — FOMC decisions, dot plot analysis, Fed speaker commentary, rate probabilities.',
-  Trump:             'Trump-related market moves — policy announcements, tariffs, deregulation, Truth Social, and political trades.',
-  ElonMusk:          'Elon Musk updates — Tesla, SpaceX, X/Twitter, xAI, Neuralink, DOGE government, and market impact.',
-  Politics:          'Political news affecting markets — elections, legislation, regulatory changes, government spending.',
-  Tariffs:           'Trade war updates — tariff announcements, import/export data, supply chain disruptions, trade deals.',
-  Bonds:             'Bond market updates — Treasury yields, TLT, credit spreads, duration risk, and fixed income analysis.',
-  Commodities:       'Commodity markets — gold, oil, copper, natural gas, agriculture, and supply/demand dynamics.',
-  Forex:             'Currency markets — DXY (dollar index), EUR/USD, USD/JPY, emerging market currencies, central bank moves.',
-  Housing:           'Housing market — mortgage rates, home sales data, REITs, homebuilder stocks, housing affordability.',
-  Jobs:              'Employment data — non-farm payrolls, unemployment rate, jobless claims, hiring trends, wage growth.',
-  Bitcoin:           'Bitcoin news and analysis — BTC price action, ETF flows, halving cycle, institutional adoption, on-chain data.',
-  Ethereum:          'Ethereum updates — ETH price, Layer 2 growth, staking yields, protocol upgrades, DeFi ecosystem.',
-  Altcoins:          'Altcoin movers — SOL, XRP, DOGE, ADA, AVAX, LINK and other top altcoin catalysts and price action.',
-  DeFi:              'Decentralized finance — yield farming, protocol TVL, DEX volume, lending rates, DeFi governance.',
-  CryptoNews:        'Crypto industry news — regulation, exchange updates, adoption milestones, institutional moves.',
-  TechnicalAnalysis: 'Technical analysis setups — chart patterns, indicator signals, support/resistance levels, trend analysis.',
-  Fundamentals:      'Fundamental analysis — valuation metrics, earnings quality, balance sheet strength, DCF models.',
-  DayTrading:        'Day trading setups — scalp plays, tape reading signals, Level 2 action, VWAP plays, opening range.',
-  SwingTrades:       'Swing trade ideas — multi-day setups, pullback entries, trend continuation plays, risk/reward analysis.',
-  Dividends:         'Dividend stocks — high yield plays, ex-dividend dates, dividend aristocrats, income strategies.',
-  RiskManagement:    'Risk management insights — position sizing, stop loss strategies, portfolio hedging, drawdown analysis.',
-  LossPorn:          'Spectacular trading losses and what we can learn from them. Risk management lessons the hard way.',
-  GainPorn:          'Monster trading wins — life-changing trades, big percentage gains, well-executed strategies.',
-  TradingMemes:      'Trading humor — market memes, trader life jokes, Wall Street comedy, and financial satire.',
-  HotTakes:          'Controversial market opinions and bold predictions. Agree or disagree — the spiciest takes on the market.',
+// Map each feed to Marketaux API query parameters
+const FEED_PARAMS = {
+  // Market Pulse
+  Earnings:     { search: 'earnings report beat miss guidance' },
+  Momentum:     { search: 'stock momentum breakout surge rally' },
+  Macro:        { search: 'federal reserve inflation GDP interest rate economic' },
+  Options:      { search: 'options activity unusual volume calls puts' },
+  Sentiment:    { search: 'market sentiment fear greed VIX indicator' },
+  PreMarket:    { search: 'premarket movers gap up gap down futures' },
+  AfterHours:   { search: 'after hours trading earnings movers' },
+  Sectors:      { search: 'sector rotation performance energy tech healthcare' },
+  Indices:      { search: 'S&P 500 Nasdaq Dow Jones index market' },
+  Volume:       { search: 'unusual volume dark pool block trade' },
+  // Hot & Trending
+  Trending:     { sort: 'entity_match_score', search: 'stock market trending' },
+  MemeStocks:   { symbols: 'GME,AMC,BB,BBBY,PLTR,SOFI', search: 'meme stock retail trader' },
+  Runners:      { search: 'stock runner surge 10 percent breakout catalyst' },
+  Squeezes:     { search: 'short squeeze short interest covering rally' },
+  IPOs:         { search: 'IPO initial public offering listing debut' },
+  SPACs:        { search: 'SPAC merger acquisition deal blank check' },
+  PennyStocks:  { search: 'penny stock small cap micro cap low price' },
+  Breakouts:    { search: 'breakout resistance technical level all time high' },
+  // Tech & Innovation
+  BigTech:      { symbols: 'AAPL,MSFT,GOOGL,META,AMZN', search: 'big tech' },
+  AI:           { symbols: 'NVDA,AMD,MSFT,GOOGL', search: 'artificial intelligence AI chip' },
+  Semis:        { symbols: 'NVDA,AMD,INTC,TSM,AVGO', search: 'semiconductor chip' },
+  EVs:          { symbols: 'TSLA,RIVN,LCID,NIO,LI', search: 'electric vehicle EV' },
+  Fintech:      { symbols: 'SOFI,HOOD,SQ,PYPL', search: 'fintech digital banking payments' },
+  Biotech:      { search: 'biotech FDA approval clinical trial drug' },
+  SpaceTech:    { symbols: 'RKLB,ASTS,LUNR', search: 'space rocket satellite launch' },
+  // Macro & Politics
+  FedWatch:     { search: 'Federal Reserve FOMC rate decision Powell' },
+  Trump:        { search: 'Trump tariff policy executive order market' },
+  ElonMusk:     { symbols: 'TSLA', search: 'Elon Musk Tesla SpaceX DOGE' },
+  Politics:     { search: 'politics regulation legislation government market' },
+  Tariffs:      { search: 'tariff trade war import export duty' },
+  Bonds:        { search: 'treasury bond yield interest rate TLT' },
+  Commodities:  { search: 'gold oil copper commodity prices' },
+  Forex:        { search: 'forex currency dollar euro yen exchange rate' },
+  Housing:      { search: 'housing market mortgage rate home sales REIT' },
+  Jobs:         { search: 'jobs employment payroll unemployment hiring' },
+  // Crypto
+  Bitcoin:      { search: 'bitcoin BTC crypto price ETF' },
+  Ethereum:     { search: 'ethereum ETH crypto DeFi layer 2' },
+  Altcoins:     { search: 'altcoin solana XRP dogecoin cardano crypto' },
+  DeFi:         { search: 'DeFi decentralized finance yield staking TVL' },
+  CryptoNews:   { search: 'cryptocurrency regulation exchange adoption' },
+  // Strategy & Education
+  TechnicalAnalysis: { search: 'technical analysis chart pattern support resistance' },
+  Fundamentals:      { search: 'fundamental analysis valuation earnings PE ratio' },
+  DayTrading:        { search: 'day trading scalp VWAP opening range' },
+  SwingTrades:       { search: 'swing trade pullback entry setup multi day' },
+  Dividends:         { search: 'dividend yield ex-dividend aristocrat income' },
+  RiskManagement:    { search: 'risk management stop loss position sizing hedge' },
+  // Culture & Vibes
+  LossPorn:     { search: 'trading loss portfolio crash mistake lesson' },
+  GainPorn:     { search: 'trading win profit gain rally return' },
+  TradingMemes: { search: 'stock market meme Wall Street humor trading' },
+  HotTakes:     { search: 'market prediction forecast bold opinion controversial' },
+}
+
+// Default category assignment based on feed name
+const FEED_DEFAULT_CATEGORY = {
+  Earnings: 'EARNINGS', AfterHours: 'EARNINGS',
+  FedWatch: 'REGULATORY', Politics: 'REGULATORY', Tariffs: 'REGULATORY',
+  TechnicalAnalysis: 'ANALYSIS', Fundamentals: 'ANALYSIS', Breakouts: 'ANALYSIS',
+  SwingTrades: 'ANALYSIS', DayTrading: 'ANALYSIS', RiskManagement: 'ANALYSIS',
+  Sentiment: 'DATA', Volume: 'DATA', Indices: 'DATA',
+  PreMarket: 'ALERT', Squeezes: 'ALERT', Runners: 'ALERT',
 }
 
 function getRedis() {
@@ -96,19 +113,87 @@ function getRedis() {
   return new Redis({ url, token })
 }
 
-// Extract text blocks from Claude's web_search response
-function extractTextFromResponse(content) {
-  if (!Array.isArray(content)) return ''
-  return content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('\n')
+// Strip HTML tags from text
+function stripHtml(text) {
+  if (!text) return ''
+  return text.replace(/<\/?[^>]+(>|$)/g, '').trim()
 }
 
-// Strip <cite> tags and any other HTML from text fields
-function stripCitations(text) {
-  if (!text) return ''
-  return text.replace(/<\/?cite[^>]*>/g, '').replace(/<\/?[^>]+(>|$)/g, '').trim()
+// Convert published_at (ISO string) to relative time
+function relativeTime(publishedAt) {
+  if (!publishedAt) return ''
+  try {
+    const now = Date.now()
+    const then = new Date(publishedAt).getTime()
+    const diffMs = now - then
+    const diffMin = Math.floor(diffMs / 60000)
+    const diffHr = Math.floor(diffMs / 3600000)
+    const diffDay = Math.floor(diffMs / 86400000)
+
+    if (diffMin < 60) return `${diffMin}m ago`
+    if (diffHr < 24) return `${diffHr}h ago`
+    if (diffDay < 7) return `${diffDay}d ago`
+    if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`
+    return `${Math.floor(diffDay / 30)}mo ago`
+  } catch (_) {
+    return ''
+  }
+}
+
+// Derive sentiment from entity sentiment scores
+function deriveSentiment(entities) {
+  if (!entities || entities.length === 0) return 'neutral'
+  const scores = entities
+    .map(e => e.sentiment_score)
+    .filter(s => typeof s === 'number')
+  if (scores.length === 0) return 'neutral'
+  const avg = scores.reduce((a, b) => a + b, 0) / scores.length
+  if (avg > 0.3) return 'bullish'
+  if (avg < -0.3) return 'bearish'
+  return 'neutral'
+}
+
+// Extract tickers from entities
+function extractTickers(entities) {
+  if (!entities || entities.length === 0) return []
+  return entities
+    .filter(e => e.symbol && e.symbol.length <= 5)
+    .map(e => `$${e.symbol}`)
+    .filter((v, i, a) => a.indexOf(v) === i) // dedupe
+    .slice(0, 6)
+}
+
+// Determine category from article content/feed
+function categorize(article, feedName) {
+  const defaultCat = FEED_DEFAULT_CATEGORY[feedName] || 'NEWS'
+  const text = `${article.title || ''} ${article.description || ''}`.toLowerCase()
+
+  if (text.match(/earn|revenue|eps|guidance|beat|miss|quarter|q[1-4]/)) return 'EARNINGS'
+  if (text.match(/fda|regulat|sec |antitrust|legislation|policy|law/)) return 'REGULATORY'
+  if (text.match(/alert|warning|crash|halt|circuit breaker|emergency/)) return 'ALERT'
+  if (text.match(/data|report|survey|index|statistic|numbers|payroll/)) return 'DATA'
+  if (text.match(/analysis|forecast|outlook|predict|estimate|valuation/)) return 'ANALYSIS'
+
+  return defaultCat
+}
+
+// Transform Marketaux article to our feed item format
+function transformArticle(article, feedName) {
+  const entities = article.entities || []
+  const tickers = extractTickers(entities)
+
+  return {
+    title: stripHtml(article.title || '').slice(0, 100),
+    summary: stripHtml(article.description || '').slice(0, 200),
+    source: article.source || 'Unknown',
+    url: article.url || null,
+    image: (article.image_url && article.image_url.startsWith('http')) ? article.image_url : null,
+    ticker: tickers.length > 0 ? tickers[0] : null,
+    tickers,
+    sentiment: deriveSentiment(entities),
+    time: relativeTime(article.published_at),
+    category: categorize(article, feedName),
+  }
 }
 
 export default async function handler(req, res) {
@@ -137,7 +222,7 @@ export default async function handler(req, res) {
 
   console.log(`[feeds] Requested: #${feed}`)
 
-  // Step 1: Redis cache check
+  // Redis cache
   let redis
   try {
     redis = getRedis()
@@ -145,7 +230,7 @@ export default async function handler(req, res) {
     console.error('[feeds] Redis init failed:', err.message)
   }
 
-  const cacheKey = `feed:v2:${feed.toLowerCase()}`
+  const cacheKey = `feed:v3:${feed.toLowerCase()}`
 
   // Flush cache if requested
   if (flush === 'true' && redis) {
@@ -171,100 +256,51 @@ export default async function handler(req, res) {
     }
   }
 
-  // Step 2: Call Claude API with web_search tool for real news
-  const topicPrompt = FEED_PROMPTS[feed] || `Trending content about ${feed} in the stock market.`
+  // Fetch from Marketaux API
+  const apiKey = process.env.MARKETAUX_API_KEY
+  if (!apiKey) {
+    return res.status(500).json({ error: 'MARKETAUX_API_KEY not configured', feed, items: [] })
+  }
+
+  const feedParams = FEED_PARAMS[feed] || { search: feed }
 
   try {
-    console.log(`[feeds] Calling Claude API with web_search for #${feed}...`)
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8192,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{
-          role: 'user',
-          content: `You are a financial news curator. Your ONLY job is to find news specifically about: ${topicPrompt}
+    const params = new URLSearchParams({
+      api_token: apiKey,
+      language: 'en',
+      limit: '15',
+    })
 
-CRITICAL CONSTRAINT: You MUST only return results specifically about the topic above. Do NOT include general market news, unrelated stories, or tangentially related content. Every single result must be directly and specifically about this exact topic.
+    if (feedParams.search) params.set('search', feedParams.search)
+    if (feedParams.symbols) params.set('symbols', feedParams.symbols)
+    if (feedParams.sort) params.set('sort', feedParams.sort)
 
-Search the web for the latest real news about this specific topic. Find 8-12 current, real news stories from the past few days.
+    // Get articles from last 3 days
+    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0]
+    params.set('published_after', threeDaysAgo)
 
-After searching, return ONLY a valid JSON array (no markdown, no backticks, no explanation before or after). Each item must have:
-- "title": real headline (max 80 chars)
-- "summary": 1-2 sentence summary of the actual article (max 120 chars)
-- "source": real source name (e.g. "Reuters", "Bloomberg", "CNBC", "WSJ", "Yahoo Finance", "MarketWatch")
-- "url": the actual URL of the article (or null if unavailable)
-- "image": the og:image or thumbnail URL from the source article if visible in search results, or null if unavailable. IMPORTANT: Try to find image URLs for as many articles as possible.
-- "ticker": primary relevant ticker with $ prefix (e.g. "$NVDA") or null
-- "tickers": array of all relevant tickers mentioned (e.g. ["$NVDA", "$AMD", "$TSM"])
-- "sentiment": "bullish", "bearish", or "neutral"
-- "time": relative time like "2h ago", "5h ago", "1d ago", "2d ago"
-- "category": one of "NEWS", "ANALYSIS", "DATA", "ALERT", "EARNINGS", "REGULATORY"
+    const url = `https://api.marketaux.com/v1/news/all?${params.toString()}`
+    console.log(`[feeds] Fetching Marketaux for #${feed}...`)
 
-Return real news only. No fabricated stories. JSON array only.
-Do NOT include any citation tags, HTML tags, or markdown in your response. Plain text only in title and summary fields.
-REMINDER: Every result MUST be specifically about "${feed}" — reject anything off-topic.`
-        }],
-      }),
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
     })
 
     if (!response.ok) {
       const body = await response.text()
-      console.error(`[feeds] Claude API ${response.status}:`, body)
-      throw new Error(`Claude API ${response.status}: ${body}`)
+      console.error(`[feeds] Marketaux ${response.status}:`, body.substring(0, 300))
+      throw new Error(`Marketaux API ${response.status}`)
     }
 
     const data = await response.json()
+    const articles = data.data || []
 
-    // Log stop reason and block summary for debugging
-    const blockSummary = (data.content || []).map(b => b.type).join(', ')
-    console.log(`[feeds] stop_reason=${data.stop_reason}, blocks=[${blockSummary}], model=${data.model}`)
+    console.log(`[feeds] Marketaux returned ${articles.length} articles for #${feed}`)
 
-    // web_search responses have multiple content blocks (search results + text)
-    // Extract only text blocks and parse the JSON from them
-    const textContent = extractTextFromResponse(data.content)
-    console.log(`[feeds] Text content length: ${textContent.length}`)
-
-    if (!textContent || textContent.trim().length === 0) {
-      console.error(`[feeds] Empty text response. stop_reason=${data.stop_reason}, blocks=${blockSummary}`)
-      console.error(`[feeds] Usage: input=${data.usage?.input_tokens}, output=${data.usage?.output_tokens}`)
-      throw new Error(`Claude returned no text (stop_reason=${data.stop_reason}, ${(data.content || []).length} blocks)`)
-    }
-
-    const clean = textContent.replace(/```json|```/g, '').trim()
-
-    // Find the JSON array in the text — it might have surrounding text
-    let jsonMatch = clean.match(/\[[\s\S]*\]/)
-
-    if (!jsonMatch) {
-      console.error(`[feeds] No JSON array. Text (first 500 chars):`, clean.substring(0, 500))
-      throw new Error('No JSON array found in Claude response')
-    }
-
-    const items = JSON.parse(jsonMatch[0])
-
-    // Strip citation tags from all text fields
-    items.forEach(item => {
-      item.title = stripCitations(item.title)
-      item.summary = stripCitations(item.summary)
-      // Validate image URL — must be a real http(s) URL or null
-      if (item.image && typeof item.image === 'string') {
-        item.image = item.image.trim()
-        if (!item.image.startsWith('http://') && !item.image.startsWith('https://')) {
-          item.image = null
-        }
-      } else {
-        item.image = null
-      }
-    })
-
-    console.log(`[feeds] Parsed ${items.length} news items for #${feed}`)
+    // Transform to our format
+    const items = articles
+      .map(a => transformArticle(a, feed))
+      .filter(item => item.title && item.title.length > 10)
 
     const result = {
       feed,
@@ -273,7 +309,7 @@ REMINDER: Every result MUST be specifically about "${feed}" — reject anything 
       itemCount: items.length,
     }
 
-    // Step 3: Cache the result
+    // Cache the result
     if (redis) {
       try {
         await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL })
@@ -301,7 +337,6 @@ REMINDER: Every result MUST be specifically about "${feed}" — reject anything 
     return res.status(500).json({
       error: 'Failed to fetch feed',
       details: err.message,
-      step: 'claude-web-search',
       feed,
       items: [],
     })
