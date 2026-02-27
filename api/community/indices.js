@@ -1,6 +1,5 @@
 // api/community/indices.js
-// Returns quotes + intraday sparklines for S&P 500, NASDAQ, Dow Jones, VIX
-// Uses Twelve Data index symbols with candidate fallbacks.
+// Returns quotes + intraday sparklines for SPY, QQQ, DIA, BTC/USD
 
 const TD_BASE = 'https://api.twelvedata.com';
 const SPARKLINE_POINTS = 78; // full trading day at 5-min intervals
@@ -14,39 +13,11 @@ const getApiKey = () =>
     ''
   ).trim();
 
-// Each index gets a list of candidate symbols to try in order.
-// Twelve Data accepts SPX, IXIC, DJI, VIX for major US indices.
-// We also include the more common Yahoo-style ^-prefixed versions as fallbacks,
-// plus the ETF proxies as last resort so the card always has data.
 const INDICES = [
-  {
-    key: 'SPX',
-    label: 'S&P 500',
-    candidates: ['SPX', '^GSPC', 'SPY'],
-    etfFallback: 'SPY',
-    etfMultiplier: 10, // SPY ≈ SPX / 10
-  },
-  {
-    key: 'IXIC',
-    label: 'NASDAQ',
-    candidates: ['IXIC', '^IXIC', 'QQQ'],
-    etfFallback: 'QQQ',
-    etfMultiplier: null,
-  },
-  {
-    key: 'DJI',
-    label: 'Dow Jones',
-    candidates: ['DJI', '^DJI', 'DIA'],
-    etfFallback: 'DIA',
-    etfMultiplier: 100, // DIA ≈ DJI / 100
-  },
-  {
-    key: 'VIX',
-    label: 'VIX',
-    candidates: ['VIX', '^VIX'],
-    etfFallback: null,
-    etfMultiplier: null,
-  },
+  { key: 'SPY',     label: 'SPY',  symbol: 'SPY'     },
+  { key: 'QQQ',     label: 'QQQ',  symbol: 'QQQ'     },
+  { key: 'DIA',     label: 'DIA',  symbol: 'DIA'     },
+  { key: 'BTC/USD', label: 'BTC',  symbol: 'BTC/USD' },
 ];
 
 const toNum = (v) => {
@@ -64,30 +35,24 @@ async function tdFetch(path, params) {
   return data;
 }
 
-// Fetch a single quote, trying each candidate symbol until one returns a valid price.
-async function fetchQuoteWithFallback(candidates) {
-  for (const sym of candidates) {
-    try {
-      const data = await tdFetch('/quote', { symbol: sym });
-      if (!data || data.status === 'error' || !data.close) continue;
-      const price = toNum(data.close);
-      if (!price) continue;
-      return {
-        resolvedSymbol: sym,
-        price,
-        change: toNum(data.change) ?? 0,
-        pct: toNum(data.percent_change) ?? 0,
-        open: toNum(data.open) ?? price,
-        name: data.name || sym,
-      };
-    } catch {
-      // try next
-    }
+async function fetchQuote(symbol) {
+  try {
+    const data = await tdFetch('/quote', { symbol });
+    if (!data || data.status === 'error' || !data.close) return null;
+    const price = toNum(data.close);
+    if (!price) return null;
+    return {
+      price,
+      change: toNum(data.change) ?? 0,
+      pct:    toNum(data.percent_change) ?? 0,
+      open:   toNum(data.open) ?? price,
+      name:   data.name || symbol,
+    };
+  } catch {
+    return null;
   }
-  return null;
 }
 
-// Fetch intraday sparkline (close prices oldest→newest).
 async function fetchSparkline(symbol) {
   try {
     const data = await tdFetch('/time_series', {
@@ -119,28 +84,16 @@ export default async function handler(req, res) {
   try {
     const results = await Promise.all(
       INDICES.map(async (idx) => {
-        const quote = await fetchQuoteWithFallback(idx.candidates);
-
-        // If no index quote, card returns null price
-        if (!quote) {
-          return { key: idx.key, label: idx.label, quote: null, sparkline: [] };
-        }
-
-        // Fetch sparkline using the resolved symbol
-        const sparkline = await fetchSparkline(quote.resolvedSymbol);
+        const [quote, sparkline] = await Promise.all([
+          fetchQuote(idx.symbol),
+          fetchSparkline(idx.symbol),
+        ]);
 
         return {
-          key: idx.key,
-          label: idx.label,
-          resolvedSymbol: quote.resolvedSymbol,
-          quote: {
-            price:  quote.price,
-            change: quote.change,
-            pct:    quote.pct,
-            open:   quote.open,
-            name:   quote.name,
-          },
-          sparkline,
+          key:      idx.key,
+          label:    idx.label,
+          quote:    quote ?? null,
+          sparkline: sparkline ?? [],
         };
       })
     );

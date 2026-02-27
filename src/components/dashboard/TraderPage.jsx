@@ -2930,7 +2930,7 @@ export default function TraderPage({
           )}
         </aside>
 
-        <section className="flex min-h-0 overflow-hidden">
+        <section className="flex flex-1 min-h-0 overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
               <div>

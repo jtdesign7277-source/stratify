@@ -4,10 +4,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // Display order — keys must match what the serverless function returns
 const INDICES = [
-  { label: 'S&P 500',   key: 'SPX'  },
-  { label: 'NASDAQ',    key: 'IXIC' },
-  { label: 'Dow Jones', key: 'DJI'  },
-  { label: 'VIX',       key: 'VIX'  },
+  { label: 'SPY',     subtitle: 'S&P 500 ETF',     key: 'SPY'     },
+  { label: 'QQQ',     subtitle: 'NASDAQ 100 ETF',   key: 'QQQ'     },
+  { label: 'DIA',     subtitle: 'Dow Jones ETF',    key: 'DIA'     },
+  { label: 'BTC',     subtitle: 'Bitcoin',          key: 'BTC/USD' },
 ];
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -106,11 +106,12 @@ function Sparkline({ prices, openPrice, positive, height = 56 }) {
 
 // ── Single Index Card ─────────────────────────────────────────────────────────
 
-function IndexCard({ label, symbol, quote, sparkline }) {
+function IndexCard({ label, subtitle, symbol, quote, sparkline }) {
   if (!quote) {
     return (
       <div className="bg-[#161b22] border border-white/10 rounded-xl p-4 relative overflow-hidden flex flex-col gap-1">
-        <div className="text-xs font-medium uppercase tracking-wide text-[#7d8590]">{label}</div>
+        <div className="text-xs font-bold uppercase tracking-wide text-[#e6edf3]">{label}</div>
+        {subtitle && <div className="text-[10px] text-[#7d8590]">{subtitle}</div>}
         <div className="text-xl font-bold font-mono text-[#7d8590]">—</div>
         <div className="h-[56px] mt-2" />
       </div>
@@ -144,13 +145,16 @@ function IndexCard({ label, symbol, quote, sparkline }) {
   return (
     <div className="bg-[#161b22] border border-white/10 rounded-xl p-4 relative overflow-hidden flex flex-col">
       {/* Top row: label + % change */}
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-medium uppercase tracking-wide text-[#7d8590]">{label}</span>
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-xs font-bold uppercase tracking-wide text-[#e6edf3]">{label}</span>
         <span className={`text-sm font-semibold ${pctColor} flex items-center gap-0.5`}>
           <span className="text-base leading-none">{arrow}</span>
           {fmtPct(pct)}
         </span>
       </div>
+
+      {/* Subtitle */}
+      {subtitle && <div className="text-[10px] text-[#7d8590] mb-1">{subtitle}</div>}
 
       {/* Price */}
       <div className="text-xl font-bold font-mono text-[#e6edf3] leading-tight mb-0.5">
@@ -224,10 +228,11 @@ export default function IndexCards() {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {INDICES.map(({ label, key }) => (
+      {INDICES.map(({ label, subtitle, key }) => (
         <IndexCard
           key={key}
           label={label}
+          subtitle={subtitle}
           symbol={key}
           quote={quotes[key] ?? null}
           sparkline={sparklines[key] ?? []}
