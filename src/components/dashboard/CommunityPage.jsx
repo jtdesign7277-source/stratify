@@ -135,6 +135,7 @@ import FeedCustomizerModal from './community/FeedCustomizerModal';
 import { HistoryView, DiscoverView, SpacesView, FinanceView, RightSidebar } from './community/ExploreViews';
 import LeftRail from './community/LeftRail';
 import StockDetailView from './community/StockDetailView';
+import PriceAlertToasts from './community/PriceAlertToasts';
 
 // ─── Main Community Page ──────────────────────────────────
 const CommunityPage = ({ tradeHistory = [] }) => {
@@ -276,6 +277,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         targetPrice: alert.targetPrice,
         direction: alert.direction,
         price: Number.isFinite(normalizedPrice) ? normalizedPrice : toMaybeFiniteNumber(alert.targetPrice),
+        triggeredAt: Date.now(),
       },
     ]));
 
@@ -1251,6 +1253,11 @@ const CommunityPage = ({ tradeHistory = [] }) => {
             />
 
             <div className="flex-1 min-w-0 min-h-0 overflow-y-hidden overflow-x-visible flex flex-col">
+              {/* Price alert toasts — overlaid on left edge of center area */}
+              <div className="relative">
+                <PriceAlertToasts toasts={alertToasts} onDismiss={dismissAlertToast} />
+              </div>
+
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
                 <div className="w-[92px] flex-shrink-0" aria-hidden />
 
@@ -1567,40 +1574,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         onToggle={toggleFeedEnabled}
       />
 
-      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
-        <AnimatePresence initial={false}>
-          {alertToasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              layout
-              initial={{ opacity: 0, x: 100 }}
-              animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 280, damping: 24 } }}
-              exit={{ opacity: 0, x: 50, transition: { duration: 0.3 } }}
-              className="bg-[#0d1117] border border-[#58a6ff]/30 rounded-xl px-4 py-3 shadow-2xl shadow-[#58a6ff]/10 flex items-center gap-3 min-w-[280px] pointer-events-auto"
-            >
-              <Bell className="w-5 h-5 text-[#58a6ff] alert-toast-bell" strokeWidth={1.5} />
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-[#e6edf3] truncate">
-                  {toast.ticker} hit ${Number.isFinite(toMaybeFiniteNumber(toast.price)) ? Number(toMaybeFiniteNumber(toast.price)).toFixed(2) : '--'}!
-                </div>
-                <div className="text-xs">
-                  <span className={toast.direction === 'above' ? 'text-[#3fb950]' : 'text-[#f85149]'}>
-                    {toast.direction === 'above' ? '↑ Above' : '↓ Below'}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => dismissAlertToast(toast.id)}
-                className="ml-auto text-[#7d8590] hover:text-[#e6edf3] transition"
-                aria-label="Close alert notification"
-              >
-                <X className="w-3.5 h-3.5" strokeWidth={1.5} />
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
     </div>
   );
 };
