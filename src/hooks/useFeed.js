@@ -9,7 +9,7 @@ const feedCache = new Map()
 const inFlight = new Map()
 
 export function useFeed(feedName) {
-  const [posts, setPosts] = useState([])
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [source, setSource] = useState(null)
@@ -26,7 +26,7 @@ export function useFeed(feedName) {
     // 1. Check in-memory cache (instant)
     const cached = feedCache.get(feed)
     if (cached && Date.now() - cached.timestamp < 300000) { // 5 min local cache
-      setPosts(cached.posts)
+      setItems(cached.items)
       setSource('memory')
       setLoading(false)
       return
@@ -38,7 +38,7 @@ export function useFeed(feedName) {
       try {
         const data = await inFlight.get(feed)
         if (mountedRef.current) {
-          setPosts(data.posts || [])
+          setItems(data.items || data.posts || [])
           setSource(data.source || 'dedup')
           setLoading(false)
         }
@@ -58,6 +58,7 @@ export function useFeed(feedName) {
     const promise = fetch(`/api/feeds?feed=${encodeURIComponent(feed)}`)
       .then(async (res) => {
         const data = await res.json()
+        console.log(`[useFeed] #${feed} response:`, { keys: Object.keys(data), itemCount: (data.items || data.posts || []).length, source: data.source })
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
         return data
       })
@@ -70,21 +71,21 @@ export function useFeed(feedName) {
     try {
       const data = await promise
       if (mountedRef.current) {
-        const feedPosts = data.posts || []
-        setPosts(feedPosts)
+        const feedItems = data.items || data.posts || []
+        setItems(feedItems)
         setSource(data.source || 'api')
         setLoading(false)
 
         // Store in memory cache
         feedCache.set(feed, {
-          posts: feedPosts,
+          items: feedItems,
           timestamp: Date.now(),
         })
       }
     } catch (err) {
       if (mountedRef.current) {
         setError(err.message)
-        setPosts([])
+        setItems([])
         setLoading(false)
       }
     }
@@ -99,7 +100,8 @@ export function useFeed(feedName) {
     fetchFeed(feedName)
   }, [feedName, fetchFeed])
 
-  return { posts, loading, error, source, refresh }
+  // Return as both "items" and "posts" for backwards compat
+  return { items, posts: items, loading, error, source, refresh }
 }
 
 // Preload feeds for fast switching
@@ -107,19 +109,16 @@ export function usePreloadFeeds(feeds) {
   useEffect(() => {
     if (!feeds || feeds.length === 0) return
 
-    // Fire preload in background
-    fetch(`/api/feeds-preload?feeds=${feeds.join(',')}`)
-      .catch(() => {}) // Silent fail
-
-    // Also start fetching each feed that's not in memory cache
+    // Start fetching each feed that's not in memory cache
     feeds.forEach(feed => {
       if (!feedCache.has(feed)) {
         fetch(`/api/feeds?feed=${encodeURIComponent(feed)}`)
           .then(r => r.json())
           .then(data => {
-            if (data.posts) {
+            const feedItems = data.items || data.posts || []
+            if (feedItems.length > 0) {
               feedCache.set(feed, {
-                posts: data.posts,
+                items: feedItems,
                 timestamp: Date.now(),
               })
             }
