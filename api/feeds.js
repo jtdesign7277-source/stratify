@@ -105,12 +105,18 @@ function extractTextFromResponse(content) {
     .join('\n')
 }
 
+// Strip <cite> tags and any other HTML from text fields
+function stripCitations(text) {
+  if (!text) return ''
+  return text.replace(/<\/?cite[^>]*>/g, '').replace(/<\/?[^>]+(>|$)/g, '').trim()
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  const { feed, action } = req.query
+  const { feed, action, flush } = req.query
 
   // Action: list — return all feeds with categories
   if (action === 'list') {
@@ -141,7 +147,17 @@ export default async function handler(req, res) {
 
   const cacheKey = `feed:v2:${feed.toLowerCase()}`
 
-  if (redis) {
+  // Flush cache if requested
+  if (flush === 'true' && redis) {
+    try {
+      await redis.del(cacheKey)
+      console.log(`[feeds] Cache FLUSHED for #${feed}`)
+    } catch (err) {
+      console.error('[feeds] Redis DEL failed:', err.message)
+    }
+  }
+
+  if (redis && flush !== 'true') {
     try {
       const cached = await redis.get(cacheKey)
       if (cached) {
@@ -188,7 +204,8 @@ After searching, return ONLY a valid JSON array (no markdown, no backticks, no e
 - "time": relative time like "2h ago", "5h ago", "1d ago", "2d ago"
 - "category": one of "NEWS", "ANALYSIS", "DATA", "ALERT", "EARNINGS", "REGULATORY"
 
-Return real news only. No fabricated stories. JSON array only.`
+Return real news only. No fabricated stories. JSON array only.
+Do NOT include any citation tags, HTML tags, or markdown in your response. Plain text only in title and summary fields.`
         }],
       }),
     })
@@ -215,6 +232,13 @@ Return real news only. No fabricated stories. JSON array only.`
     }
 
     const items = JSON.parse(jsonMatch[0])
+
+    // Strip citation tags from all text fields
+    items.forEach(item => {
+      item.title = stripCitations(item.title)
+      item.summary = stripCitations(item.summary)
+    })
+
     console.log(`[feeds] Parsed ${items.length} news items for #${feed}`)
 
     const result = {

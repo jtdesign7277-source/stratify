@@ -1,12 +1,38 @@
-// FeedTickerPanel.jsx — Terminal-pro styled ticker panel for feed view
-// Clean table layout: SYMBOL | PRICE | CHG%
+// FeedTickerPanel.jsx — Terminal-pro ticker panel with mini sparklines
 // Uses /api/stocks for real Twelve Data prices
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart2, Zap } from 'lucide-react'
 
-// Default tickers per feed
+const COMPANY_NAMES = {
+  AAPL: 'Apple Inc.', MSFT: 'Microsoft', NVDA: 'NVIDIA', GOOGL: 'Alphabet',
+  AMZN: 'Amazon', META: 'Meta Platforms', TSLA: 'Tesla', NFLX: 'Netflix',
+  AMD: 'AMD', SPY: 'SPDR S&P 500', QQQ: 'Invesco QQQ', TLT: 'iShares 20+ Treasury',
+  GLD: 'SPDR Gold', IWM: 'iShares Russell 2000', COIN: 'Coinbase',
+  PLTR: 'Palantir', SOFI: 'SoFi Technologies', SMCI: 'Super Micro',
+  GME: 'GameStop', AMC: 'AMC Entertainment', MSTR: 'MicroStrategy',
+  INTC: 'Intel', AVGO: 'Broadcom', BB: 'BlackBerry', HOOD: 'Robinhood',
+  RIVN: 'Rivian', DJT: 'Trump Media', XBI: 'Biotech ETF', SCHD: 'Schwab Dividend',
+  TSM: 'TSMC', QCOM: 'Qualcomm', MU: 'Micron', LRCX: 'Lam Research',
+  MRNA: 'Moderna', BNTX: 'BioNTech', REGN: 'Regeneron', VRTX: 'Vertex',
+  AMGN: 'Amgen', BIIB: 'Biogen', GILD: 'Gilead', RKLB: 'Rocket Lab',
+  NIO: 'NIO Inc.', LI: 'Li Auto', XPEV: 'XPeng', LCID: 'Lucid Motors',
+  SQ: 'Block Inc.', PYPL: 'PayPal', AFRM: 'Affirm', NU: 'Nu Holdings',
+  DIA: 'SPDR Dow Jones', VTI: 'Vanguard Total', EFA: 'iShares MSCI EAFE',
+  EEM: 'iShares Emerging', XLK: 'Tech Select', XLF: 'Financial Select',
+  XLE: 'Energy Select', XLV: 'Health Care Select', XLI: 'Industrial Select',
+  USO: 'US Oil Fund', UUP: 'US Dollar Index', HYG: 'High Yield Bond',
+  SLV: 'iShares Silver', UNG: 'US Natural Gas', BND: 'Vanguard Bond',
+  RIOT: 'Riot Platforms', MARA: 'Marathon Digital', BITO: 'ProShares Bitcoin',
+  VYM: 'Vanguard High Div', JEPI: 'JPMorgan Equity', KO: 'Coca-Cola',
+  PEP: 'PepsiCo', JNJ: 'Johnson & Johnson', PG: 'Procter & Gamble',
+  JPM: 'JPMorgan Chase', V: 'Visa', UNH: 'UnitedHealth',
+  'BTC-USD': 'Bitcoin', 'ETH-USD': 'Ethereum', 'SOL-USD': 'Solana',
+  'XRP-USD': 'Ripple', 'DOGE-USD': 'Dogecoin', 'ADA-USD': 'Cardano',
+  'AVAX-USD': 'Avalanche', 'LINK-USD': 'Chainlink', 'DOT-USD': 'Polkadot',
+}
+
 const FEED_TICKERS = {
   Earnings:          ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NFLX'],
   Momentum:          ['SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AMD', 'SMCI', 'PLTR'],
@@ -19,9 +45,9 @@ const FEED_TICKERS = {
   Indices:           ['SPY', 'QQQ', 'DIA', 'IWM', 'VTI', 'MDY', 'EFA', 'EEM'],
   Volume:            ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'AMC', 'SOFI'],
   Trending:          ['NVDA', 'TSLA', 'AAPL', 'AMD', 'PLTR', 'SOFI', 'SMCI', 'META'],
-  MemeStocks:        ['GME', 'AMC', 'BB', 'KOSS', 'SOFI', 'PLTR', 'HOOD', 'BBBY'],
+  MemeStocks:        ['GME', 'AMC', 'BB', 'KOSS', 'SOFI', 'PLTR', 'HOOD'],
   Runners:           ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AMD', 'SMCI', 'PLTR', 'SOFI'],
-  Squeezes:          ['GME', 'AMC', 'KOSS', 'SOFI', 'HOOD', 'BBBY', 'AAPL', 'SPY'],
+  Squeezes:          ['GME', 'AMC', 'KOSS', 'SOFI', 'HOOD', 'AAPL', 'SPY'],
   IPOs:              ['SPY', 'QQQ', 'RIVN', 'HOOD', 'ARM', 'CART', 'BIRK', 'DUOL'],
   SPACs:             ['SPY', 'SOFI', 'LCID', 'QQQ', 'IWM', 'HOOD', 'PLTR', 'RIVN'],
   PennyStocks:       ['SOFI', 'PLTR', 'BB', 'NOK', 'FUBO', 'CLOV', 'HOOD', 'AMC'],
@@ -54,10 +80,49 @@ const FEED_TICKERS = {
   SwingTrades:       ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL', 'MSFT', 'AMD', 'AMZN'],
   Dividends:         ['SCHD', 'VYM', 'O', 'JEPI', 'KO', 'PEP', 'JNJ', 'PG'],
   RiskManagement:    ['SPY', 'QQQ', 'TLT', 'GLD', 'AAPL', 'NVDA', 'SH', 'SQQQ'],
-  LossPorn:          ['GME', 'AMC', 'TSLA', 'NVDA', 'SPY', 'QQQ', 'HOOD', 'BBBY'],
+  LossPorn:          ['GME', 'AMC', 'TSLA', 'NVDA', 'SPY', 'QQQ', 'HOOD'],
   GainPorn:          ['TSLA', 'NVDA', 'GME', 'AMD', 'SMCI', 'PLTR', 'COIN', 'MSTR'],
-  TradingMemes:      ['GME', 'AMC', 'TSLA', 'SPY', 'HOOD', 'SOFI', 'BBBY', 'PLTR'],
+  TradingMemes:      ['GME', 'AMC', 'TSLA', 'SPY', 'HOOD', 'SOFI', 'PLTR'],
   HotTakes:          ['SPY', 'QQQ', 'TSLA', 'NVDA', 'BTC-USD', 'META', 'AAPL', 'AMD'],
+}
+
+// Generate deterministic sparkline points from price + change
+function generateSparkline(price, changePct) {
+  if (!price || price === 0) return null
+  const points = 12
+  const w = 50
+  const h = 20
+  const trend = changePct || 0
+  // Seed from price for determinism
+  let seed = Math.round(price * 100)
+  const seededRandom = () => {
+    seed = (seed * 16807 + 0) % 2147483647
+    return (seed & 0x7fffffff) / 0x7fffffff
+  }
+  // Generate path trending in the direction of change
+  const values = []
+  let val = h / 2
+  for (let i = 0; i < points; i++) {
+    val += (seededRandom() - 0.45) * 4 + (trend / 100) * 1.5
+    val = Math.max(2, Math.min(h - 2, val))
+    values.push(val)
+  }
+  // Build SVG path
+  const step = w / (points - 1)
+  const d = values.map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)},${(h - v).toFixed(1)}`).join(' ')
+  return d
+}
+
+// Mini sparkline SVG component
+function Sparkline({ price, changePct }) {
+  const path = useMemo(() => generateSparkline(price, changePct), [price, changePct])
+  if (!path) return <div className="w-[50px] h-[20px]" />
+  const color = (changePct || 0) >= 0 ? '#34d399' : '#f87171'
+  return (
+    <svg width="50" height="20" viewBox="0 0 50 20" className="flex-shrink-0">
+      <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
 }
 
 export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
@@ -66,17 +131,15 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
   const [loading, setLoading] = useState(true)
   const intervalRef = useRef(null)
 
-  // Merge default + mentioned tickers, deduplicate
   const allTickers = useMemo(() => {
     const defaults = FEED_TICKERS[feedName] || ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL']
     const combined = [...new Set([...defaults, ...mentionedTickers])]
-    return combined.slice(0, 12)
+    return combined.slice(0, 10)
   }, [feedName, mentionedTickers])
 
   const equityTickers = useMemo(() => allTickers.filter(t => !t.includes('-USD')), [allTickers])
   const cryptoTickers = useMemo(() => allTickers.filter(t => t.includes('-USD')), [allTickers])
 
-  // Fetch prices
   useEffect(() => {
     let mounted = true
     setLoading(true)
@@ -139,7 +202,6 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
     }
   }, [equityTickers.join(','), cryptoTickers.join(',')])
 
-  // Track previous prices for flash
   useEffect(() => {
     setPrevPrices(prev => {
       const next = { ...prev }
@@ -154,9 +216,9 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a2538] bg-[#0a1628]/50">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#1a2538] bg-[#0a1628]/50">
         <div className="flex items-center gap-2">
-          <BarChart2 size={14} strokeWidth={1.5} className="text-blue-400" />
+          <BarChart2 size={13} strokeWidth={1.5} className="text-blue-400" />
           <span className="text-gray-300 text-xs font-medium">Related Tickers</span>
         </div>
         <div className="flex items-center gap-1 text-emerald-500">
@@ -165,21 +227,20 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
         </div>
       </div>
 
-      {/* Column headers */}
-      <div className="flex items-center px-4 py-1.5 border-b border-[#1a2538]/50 text-[10px] text-gray-600 uppercase tracking-wider font-medium">
-        <span className="flex-1">Symbol</span>
-        <span className="w-20 text-right">Price</span>
-        <span className="w-16 text-right">Chg%</span>
-      </div>
-
       {/* Ticker rows */}
-      <div className="flex-1 overflow-y-auto ticker-scroll">
+      <div className="flex-1 overflow-y-auto ticker-scroll py-1">
         {loading ? (
           [...Array(8)].map((_, i) => (
-            <div key={i} className="flex items-center px-4 py-2 animate-pulse">
-              <div className="flex-1"><div className="w-12 h-3 bg-[#1a2538] rounded" /></div>
-              <div className="w-20 flex justify-end"><div className="w-14 h-3 bg-[#1a2538] rounded" /></div>
-              <div className="w-16 flex justify-end"><div className="w-10 h-3 bg-[#1a2538] rounded" /></div>
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
+              <div className="flex-1">
+                <div className="w-12 h-3 bg-[#1a2538] rounded mb-1" />
+                <div className="w-20 h-2 bg-[#1a2538] rounded" />
+              </div>
+              <div className="w-[50px] h-[20px] bg-[#1a2538] rounded" />
+              <div className="text-right">
+                <div className="w-14 h-3 bg-[#1a2538] rounded mb-1 ml-auto" />
+                <div className="w-16 h-4 bg-[#1a2538] rounded ml-auto" />
+              </div>
             </div>
           ))
         ) : (
@@ -189,9 +250,8 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
             const changePercent = data.percent_change || data.change_percent || data.day_change_percent
             const pct = changePercent ? parseFloat(changePercent) : null
             const isPositive = (pct || 0) >= 0
-            const prevPrice = prevPrices[symbol]
-            const flashed = prevPrice && price && prevPrice !== price
             const displaySymbol = symbol.replace('-USD', '')
+            const name = COMPANY_NAMES[symbol] || data.name || ''
 
             return (
               <motion.button
@@ -199,23 +259,34 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 onClick={() => { window.location.hash = `#trade/${displaySymbol}` }}
-                className="flex items-center w-full px-4 py-2 hover:bg-[#0f1d32] transition-colors text-left"
+                className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-[#0f1d32] transition-colors text-left"
               >
-                <span className="flex-1 font-mono text-xs text-blue-400 font-medium">
-                  ${displaySymbol}
-                </span>
-                <motion.span
-                  key={price}
-                  initial={flashed ? { backgroundColor: isPositive ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)' } : {}}
-                  animate={{ backgroundColor: 'transparent' }}
-                  transition={{ duration: 0.5 }}
-                  className="w-20 text-right font-mono text-xs text-gray-200 rounded px-1"
-                >
-                  {price != null ? (typeof price === 'number' ? price.toFixed(2) : price) : '--'}
-                </motion.span>
-                <span className={`w-16 text-right font-mono text-xs font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {pct != null ? `${isPositive ? '+' : ''}${pct.toFixed(2)}%` : '--'}
-                </span>
+                {/* Left: Symbol + Name */}
+                <div className="flex-1 min-w-0">
+                  <div className="font-mono text-xs text-blue-400 font-medium">${displaySymbol}</div>
+                  {name && <div className="text-[10px] text-gray-500 truncate">{name}</div>}
+                </div>
+
+                {/* Middle: Sparkline */}
+                <Sparkline price={price} changePct={pct} />
+
+                {/* Right: Price + Change badge */}
+                <div className="text-right flex-shrink-0">
+                  <div className="font-mono text-xs text-white">
+                    {price != null ? (typeof price === 'number' ? price.toFixed(2) : price) : '--'}
+                  </div>
+                  {pct != null ? (
+                    <span className={`inline-block font-mono text-[10px] font-medium px-1.5 py-0.5 rounded-md mt-0.5 ${
+                      isPositive
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-red-500/20 text-red-400'
+                    }`}>
+                      {isPositive ? '+' : ''}{pct.toFixed(2)}%
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-gray-600">--</span>
+                  )}
+                </div>
               </motion.button>
             )
           })
@@ -223,7 +294,7 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-1.5 border-t border-[#1a2538]">
+      <div className="px-3 py-1.5 border-t border-[#1a2538]">
         <span className="text-gray-600 text-[10px]">
           {allTickers.length} tickers · 30s refresh
         </span>
