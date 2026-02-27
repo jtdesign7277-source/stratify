@@ -1,19 +1,73 @@
-// api/news.js — Cached news endpoint (Vercel serverless)
-// Uses Anthropic Claude API + Upstash Redis caching
-// Debug logging at every step
+// api/news.js — Sidebar news endpoint (Vercel serverless)
+// Fetches real headlines from Marketaux API, cached in Redis (30-min TTL)
 
 import { Redis } from '@upstash/redis'
 
-const CACHE_KEY = 'news:trending:market'
-const CACHE_TTL = 604800 // 7 days
+const CACHE_KEY = 'sidebar_news'
+const CACHE_TTL = 1800 // 30 minutes
 
 function getRedis() {
-  const url = process.env.KV_REST_API_URL
-  const token = process.env.KV_REST_API_TOKEN
-  if (!url || !token) {
-    throw new Error(`Missing Redis env vars — url: ${!!url}, token: ${!!token}`)
-  }
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+  if (!url || !token) return null
   return new Redis({ url, token })
+}
+
+// Convert ISO timestamp to relative time string
+function relativeTime(publishedAt) {
+  if (!publishedAt) return ''
+  try {
+    const diffMs = Date.now() - new Date(publishedAt).getTime()
+    const min = Math.floor(diffMs / 60000)
+    if (min < 60) return `${min}m ago`
+    const hr = Math.floor(diffMs / 3600000)
+    if (hr < 24) return `${hr}h ago`
+    const d = Math.floor(diffMs / 86400000)
+    return `${d}d ago`
+  } catch {
+    return ''
+  }
+}
+
+// Derive sentiment from Marketaux entity sentiment scores
+function deriveSentiment(entities) {
+  if (!entities || entities.length === 0) return 'neutral'
+  const scores = entities
+    .map((e) => e.sentiment_score)
+    .filter((s) => typeof s === 'number')
+  if (scores.length === 0) return 'neutral'
+  const avg = scores.reduce((a, b) => a + b, 0) / scores.length
+  if (avg > 0.3) return 'bullish'
+  if (avg < -0.3) return 'bearish'
+  return 'neutral'
+}
+
+// Extract first ticker symbol from entities
+function extractTicker(entities) {
+  if (!entities || entities.length === 0) return null
+  const match = entities.find((e) => e.symbol && e.symbol.length <= 5)
+  return match ? `$${match.symbol}` : null
+}
+
+// Strip HTML tags
+function stripHtml(text) {
+  if (!text) return ''
+  return text.replace(/<\/?[^>]+(>|$)/g, '').trim()
+}
+
+// Transform Marketaux article to sidebar news format
+function transformArticle(article) {
+  const entities = article.entities || []
+  return {
+    title: stripHtml(article.title || '').slice(0, 100),
+    source: article.source || 'Unknown',
+    ticker: extractTicker(entities),
+    sentiment: deriveSentiment(entities),
+    time: relativeTime(article.published_at),
+    summary: stripHtml(article.description || '').slice(0, 120),
+    url: article.url || null,
+    publishedAt: article.published_at || null,
+  }
 }
 
 export default async function handler(req, res) {
@@ -21,114 +75,128 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  console.log('ENV CHECK:', {
-    hasRedisUrl: !!process.env.KV_REST_API_URL,
-    hasRedisToken: !!process.env.KV_REST_API_TOKEN,
-    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
-  })
+  const flush = req.query?.flush === 'true'
 
-  // Step 1: Create Redis client
+  // Redis cache
   let redis
   try {
     redis = getRedis()
-    console.log('STEP 1: Redis client created')
   } catch (err) {
-    console.error('STEP 1 FAILED: Redis client creation:', err.message)
-    return res.status(500).json({
-      error: 'Redis client creation failed',
-      details: err.message,
-      step: 'redis-connect',
-      articles: [],
-    })
+    console.error('[news] Redis init failed:', err.message)
   }
 
-  // Step 2: Check cache
-  try {
-    const cached = await redis.get(CACHE_KEY)
-    console.log('STEP 2: Redis GET result:', cached ? 'HIT' : 'MISS')
-    if (cached) {
-      const data = typeof cached === 'string' ? JSON.parse(cached) : cached
-      return res.status(200).json({
-        articles: data.articles || [],
-        fetchedAt: data.fetchedAt || new Date().toISOString(),
-        source: 'cache',
-        cacheHit: true,
-      })
+  if (flush && redis) {
+    try {
+      await redis.del(CACHE_KEY)
+      console.log('[news] Cache FLUSHED')
+    } catch (err) {
+      console.error('[news] Redis DEL failed:', err.message)
     }
-  } catch (err) {
-    console.error('STEP 2 FAILED: Redis GET:', err.message)
   }
 
-  // Step 3: Fetch from Claude API
-  let claudeResponse
-  try {
-    console.log('STEP 3: Calling Claude API...')
-    claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        system: 'You are a financial news aggregator. Return ONLY a valid JSON array, no markdown, no backticks, no explanation. Return 6-8 trending market news items. Each item must have: "title" (concise headline, max 80 chars), "source" (e.g. "Reuters", "Bloomberg", "CNBC", "X/Twitter"), "ticker" (relevant ticker with $ prefix or null), "sentiment" ("bullish", "bearish", or "neutral"), "time" (relative like "2h ago", "15m ago", "1d ago"), "summary" (1 sentence, max 120 chars). Focus on: earnings, Fed/macro, big movers, breaking news, trending tickers. Order by recency. JSON array only.',
-        messages: [
-          {
-            role: 'user',
-            content: 'What are the most important trending stock market news stories right now?',
-          },
-        ],
-      }),
-    })
-    console.log('STEP 3: Claude API status:', claudeResponse.status)
-    if (!claudeResponse.ok) {
-      const body = await claudeResponse.text()
-      console.error('STEP 3 FAILED: Claude API response body:', body)
-      throw new Error(`Claude API ${claudeResponse.status}: ${body}`)
+  if (redis && !flush) {
+    try {
+      const cached = await redis.get(CACHE_KEY)
+      if (cached) {
+        console.log('[news] Cache HIT')
+        const data = typeof cached === 'string' ? JSON.parse(cached) : cached
+        return res.status(200).json({
+          articles: data.articles || [],
+          fetchedAt: data.fetchedAt || new Date().toISOString(),
+          source: 'cache',
+          cacheHit: true,
+        })
+      }
+      console.log('[news] Cache MISS')
+    } catch (err) {
+      console.error('[news] Redis GET failed:', err.message)
     }
-  } catch (err) {
-    console.error('STEP 3 FAILED: Claude fetch:', err.message)
+  }
+
+  // Fetch from Marketaux API
+  const apiKey = process.env.MARKETAUX_API_KEY
+  if (!apiKey) {
     return res.status(500).json({
-      error: 'Claude API fetch failed',
-      details: err.message,
-      step: 'claude-fetch',
+      error: 'MARKETAUX_API_KEY not configured',
       articles: [],
     })
   }
 
-  // Step 4: Parse Claude response
-  let articles
   try {
-    const data = await claudeResponse.json()
-    const content = data.content?.[0]?.text || '[]'
-    console.log('STEP 4: Raw Claude content (first 200 chars):', content.substring(0, 200))
-    const clean = content.replace(/```json|```/g, '').trim()
-    articles = JSON.parse(clean)
-    console.log('STEP 4: Parsed', articles.length, 'articles')
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const params = new URLSearchParams({
+      api_token: apiKey,
+      language: 'en',
+      limit: '7',
+      sort: 'entity_match_score',
+      published_after: oneDayAgo,
+    })
+
+    const url = `https://api.marketaux.com/v1/news/all?${params.toString()}`
+    console.log('[news] Fetching Marketaux...')
+
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+    })
+
+    if (!response.ok) {
+      const body = await response.text()
+      console.error(`[news] Marketaux ${response.status}:`, body.substring(0, 300))
+      throw new Error(`Marketaux API ${response.status}`)
+    }
+
+    const data = await response.json()
+    const rawArticles = data.data || []
+
+    console.log(`[news] Marketaux returned ${rawArticles.length} articles`)
+
+    const articles = rawArticles
+      .map(transformArticle)
+      .filter((a) => a.title && a.title.length > 10)
+
+    const result = {
+      articles,
+      fetchedAt: new Date().toISOString(),
+    }
+
+    // Cache in Redis
+    if (redis) {
+      try {
+        await redis.set(CACHE_KEY, JSON.stringify(result), { ex: CACHE_TTL })
+        console.log(`[news] Cached with ${CACHE_TTL}s TTL`)
+      } catch (err) {
+        console.error('[news] Redis SET failed:', err.message)
+      }
+    }
+
+    return res.status(200).json({
+      ...result,
+      source: 'api',
+      cacheHit: false,
+    })
   } catch (err) {
-    console.error('STEP 4 FAILED: Claude parse:', err.message)
+    console.error('[news] Error fetching:', err.message)
+
+    // Try stale cache
+    if (redis) {
+      try {
+        const stale = await redis.get(CACHE_KEY)
+        if (stale) {
+          const data = typeof stale === 'string' ? JSON.parse(stale) : stale
+          return res.status(200).json({
+            articles: data.articles || [],
+            fetchedAt: data.fetchedAt,
+            source: 'stale-cache',
+            cacheHit: true,
+          })
+        }
+      } catch (_) {}
+    }
+
     return res.status(500).json({
-      error: 'Claude response parse failed',
+      error: 'Failed to fetch news',
       details: err.message,
-      step: 'claude-parse',
       articles: [],
     })
   }
-
-  // Step 5: Cache in Redis
-  const result = { articles, fetchedAt: new Date().toISOString() }
-  try {
-    await redis.set(CACHE_KEY, JSON.stringify(result), { ex: CACHE_TTL })
-    console.log('STEP 5: Redis SET success, TTL:', CACHE_TTL)
-  } catch (err) {
-    console.error('STEP 5 FAILED: Redis SET:', err.message)
-  }
-
-  return res.status(200).json({
-    ...result,
-    source: 'api',
-    cacheHit: false,
-  })
 }

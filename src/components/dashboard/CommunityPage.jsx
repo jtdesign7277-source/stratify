@@ -4309,7 +4309,7 @@ const RightSidebar = ({ quoteMap }) => {
           </button>
           {newsOpen && (
             <div className="flex-1 min-h-0 overflow-y-auto border-x border-white/6 bg-white/2">
-              <TodaysNews />
+              <TodaysNews hideHeader />
             </div>
           )}
         </div>

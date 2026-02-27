@@ -122,7 +122,7 @@ function NewsSkeleton() {
 }
 
 // ── Main widget ───────────────────────────────────────────────────
-export default function TodaysNews({ onClose, collapsed: collapsedProp }) {
+export default function TodaysNews({ onClose, collapsed: collapsedProp, hideHeader }) {
   const [articles, setArticles] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -167,9 +167,8 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp }) {
     mountedRef.current = true
     fetchNews()
 
-    // Auto-refresh once per week — conserve API credits until user base grows
-    // TODO: Drop to 5 * 60 * 1000 (5 min) once paying customers are active
-    const interval = setInterval(() => fetchNews(true), 7 * 24 * 60 * 60 * 1000)
+    // Auto-refresh every 30 min to match Redis TTL
+    const interval = setInterval(() => fetchNews(true), 30 * 60 * 1000)
 
     return () => {
       mountedRef.current = false
@@ -212,9 +211,13 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp }) {
     return () => clearInterval(timer)
   }, [])
 
+  // When hideHeader is set, force collapsed to false so body always shows
+  const isCollapsed = hideHeader ? false : collapsed;
+
   return (
-    <div className="bg-[#0a1628] border border-[#1a2538] rounded-lg overflow-hidden">
-      {/* ── Header ──────────────────────────────────────────── */}
+    <div className={`h-full min-h-0 flex flex-col overflow-hidden ${hideHeader ? '' : 'bg-[#0a1628] border border-[#1a2538] rounded-lg'}`}>
+      {/* ── Header (hidden when parent provides its own) ──── */}
+      {!hideHeader && (
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#1a2538]">
         <div className="flex items-center gap-2">
           <GripVertical size={14} strokeWidth={1.5} className="text-gray-600 cursor-grab" />
@@ -235,7 +238,6 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp }) {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Refresh button with spin animation */}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -249,7 +251,6 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp }) {
             />
           </button>
 
-          {/* Collapse toggle */}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
@@ -261,7 +262,6 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp }) {
             )}
           </button>
 
-          {/* Close */}
           {onClose && (
             <button
               onClick={onClose}
@@ -272,18 +272,19 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp }) {
           )}
         </div>
       </div>
+      )}
 
       {/* ── Body ────────────────────────────────────────────── */}
       <AnimatePresence initial={false}>
-        {!collapsed && (
+        {!isCollapsed && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            className="overflow-hidden flex-1 min-h-0"
           >
-            <div className="py-1 max-h-[340px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
+            <div className="h-full min-h-0 py-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
               {loading && articles.length === 0 ? (
                 <NewsSkeleton />
               ) : error && articles.length === 0 ? (
@@ -307,7 +308,7 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp }) {
             {articles.length > 0 && (
               <div className="px-3 py-1.5 border-t border-[#1a2538]">
                 <p className="text-[9px] text-gray-600 text-center">
-                  {articles.length} stories · Refreshes weekly
+                  {articles.length} stories · Refreshes every 30 min
                 </p>
               </div>
             )}
