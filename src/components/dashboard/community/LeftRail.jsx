@@ -377,7 +377,7 @@ const LeftRail = ({
           {/* Shine streak */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
             <div
-              className="absolute top-0 -left-[100%] w-[60%] h-full opacity-[0.07]"
+              className="absolute top-0 -left-[100%] w-[50%] h-full opacity-[0.07]"
               style={{
                 background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.8) 50%, transparent 60%)',
                 animation: 'shine 6s ease-in-out infinite',
@@ -391,10 +391,10 @@ const LeftRail = ({
             <button
               type="button"
               onClick={() => setMoodPickerOpen((prev) => !prev)}
-              className={`w-11 h-11 rounded-full flex-shrink-0 ring-0 hover:ring-2 hover:ring-[#58a6ff]/50 transition-all duration-200 overflow-hidden ${moodPickerOpen ? 'ring-2 ring-[#58a6ff]/50' : ''}`}
+              className={`w-8 h-8 rounded-full flex-shrink-0 ring-0 hover:ring-2 hover:ring-[#58a6ff]/50 transition-all duration-200 overflow-hidden ${moodPickerOpen ? 'ring-2 ring-[#58a6ff]/50' : ''}`}
               title="Set your mood"
             >
-              <MoodAvatar mood={mood} size={44} />
+              <MoodAvatar mood={mood} size={32} />
             </button>
 
             {/* Mood picker popup */}
