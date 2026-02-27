@@ -334,12 +334,12 @@ export const RightSidebar = ({ onArticleClick, onTickerClick }) => {
       transition={{ duration: 0.22 }}
       className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
-      <div className="h-full flex-1 min-h-0 pr-1 flex flex-col gap-3 overflow-y-auto">
+      <div className="pr-1 flex flex-col gap-3 overflow-y-auto">
         {/* ── Watchlist panel ── */}
         <WatchlistPanel onTickerClick={onTickerClick} />
 
         {/* ── News panel ── */}
-        <div className="flex flex-col min-h-0 rounded-xl border border-white/6 bg-white/2 overflow-hidden flex-shrink-0">
+        <div className="flex flex-col rounded-xl border border-white/6 bg-white/2 overflow-hidden flex-shrink-0">
           <button
             type="button"
             onClick={() => setNewsOpen((prev) => !prev)}

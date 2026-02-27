@@ -72,24 +72,6 @@ const navigateToTicker = (symbol) => {
   window.location.href = `/dashboard?symbol=${encodeURIComponent(base)}`;
 };
 
-const fetchPreviousCloses = async (symbols, apiKey) => {
-  if (!apiKey) return {};
-  const restSymbols = symbols.filter(s => !s.includes('/'));
-  if (restSymbols.length === 0) return {};
-  const results = {};
-  try {
-    const url = `https://api.twelvedata.com/quote?symbol=${restSymbols.join(',')}&apikey=${apiKey}`;
-    const res = await fetch(url);
-    if (!res.ok) return results;
-    const data = await res.json();
-    const isMulti = restSymbols.length > 1;
-    for (const sym of restSymbols) {
-      const q = isMulti ? data[sym] : data;
-      if (q?.previous_close) results[sym.toUpperCase()] = Number(q.previous_close);
-    }
-  } catch { /* ignore */ }
-  return results;
-};
 
 // ── Search dropdown ──────────────────────────────────────────────────────────
 
@@ -274,18 +256,60 @@ const WatchlistPanel = ({ onTickerClick }) => {
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const mountedRef = useRef(true);
+  // Always-fresh ref so WS onopen can access current symbols without stale closure
+  const symbolsRef = useRef(symbols);
+  useEffect(() => { symbolsRef.current = symbols; }, [symbols]);
 
   // ── Persist watchlist ─────────────────────────────────────────────────────
   useEffect(() => { saveWatchlist(symbols); }, [symbols]);
 
-  // ── Fetch previous closes ─────────────────────────────────────────────────
+  // ── REST price + previous-close fallback (instant prices on mount / symbol change) ──
   useEffect(() => {
     const apiKey = resolveApiKey();
-    if (!apiKey) return;
-    fetchPreviousCloses(symbols, apiKey).then((closes) => {
-      if (mountedRef.current) setPrevCloses((prev) => ({ ...prev, ...closes }));
-    });
-  }, [symbols]);
+    if (!apiKey || symbols.length === 0) return;
+    let cancelled = false;
+    const restSymbols = symbols.filter(s => !s.includes('/'));
+    if (restSymbols.length === 0) return;
+
+    const fetchAll = async () => {
+      try {
+        const url = `https://api.twelvedata.com/quote?symbol=${restSymbols.join(',')}&apikey=${apiKey}`;
+        const res = await fetch(url);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const isMulti = restSymbols.length > 1;
+        const updates = {};
+        const closeUpdates = {};
+        for (const sym of restSymbols) {
+          const q = isMulti ? data[sym] : data;
+          if (!q || q.status === 'error') continue;
+          const price = q.close != null ? Number(q.close) : null;
+          const prevClose = q.previous_close != null ? Number(q.previous_close) : null;
+          if (Number.isFinite(price)) {
+            updates[sym.toUpperCase()] = { price, wsPercent: null };
+          }
+          if (Number.isFinite(prevClose)) {
+            closeUpdates[sym.toUpperCase()] = prevClose;
+          }
+        }
+        if (!cancelled) {
+          setQuotes(prev => {
+            const next = { ...prev };
+            for (const [k, v] of Object.entries(updates)) {
+              // Only set if WS hasn't already provided a live price
+              if (!next[k]?.price) next[k] = { ...next[k], ...v };
+            }
+            return next;
+          });
+          setPrevCloses(prev => ({ ...prev, ...closeUpdates }));
+        }
+      } catch { /* ignore */ }
+    };
+
+    void fetchAll();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbols.join(',')]);
 
   // ── Close search dropdown on outside click ────────────────────────────────
   useEffect(() => {
@@ -320,22 +344,32 @@ const WatchlistPanel = ({ onTickerClick }) => {
   const wsSend = useCallback((payload) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload));
+      return true;
     }
+    return false;
   }, []);
 
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
     const apiKey = resolveApiKey();
-    if (!apiKey) return;
+    if (!apiKey) { console.warn('[WatchlistPanel] No Twelve Data API key found'); return; }
     try {
+      console.log('[WatchlistPanel] Connecting WebSocket…');
       const ws = new WebSocket(`${TWELVE_DATA_WS_URL}?apikey=${apiKey}`);
       wsRef.current = ws;
+
       ws.onopen = () => {
         if (!mountedRef.current) { ws.close(); return; }
+        console.log('[WatchlistPanel] WS open — subscribing to', symbolsRef.current);
         setConnected(true);
-        ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: loadWatchlist().join(',') } }));
+        // Use symbolsRef so we always subscribe the current live list, not a stale snapshot
+        const allSymbols = symbolsRef.current;
+        if (allSymbols.length > 0) {
+          ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: allSymbols.join(',') } }));
+        }
       };
+
       ws.onmessage = (event) => {
         if (!mountedRef.current) return;
         try {
@@ -353,19 +387,28 @@ const WatchlistPanel = ({ onTickerClick }) => {
                 wsPercent: Number.isFinite(wsPercent) ? wsPercent : prev[sym]?.wsPercent ?? null,
               },
             }));
+          } else if (data?.status === 'error') {
+            console.warn('[WatchlistPanel] WS error event:', data);
           }
-        } catch { /* ignore */ }
+        } catch { /* ignore malformed frames */ }
       };
-      ws.onerror = () => { setConnected(false); };
-      ws.onclose = () => {
+
+      ws.onerror = (e) => {
+        console.warn('[WatchlistPanel] WS error', e);
+        setConnected(false);
+      };
+
+      ws.onclose = (e) => {
         if (!mountedRef.current) return;
+        console.log('[WatchlistPanel] WS closed, code:', e.code, '— reconnecting in', RECONNECT_DELAY_MS, 'ms');
         setConnected(false);
         wsRef.current = null;
         reconnectTimerRef.current = window.setTimeout(() => {
           if (mountedRef.current) connect();
         }, RECONNECT_DELAY_MS);
       };
-    } catch {
+    } catch (err) {
+      console.warn('[WatchlistPanel] WS connect threw:', err);
       reconnectTimerRef.current = window.setTimeout(() => {
         if (mountedRef.current) connect();
       }, RECONNECT_DELAY_MS);
@@ -446,7 +489,7 @@ const WatchlistPanel = ({ onTickerClick }) => {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col min-h-0 rounded-xl border border-white/6 bg-white/2 overflow-hidden">
+    <div className="flex flex-col rounded-xl border border-white/6 bg-white/2 overflow-hidden flex-shrink-0">
 
       {/* ── Header ── */}
       <button
