@@ -107,13 +107,13 @@ const LeftRail = ({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: 220 }}
+      animate={{ width: 240 }}
       className="h-full flex-shrink-0 flex flex-col border-r overflow-y-auto"
-      style={{ borderColor: T.border, backgroundColor: T.bg, minWidth: 220, maxWidth: 220 }}
+      style={{ borderColor: T.border, backgroundColor: T.bg, minWidth: 240, maxWidth: 240 }}
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b flex-shrink-0" style={{ borderColor: T.border }}>
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: T.muted }}>Community</span>
+        <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: T.muted }}>Community</span>
         <button
           type="button"
           onClick={onToggleCollapse}
@@ -129,8 +129,8 @@ const LeftRail = ({
         {/* ── Profile ── */}
         {currentUser && (
           <div className="px-2 py-2 mb-1">
-            <div className="flex items-center gap-2">
-              <UserAvatar user={profileUser} size={28} initialsClassName="text-[10px]" />
+            <div className="flex items-center gap-2.5">
+              <UserAvatar user={profileUser} size={40} initialsClassName="text-xs" />
               <div className="flex-1 min-w-0">
                 {isEditingName ? (
                   <div className="flex items-center gap-1">
@@ -141,21 +141,21 @@ const LeftRail = ({
                         if (e.key === 'Enter') handleSaveName?.();
                         if (e.key === 'Escape') setIsEditingName?.(false);
                       }}
-                      className="flex-1 min-w-0 bg-white/8 border border-white/15 rounded px-1.5 py-0.5 text-xs outline-none"
+                      className="flex-1 min-w-0 bg-white/8 border border-white/15 rounded px-1.5 py-0.5 text-sm outline-none"
                       style={{ color: T.text }}
                       autoFocus
                       maxLength={24}
                     />
                     <button type="button" onClick={handleSaveName} className="text-[#3fb950] hover:brightness-110" title="Save">
-                      <Check size={12} strokeWidth={2} />
+                      <Check size={13} strokeWidth={2} />
                     </button>
                     <button type="button" onClick={() => setIsEditingName?.(false)} className="text-[#7d8590] hover:text-[#e6edf3]" title="Cancel">
-                      <X size={12} strokeWidth={2} />
+                      <X size={13} strokeWidth={2} />
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1 group">
-                    <span className="text-xs font-medium truncate" style={{ color: T.text }}>{profileName}</span>
+                  <div className="flex items-center gap-1.5 group">
+                    <span className="text-base font-bold truncate" style={{ color: T.text }}>{profileName}</span>
                     <button
                       type="button"
                       onClick={() => { setEditName?.(profileName); setIsEditingName?.(true); }}
@@ -163,7 +163,7 @@ const LeftRail = ({
                       style={{ color: T.muted }}
                       title="Edit display name"
                     >
-                      <Pencil size={10} strokeWidth={1.5} />
+                      <Pencil size={12} strokeWidth={1.5} />
                     </button>
                   </div>
                 )}
@@ -176,13 +176,13 @@ const LeftRail = ({
         <button
           type="button"
           onClick={() => { onExploreTabChange?.(null); onFilter?.(null); }}
-          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs transition-colors"
+          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors"
           style={{
             color: !filter && !activeExploreTab ? T.blue : T.text,
             backgroundColor: !filter && !activeExploreTab ? 'rgba(88,166,255,0.1)' : 'transparent',
           }}
         >
-          <Home size={13} strokeWidth={1.5} />
+          <Home size={20} strokeWidth={1.5} />
           <span>Home Feed</span>
         </button>
 
@@ -195,31 +195,31 @@ const LeftRail = ({
               key={tab.id}
               type="button"
               onClick={() => onExploreTabChange?.(isActive ? null : tab.id)}
-              className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs transition-colors"
+              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors"
               style={{
                 color: isActive ? T.blue : T.text,
                 backgroundColor: isActive ? 'rgba(88,166,255,0.1)' : 'transparent',
               }}
             >
-              <Icon size={13} strokeWidth={1.5} />
+              <Icon size={20} strokeWidth={1.5} />
               <span>{tab.label}</span>
-              {isActive && <ChevronRight size={11} strokeWidth={1.5} className="ml-auto" style={{ color: T.blue }} />}
+              {isActive && <ChevronRight size={14} strokeWidth={1.5} className="ml-auto" style={{ color: T.blue }} />}
             </button>
           );
         })}
 
         {/* ── Feed Channels ── */}
         <div className="pt-2 pb-1">
-          <div className="flex items-center justify-between px-2 mb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.muted }}>Feeds</span>
+          <div className="flex items-center justify-between px-2 mb-1.5">
+            <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: T.muted }}>Feeds</span>
             <button
               type="button"
               onClick={onOpenFeedCustomizer}
-              className="text-[10px] hover:text-[#e6edf3] transition-colors"
+              className="hover:text-[#e6edf3] transition-colors"
               style={{ color: T.muted }}
               title="Customize feeds"
             >
-              <Settings size={11} strokeWidth={1.5} />
+              <Settings size={16} strokeWidth={1.5} />
             </button>
           </div>
 
@@ -231,13 +231,13 @@ const LeftRail = ({
                   key={feed.id}
                   type="button"
                   onClick={() => { onExploreTabChange?.(null); onFilter?.(isActive ? null : feed.id); }}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors"
                   style={{
                     color: isActive ? T.blue : T.text,
                     backgroundColor: isActive ? 'rgba(88,166,255,0.1)' : 'transparent',
                   }}
                 >
-                  <Hash size={11} strokeWidth={1.5} />
+                  <Hash size={14} strokeWidth={1.5} />
                   <span className="truncate">{feed.label}</span>
                 </button>
               );
@@ -246,7 +246,7 @@ const LeftRail = ({
             <button
               type="button"
               onClick={onOpenFeedCustomizer}
-              className="w-full px-2 py-1.5 text-xs text-left rounded-lg hover:bg-white/5 transition-colors"
+              className="w-full px-2 py-2 text-base text-left rounded-lg hover:bg-white/5 transition-colors"
               style={{ color: T.muted }}
             >
               + Add feed channels
@@ -260,13 +260,13 @@ const LeftRail = ({
             <button
               type="button"
               onClick={() => setPriceAlertsOpen((o) => !o)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-white/5"
+              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors hover:bg-white/5"
               style={{ color: T.text }}
             >
-              <Bell size={12} strokeWidth={1.5} style={{ color: activeAlerts.length > 0 ? T.blue : T.muted }} />
+              <Bell size={16} strokeWidth={1.5} style={{ color: activeAlerts.length > 0 ? T.blue : T.muted }} />
               <span>Price Alerts</span>
               <span
-                className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-full"
                 style={{
                   backgroundColor: activeAlerts.length > 0 ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.06)',
                   color: activeAlerts.length > 0 ? T.blue : T.muted,
