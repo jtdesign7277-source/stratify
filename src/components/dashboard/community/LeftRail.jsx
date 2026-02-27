@@ -372,26 +372,20 @@ const LeftRail = ({
       </div>
 
       {/* ── Bottom mood / profile card ── */}
-      <div className="mt-auto border-t flex-shrink-0 relative" style={{ borderColor: T.border }}>
-        <div className="px-4 py-3 flex items-center gap-3">
+      <div className="mt-auto px-2 pb-3 flex-shrink-0">
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-lg transition-all duration-300 hover:bg-white/[0.07] hover:border-white/15"
+        >
           {/* Avatar — click to open mood picker */}
-          <div className="relative" ref={moodPickerRef}>
+          <div className="relative flex-shrink-0" ref={moodPickerRef}>
             <button
               type="button"
               onClick={() => setMoodPickerOpen((prev) => !prev)}
-              className={`w-10 h-10 rounded-full flex-shrink-0 ring-0 hover:ring-2 hover:ring-[#58a6ff]/50 transition-all duration-200 overflow-hidden ${moodPickerOpen ? 'ring-2 ring-[#58a6ff]/50' : ''}`}
+              className={`w-11 h-11 rounded-full flex-shrink-0 ring-0 hover:ring-2 hover:ring-[#58a6ff]/50 transition-all duration-200 overflow-hidden ${moodPickerOpen ? 'ring-2 ring-[#58a6ff]/50' : ''}`}
               title="Set your mood"
             >
-              <MoodAvatar mood={mood} size={40} />
+              <MoodAvatar mood={mood} size={44} />
             </button>
-            {isPro && (
-              <span className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
-                <svg viewBox="0 0 22 22" className="w-5 h-5" fill="none">
-                  <circle cx="11" cy="11" r="11" fill="#1D9BF0" />
-                  <path d="M9.5 14.25L6.75 11.5L7.81 10.44L9.5 12.13L14.19 7.44L15.25 8.5L9.5 14.25Z" fill="white" />
-                </svg>
-              </span>
-            )}
 
             {/* Mood picker popup */}
             <AnimatePresence>
@@ -425,16 +419,25 @@ const LeftRail = ({
             </AnimatePresence>
           </div>
 
-          {/* Name + mood label */}
+          {/* Name + verified badge + mood label */}
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-base font-bold truncate" style={{ color: T.text }}>
-              {profileName}
-            </span>
+            <div className="flex items-center gap-0 min-w-0">
+              <span className="text-base font-bold truncate" style={{ color: T.text }}>
+                {profileName}
+              </span>
+              {isPro && (
+                <svg viewBox="0 0 22 22" className="w-5 h-5 inline-block ml-1 flex-shrink-0" aria-label="Verified">
+                  <g>
+                    <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.855-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.69-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.636.433 1.221.878 1.69.47.446 1.055.752 1.69.883.635.13 1.294.083 1.902-.14.272.587.7 1.086 1.24 1.44s1.167.551 1.813.568c.647-.017 1.277-.213 1.818-.567s.972-.854 1.245-1.44c.604.223 1.26.27 1.894.14.634-.132 1.22-.437 1.69-.883.445-.47.75-1.055.88-1.69.131-.634.084-1.29-.139-1.896.587-.274 1.084-.705 1.438-1.246.355-.54.552-1.17.57-1.817z" fill="#1D9BF0"/>
+                    <path d="M9.585 14.929l-3.28-3.28 1.168-1.168 2.112 2.112 5.321-5.321 1.168 1.168-6.489 6.489z" fill="white"/>
+                  </g>
+                </svg>
+              )}
+            </div>
             <span className="text-xs truncate" style={{ color: T.muted }}>
               Feeling {MOOD_CONFIG[mood]?.label?.toLowerCase() || 'confident'} {MOOD_CONFIG[mood]?.emoji || '😎'}
             </span>
           </div>
-
         </div>
       </div>
     </motion.aside>
