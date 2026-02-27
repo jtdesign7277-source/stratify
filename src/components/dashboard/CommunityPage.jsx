@@ -4,6 +4,7 @@ import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion
 import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import FeedsSidebar from './FeedsSidebar';
 import FeedView from './FeedView';
+import ResizablePanelGroup from './ResizablePanelGroup';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
@@ -661,6 +662,34 @@ const BASE_STREAM_STATUS = {
 };
 
 const FEED_HASHTAGS = ['#Earnings', '#Momentum', '#Macro', '#Options', '#Sentiment'];
+
+const ALL_FEED_HASHTAGS = [
+  { id: 'earnings', label: 'Earnings', icon: 'BarChart3' },
+  { id: 'momentum', label: 'Momentum', icon: 'Flame' },
+  { id: 'trending', label: 'Trending', icon: 'TrendingUp' },
+  { id: 'options', label: 'Options', icon: 'ArrowLeftRight' },
+  { id: 'premarket', label: 'PreMarket', icon: 'Clock3' },
+  { id: 'memestocks', label: 'MemeStocks', icon: 'Flame' },
+  { id: 'ipos', label: 'IPOs', icon: 'Sparkles' },
+];
+
+const MAX_VISIBLE_FEED_HASHTAGS = 5;
+const FEED_HASHTAGS_ENABLED_STORAGE_KEY = 'stratify_feed_hashtags_enabled';
+
+const readEnabledFeedHashtags = () => {
+  if (typeof window === 'undefined') return ALL_FEED_HASHTAGS.slice(0, MAX_VISIBLE_FEED_HASHTAGS).map(f => f.id);
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(FEED_HASHTAGS_ENABLED_STORAGE_KEY));
+    if (Array.isArray(saved) && saved.length > 0) return saved.slice(0, MAX_VISIBLE_FEED_HASHTAGS);
+  } catch {}
+  return ALL_FEED_HASHTAGS.slice(0, MAX_VISIBLE_FEED_HASHTAGS).map(f => f.id);
+};
+
+const persistEnabledFeedHashtags = (ids) => {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(FEED_HASHTAGS_ENABLED_STORAGE_KEY, JSON.stringify(ids.slice(0, MAX_VISIBLE_FEED_HASHTAGS))); } catch {}
+};
+
 const HASHTAG_WEB_MIN_VISIBLE_POSTS = 3;
 const HASHTAG_WEB_MAX_RESULTS = 5;
 
@@ -1568,11 +1597,19 @@ const ChatInputBar = ({
   onOpenComposer,
   onSend,
   onSearch,
+  onFeedSelect,
+  activeFeed,
+  enabledFeeds,
 }) => {
   const [message, setMessage] = useState('');
   const [selectedHashtags, setSelectedHashtags] = useState([]);
   const [debouncedMessage, setDebouncedMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showFeedHashtags, setShowFeedHashtags] = useState(false);
+
+  const visibleFeedHashtags = useMemo(() => (
+    ALL_FEED_HASHTAGS.filter(feed => (enabledFeeds || []).includes(feed.id)).slice(0, MAX_VISIBLE_FEED_HASHTAGS)
+  ), [enabledFeeds]);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
@@ -1925,9 +1962,9 @@ const ChatInputBar = ({
                 </button>
                 <button
                   type="button"
-                  onClick={switchToSearchMode}
-                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#58a6ff] bg-[#58a6ff]/10' : 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5'}`}
-                  title="Search mode"
+                  onClick={() => setShowFeedHashtags(prev => !prev)}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${showFeedHashtags ? 'text-[#58a6ff] bg-[#58a6ff]/10' : 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5'}`}
+                  title="Feed channels"
                 >
                   <Globe className="w-4 h-4" strokeWidth={1.5} />
                 </button>
@@ -2036,6 +2073,30 @@ const ChatInputBar = ({
             </div>
           </div>
         </div>
+
+        <AnimatePresence initial={false}>
+          {showFeedHashtags && visibleFeedHashtags.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-wrap gap-1.5 mt-2 overflow-hidden"
+            >
+              {visibleFeedHashtags.map((feed) => (
+                <button
+                  key={feed.id}
+                  type="button"
+                  onClick={() => onFeedSelect?.(activeFeed === feed.id ? null : feed.id)}
+                  className={'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all duration-200 ' + (activeFeed === feed.id ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : 'bg-white/4 border-white/8 text-[#7d8590] hover:bg-white/6 hover:text-[#e6edf3]')}
+                >
+                  <span className="text-[10px] opacity-60">#</span>
+                  {feed.label}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="mt-1.5 flex items-center justify-between">
           <div className="text-xs" style={{ color: '#7d8590' }}>{contextualStatus}</div>
@@ -3597,6 +3658,8 @@ const LeftRail = ({
   setEditName,
   setIsEditingName,
   handleSaveName,
+  enabledFeeds,
+  onOpenFeedCustomizer,
 }) => {
   const [priceAlertsOpen, setPriceAlertsOpen] = useState(true);
   const profileAvatarSeed = displayName || 'Anonymous Trader';
@@ -3663,11 +3726,19 @@ const LeftRail = ({
           </div>
 
           <div className="w-full pt-2">
-            <FeedsSidebar
-              activeFeed={filter}
-              onFeedSelect={onFilter}
-              userId={currentUser?.id}
-            />
+            <button
+              type="button"
+              onClick={() => onOpenFeedCustomizer?.()}
+              className="w-full px-3 pt-4 pb-1 inline-flex items-center justify-between"
+            >
+              <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-[#7d8590] transition-all duration-200">
+                <span>FEEDS</span>
+              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7d8590" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="hover:stroke-[#58a6ff] transition-colors cursor-pointer"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </button>
+            <div className="px-3 pt-1 pb-2 text-xs text-[#7d8590]">
+              {(enabledFeeds || []).length} of {MAX_VISIBLE_FEED_HASHTAGS} slots used
+            </div>
           </div>
 
           <div className="w-full pt-1">
@@ -4254,12 +4325,14 @@ const RightSidebar = ({ quoteMap }) => {
             zIndex: 30,
           }}
           transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.7 }}
-          className="list-none flex-shrink-0"
+          className="list-none h-full min-h-0 flex-shrink-0"
           style={{ position: 'relative' }}
           onDragStart={() => setDraggingSectionId(sectionId)}
           onDragEnd={() => setDraggingSectionId(null)}
         >
-          <TodaysNews onClose={() => toggleSectionVisibility('todays-news')} />
+          <div className="h-full min-h-0">
+            <TodaysNews onClose={() => toggleSectionVisibility('todays-news')} />
+          </div>
         </Reorder.Item>
       );
     }
@@ -4279,8 +4352,11 @@ const RightSidebar = ({ quoteMap }) => {
           onToggleVisibility={() => toggleSectionVisibility('watchlist')}
           isDragging={draggingSectionId === sectionId}
           onDragStateChange={setDraggingSectionId}
+          wrapperClassName="h-full min-h-0"
+          sectionClassName="h-full min-h-0 flex flex-col"
+          sectionBodyClassName="h-full min-h-0 flex flex-col"
         >
-          <div className="flex flex-col gap-2">
+          <div className="h-full min-h-0 flex flex-col gap-2">
             <div className="relative flex-shrink-0 sticky top-0 z-10" style={{ backgroundColor: 'rgba(13,17,23,0.9)' }}>
               <input
                 type="text"
@@ -4331,7 +4407,7 @@ const RightSidebar = ({ quoteMap }) => {
               </AnimatePresence>
             </div>
 
-            <div className="space-y-1.5 pr-0.5 max-h-[350px] overflow-y-auto scroll-smooth community-minimal-scrollbar scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className="flex-1 min-h-0 space-y-1.5 pr-0.5 overflow-y-auto scroll-smooth community-minimal-scrollbar scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {watchlistRows.length === 0 ? (
                 <div className="rounded-lg border px-2.5 py-2 text-xs" style={{ borderColor: T.border, color: T.muted }}>
                   Search above to add symbols.
@@ -4346,6 +4422,15 @@ const RightSidebar = ({ quoteMap }) => {
     return null;
   };
 
+  const LiveNewsWidget = sectionVisibility['todays-news']
+    ? renderDraggableSection('todays-news')
+    : null;
+  const WatchlistWidget = sectionVisibility.watchlist
+    ? renderDraggableSection('watchlist')
+    : null;
+  const usesResizableSplit = Boolean(LiveNewsWidget && WatchlistWidget);
+  const reorderValues = usesResizableSplit ? ['todays-news', 'watchlist'] : visibleSectionOrder;
+
   return (
     <motion.aside
       initial={{ opacity: 0, x: 10 }}
@@ -4353,7 +4438,7 @@ const RightSidebar = ({ quoteMap }) => {
       transition={{ duration: 0.22 }}
       className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
-      <div className="flex-1 min-h-0 pr-1 flex flex-col gap-3">
+      <div className="h-full flex-1 min-h-0 pr-1 flex flex-col gap-3">
         {hiddenSectionOrder.length > 0 ? (
           <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
             <div className="text-[11px] uppercase tracking-[0.14em]" style={{ color: T.muted }}>
@@ -4385,15 +4470,96 @@ const RightSidebar = ({ quoteMap }) => {
           <Reorder.Group
             as="div"
             axis="y"
-            values={visibleSectionOrder}
+            values={reorderValues}
             onReorder={handleSectionReorder}
-            className="flex-1 min-h-0 flex flex-col gap-3"
+            className="h-full flex-1 min-h-0 flex flex-col gap-3"
           >
-            {visibleSectionOrder.map((sectionId) => renderDraggableSection(sectionId))}
+            {usesResizableSplit ? (
+              <div className="h-full min-h-0">
+                <ResizablePanelGroup
+                  topPanel={LiveNewsWidget}
+                  bottomPanel={WatchlistWidget}
+                  defaultTopHeight={50}
+                  minTopHeight={15}
+                  minBottomHeight={15}
+                  containerClassName="h-full min-h-0"
+                />
+              </div>
+            ) : (
+              visibleSectionOrder.map((sectionId) => renderDraggableSection(sectionId))
+            )}
           </Reorder.Group>
         )}
       </div>
     </motion.aside>
+  );
+};
+
+// ─── Feed Customizer Modal ────────────────────────────────
+const FeedCustomizerModal = ({ open, onClose, enabledFeeds, onToggle }) => {
+  const atLimit = enabledFeeds.length >= MAX_VISIBLE_FEED_HASHTAGS;
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {open && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="relative z-[60] w-full max-w-md rounded-2xl border shadow-2xl shadow-black/40 overflow-hidden"
+            style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'linear-gradient(180deg, rgba(28,35,51,0.98) 0%, rgba(13,17,23,0.98) 100%)' }}
+          >
+            <div className="px-5 py-4 border-b border-white/6 flex items-center justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.14em] text-[#7d8590]">Customize</div>
+                <h3 className="text-lg font-semibold text-[#e6edf3]">Feed Channels</h3>
+              </div>
+              <button type="button" onClick={onClose} className="h-8 w-8 inline-flex items-center justify-center text-[#e6edf3]">
+                <X size={14} strokeWidth={1.5} />
+              </button>
+            </div>
+            <div className="p-5 space-y-2">
+              <p className="text-xs text-[#7d8590] mb-3">Choose up to {MAX_VISIBLE_FEED_HASHTAGS} feed channels to show when you click the Globe icon. {atLimit ? <span className="text-[#f0883e] font-medium">Limit reached — disable one to add another.</span> : null}</p>
+              {ALL_FEED_HASHTAGS.map((feed) => {
+                const isEnabled = enabledFeeds.includes(feed.id);
+                const isDisabledByLimit = !isEnabled && atLimit;
+                return (
+                  <button
+                    key={feed.id}
+                    type="button"
+                    onClick={() => { if (!isDisabledByLimit) onToggle(feed.id); }}
+                    disabled={isDisabledByLimit}
+                    className={'w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 ' + (isEnabled ? 'bg-[#58a6ff]/10 border-[#58a6ff]/30' : isDisabledByLimit ? 'bg-white/2 border-white/4 opacity-40 cursor-not-allowed' : 'bg-white/3 border-white/6 hover:bg-white/5')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium" style={{ color: isEnabled ? '#58a6ff' : '#7d8590' }}>#</span>
+                      <span className="text-sm font-medium" style={{ color: isEnabled ? '#e6edf3' : '#7d8590' }}>{feed.label}</span>
+                    </div>
+                    <div className={'w-9 h-5 rounded-full transition-all duration-200 flex items-center ' + (isEnabled ? 'bg-[#58a6ff] justify-end' : 'bg-white/10 justify-start')}>
+                      <div className="w-4 h-4 rounded-full bg-white mx-0.5 shadow-sm transition-all duration-200" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="px-5 py-3 border-t border-white/6 flex items-center justify-between">
+              <span className="text-xs text-[#7d8590]">{enabledFeeds.length} / {MAX_VISIBLE_FEED_HASHTAGS} slots used</span>
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-[#58a6ff] text-black text-sm font-semibold hover:bg-[#79b8ff] transition">Done</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -4434,6 +4600,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [priceAlertTargetInput, setPriceAlertTargetInput] = useState('');
   const [priceAlertDirection, setPriceAlertDirection] = useState('above');
   const [alertToasts, setAlertToasts] = useState([]);
+  const [feedCustomizerOpen, setFeedCustomizerOpen] = useState(false);
+  const [enabledFeeds, setEnabledFeeds] = useState(() => readEnabledFeedHashtags());
+  const toggleFeedEnabled = useCallback((id) => {
+    setEnabledFeeds((prev) => {
+      const next = prev.includes(id) ? prev.filter((f) => f !== id) : (prev.length >= MAX_VISIBLE_FEED_HASHTAGS ? prev : [...prev, id]);
+      persistEnabledFeedHashtags(next);
+      return next;
+    });
+  }, []);
   const [displayName, setDisplayName] = useState(() => {
     if (typeof window === 'undefined') return 'Anonymous Trader';
     try {
@@ -5448,6 +5623,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               setEditName={setEditName}
               setIsEditingName={setIsEditingName}
               handleSaveName={handleSaveName}
+              enabledFeeds={enabledFeeds}
+              onOpenFeedCustomizer={() => setFeedCustomizerOpen(true)}
             />
 
             <div className="flex-1 min-w-0 min-h-0 overflow-y-hidden overflow-x-visible flex flex-col">
@@ -5685,6 +5862,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                         onOpenComposer={openComposer}
                         onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
                         onSearch={runAiSearch}
+                        onFeedSelect={handleFeedFilterChange}
+                        activeFeed={filter}
+                        enabledFeeds={enabledFeeds}
                       />
                     </div>
                   </div>
@@ -5711,6 +5891,13 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         openAiRewritePanelOnOpen={composerOpenRewritePanel}
         onConsumePrefilledText={consumeComposerPrefill}
         onSubmit={createPost}
+      />
+
+      <FeedCustomizerModal
+        open={feedCustomizerOpen}
+        onClose={() => setFeedCustomizerOpen(false)}
+        enabledFeeds={enabledFeeds}
+        onToggle={toggleFeedEnabled}
       />
 
       <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
