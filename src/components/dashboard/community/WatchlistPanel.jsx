@@ -251,7 +251,7 @@ function TickerRow({
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-const WatchlistPanel = () => {
+const WatchlistPanel = ({ onTickerClick }) => {
   const [open, setOpen] = useState(true);
   const [panelHeight, setPanelHeight] = useState(300);
   const [symbols, setSymbols] = useState(loadWatchlist);
@@ -536,7 +536,7 @@ const WatchlistPanel = () => {
                   pctText={formatPercent(pct)}
                   isPositive={pct !== null && pct >= 0}
                   isLast={index === symbols.length - 1}
-                  onNavigate={navigateToTicker}
+                  onNavigate={onTickerClick || navigateToTicker}
                   onRemove={handleRemove}
                   index={index}
                   dragIndex={dragIndex}

@@ -132,6 +132,7 @@ import PostCard from './community/PostCard';
 import FeedCustomizerModal from './community/FeedCustomizerModal';
 import { HistoryView, DiscoverView, SpacesView, FinanceView, RightSidebar } from './community/ExploreViews';
 import LeftRail from './community/LeftRail';
+import StockDetailView from './community/StockDetailView';
 
 // ─── Main Community Page ──────────────────────────────────
 const CommunityPage = ({ tradeHistory = [] }) => {
@@ -141,6 +142,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState(null);
   const [sidebarArticle, setSidebarArticle] = useState(null); // article opened from right-sidebar news
+  const [selectedTicker, setSelectedTicker] = useState(null); // ticker opened from watchlist
   const [searchMode, setSearchMode] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -1326,7 +1328,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     </div>
                     )}
 
-                    {sidebarArticle ? (
+                    {selectedTicker ? (
+                      <StockDetailView
+                        ticker={selectedTicker}
+                        onBack={() => setSelectedTicker(null)}
+                      />
+                    ) : sidebarArticle ? (
                       <AnimatePresence mode="wait" initial={false}>
                         <ArticleReader
                           key={sidebarArticle.url || sidebarArticle.title}
@@ -1498,12 +1505,20 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                   </div>
                 </div>
 
-                <RightSidebar onArticleClick={(article) => {
-                  setSidebarArticle(article);
-                  // Clear active filter/explore so the center panel is unobstructed
-                  setFilter(null);
-                  setActiveExploreTab(null);
-                }} />
+                <RightSidebar
+                  onArticleClick={(article) => {
+                    setSidebarArticle(article);
+                    setSelectedTicker(null);
+                    setFilter(null);
+                    setActiveExploreTab(null);
+                  }}
+                  onTickerClick={(ticker) => {
+                    setSelectedTicker(ticker);
+                    setSidebarArticle(null);
+                    setFilter(null);
+                    setActiveExploreTab(null);
+                  }}
+                />
               </div>
             </div>
           </div>

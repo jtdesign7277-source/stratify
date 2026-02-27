@@ -300,7 +300,7 @@ export const FinanceView = ({ data, loading }) => {
 };
 
 // ─── Right Sidebar ────────────────────────────────────────
-export const RightSidebar = ({ onArticleClick }) => {
+export const RightSidebar = ({ onArticleClick, onTickerClick }) => {
   const [newsOpen, setNewsOpen] = useState(true);
   const [newsPanelHeight, setNewsPanelHeight] = useState(400);
   const newsPanelRef = React.useRef(null);
@@ -336,7 +336,7 @@ export const RightSidebar = ({ onArticleClick }) => {
     >
       <div className="h-full flex-1 min-h-0 pr-1 flex flex-col gap-3 overflow-y-auto">
         {/* ── Watchlist panel ── */}
-        <WatchlistPanel />
+        <WatchlistPanel onTickerClick={onTickerClick} />
 
         {/* ── News panel ── */}
         <div className="flex flex-col min-h-0 rounded-xl border border-white/6 bg-white/2 overflow-hidden flex-shrink-0">
