@@ -1279,33 +1279,47 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                           <AnimatePresence initial={false}>
                             {priceAlertPopoverOpen && (
                               <motion.div
-                                initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                transition={{ duration: 0.16, ease: 'easeOut' }}
-                                className="absolute top-full right-0 mt-2 z-50 bg-[#0d1117] border border-white/10 rounded-xl p-4 shadow-2xl shadow-black/50 w-[300px]"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.18 }}
+                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center"
+                                onMouseDown={(e) => { if (e.target === e.currentTarget) setPriceAlertPopoverOpen(false); }}
                               >
-                                <div className="relative">
-                                  <div className="text-sm font-semibold text-[#e6edf3]">Set Price Alert</div>
-                                  <button
-                                    type="button"
-                                    onClick={() => setPriceAlertPopoverOpen(false)}
-                                    className="absolute -top-1 -right-1 inline-flex items-center justify-center text-[#7d8590] hover:text-[#e6edf3] transition-colors"
-                                    aria-label="Close price alert"
-                                  >
-                                    <X className="w-3.5 h-3.5" strokeWidth={1.5} />
-                                  </button>
-                                </div>
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                                  className="bg-[#161b22] border border-white/10 rounded-2xl p-5 w-[360px] shadow-2xl"
+                                  ref={priceAlertPopoverRef}
+                                >
+                                  {/* Header */}
+                                  <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                      <Bell className="h-4 w-4 text-[#58a6ff]" strokeWidth={1.5} />
+                                      <span className="text-[#e6edf3] text-base font-semibold">Set Price Alert</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceAlertPopoverOpen(false)}
+                                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#7d8590] hover:text-[#e6edf3] cursor-pointer transition"
+                                      aria-label="Close price alert"
+                                    >
+                                      <X className="w-4 h-4" strokeWidth={1.5} />
+                                    </button>
+                                  </div>
 
-                                <div className="mt-3 space-y-2.5">
+                                  {/* Ticker input */}
                                   <input
                                     type="text"
                                     value={priceAlertTickerInput}
                                     onChange={(event) => setPriceAlertTickerInput(normalizePriceAlertTicker(event.target.value))}
                                     placeholder="$AAPL"
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-[#e6edf3] outline-none"
+                                    className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-[#e6edf3] text-sm font-mono placeholder-[#7d8590] focus:border-[#58a6ff]/50 focus:outline-none focus:ring-1 focus:ring-[#58a6ff]/30 mb-3"
                                   />
 
+                                  {/* Price input */}
                                   <input
                                     type="number"
                                     value={priceAlertTargetInput}
@@ -1317,10 +1331,11 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                       }
                                     }}
                                     placeholder="250.00"
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-[#e6edf3] outline-none"
+                                    className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-[#e6edf3] text-sm font-mono placeholder-[#7d8590] focus:border-[#58a6ff]/50 focus:outline-none focus:ring-1 focus:ring-[#58a6ff]/30 mb-3"
                                   />
 
-                                  <div className="grid grid-cols-2 gap-2">
+                                  {/* Above / Below toggle */}
+                                  <div className="flex gap-2 mb-4">
                                     {['above', 'below'].map((direction) => {
                                       const active = priceAlertDirection === direction;
                                       return (
@@ -1328,22 +1343,27 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                           key={direction}
                                           type="button"
                                           onClick={() => setPriceAlertDirection(direction)}
-                                          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'bg-[#58a6ff] text-black' : 'bg-white/5 text-[#7d8590]'}`.trim()}
+                                          className={`flex-1 rounded-xl py-2.5 text-sm font-medium transition cursor-pointer ${
+                                            active
+                                              ? 'bg-[#58a6ff] text-white'
+                                              : 'bg-[#0d1117] border border-white/10 text-[#7d8590] hover:bg-white/5 hover:text-[#e6edf3]'
+                                          }`}
                                         >
-                                          {direction === 'above' ? 'Above' : 'Below'}
+                                          {direction === 'above' ? '↑ Above' : '↓ Below'}
                                         </button>
                                       );
                                     })}
                                   </div>
 
+                                  {/* Set Alert button */}
                                   <button
                                     type="button"
                                     onClick={() => void handleSetPriceAlert()}
-                                    className="bg-[#58a6ff] text-black font-semibold rounded-lg px-4 py-2 text-sm w-full mt-3 hover:bg-[#79b8ff] transition"
+                                    className="w-full bg-[#58a6ff] hover:bg-[#4a90e2] text-white rounded-xl py-3 text-sm font-semibold transition cursor-pointer"
                                   >
                                     Set Alert
                                   </button>
-                                </div>
+                                </motion.div>
                               </motion.div>
                             )}
                           </AnimatePresence>
