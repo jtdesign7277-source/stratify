@@ -34,56 +34,56 @@ const COMPANY_NAMES = {
 }
 
 const FEED_TICKERS = {
-  Earnings:          ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NFLX'],
-  Momentum:          ['SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AMD', 'SMCI', 'PLTR'],
-  Macro:             ['SPY', 'TLT', 'GLD', 'QQQ', 'IWM', 'USO', 'UUP', 'HYG'],
-  Options:           ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'AMZN'],
-  Sentiment:         ['SPY', 'QQQ', 'TLT', 'GLD', 'IWM', 'HYG', 'AAPL', 'NVDA'],
-  PreMarket:         ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL', 'AMD', 'AMZN', 'META'],
-  AfterHours:        ['TSLA', 'NVDA', 'AAPL', 'AMZN', 'META', 'GOOGL', 'MSFT', 'NFLX'],
-  Sectors:           ['XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLP', 'XLY', 'XLRE'],
-  Indices:           ['SPY', 'QQQ', 'DIA', 'IWM', 'VTI', 'MDY', 'EFA', 'EEM'],
-  Volume:            ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'AMC', 'SOFI'],
-  Trending:          ['NVDA', 'TSLA', 'AAPL', 'AMD', 'PLTR', 'SOFI', 'SMCI', 'META'],
-  MemeStocks:        ['GME', 'AMC', 'BB', 'KOSS', 'SOFI', 'PLTR', 'HOOD'],
-  Runners:           ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AMD', 'SMCI', 'PLTR', 'SOFI'],
-  Squeezes:          ['GME', 'AMC', 'KOSS', 'SOFI', 'HOOD', 'AAPL', 'SPY'],
-  IPOs:              ['SPY', 'QQQ', 'RIVN', 'HOOD', 'ARM', 'CART', 'BIRK', 'DUOL'],
-  SPACs:             ['SPY', 'SOFI', 'LCID', 'QQQ', 'IWM', 'HOOD', 'PLTR', 'RIVN'],
-  PennyStocks:       ['SOFI', 'PLTR', 'BB', 'NOK', 'FUBO', 'CLOV', 'HOOD', 'AMC'],
-  Breakouts:         ['SPY', 'QQQ', 'NVDA', 'TSLA', 'AMD', 'AAPL', 'MSFT', 'SMCI'],
-  BigTech:           ['AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'NVDA', 'TSLA', 'NFLX'],
-  AI:                ['NVDA', 'AMD', 'SMCI', 'PLTR', 'MSFT', 'GOOGL', 'META', 'TSM'],
-  Semis:             ['NVDA', 'AMD', 'TSM', 'INTC', 'AVGO', 'QCOM', 'MU', 'LRCX'],
-  EVs:               ['TSLA', 'RIVN', 'LCID', 'NIO', 'LI', 'XPEV', 'F', 'GM'],
-  Fintech:           ['SOFI', 'HOOD', 'SQ', 'PYPL', 'COIN', 'AFRM', 'NU', 'UPST'],
-  Biotech:           ['XBI', 'MRNA', 'BNTX', 'REGN', 'VRTX', 'AMGN', 'BIIB', 'GILD'],
-  SpaceTech:         ['RKLB', 'LUNR', 'ASTS', 'BKSY', 'LMT', 'NOC', 'BA', 'RTX'],
-  FedWatch:          ['TLT', 'SPY', 'GLD', 'SHY', 'IEF', 'LQD', 'HYG', 'UUP'],
-  Trump:             ['DJT', 'TSLA', 'GEO', 'CXW', 'SPY', 'XLF', 'XLE', 'GLD'],
-  ElonMusk:          ['TSLA', 'SPY', 'RKLB', 'COIN', 'NVDA', 'XPEV', 'META', 'GOOGL'],
-  Politics:          ['SPY', 'QQQ', 'XLF', 'XLE', 'GLD', 'TLT', 'LMT', 'RTX'],
-  Tariffs:           ['SPY', 'EEM', 'FXI', 'KWEB', 'BABA', 'NIO', 'TSM', 'CAT'],
-  Bonds:             ['TLT', 'IEF', 'SHY', 'LQD', 'HYG', 'BND', 'AGG', 'TMF'],
-  Commodities:       ['GLD', 'SLV', 'USO', 'UNG', 'COPX', 'DBA', 'WEAT', 'PPLT'],
-  Forex:             ['UUP', 'FXE', 'FXY', 'FXB', 'FXA', 'EEM', 'SPY', 'GLD'],
-  Housing:           ['XHB', 'ITB', 'VNQ', 'O', 'AMT', 'DHI', 'LEN', 'TOL'],
-  Jobs:              ['SPY', 'QQQ', 'TLT', 'XLI', 'XLP', 'COST', 'WMT', 'IWM'],
-  Bitcoin:           ['BTC-USD', 'ETH-USD', 'MSTR', 'COIN', 'BITO', 'GBTC', 'RIOT', 'MARA'],
-  Ethereum:          ['ETH-USD', 'BTC-USD', 'SOL-USD', 'COIN', 'MSTR', 'RIOT', 'MARA'],
-  Altcoins:          ['SOL-USD', 'XRP-USD', 'DOGE-USD', 'ADA-USD', 'AVAX-USD', 'LINK-USD', 'DOT-USD'],
-  DeFi:              ['ETH-USD', 'SOL-USD', 'COIN', 'BTC-USD', 'AAVE-USD', 'UNI-USD'],
-  CryptoNews:        ['BTC-USD', 'ETH-USD', 'SOL-USD', 'COIN', 'MSTR', 'HOOD', 'SQ'],
-  TechnicalAnalysis: ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL', 'AMD', 'MSFT', 'IWM'],
-  Fundamentals:      ['AAPL', 'MSFT', 'GOOGL', 'BRK.B', 'JNJ', 'JPM', 'V', 'UNH'],
-  DayTrading:        ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'META', 'AMZN'],
-  SwingTrades:       ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL', 'MSFT', 'AMD', 'AMZN'],
-  Dividends:         ['SCHD', 'VYM', 'O', 'JEPI', 'KO', 'PEP', 'JNJ', 'PG'],
-  RiskManagement:    ['SPY', 'QQQ', 'TLT', 'GLD', 'AAPL', 'NVDA', 'SH', 'SQQQ'],
-  LossPorn:          ['GME', 'AMC', 'TSLA', 'NVDA', 'SPY', 'QQQ', 'HOOD'],
-  GainPorn:          ['TSLA', 'NVDA', 'GME', 'AMD', 'SMCI', 'PLTR', 'COIN', 'MSTR'],
-  TradingMemes:      ['GME', 'AMC', 'TSLA', 'SPY', 'HOOD', 'SOFI', 'PLTR'],
-  HotTakes:          ['SPY', 'QQQ', 'TSLA', 'NVDA', 'BTC-USD', 'META', 'AAPL', 'AMD'],
+  Earnings:          ['AAPL', 'MSFT', 'NVDA', 'GOOGL'],
+  Momentum:          ['SPY', 'QQQ', 'NVDA', 'TSLA'],
+  Macro:             ['SPY', 'TLT', 'GLD', 'QQQ'],
+  Options:           ['SPY', 'QQQ', 'TSLA', 'NVDA'],
+  Sentiment:         ['SPY', 'QQQ', 'TLT', 'GLD'],
+  PreMarket:         ['SPY', 'QQQ', 'TSLA', 'NVDA'],
+  AfterHours:        ['TSLA', 'NVDA', 'AAPL', 'AMZN'],
+  Sectors:           ['XLK', 'XLF', 'XLE', 'XLV'],
+  Indices:           ['SPY', 'QQQ', 'DIA', 'IWM'],
+  Volume:            ['SPY', 'QQQ', 'TSLA', 'NVDA'],
+  Trending:          ['NVDA', 'TSLA', 'AAPL', 'AMD'],
+  MemeStocks:        ['GME', 'AMC', 'SOFI', 'HOOD'],
+  Runners:           ['SPY', 'QQQ', 'TSLA', 'NVDA'],
+  Squeezes:          ['GME', 'AMC', 'SOFI', 'HOOD'],
+  IPOs:              ['RIVN', 'HOOD', 'ARM', 'CART'],
+  SPACs:             ['SOFI', 'LCID', 'HOOD', 'PLTR'],
+  PennyStocks:       ['SOFI', 'PLTR', 'BB', 'HOOD'],
+  Breakouts:         ['SPY', 'QQQ', 'NVDA', 'TSLA'],
+  BigTech:           ['AAPL', 'MSFT', 'GOOGL', 'META'],
+  AI:                ['NVDA', 'AMD', 'SMCI', 'PLTR'],
+  Semis:             ['NVDA', 'AMD', 'TSM', 'AVGO'],
+  EVs:               ['TSLA', 'RIVN', 'LCID', 'NIO'],
+  Fintech:           ['SOFI', 'HOOD', 'SQ', 'PYPL'],
+  Biotech:           ['XBI', 'MRNA', 'REGN', 'VRTX'],
+  SpaceTech:         ['RKLB', 'LUNR', 'ASTS', 'LMT'],
+  FedWatch:          ['TLT', 'SPY', 'GLD', 'UUP'],
+  Trump:             ['DJT', 'TSLA', 'SPY', 'GLD'],
+  ElonMusk:          ['TSLA', 'RKLB', 'COIN', 'NVDA'],
+  Politics:          ['SPY', 'QQQ', 'XLF', 'GLD'],
+  Tariffs:           ['SPY', 'EEM', 'FXI', 'TSM'],
+  Bonds:             ['TLT', 'IEF', 'SHY', 'HYG'],
+  Commodities:       ['GLD', 'SLV', 'USO', 'UNG'],
+  Forex:             ['UUP', 'FXE', 'FXY', 'EEM'],
+  Housing:           ['XHB', 'VNQ', 'DHI', 'LEN'],
+  Jobs:              ['SPY', 'QQQ', 'TLT', 'XLI'],
+  Bitcoin:           ['BTC-USD', 'ETH-USD', 'MSTR', 'COIN'],
+  Ethereum:          ['ETH-USD', 'BTC-USD', 'SOL-USD', 'COIN'],
+  Altcoins:          ['SOL-USD', 'XRP-USD', 'DOGE-USD', 'ADA-USD'],
+  DeFi:              ['ETH-USD', 'SOL-USD', 'COIN', 'BTC-USD'],
+  CryptoNews:        ['BTC-USD', 'ETH-USD', 'SOL-USD', 'COIN'],
+  TechnicalAnalysis: ['SPY', 'QQQ', 'TSLA', 'NVDA'],
+  Fundamentals:      ['AAPL', 'MSFT', 'GOOGL', 'JPM'],
+  DayTrading:        ['SPY', 'QQQ', 'TSLA', 'NVDA'],
+  SwingTrades:       ['SPY', 'QQQ', 'TSLA', 'NVDA'],
+  Dividends:         ['SCHD', 'VYM', 'O', 'JEPI'],
+  RiskManagement:    ['SPY', 'QQQ', 'TLT', 'GLD'],
+  LossPorn:          ['GME', 'AMC', 'TSLA', 'SPY'],
+  GainPorn:          ['TSLA', 'NVDA', 'SMCI', 'COIN'],
+  TradingMemes:      ['GME', 'AMC', 'TSLA', 'SPY'],
+  HotTakes:          ['SPY', 'QQQ', 'TSLA', 'NVDA'],
 }
 
 // Generate deterministic sparkline points from price + change
@@ -132,9 +132,9 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
   const intervalRef = useRef(null)
 
   const allTickers = useMemo(() => {
-    const defaults = FEED_TICKERS[feedName] || ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL']
+    const defaults = FEED_TICKERS[feedName] || ['SPY', 'QQQ', 'TSLA', 'NVDA']
     const combined = [...new Set([...defaults, ...mentionedTickers])]
-    return combined.slice(0, 10)
+    return combined.slice(0, 4)
   }, [feedName, mentionedTickers])
 
   const equityTickers = useMemo(() => allTickers.filter(t => !t.includes('-USD')), [allTickers])
@@ -230,7 +230,7 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
       {/* Ticker rows */}
       <div className="flex-1 overflow-y-auto ticker-scroll py-1">
         {loading ? (
-          [...Array(8)].map((_, i) => (
+          [...Array(4)].map((_, i) => (
             <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
               <div className="flex-1">
                 <div className="w-12 h-3 bg-[#1a2538] rounded mb-1" />
