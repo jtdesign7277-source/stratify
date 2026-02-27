@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
 import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import FeedsSidebar from './FeedsSidebar';
+import FeedView from './FeedView';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
@@ -5450,6 +5451,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
             />
 
             <div className="flex-1 min-w-0 min-h-0 overflow-y-hidden overflow-x-visible flex flex-col">
+              {filter ? (
+                <FeedView feedName={filter} onClose={() => handleFeedFilterChange(null)} />
+              ) : (
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
                 <div className="w-[92px] flex-shrink-0" aria-hidden />
 
@@ -5683,6 +5687,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
                 <RightSidebar quoteMap={quoteMap} />
               </div>
+              )}
             </div>
           </div>
         </div>
