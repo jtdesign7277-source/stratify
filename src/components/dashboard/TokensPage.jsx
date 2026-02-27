@@ -33,7 +33,7 @@ const TokensPage = ({ onBack }) => {
           {/* Buttons */}
           <div className="flex flex-col gap-3 sm:flex-row">
             <a
-              href="https://x.ai"
+              href="https://console.x.ai"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-medium text-emerald-300 transition hover:bg-emerald-500/20"
