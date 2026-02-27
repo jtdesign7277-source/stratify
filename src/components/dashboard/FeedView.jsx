@@ -167,228 +167,190 @@ function ArticleReader({ item, onBack }) {
   const favicon = getFaviconUrl(item?.url)
   const hostname = getHostname(item?.url)
 
+  // Rendered as a normal in-flow view — NOT an absolute overlay.
+  // This keeps LeftRail and all sidebar content fully visible while reading.
   return (
     <motion.div
-      initial={{ opacity: 0, x: 40 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 40 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="absolute inset-0 z-20 bg-[#060d18] flex flex-col"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="flex-1 min-h-0 overflow-y-auto feed-scroll"
     >
-      {/* ── Reader header ── */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-white/6 flex-shrink-0">
+      {/* ── Back bar + Original link ── */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-[#7d8590] hover:text-[#e6edf3] transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/5 text-sm"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5 transition-colors"
         >
           <ArrowLeft size={14} strokeWidth={1.5} />
           Back to feed
         </button>
-
-        <div className="ml-auto flex items-center gap-2">
-          {item?.url && (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[#58a6ff] hover:underline text-xs px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
-            >
-              <ExternalLink size={12} strokeWidth={1.5} />
-              Original
-            </a>
-          )}
-        </div>
+        {item?.url && (
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm text-[#58a6ff] hover:underline transition-colors"
+          >
+            <ExternalLink size={12} strokeWidth={1.5} />
+            Original
+          </a>
+        )}
       </div>
 
-      {/* ── Reader body ── */}
-      <div className="flex-1 overflow-y-auto feed-scroll">
-        <div className="max-w-[700px] mx-auto px-6 py-8">
+      {/* ── Article card ── */}
+      <div className="mx-4 mb-6 rounded-2xl border border-white/10 bg-[#0d1117] overflow-hidden">
 
-          {/* ── Article card wrapper ── */}
-          <div className="rounded-xl border border-white/10 bg-[#0d1117] overflow-hidden">
+        {/* Hero image — flush to top, rounded top corners from parent overflow-hidden */}
+        {(article?.image || item?.image) && (
+          <CardImage
+            src={article?.image || item?.image}
+            alt={stripCitations(article?.title || item?.title || '')}
+            className="w-full max-h-[400px] object-cover"
+          />
+        )}
 
-            {/* ── Hero image ── */}
-            {(article?.image || item?.image) && (
-              <div className="rounded-t-xl overflow-hidden">
-                <CardImage
-                  src={article?.image || item?.image}
-                  alt={stripCitations(article?.title || item?.title || '')}
-                  className="w-full max-h-[340px] object-cover"
-                />
+        <div className="p-6">
+          {/* Badge pills: category + sentiment */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`${cat.bg} ${cat.text} inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium`}>
+              <CatIcon size={12} strokeWidth={1.5} />
+              {item?.category}
+            </span>
+            {item?.sentiment && (
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${sentiment}`}>
+                {item.sentiment}
+              </span>
+            )}
+          </div>
+
+          {/* Title */}
+          <h1 className="text-[#e6edf3] text-xl font-semibold leading-snug mt-4">
+            {stripCitations(article?.title || item?.title || '')}
+          </h1>
+
+          {/* Metadata: source, author, time */}
+          <div className="flex items-center gap-3 flex-wrap mt-2 pb-4 border-b border-white/6">
+            <div className="flex items-center gap-2">
+              {favicon && (
+                <img src={favicon} alt="" className="w-4 h-4 rounded" loading="lazy" />
+              )}
+              <span className="text-[#7d8590] text-sm">
+                {stripCitations(article?.source || item?.source || '')}
+              </span>
+            </div>
+            {article?.author && (
+              <div className="flex items-center gap-1.5 text-[#7d8590] text-sm">
+                <User size={14} strokeWidth={1.5} />
+                <span>{article.author}</span>
               </div>
             )}
+            {item?.time && (
+              <div className="flex items-center gap-1.5 text-[#7d8590] text-sm">
+                <Clock size={14} strokeWidth={1.5} />
+                <span>{item.time}</span>
+              </div>
+            )}
+          </div>
 
-            <div className="p-6">
-              {/* ── Badges row: category + sentiment ── */}
-              <div className="flex items-center gap-2 flex-wrap mb-4">
-                <span className={`${cat.bg} ${cat.text} px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5`}>
-                  <CatIcon size={12} strokeWidth={1.5} />
-                  {item?.category}
+          {/* Ticker pills */}
+          {item?.tickers && item.tickers.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mt-4">
+              {item.tickers.map(t => (
+                <span key={t} className="font-mono text-xs font-medium text-blue-400 bg-blue-500/20 rounded-full px-3 py-1">
+                  {stripCitations(t)}
                 </span>
-                {item?.sentiment && (
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${sentiment}`}>
-                    {item.sentiment}
-                  </span>
-                )}
+              ))}
+            </div>
+          )}
+
+          {/* Loading skeleton */}
+          {loading && (
+            <div className="mt-4 space-y-3 animate-pulse">
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-4 bg-white/5 rounded-lg"
+                  style={{ width: i % 3 === 0 ? '83%' : i % 3 === 1 ? '100%' : '91%' }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Error / fallback */}
+          {error && (
+            <div className="mt-4 space-y-4">
+              {item?.summary && (
+                <p className="text-[#c9d1d9] text-sm leading-relaxed">
+                  {highlightTickers(stripCitations(item.summary))}
+                </p>
+              )}
+              <div className="rounded-xl border border-white/6 bg-white/3 px-4 py-3 text-[#7d8590] text-sm">
+                Could not load full article.{' '}
+                <a href={item?.url} target="_blank" rel="noopener noreferrer" className="text-[#58a6ff] hover:underline">
+                  Read on {hostname}
+                </a>
               </div>
+            </div>
+          )}
 
-              {/* ── Title ── */}
-              <h1 className="text-[#e6edf3] text-xl font-semibold leading-snug mb-4">
-                {stripCitations(article?.title || item?.title || '')}
-              </h1>
-
-              {/* ── Metadata row: source + author + time ── */}
-              <div className="flex items-center gap-4 mb-6 pb-5 border-b border-white/6 flex-wrap">
-                <div className="flex items-center gap-2">
-                  {favicon && (
-                    <img src={favicon} alt="" className="w-4 h-4 rounded" loading="lazy" />
-                  )}
-                  <span className="text-[#7d8590] text-sm">
-                    {stripCitations(article?.source || item?.source || '')}
-                  </span>
-                </div>
-                {article?.author && (
-                  <div className="flex items-center gap-1.5 text-[#7d8590] text-sm">
-                    <User size={14} strokeWidth={1.5} />
-                    <span>{article.author}</span>
-                  </div>
-                )}
-                {item?.time && (
-                  <div className="flex items-center gap-1.5 text-[#7d8590] text-sm">
-                    <Clock size={14} strokeWidth={1.5} />
-                    <span>{item.time}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Ticker pills ── */}
-              {item?.tickers && item.tickers.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap mb-5">
-                  {item.tickers.map(t => (
-                    <span
-                      key={t}
-                      className="font-mono text-xs text-blue-400 bg-blue-500/20 rounded-full px-3 py-1 font-medium"
-                    >
-                      {stripCitations(t)}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* ── Article content: loading skeleton ── */}
-              {loading && (
-                <div className="space-y-3 animate-pulse">
-                  {[...Array(8)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-4 bg-white/5 rounded-lg"
-                      style={{ width: i % 3 === 0 ? '83%' : i % 3 === 1 ? '100%' : '91%' }}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* ── Article content: error / fallback ── */}
-              {error && (
-                <div className="space-y-4">
-                  {item?.summary && (
-                    <p className="text-[#c9d1d9] text-sm leading-relaxed">
-                      {highlightTickers(stripCitations(item.summary))}
-                    </p>
-                  )}
-                  <div className="rounded-xl border border-white/6 bg-white/3 px-4 py-3 text-[#7d8590] text-sm">
-                    Could not load full article.{' '}
-                    <a
-                      href={item?.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#58a6ff] hover:underline"
-                    >
-                      Read on {hostname}
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Article content: body paragraphs ── */}
-              {!loading && !error && article && (
-                <div className="space-y-4">
-                  {(article.paragraphs || []).map((p, i) => (
-                    <p key={i} className="text-[#c9d1d9] text-sm leading-relaxed">
-                      {highlightTickers(p)}
-                    </p>
-                  ))}
-                  {(!article.paragraphs || article.paragraphs.length === 0) && article.content && (
-                    <p className="text-[#c9d1d9] text-sm leading-relaxed">
-                      {highlightTickers(article.content)}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* ── Sources footer ── */}
-              {!loading && (
-                <div className="mt-8 pt-5 border-t border-white/6">
-                  <h3 className="text-[#7d8590] text-xs font-medium uppercase tracking-wider mb-3">
-                    Sources
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
-                    {item?.url && (
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 rounded-xl border border-white/6 bg-white/3 px-4 py-3 hover:border-white/15 hover:bg-white/5 transition-all duration-200 group max-w-[280px]"
-                      >
-                        {favicon && (
-                          <img src={favicon} alt="" className="w-5 h-5 rounded flex-shrink-0" loading="lazy" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[#e6edf3] text-sm font-medium truncate group-hover:text-[#58a6ff] transition-colors">
-                            {stripCitations(item.source || hostname)}
-                          </div>
-                          <div className="text-[#7d8590] text-[11px] truncate">{hostname}</div>
-                        </div>
-                        <ExternalLink
-                          size={12}
-                          strokeWidth={1.5}
-                          className="text-[#7d8590] group-hover:text-[#58a6ff] flex-shrink-0 transition-colors"
-                        />
-                      </a>
-                    )}
-                    {item?.tickers && item.tickers.length > 0 && (
-                      <a
-                        href={`https://finance.yahoo.com/quote/${(item.tickers[0] || '').replace('$', '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 rounded-xl border border-white/6 bg-white/3 px-4 py-3 hover:border-white/15 hover:bg-white/5 transition-all duration-200 group max-w-[280px]"
-                      >
-                        <img
-                          src="https://www.google.com/s2/favicons?domain=finance.yahoo.com&sz=32"
-                          alt=""
-                          className="w-5 h-5 rounded flex-shrink-0"
-                          loading="lazy"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[#e6edf3] text-sm font-medium truncate group-hover:text-[#58a6ff] transition-colors">
-                            Yahoo Finance
-                          </div>
-                          <div className="text-[#7d8590] text-[11px] truncate">
-                            {stripCitations(item.tickers[0])} Quote
-                          </div>
-                        </div>
-                        <ExternalLink
-                          size={12}
-                          strokeWidth={1.5}
-                          className="text-[#7d8590] group-hover:text-[#58a6ff] flex-shrink-0 transition-colors"
-                        />
-                      </a>
-                    )}
-                  </div>
-                </div>
+          {/* Body paragraphs */}
+          {!loading && !error && article && (
+            <div className="mt-4 space-y-4">
+              {(article.paragraphs || []).map((p, i) => (
+                <p key={i} className="text-[#c9d1d9] text-sm leading-relaxed">
+                  {highlightTickers(p)}
+                </p>
+              ))}
+              {(!article.paragraphs || article.paragraphs.length === 0) && article.content && (
+                <p className="text-[#c9d1d9] text-sm leading-relaxed">
+                  {highlightTickers(article.content)}
+                </p>
               )}
             </div>
-          </div>
+          )}
+
+          {/* Sources footer */}
+          {!loading && (
+            <div className="mt-8 pt-5 border-t border-white/6">
+              <h3 className="text-[#7d8590] text-xs font-medium uppercase tracking-wider mb-3">Sources</h3>
+              <div className="flex flex-wrap gap-3">
+                {item?.url && (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 rounded-xl border border-white/6 bg-white/3 px-4 py-3 hover:border-white/15 hover:bg-white/5 transition-all duration-200 group max-w-[280px]"
+                  >
+                    {favicon && <img src={favicon} alt="" className="w-5 h-5 rounded flex-shrink-0" loading="lazy" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[#e6edf3] text-sm font-medium truncate group-hover:text-[#58a6ff] transition-colors">
+                        {stripCitations(item.source || hostname)}
+                      </div>
+                      <div className="text-[#7d8590] text-[11px] truncate">{hostname}</div>
+                    </div>
+                    <ExternalLink size={12} strokeWidth={1.5} className="text-[#7d8590] group-hover:text-[#58a6ff] flex-shrink-0 transition-colors" />
+                  </a>
+                )}
+                {item?.tickers && item.tickers.length > 0 && (
+                  <a
+                    href={`https://finance.yahoo.com/quote/${(item.tickers[0] || '').replace('$', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 rounded-xl border border-white/6 bg-white/3 px-4 py-3 hover:border-white/15 hover:bg-white/5 transition-all duration-200 group max-w-[280px]"
+                  >
+                    <img src="https://www.google.com/s2/favicons?domain=finance.yahoo.com&sz=32" alt="" className="w-5 h-5 rounded flex-shrink-0" loading="lazy" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[#e6edf3] text-sm font-medium truncate group-hover:text-[#58a6ff] transition-colors">Yahoo Finance</div>
+                      <div className="text-[#7d8590] text-[11px] truncate">{stripCitations(item.tickers[0])} Quote</div>
+                    </div>
+                    <ExternalLink size={12} strokeWidth={1.5} className="text-[#7d8590] group-hover:text-[#58a6ff] flex-shrink-0 transition-colors" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -569,20 +531,9 @@ export default function FeedView({ feedName, onClose }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full relative">
-      {/* Article reader overlay */}
-      <AnimatePresence>
-        {activeArticle && (
-          <ArticleReader
-            key={activeArticle.url}
-            item={activeArticle}
-            onBack={handleBack}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Feed header */}
-      <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#1a2538]">
+    <div className="flex-1 flex flex-col h-full min-h-0">
+      {/* Feed header — always visible, even when reading an article */}
+      <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#1a2538] flex-shrink-0">
         <div className="flex items-center gap-3">
           <Hash size={18} strokeWidth={1.5} className="text-blue-400" />
           <span className="text-white text-base font-semibold">{feedName}</span>
@@ -619,36 +570,51 @@ export default function FeedView({ feedName, onClose }) {
         </div>
       </div>
 
-      {/* Feed content */}
-      <div className="flex-1 overflow-y-auto p-6 feed-scroll">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm mb-4">
-            Failed to load feed: {error}
-            <button onClick={refresh} className="ml-3 underline hover:text-red-300 transition-colors">
-              Retry
-            </button>
-          </div>
-        )}
-
-        <div className="max-w-3xl mx-auto space-y-4">
-          <AnimatePresence>
-            {(items || []).map((item, i) =>
-              i === 0 ? (
-                <HeroCard key={item.url || item.title || i} item={item} onClick={handleCardClick} />
-              ) : (
-                <NewsCard key={item.url || item.title || i} item={item} index={i} onClick={handleCardClick} />
-              )
+      {/* Content area: article reader OR feed list — swaps in place, no overlay */}
+      <AnimatePresence mode="wait" initial={false}>
+        {activeArticle ? (
+          <ArticleReader
+            key={activeArticle.url}
+            item={activeArticle}
+            onBack={handleBack}
+          />
+        ) : (
+          <motion.div
+            key="feed-list"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex-1 overflow-y-auto p-6 feed-scroll"
+          >
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm mb-4">
+                Failed to load feed: {error}
+                <button onClick={refresh} className="ml-3 underline hover:text-red-300 transition-colors">
+                  Retry
+                </button>
+              </div>
             )}
-          </AnimatePresence>
-        </div>
 
-        {(!items || items.length === 0) && !loading && !error && (
-          <div className="flex flex-col items-center justify-center h-48 text-gray-600">
-            <Newspaper size={24} strokeWidth={1.5} className="mb-3 text-gray-700" />
-            <span className="text-sm">No stories found for #{feedName}</span>
-          </div>
+            <div className="max-w-3xl mx-auto space-y-4">
+              {(items || []).map((item, i) =>
+                i === 0 ? (
+                  <HeroCard key={item.url || item.title || i} item={item} onClick={handleCardClick} />
+                ) : (
+                  <NewsCard key={item.url || item.title || i} item={item} index={i} onClick={handleCardClick} />
+                )
+              )}
+            </div>
+
+            {(!items || items.length === 0) && !loading && !error && (
+              <div className="flex flex-col items-center justify-center h-48 text-gray-600">
+                <Newspaper size={24} strokeWidth={1.5} className="mb-3 text-gray-700" />
+                <span className="text-sm">No stories found for #{feedName}</span>
+              </div>
+            )}
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
       <style>{`
         .feed-scroll::-webkit-scrollbar { width: 6px; }
