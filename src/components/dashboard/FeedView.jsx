@@ -11,10 +11,10 @@ import {
 import { useFeed } from '../../hooks/useFeed'
 
 const CATEGORY_STYLES = {
-  NEWS:       { bg: 'bg-cyan-500/10', text: 'text-cyan-400', icon: Newspaper },
+  NEWS:       { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: Newspaper },
   ANALYSIS:   { bg: 'bg-purple-500/10', text: 'text-purple-400', icon: BarChart3 },
-  DATA:       { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: Database },
-  ALERT:      { bg: 'bg-amber-500/10', text: 'text-amber-400', icon: AlertTriangle },
+  DATA:       { bg: 'bg-amber-500/10', text: 'text-amber-400', icon: Database },
+  ALERT:      { bg: 'bg-orange-500/10', text: 'text-orange-400', icon: AlertTriangle },
   EARNINGS:   { bg: 'bg-emerald-500/10', text: 'text-emerald-400', icon: DollarSign },
   REGULATORY: { bg: 'bg-rose-500/10', text: 'text-rose-400', icon: Scale },
 }
