@@ -3,11 +3,10 @@
 // Cache-first with Redis (Upstash) — 5 min TTL per skill rules
 
 import { Redis } from '@upstash/redis'
-import crypto from 'crypto'
 
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
 })
 
 const CACHE_KEY = 'news:trending:market'
