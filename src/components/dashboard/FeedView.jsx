@@ -1,12 +1,12 @@
 // FeedView.jsx — Perplexity Discover-style news feed with article reader
 // Full-width card feed + slide-in article reader overlay (Marketaux API)
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Hash, RefreshCw, ExternalLink, Newspaper, BarChart3,
   AlertTriangle, Database, DollarSign, Scale,
-  X as XIcon, ArrowLeft, Globe, Clock, User
+  X as XIcon, ArrowLeft, Globe, Clock, User, Sparkles, Loader2
 } from 'lucide-react'
 import { useFeed } from '../../hooks/useFeed'
 
@@ -128,6 +128,19 @@ export function ArticleReader({ item, onBack }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // AI summarize state
+  const [summary, setSummary] = useState(null)
+  const [summarizing, setSummarizing] = useState(false)
+  const [summaryError, setSummaryError] = useState(null)
+  const summaryErrorTimer = useRef(null)
+
+  // Reset summary when navigating to a different article
+  useEffect(() => {
+    setSummary(null)
+    setSummarizing(false)
+    setSummaryError(null)
+  }, [item?.url])
+
   useEffect(() => {
     if (!item?.url) {
       setError('No article URL')
@@ -161,6 +174,45 @@ export function ArticleReader({ item, onBack }) {
     return () => { mounted = false }
   }, [item?.url])
 
+  // Cleanup summary error timer on unmount
+  useEffect(() => {
+    return () => { clearTimeout(summaryErrorTimer.current) }
+  }, [])
+
+  const handleSummarize = useCallback(async () => {
+    // Use cached summary if already fetched
+    if (summary) { setSummary(null); return }
+    if (summarizing) return
+
+    setSummarizing(true)
+    setSummaryError(null)
+
+    const bodyContent = article
+      ? (article.paragraphs || []).join(' ') || article.content || ''
+      : item?.summary || item?.description || ''
+
+    try {
+      const res = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: article?.title || item?.title || '',
+          content: bodyContent,
+          source: article?.source || item?.source || '',
+          url: item?.url || '',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to summarize')
+      setSummary(data.summary)
+    } catch {
+      setSummaryError("Couldn't summarize this article")
+      summaryErrorTimer.current = setTimeout(() => setSummaryError(null), 3000)
+    } finally {
+      setSummarizing(false)
+    }
+  }, [summary, summarizing, article, item])
+
   const cat = CATEGORY_STYLES[item?.category] || CATEGORY_STYLES.NEWS
   const CatIcon = cat.icon
   const sentiment = SENTIMENT_BADGE[item?.sentiment] || SENTIMENT_BADGE.neutral
@@ -175,32 +227,113 @@ export function ArticleReader({ item, onBack }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="flex-1 min-h-0 overflow-y-auto feed-scroll"
+      className="flex-1 min-h-0 overflow-y-auto feed-scroll flex flex-col"
     >
-      {/* ── Back bar + Original link ── */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      {/* ── Sticky top toolbar ── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-[#0d1117] sticky top-0 z-10 flex-shrink-0">
+        {/* Left: Back button */}
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5 cursor-pointer transition-colors"
         >
-          <ArrowLeft size={14} strokeWidth={1.5} />
-          Back to feed
+          <ArrowLeft size={16} strokeWidth={1.5} />
+          Back
         </button>
-        {item?.url && (
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-[#58a6ff] hover:underline transition-colors"
+
+        {/* Right: Refresh + Original + Summarize */}
+        <div className="flex items-center gap-2">
+          {item?.url && (
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-[#7d8590] hover:text-[#58a6ff] hover:bg-white/5 rounded-lg px-2 py-1 transition-colors"
+              title="Open original article"
+            >
+              <ExternalLink size={14} strokeWidth={1.5} />
+              <span className="hidden sm:inline">Original</span>
+            </a>
+          )}
+
+          {/* AI Summarize button */}
+          <button
+            onClick={handleSummarize}
+            disabled={summarizing}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+              summarizing ? 'opacity-60 cursor-not-allowed' : ''
+            } ${
+              summary
+                ? 'bg-[#58a6ff]/20 text-[#58a6ff] hover:bg-[#58a6ff]/30'
+                : 'bg-[#58a6ff]/10 text-[#58a6ff] hover:bg-[#58a6ff]/20'
+            }`}
           >
-            <ExternalLink size={12} strokeWidth={1.5} />
-            Original
-          </a>
-        )}
+            {summarizing ? (
+              <>
+                <Loader2 size={16} strokeWidth={1.5} className="animate-spin" />
+                Summarizing...
+              </>
+            ) : summary ? (
+              <>
+                <XIcon size={16} strokeWidth={1.5} />
+                Hide Summary
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} strokeWidth={1.5} />
+                Summarize
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
+      {/* ── Summary error toast ── */}
+      <AnimatePresence>
+        {summaryError && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="mx-4 mt-3 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm"
+          >
+            {summaryError}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── AI Summary card ── */}
+      <AnimatePresence>
+        {summary && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="overflow-hidden"
+          >
+            <div className="mx-4 mt-3 mb-1 p-4 bg-[#161b22] border border-[#58a6ff]/20 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={14} strokeWidth={1.5} className="text-[#58a6ff]" />
+                  <span className="text-[#58a6ff] text-xs font-semibold uppercase tracking-wide">AI Summary</span>
+                </div>
+                <button
+                  onClick={() => setSummary(null)}
+                  className="text-[#7d8590] hover:text-[#e6edf3] transition-colors"
+                  aria-label="Dismiss summary"
+                >
+                  <XIcon size={14} strokeWidth={1.5} />
+                </button>
+              </div>
+              <p className="text-[#c9d1d9] text-sm leading-relaxed mt-2">{summary}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Article card ── */}
-      <div className="mx-4 mb-6 rounded-2xl border border-white/10 bg-[#0d1117] overflow-hidden">
+      <div className="mx-4 mt-3 mb-6 rounded-2xl border border-white/10 bg-[#0d1117] overflow-hidden">
 
         {/* Hero image — flush to top, rounded top corners from parent overflow-hidden */}
         {(article?.image || item?.image) && (
