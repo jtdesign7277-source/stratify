@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Clock3, Newspaper, ChevronDown } from 'lucide-react';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import WatchlistPanel from './WatchlistPanel';
+import IndexCards from './IndexCards';
 
 // ─── History View ─────────────────────────────────────────
 export const HistoryView = ({ history, loading, onClear }) => {
@@ -208,72 +209,16 @@ export const SpacesView = () => (
 export const FinanceView = ({ data, loading }) => {
   const [expandedHeadline, setExpandedHeadline] = useState(null);
 
-  if (loading || !data) {
-    return (
-      <div className="p-4 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={`fin-idx-sk-${i}`} className="rounded-xl border border-white/6 bg-white/2 p-3 animate-pulse">
-              <div className="h-3 bg-white/6 rounded w-1/2 mb-2" />
-              <div className="h-5 bg-white/4 rounded w-2/3 mb-2" />
-              <div className="h-8 bg-white/4 rounded" />
-            </div>
-          ))}
-        </div>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={`fin-hl-sk-${i}`} className="rounded-xl border border-white/6 bg-white/2 p-3 animate-pulse">
-            <div className="h-3 bg-white/6 rounded w-3/4" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const indices = data.indices || [];
-  const headlines = data.marketSummary || [];
-  const trending = data.trendingCompanies || [];
+  const headlines = data?.marketSummary || [];
+  const trending = data?.trendingCompanies || [];
 
   return (
     <div className="p-3 space-y-4">
-      {indices.length > 0 && (
-        <div>
-          <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Indices</div>
-          <div className="grid grid-cols-2 gap-2">
-            {indices.map((idx) => {
-              const isPositive = (idx.changePercent || 0) >= 0;
-              const sparkline = idx.sparkline || [];
-              const sparkMin = Math.min(...(sparkline.length > 0 ? sparkline : [0]));
-              const sparkMax = Math.max(...(sparkline.length > 0 ? sparkline : [1]));
-              const sparkRange = sparkMax - sparkMin || 1;
-              const sparkPoints = sparkline.map((v, i) => `${(i / Math.max(sparkline.length - 1, 1)) * 100},${100 - ((v - sparkMin) / sparkRange) * 100}`).join(' ');
-
-              return (
-                <div key={idx.symbol} className="rounded-xl border border-white/6 bg-white/2 p-3">
-                  <div className="text-xs text-[#7d8590] mb-1">{idx.name}</div>
-                  <div className="text-base font-semibold text-[#e6edf3]">
-                    {idx.value != null ? idx.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                  </div>
-                  <div className={`text-xs font-medium ${isPositive ? 'text-emerald-400' : 'text-[#f85149]'}`}>
-                    {idx.changePercent != null ? `${isPositive ? '+' : ''}${idx.changePercent.toFixed(2)}%` : '—'}
-                  </div>
-                  {sparkline.length > 2 && (
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-8 mt-2">
-                      <polyline
-                        points={sparkPoints}
-                        fill="none"
-                        stroke={isPositive ? '#34d399' : '#f85149'}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Index cards — self-fetching, always shown */}
+      <div>
+        <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Indices</div>
+        <IndexCards />
+      </div>
 
       {headlines.length > 0 && (
         <div>
