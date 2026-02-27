@@ -28,17 +28,13 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
   const [showMenu, setShowMenu] = useState(false);
   const isMock = Boolean(post?.is_mock);
 
-  if (!post) return null;
-  const resolvedDisplayName = String(displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader').trim() || 'Trader';
-  const resolvedReplyAvatar = String(currentUserAvatarUrl || currentUser?.avatar_url || buildCurrentUserAvatarUrl(resolvedDisplayName)).trim();
-
   const initialReactions = useMemo(() => {
     if (Array.isArray(post?.reaction_summary)) return post.reaction_summary;
     return buildReactionSummary(post?.community_reactions || [], currentUser?.id);
   }, [post?.reaction_summary, post?.community_reactions, currentUser?.id]);
 
   useEffect(() => {
-    if (!currentUser?.id || isMock) return;
+    if (!currentUser?.id || isMock || !post) return;
     let cancelled = false;
     const checkLike = async () => {
       const { data } = await supabase
@@ -52,6 +48,11 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
     void checkLike();
     return () => { cancelled = true; };
   }, [post.id, currentUser?.id, isMock]);
+
+  if (!post) return null;
+
+  const resolvedDisplayName = String(displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader').trim() || 'Trader';
+  const resolvedReplyAvatar = String(currentUserAvatarUrl || currentUser?.avatar_url || buildCurrentUserAvatarUrl(resolvedDisplayName)).trim();
 
   const toggleLike = async () => {
     if (!currentUser?.id) return;
