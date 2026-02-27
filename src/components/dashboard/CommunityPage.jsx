@@ -13,7 +13,7 @@ import {
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
-  Plus, Wand2, Pencil, Hash,
+  Plus, Wand2, Pencil, Hash, Settings2,
   EyeOff, GripVertical, CornerDownLeft,
 } from 'lucide-react';
 
@@ -4004,15 +4004,11 @@ const DraggableSidebarSection = ({
 };
 
 const RightSidebar = ({ quoteMap }) => {
-  const [openSections, setOpenSections] = useState({
-    watchlist: true,
-  });
-  const [sectionOrder, setSectionOrder] = useState(DEFAULT_SIDEBAR_SECTION_ORDER);
-  const [sectionVisibility, setSectionVisibility] = useState(
-    normalizeSidebarSectionVisibility(),
-  );
-  const [layoutPrefsHydrated, setLayoutPrefsHydrated] = useState(false);
-  const [draggingSectionId, setDraggingSectionId] = useState(null);
+  const [newsOpen, setNewsOpen] = useState(true);
+  const [watchlistOpen, setWatchlistOpen] = useState(true);
+  const [splitRatio, setSplitRatio] = useState(50);
+  const containerRef = useRef(null);
+  const isDraggingDivider = useRef(false);
   const [watchlistRows, setWatchlistRows] = useState([]);
   const [watchlistQuery, setWatchlistQuery] = useState('');
   const [watchlistResults, setWatchlistResults] = useState([]);
@@ -4022,14 +4018,6 @@ const RightSidebar = ({ quoteMap }) => {
   const previousWatchlistSymbolsRef = useRef([]);
   const watchlistLookupRef = useRef(null);
 
-  const visibleSectionOrder = useMemo(
-    () => sectionOrder.filter((sectionId) => sectionVisibility[sectionId]),
-    [sectionOrder, sectionVisibility],
-  );
-  const hiddenSectionOrder = useMemo(
-    () => sectionOrder.filter((sectionId) => !sectionVisibility[sectionId]),
-    [sectionOrder, sectionVisibility],
-  );
   const watchlistSymbols = useMemo(
     () => watchlistRows.map((row) => row.symbol).filter(Boolean),
     [watchlistRows],
@@ -4061,40 +4049,6 @@ const RightSidebar = ({ quoteMap }) => {
       // keep existing quote cache if bootstrap fetch fails
     }
   }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    try {
-      const savedOrderRaw = window.localStorage.getItem(SIDEBAR_ORDER_STORAGE_KEY);
-      if (savedOrderRaw) {
-        setSectionOrder(normalizeSidebarSectionOrder(JSON.parse(savedOrderRaw)));
-      }
-    } catch {
-      setSectionOrder(DEFAULT_SIDEBAR_SECTION_ORDER);
-    }
-
-    try {
-      const savedVisibilityRaw = window.localStorage.getItem(SIDEBAR_VISIBILITY_STORAGE_KEY);
-      if (savedVisibilityRaw) {
-        setSectionVisibility(normalizeSidebarSectionVisibility(JSON.parse(savedVisibilityRaw)));
-      }
-    } catch {
-      setSectionVisibility(normalizeSidebarSectionVisibility());
-    }
-
-    setLayoutPrefsHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!layoutPrefsHydrated || typeof window === 'undefined') return;
-    window.localStorage.setItem(SIDEBAR_ORDER_STORAGE_KEY, JSON.stringify(sectionOrder));
-  }, [layoutPrefsHydrated, sectionOrder]);
-
-  useEffect(() => {
-    if (!layoutPrefsHydrated || typeof window === 'undefined') return;
-    window.localStorage.setItem(SIDEBAR_VISIBILITY_STORAGE_KEY, JSON.stringify(sectionVisibility));
-  }, [layoutPrefsHydrated, sectionVisibility]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -4235,46 +4189,28 @@ const RightSidebar = ({ quoteMap }) => {
     watchlistLookupRef.current?.call(trimmedQuery);
   }, [watchlistQuery]);
 
-  const toggleSection = (key) => {
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+  // Draggable divider handlers
+  const handleDividerMouseDown = useCallback((e) => {
+    e.preventDefault();
+    isDraggingDivider.current = true;
 
-  const toggleSectionVisibility = (sectionId) => {
-    setSectionVisibility((prev) => ({
-      ...prev,
-      [sectionId]: !prev[sectionId],
-    }));
-  };
+    const onMouseMove = (moveEvent) => {
+      if (!isDraggingDivider.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const y = moveEvent.clientY - rect.top;
+      const pct = Math.min(85, Math.max(15, (y / rect.height) * 100));
+      setSplitRatio(pct);
+    };
 
-  const handleSectionReorder = (nextVisibleOrder) => {
-    setSectionOrder((prevOrder) => {
-      const normalizedPrevOrder = normalizeSidebarSectionOrder(prevOrder);
-      const visibleSet = new Set(
-        normalizedPrevOrder.filter((sectionId) => sectionVisibility[sectionId]),
-      );
-      const cleanedVisibleOrder = [];
+    const onMouseUp = () => {
+      isDraggingDivider.current = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
 
-      (Array.isArray(nextVisibleOrder) ? nextVisibleOrder : []).forEach((sectionId) => {
-        const id = String(sectionId || '');
-        if (!visibleSet.has(id) || cleanedVisibleOrder.includes(id)) return;
-        cleanedVisibleOrder.push(id);
-      });
-
-      normalizedPrevOrder.forEach((sectionId) => {
-        if (visibleSet.has(sectionId) && !cleanedVisibleOrder.includes(sectionId)) {
-          cleanedVisibleOrder.push(sectionId);
-        }
-      });
-
-      let visibleIndex = 0;
-      return normalizedPrevOrder.map((sectionId) => {
-        if (!sectionVisibility[sectionId]) return sectionId;
-        const nextSectionId = cleanedVisibleOrder[visibleIndex];
-        visibleIndex += 1;
-        return nextSectionId || sectionId;
-      });
-    });
-  };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, []);
 
   const addWatchlistSymbol = (row) => {
     const nextEntry = normalizeWatchlistEntry(row);
@@ -4327,125 +4263,24 @@ const RightSidebar = ({ quoteMap }) => {
     );
   };
 
-  const renderDraggableSection = (sectionId) => {
-    if (sectionId === 'todays-news') {
-      return (
-        <Reorder.Item
-          as="div"
-          key={sectionId}
-          value={sectionId}
-          layout
-          whileDrag={{
-            scale: 1.02,
-            boxShadow: '0 0 12px rgba(88,166,255,0.3)',
-            zIndex: 30,
-          }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.7 }}
-          className="list-none h-full min-h-0 flex-shrink-0"
-          style={{ position: 'relative' }}
-          onDragStart={() => setDraggingSectionId(sectionId)}
-          onDragEnd={() => setDraggingSectionId(null)}
-        >
-          <div className="h-full min-h-0">
-            <TodaysNews onClose={() => toggleSectionVisibility('todays-news')} />
-          </div>
-        </Reorder.Item>
-      );
-    }
+  const hasWatchlistQuery = String(watchlistQuery || '').trim().length > 0;
+  const bothOpen = newsOpen && watchlistOpen;
+  const neitherOpen = !newsOpen && !watchlistOpen;
+  const HEADER_H = 40;
 
-    if (sectionId === 'watchlist') {
-      const hasWatchlistQuery = String(watchlistQuery || '').trim().length > 0;
+  const newsStyle = {};
+  const watchlistStyle = {};
 
-      return (
-        <DraggableSidebarSection
-          key={sectionId}
-          sectionId={sectionId}
-          title="Watchlist"
-          subtitle="Your saved tickers"
-          icon={(iconProps) => <Star {...iconProps} strokeWidth={1.5} />}
-          open={openSections.watchlist}
-          onToggle={() => toggleSection('watchlist')}
-          onToggleVisibility={() => toggleSectionVisibility('watchlist')}
-          isDragging={draggingSectionId === sectionId}
-          onDragStateChange={setDraggingSectionId}
-          wrapperClassName="h-full min-h-0"
-          sectionClassName="h-full min-h-0 flex flex-col"
-          sectionBodyClassName="h-full min-h-0 flex flex-col"
-        >
-          <div className="h-full min-h-0 flex flex-col gap-2">
-            <div className="relative flex-shrink-0 sticky top-0 z-10" style={{ backgroundColor: 'rgba(13,17,23,0.9)' }}>
-              <input
-                type="text"
-                value={watchlistQuery}
-                onChange={(event) => setWatchlistQuery(event.target.value)}
-                placeholder="Add ticker..."
-                className="w-full bg-white/5 border border-white/6 rounded-lg text-xs py-1.5 px-3 outline-none focus:ring-1 focus:ring-white/20"
-                style={{ color: T.text }}
-                aria-label="Add watchlist ticker"
-              />
-              <AnimatePresence initial={false}>
-                {hasWatchlistQuery && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={OVERLAY_PANEL_TRANSITION}
-                    className="absolute left-0 right-0 top-full mt-1 rounded-2xl border overflow-hidden z-20 shadow-2xl shadow-black/40"
-                    style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.98)' }}
-                  >
-                    {watchlistSearchLoading ? (
-                      <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>Searching symbols...</div>
-                    ) : watchlistResults.length === 0 ? (
-                      <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>No symbols found.</div>
-                    ) : (
-                      <div className="max-h-44 overflow-y-auto divide-y divide-white/5">
-                        {watchlistResults.map((row) => (
-                          <button
-                            key={`watchlist-search-${row.symbol}`}
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => addWatchlistSymbol(row)}
-                            className="w-full px-3 py-2 text-left hover:bg-white/5 transition-colors"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{row.symbol}</div>
-                                <div className="text-xs truncate" style={{ color: T.muted }}>{row.name || row.symbol}</div>
-                              </div>
-                              <Plus size={12} strokeWidth={1.5} style={{ color: T.muted }} />
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="flex-1 min-h-0 space-y-1.5 pr-0.5 overflow-y-auto scroll-smooth community-minimal-scrollbar scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              {watchlistRows.length === 0 ? (
-                <div className="rounded-lg border px-2.5 py-2 text-xs" style={{ borderColor: T.border, color: T.muted }}>
-                  Search above to add symbols.
-                </div>
-              ) : watchlistRows.map((row) => renderWatchlistRow(row))}
-            </div>
-          </div>
-        </DraggableSidebarSection>
-      );
-    }
-
-    return null;
-  };
-
-  const LiveNewsWidget = sectionVisibility['todays-news']
-    ? renderDraggableSection('todays-news')
-    : null;
-  const WatchlistWidget = sectionVisibility.watchlist
-    ? renderDraggableSection('watchlist')
-    : null;
-  const usesResizableSplit = Boolean(LiveNewsWidget && WatchlistWidget);
-  const reorderValues = usesResizableSplit ? ['todays-news', 'watchlist'] : visibleSectionOrder;
+  if (bothOpen) {
+    newsStyle.height = `${splitRatio}%`;
+    watchlistStyle.height = `${100 - splitRatio}%`;
+  } else if (newsOpen && !watchlistOpen) {
+    newsStyle.flex = '1 1 0%';
+    newsStyle.minHeight = 0;
+  } else if (!newsOpen && watchlistOpen) {
+    watchlistStyle.flex = '1 1 0%';
+    watchlistStyle.minHeight = 0;
+  }
 
   return (
     <motion.aside
@@ -4454,54 +4289,118 @@ const RightSidebar = ({ quoteMap }) => {
       transition={{ duration: 0.22 }}
       className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
-      <div className="h-full flex-1 min-h-0 pr-1 flex flex-col gap-3">
-        {hiddenSectionOrder.length > 0 ? (
-          <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
-            <div className="text-[11px] uppercase tracking-[0.14em]" style={{ color: T.muted }}>
-              Hidden Sections
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {hiddenSectionOrder.map((sectionId) => (
-                <button
-                  key={`show-section-${sectionId}`}
-                  type="button"
-                  onClick={() => toggleSectionVisibility(sectionId)}
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs border hover:bg-white/5"
-                  style={{ borderColor: T.border, color: T.muted }}
-                  title={`Show ${SIDEBAR_SECTION_LABELS[sectionId] || sectionId}`}
-                >
-                  <EyeOff size={12} strokeWidth={1.5} />
-                  <span>{SIDEBAR_SECTION_LABELS[sectionId] || sectionId}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {visibleSectionOrder.length === 0 ? (
-          <div className="rounded-xl border px-3 py-4 text-xs" style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.68)' }}>
-            All sidebar sections are hidden.
-          </div>
-        ) : (
-          <Reorder.Group
-            as="div"
-            axis="y"
-            values={reorderValues}
-            onReorder={handleSectionReorder}
-            className="h-full flex-1 min-h-0 flex flex-col gap-3"
+      <div ref={containerRef} className="h-full flex-1 min-h-0 pr-1 flex flex-col">
+        {/* ── News Panel ── */}
+        <div className="flex flex-col min-h-0" style={newsOpen ? newsStyle : { flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setNewsOpen((prev) => !prev)}
+            className="flex items-center justify-between w-full px-3 py-2 rounded-t-xl border border-white/6 bg-white/2 hover:bg-white/4 transition-colors flex-shrink-0"
+            style={{ height: HEADER_H }}
           >
-            {usesResizableSplit ? (
-              <div className="h-full min-h-0">
-                <div className="h-full min-h-0">
-                  {LiveNewsWidget}
-                  {WatchlistWidget}
-                </div>
+            <div className="flex items-center gap-2">
+              <Newspaper className="w-3.5 h-3.5 text-[#7d8590]" strokeWidth={1.5} />
+              <div className="text-left">
+                <div className="text-xs font-semibold text-[#e6edf3] leading-tight">TODAY'S NEWS</div>
+                <div className="text-[10px] text-[#7d8590] leading-tight">Trending on the web</div>
               </div>
-            ) : (
-              visibleSectionOrder.map((sectionId) => renderDraggableSection(sectionId))
-            )}
-          </Reorder.Group>
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-[#7d8590] transition-transform duration-200 ${newsOpen ? '' : '-rotate-90'}`} strokeWidth={1.5} />
+          </button>
+          {newsOpen && (
+            <div className="flex-1 min-h-0 overflow-y-auto border-x border-white/6 bg-white/2">
+              <TodaysNews />
+            </div>
+          )}
+        </div>
+
+        {/* ── Draggable Divider ── */}
+        {bothOpen && (
+          <div
+            onMouseDown={handleDividerMouseDown}
+            className="h-1 bg-white/10 hover:bg-[#58a6ff]/50 cursor-row-resize flex-shrink-0 transition-colors duration-150"
+          />
         )}
+
+        {/* ── Watchlist Panel ── */}
+        <div className="flex flex-col min-h-0" style={watchlistOpen ? watchlistStyle : { flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setWatchlistOpen((prev) => !prev)}
+            className={`flex items-center justify-between w-full px-3 py-2 border border-white/6 bg-white/2 hover:bg-white/4 transition-colors flex-shrink-0 ${!newsOpen ? 'rounded-t-xl' : ''} ${!watchlistOpen ? 'rounded-b-xl' : ''}`}
+            style={{ height: HEADER_H }}
+          >
+            <div className="flex items-center gap-2">
+              <Settings2 className="w-3.5 h-3.5 text-[#7d8590]" strokeWidth={1.5} />
+              <div className="text-left">
+                <div className="text-xs font-semibold text-[#e6edf3] leading-tight">WATCHLIST</div>
+                <div className="text-[10px] text-[#7d8590] leading-tight">Your saved tickers</div>
+              </div>
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-[#7d8590] transition-transform duration-200 ${watchlistOpen ? '' : '-rotate-90'}`} strokeWidth={1.5} />
+          </button>
+          {watchlistOpen && (
+            <div className="flex-1 min-h-0 overflow-y-auto border-x border-b border-white/6 rounded-b-xl bg-white/2 p-2 flex flex-col gap-2">
+              <div className="relative flex-shrink-0 sticky top-0 z-10" style={{ backgroundColor: 'rgba(13,17,23,0.9)' }}>
+                <input
+                  type="text"
+                  value={watchlistQuery}
+                  onChange={(event) => setWatchlistQuery(event.target.value)}
+                  placeholder="Add ticker..."
+                  className="w-full bg-white/5 border border-white/6 rounded-lg text-xs py-1.5 px-3 outline-none focus:ring-1 focus:ring-white/20"
+                  style={{ color: T.text }}
+                  aria-label="Add watchlist ticker"
+                />
+                <AnimatePresence initial={false}>
+                  {hasWatchlistQuery && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={OVERLAY_PANEL_TRANSITION}
+                      className="absolute left-0 right-0 top-full mt-1 rounded-2xl border overflow-hidden z-20 shadow-2xl shadow-black/40"
+                      style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.98)' }}
+                    >
+                      {watchlistSearchLoading ? (
+                        <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>Searching symbols...</div>
+                      ) : watchlistResults.length === 0 ? (
+                        <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>No symbols found.</div>
+                      ) : (
+                        <div className="max-h-44 overflow-y-auto divide-y divide-white/5">
+                          {watchlistResults.map((row) => (
+                            <button
+                              key={`watchlist-search-${row.symbol}`}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => addWatchlistSymbol(row)}
+                              className="w-full px-3 py-2 text-left hover:bg-white/5 transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{row.symbol}</div>
+                                  <div className="text-xs truncate" style={{ color: T.muted }}>{row.name || row.symbol}</div>
+                                </div>
+                                <Plus size={12} strokeWidth={1.5} style={{ color: T.muted }} />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="flex-1 min-h-0 space-y-1.5 pr-0.5 overflow-y-auto scroll-smooth community-minimal-scrollbar scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                {watchlistRows.length === 0 ? (
+                  <div className="rounded-lg border px-2.5 py-2 text-xs" style={{ borderColor: T.border, color: T.muted }}>
+                    Search above to add symbols.
+                  </div>
+                ) : watchlistRows.map((row) => renderWatchlistRow(row))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </motion.aside>
   );
