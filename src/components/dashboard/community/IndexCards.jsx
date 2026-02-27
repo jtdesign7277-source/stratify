@@ -2,55 +2,31 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
+// Display order — keys must match what the serverless function returns
 const INDICES = [
-  { label: 'S&P 500',   symbol: 'SPY',  displaySymbol: 'SPY'  },
-  { label: 'NASDAQ',    symbol: 'QQQ',  displaySymbol: 'QQQ'  },
-  { label: 'Dow Jones', symbol: 'DIA',  displaySymbol: 'DIA'  },
-  { label: 'VIX',       symbol: 'VIX',  displaySymbol: 'VIX'  },
+  { label: 'S&P 500',   key: 'SPX'  },
+  { label: 'NASDAQ',    key: 'IXIC' },
+  { label: 'Dow Jones', key: 'DJI'  },
+  { label: 'VIX',       key: 'VIX'  },
 ];
 
 const REFRESH_INTERVAL_MS = 60_000;
-const SPARKLINE_POINTS = 78; // full day at 5min intervals
 
-const resolveApiKey = () =>
-  import.meta.env.VITE_TWELVEDATA_API_KEY
-  || import.meta.env.VITE_TWELVE_DATA_API_KEY
-  || import.meta.env.VITE_TWELVEDATA_APIKEY
-  || '';
+// ── Data fetching — proxied through Vercel serverless function ────────────────
 
-// ── Data fetching ─────────────────────────────────────────────────────────────
-
-async function fetchQuotes(apiKey) {
-  const symbols = INDICES.map(i => i.symbol).join(',');
-  const url = `https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${apiKey}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`quote HTTP ${res.status}`);
+async function fetchAllIndices() {
+  const res = await fetch('/api/community/indices');
+  if (!res.ok) throw new Error(`indices HTTP ${res.status}`);
   const data = await res.json();
-  // Single symbol returns the object directly; multi returns keyed object
-  const isMulti = INDICES.length > 1;
-  const result = {};
-  for (const { symbol } of INDICES) {
-    const q = isMulti ? data[symbol] : data;
-    if (!q || q.status === 'error' || !q.close) { result[symbol] = null; continue; }
-    result[symbol] = {
-      price:   parseFloat(q.close),
-      change:  parseFloat(q.change ?? 0),
-      pct:     parseFloat(q.percent_change ?? 0),
-      open:    parseFloat(q.open ?? q.close),
-      name:    q.name || symbol,
-    };
+  if (!Array.isArray(data?.indices)) throw new Error('Unexpected response shape');
+
+  const quotes = {};
+  const sparklines = {};
+  for (const item of data.indices) {
+    quotes[item.key]    = item.quote    ?? null;
+    sparklines[item.key] = item.sparkline ?? [];
   }
-  return result;
-}
-
-async function fetchSparkline(symbol, apiKey) {
-  const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=5min&outputsize=${SPARKLINE_POINTS}&apikey=${apiKey}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = await res.json();
-  if (!Array.isArray(data?.values)) return [];
-  // values are newest-first; reverse so oldest→newest for left→right sparkline
-  return data.values.reverse().map(v => parseFloat(v.close)).filter(n => Number.isFinite(n));
+  return { quotes, sparklines };
 }
 
 // ── SVG Sparkline ─────────────────────────────────────────────────────────────
@@ -203,39 +179,23 @@ function IndexCard({ label, symbol, quote, sparkline }) {
 // ── Main IndexCards component ─────────────────────────────────────────────────
 
 export default function IndexCards() {
-  const [quotes, setQuotes] = useState({});       // { symbol: { price, change, pct, open } }
-  const [sparklines, setSparklines] = useState({}); // { symbol: number[] }
+  const [quotes, setQuotes] = useState({});       // { key: { price, change, pct, open } }
+  const [sparklines, setSparklines] = useState({}); // { key: number[] }
   const [loading, setLoading] = useState(true);
   const mountedRef = useRef(true);
   const timerRef = useRef(null);
 
   const loadData = useCallback(async () => {
-    const apiKey = resolveApiKey();
-    if (!apiKey) { setLoading(false); return; }
-
     try {
-      const q = await fetchQuotes(apiKey);
+      const { quotes: q, sparklines: s } = await fetchAllIndices();
       if (!mountedRef.current) return;
       setQuotes(q);
+      setSparklines(s);
       setLoading(false);
-
-      // Fetch sparklines in parallel — only for symbols we haven't fetched yet
-      const needed = INDICES.map(i => i.symbol).filter(sym => !(sym in sparklines));
-      if (needed.length > 0) {
-        const results = await Promise.all(
-          needed.map(sym => fetchSparkline(sym, apiKey).then(pts => ({ sym, pts })))
-        );
-        if (!mountedRef.current) return;
-        setSparklines(prev => {
-          const next = { ...prev };
-          for (const { sym, pts } of results) next[sym] = pts;
-          return next;
-        });
-      }
     } catch {
       if (mountedRef.current) setLoading(false);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -250,8 +210,8 @@ export default function IndexCards() {
   if (loading) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {INDICES.map(({ symbol }) => (
-          <div key={symbol} className="bg-[#161b22] border border-white/10 rounded-xl p-4 animate-pulse">
+        {INDICES.map(({ key }) => (
+          <div key={key} className="bg-[#161b22] border border-white/10 rounded-xl p-4 animate-pulse">
             <div className="h-3 bg-white/8 rounded w-2/3 mb-2" />
             <div className="h-6 bg-white/6 rounded w-1/2 mb-1" />
             <div className="h-3 bg-white/4 rounded w-1/3 mb-3" />
@@ -264,13 +224,13 @@ export default function IndexCards() {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {INDICES.map(({ label, symbol }) => (
+      {INDICES.map(({ label, key }) => (
         <IndexCard
-          key={symbol}
+          key={key}
           label={label}
-          symbol={symbol}
-          quote={quotes[symbol] ?? null}
-          sparkline={sparklines[symbol] ?? []}
+          symbol={key}
+          quote={quotes[key] ?? null}
+          sparkline={sparklines[key] ?? []}
         />
       ))}
     </div>
