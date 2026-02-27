@@ -171,6 +171,15 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) rotate(12deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(12deg);
+  }
+}
+
 @keyframes newsletterGlow {
   0% {
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.08);

@@ -374,8 +374,20 @@ const LeftRail = ({
       {/* ── Bottom mood / profile card ── */}
       <div className="mt-auto px-2 pb-3 flex-shrink-0">
         <div
-          className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-lg transition-all duration-300 hover:bg-white/[0.07] hover:border-white/15"
+          className="relative overflow-hidden flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-lg transition-all duration-300 hover:bg-white/[0.07] hover:border-white/15"
         >
+          {/* Shine streak */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+            <div
+              className="absolute top-0 -left-[100%] w-[60%] h-full opacity-[0.07]"
+              style={{
+                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.8) 50%, transparent 60%)',
+                animation: 'shine 6s ease-in-out infinite',
+                animationDelay: '2s',
+              }}
+            />
+          </div>
+
           {/* Avatar — click to open mood picker */}
           <div className="relative flex-shrink-0" ref={moodPickerRef}>
             <button
