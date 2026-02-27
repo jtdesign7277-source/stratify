@@ -1,5 +1,6 @@
 // api/news.js — Cached news endpoint (Vercel serverless)
-// Full rewrite with debug logging at every step
+// Uses Anthropic Claude API + Upstash Redis caching
+// Debug logging at every step
 
 import { Redis } from '@upstash/redis'
 
@@ -20,13 +21,13 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  // Env check — logged to Vercel function logs
   console.log('ENV CHECK:', {
     hasRedisUrl: !!process.env.KV_REST_API_URL,
     hasRedisToken: !!process.env.KV_REST_API_TOKEN,
-    hasGrokKey: !!process.env.GROK_API_KEY,
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
   })
 
+  // Step 1: Create Redis client
   let redis
   try {
     redis = getRedis()
@@ -46,7 +47,6 @@ export default async function handler(req, res) {
     const cached = await redis.get(CACHE_KEY)
     console.log('STEP 2: Redis GET result:', cached ? 'HIT' : 'MISS')
     if (cached) {
-      // Upstash auto-deserializes JSON, but guard against string
       const data = typeof cached === 'string' ? JSON.parse(cached) : cached
       return res.status(200).json({
         articles: data.articles || [],
@@ -57,68 +57,62 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('STEP 2 FAILED: Redis GET:', err.message)
-    // Don't bail — continue to Grok fetch
   }
 
-  // Step 3: Fetch from Grok
-  let grokResponse
+  // Step 3: Fetch from Claude API
+  let claudeResponse
   try {
-    console.log('STEP 3: Calling Grok API...')
-    grokResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+    console.log('STEP 3: Calling Claude API...')
+    claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.GROK_API_KEY}`,
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'grok-3',
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: 'You are a financial news aggregator. Return ONLY a valid JSON array, no markdown, no backticks, no explanation. Return 6-8 trending market news items. Each item must have: "title" (concise headline, max 80 chars), "source" (e.g. "Reuters", "Bloomberg", "CNBC", "X/Twitter"), "ticker" (relevant ticker with $ prefix or null), "sentiment" ("bullish", "bearish", or "neutral"), "time" (relative like "2h ago", "15m ago", "1d ago"), "summary" (1 sentence, max 120 chars). Focus on: earnings, Fed/macro, big movers, breaking news, trending tickers. Order by recency. JSON array only.',
         messages: [
           {
-            role: 'system',
-            content:
-              'You are a financial news aggregator. Return ONLY valid JSON, no markdown, no backticks. Return an array of 6-8 trending market news items. Each item must have: "title" (concise headline, max 80 chars), "source" (e.g. "X/Twitter", "Reuters", "Bloomberg", "CNBC"), "ticker" (relevant ticker with $ prefix or null), "sentiment" ("bullish", "bearish", or "neutral"), "time" (relative like "2m ago", "15m ago", "1h ago"), "summary" (1 sentence, max 120 chars). Focus on: earnings, Fed/macro, big movers, breaking news, trending tickers. Order by recency. JSON array only.',
-          },
-          {
             role: 'user',
-            content:
-              'What is trending in the stock market right now? Give me the latest from X/Twitter and financial news.',
+            content: 'What are the most important trending stock market news stories right now?',
           },
         ],
-        temperature: 0.3,
-        max_tokens: 1500,
       }),
     })
-    console.log('STEP 3: Grok API status:', grokResponse.status)
-    if (!grokResponse.ok) {
-      const body = await grokResponse.text()
-      console.error('STEP 3 FAILED: Grok API response body:', body)
-      throw new Error(`Grok API ${grokResponse.status}: ${body}`)
+    console.log('STEP 3: Claude API status:', claudeResponse.status)
+    if (!claudeResponse.ok) {
+      const body = await claudeResponse.text()
+      console.error('STEP 3 FAILED: Claude API response body:', body)
+      throw new Error(`Claude API ${claudeResponse.status}: ${body}`)
     }
   } catch (err) {
-    console.error('STEP 3 FAILED: Grok fetch:', err.message)
+    console.error('STEP 3 FAILED: Claude fetch:', err.message)
     return res.status(500).json({
-      error: 'Grok API fetch failed',
+      error: 'Claude API fetch failed',
       details: err.message,
-      step: 'grok-fetch',
+      step: 'claude-fetch',
       articles: [],
     })
   }
 
-  // Step 4: Parse Grok response
+  // Step 4: Parse Claude response
   let articles
   try {
-    const data = await grokResponse.json()
-    const content = data.choices?.[0]?.message?.content || '[]'
-    console.log('STEP 4: Raw Grok content (first 200 chars):', content.substring(0, 200))
+    const data = await claudeResponse.json()
+    const content = data.content?.[0]?.text || '[]'
+    console.log('STEP 4: Raw Claude content (first 200 chars):', content.substring(0, 200))
     const clean = content.replace(/```json|```/g, '').trim()
     articles = JSON.parse(clean)
     console.log('STEP 4: Parsed', articles.length, 'articles')
   } catch (err) {
-    console.error('STEP 4 FAILED: Grok parse:', err.message)
+    console.error('STEP 4 FAILED: Claude parse:', err.message)
     return res.status(500).json({
-      error: 'Grok response parse failed',
+      error: 'Claude response parse failed',
       details: err.message,
-      step: 'grok-parse',
+      step: 'claude-parse',
       articles: [],
     })
   }
@@ -130,7 +124,6 @@ export default async function handler(req, res) {
     console.log('STEP 5: Redis SET success, TTL:', CACHE_TTL)
   } catch (err) {
     console.error('STEP 5 FAILED: Redis SET:', err.message)
-    // Don't bail — still return the data
   }
 
   return res.status(200).json({
