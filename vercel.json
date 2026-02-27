@@ -37,6 +37,46 @@
     {
       "path": "/api/cron/community-bot",
       "schedule": "*/10 6-16 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=morning-briefing&post=true",
+      "schedule": "30 13 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=technical-setup&post=true",
+      "schedule": "0 14 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=top-movers&post=true",
+      "schedule": "0 15 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=technical-setup&post=true",
+      "schedule": "0 16 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=power-hour&post=true",
+      "schedule": "0 20 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=market-recap&post=true",
+      "schedule": "15 21 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=afterhours-movers&post=true",
+      "schedule": "0 22 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=technical-setup&post=true",
+      "schedule": "0 23 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=weekend-watchlist&post=true",
+      "schedule": "0 15 * * 6"
+    },
+    {
+      "path": "/api/feeds-warm",
+      "schedule": "0 12 * * 0"
     }
   ]
 }
