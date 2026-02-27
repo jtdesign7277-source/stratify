@@ -3771,36 +3771,30 @@ const LeftRail = ({
 
 const RightSidebar = () => {
   const [newsOpen, setNewsOpen] = useState(true);
-  const [newsPanelHeight, setNewsPanelHeight] = useState(400);
-  const isDraggingHandle = useRef(false);
+  const [panelHeight, setPanelHeight] = useState(400);
+  const panelRef = useRef(null);
+  const isDragging = useRef(false);
 
-  const clampHeight = useCallback((h) => {
-    const maxH = (typeof window !== 'undefined' ? window.innerHeight : 800) - 200;
-    return Math.min(maxH, Math.max(150, h));
-  }, []);
-
-  const handleDragStart = useCallback((e) => {
+  const handleResizeStart = useCallback((e) => {
     e.preventDefault();
-    isDraggingHandle.current = true;
-
-    const startY = e.clientY;
-    const startH = newsPanelHeight;
+    isDragging.current = true;
 
     const onMouseMove = (moveEvent) => {
-      if (!isDraggingHandle.current) return;
-      const delta = moveEvent.clientY - startY;
-      setNewsPanelHeight(clampHeight(startH + delta));
+      if (!isDragging.current || !panelRef.current) return;
+      const rect = panelRef.current.getBoundingClientRect();
+      const newH = moveEvent.clientY - rect.top;
+      setPanelHeight(Math.min(800, Math.max(150, newH)));
     };
 
     const onMouseUp = () => {
-      isDraggingHandle.current = false;
+      isDragging.current = false;
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-  }, [newsPanelHeight, clampHeight]);
+  }, []);
 
   return (
     <motion.aside
@@ -3828,24 +3822,24 @@ const RightSidebar = () => {
             <ChevronDown className={`w-3.5 h-3.5 text-[#7d8590] transition-transform duration-200 ${newsOpen ? '' : '-rotate-90'}`} strokeWidth={1.5} />
           </button>
 
-          {/* Drag handle for resizing */}
+          {/* News content + bottom resize handle */}
           {newsOpen && (
-            <div className="flex justify-center py-0.5 flex-shrink-0">
+            <>
               <div
-                onMouseDown={handleDragStart}
-                className="h-1 w-12 rounded-full bg-white/10 hover:bg-[#58a6ff]/40 cursor-row-resize transition-colors duration-150"
-              />
-            </div>
-          )}
-
-          {/* News content */}
-          {newsOpen && (
-            <div
-              className="min-h-0 overflow-y-auto"
-              style={{ maxHeight: clampHeight(newsPanelHeight) }}
-            >
-              <TodaysNews hideHeader />
-            </div>
+                ref={panelRef}
+                className="overflow-y-auto"
+                style={{ height: panelHeight + 'px' }}
+              >
+                <TodaysNews hideHeader />
+              </div>
+              {/* Bottom resize handle */}
+              <div
+                onMouseDown={handleResizeStart}
+                className="h-1.5 w-full cursor-row-resize group flex-shrink-0"
+              >
+                <div className="w-10 h-1 rounded-full bg-white/10 group-hover:bg-[#58a6ff]/50 mx-auto transition-colors mt-px" />
+              </div>
+            </>
           )}
         </div>
       </div>
