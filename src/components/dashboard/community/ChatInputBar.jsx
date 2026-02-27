@@ -411,46 +411,44 @@ const ChatInputBar = ({
               />
             </div>
 
-            <div className="flex items-center gap-1.5 px-3 py-1.5">
-              {!searchMode ? (
-                <div className="flex items-center gap-1.5">
-                  {showFeedHashtags ? (
-                    visibleFeedHashtags.map((feed) => {
-                      const isActive = activeFeed && activeFeed.toLowerCase().replace('#', '') === feed.id;
-                      return (
-                        <button
-                          key={feed.id}
-                          type="button"
-                          onClick={() => onFeedSelect?.(isActive ? null : feed.id)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 cursor-pointer ${
-                            isActive
-                              ? 'bg-[#58a6ff]/15 border-[#58a6ff]/50 text-[#58a6ff] shadow-[0_0_8px_rgba(88,166,255,0.2)]'
-                              : 'bg-white/5 border-white/8 text-[#c9d1d9] hover:bg-white/10 hover:border-white/15 hover:text-[#e6edf3]'
-                          }`}
-                        >
-                          # {feed.label}
-                        </button>
-                      );
-                    })
-                  ) : (
-                    QUICK_POST_HASHTAGS.map((hashtag) => {
-                      const active = selectedHashtags.includes(hashtag);
-                      return (
-                        <button
-                          key={hashtag}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => toggleHashtag(hashtag)}
-                          className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
-                          title={hashtag}
-                        >
-                          {hashtag}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              ) : null}
+            <div className="flex items-center gap-2 px-4 py-2">
+              <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
+                {showFeedHashtags && !searchMode ? (
+                  visibleFeedHashtags.map((feed) => {
+                    const isActive = activeFeed && activeFeed.toLowerCase().replace('#', '') === feed.id;
+                    return (
+                      <button
+                        key={feed.id}
+                        type="button"
+                        onClick={() => onFeedSelect?.(isActive ? null : feed.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 cursor-pointer ${
+                          isActive
+                            ? 'bg-[#58a6ff]/15 border-[#58a6ff]/50 text-[#58a6ff] shadow-[0_0_8px_rgba(88,166,255,0.2)]'
+                            : 'bg-white/5 border-white/8 text-[#c9d1d9] hover:bg-white/10 hover:border-white/15 hover:text-[#e6edf3]'
+                        }`}
+                      >
+                        # {feed.label}
+                      </button>
+                    );
+                  })
+                ) : (
+                  QUICK_POST_HASHTAGS.map((hashtag) => {
+                    const active = selectedHashtags.includes(hashtag);
+                    return (
+                      <button
+                        key={hashtag}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => toggleHashtag(hashtag)}
+                        className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                        title={hashtag}
+                      >
+                        {hashtag}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
 
               <div className="ml-auto flex items-center gap-2">
                 {!searchMode ? (
