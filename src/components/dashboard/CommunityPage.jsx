@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import FeedsSidebar from './FeedsSidebar';
 import FeedView from './FeedView';
@@ -13,8 +13,8 @@ import {
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
-  Plus, Wand2, Pencil, Hash, Settings2,
-  EyeOff, GripVertical, CornerDownLeft,
+  Plus, Wand2, Pencil, Hash,
+  CornerDownLeft,
 } from 'lucide-react';
 
 // ─── Theme Constants ─────────────────────────────────────
@@ -450,70 +450,7 @@ const createSlipCaption = ({ trade, emojis = [], note = '' }) => {
   return lines.join('\n');
 };
 
-const SIDEBAR_ORDER_STORAGE_KEY = 'stratify-community-sidebar-order';
-const SIDEBAR_VISIBILITY_STORAGE_KEY = 'stratify-community-sidebar-visibility';
-const WATCHLIST_STORAGE_KEY = 'stratify-community-watchlist';
 const PRICE_ALERTS_STORAGE_KEY = 'stratify_price_alerts';
-const DEFAULT_SIDEBAR_SECTION_ORDER = ['watchlist', 'todays-news'];
-const LEGACY_SIDEBAR_SECTION_ID_MAP = {
-  'watch-movers': 'watchlist',
-};
-const SIDEBAR_SECTION_ID_SET = new Set(DEFAULT_SIDEBAR_SECTION_ORDER);
-const SIDEBAR_SECTION_LABELS = {
-  watchlist: 'Watchlist',
-  'todays-news': 'Today\'s News',
-};
-const WATCHLIST_MAX_ROWS = 24;
-const WATCHLIST_SEARCH_LIMIT = 10;
-
-const normalizeSidebarSectionId = (value) => (
-  LEGACY_SIDEBAR_SECTION_ID_MAP[String(value || '')] || String(value || '')
-);
-
-const normalizeSidebarSectionOrder = (rawOrder = []) => {
-  const seen = new Set();
-  const normalized = [];
-
-  (Array.isArray(rawOrder) ? rawOrder : []).forEach((value) => {
-    const id = normalizeSidebarSectionId(value);
-    if (!SIDEBAR_SECTION_ID_SET.has(id) || seen.has(id)) return;
-    seen.add(id);
-    normalized.push(id);
-  });
-
-  DEFAULT_SIDEBAR_SECTION_ORDER.forEach((id) => {
-    if (!seen.has(id)) normalized.push(id);
-  });
-
-  return normalized;
-};
-
-const normalizeSidebarSectionVisibility = (rawVisibility = {}) => (
-  DEFAULT_SIDEBAR_SECTION_ORDER.reduce((acc, sectionId) => {
-    const legacySectionId = Object.entries(LEGACY_SIDEBAR_SECTION_ID_MAP)
-      .find(([, mapped]) => mapped === sectionId)?.[0];
-
-    const nextValue = rawVisibility && typeof rawVisibility === 'object'
-      ? rawVisibility[sectionId]
-      : undefined;
-    const legacyValue = rawVisibility && typeof rawVisibility === 'object' && legacySectionId
-      ? rawVisibility[legacySectionId]
-      : undefined;
-
-    if (nextValue !== undefined) {
-      acc[sectionId] = Boolean(nextValue);
-      return acc;
-    }
-
-    if (legacyValue !== undefined) {
-      acc[sectionId] = Boolean(legacyValue);
-      return acc;
-    }
-
-    acc[sectionId] = true;
-    return acc;
-  }, {})
-);
 
 const shareToX = (post) => {
   let text = post.content;
@@ -1092,41 +1029,6 @@ const normalizePriceAlertTicker = (value) => {
   return sanitized ? `$${sanitized}` : '';
 };
 
-const normalizeWatchlistEntry = (row) => {
-  const symbol = normalizeSymbolKey(row?.symbol || row?.ticker || row?.code);
-  if (!symbol) return null;
-  const name = String(
-    row?.name || row?.instrumentName || row?.instrument_name || row?.company_name || row?.description || symbol
-  ).trim() || symbol;
-  return { symbol, name };
-};
-
-const normalizeWatchlistEntries = (rows = []) => {
-  const deduped = [];
-  const seen = new Set();
-
-  (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const entry = normalizeWatchlistEntry(row);
-    if (!entry || seen.has(entry.symbol)) return;
-    seen.add(entry.symbol);
-    deduped.push(entry);
-  });
-
-  return deduped.slice(0, WATCHLIST_MAX_ROWS);
-};
-
-const normalizeWatchlistSearchResults = (payload) => {
-  const rows = Array.isArray(payload?.data)
-    ? payload.data
-    : Array.isArray(payload?.results)
-      ? payload.results
-      : Array.isArray(payload?.symbols)
-        ? payload.symbols
-        : Array.isArray(payload)
-          ? payload
-          : [];
-  return normalizeWatchlistEntries(rows).slice(0, WATCHLIST_SEARCH_LIMIT);
-};
 
 const mergeQuotesFromPayload = (rows = [], previous = {}) => {
   const next = { ...previous };
@@ -3867,420 +3769,38 @@ const LeftRail = ({
   );
 };
 
-const SidebarSection = ({
-  title,
-  icon: Icon,
-  open,
-  onToggle,
-  onToggleVisibility,
-  children,
-  subtitle,
-  headerMeta,
-  onDragHandlePointerDown,
-  isDragging = false,
-  className = '',
-  bodyClassName = '',
-}) => {
-  const VisibilityIcon = onToggleVisibility ? X : EyeOff;
-
-  return (
-    <div
-      className={`rounded-xl border overflow-hidden ${className}`.trim()}
-      style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}
-    >
-      <div className="px-3 py-2.5 border-b flex items-center justify-between gap-2" style={{ borderColor: T.border }}>
-        <div className="inline-flex items-center gap-2 min-w-0 flex-1">
-          <button
-            type="button"
-            onPointerDown={(event) => {
-              if (!onDragHandlePointerDown) return;
-              event.preventDefault();
-              onDragHandlePointerDown(event);
-            }}
-            className={`h-6 w-6 inline-flex items-center justify-center transition-colors ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-            style={{ color: '#7d8590' }}
-            title="Drag to reorder"
-            aria-label={`Drag ${title}`}
-          >
-            <GripVertical size={16} strokeWidth={1.5} className="h-4 w-4" />
-          </button>
-
-          <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left">
-            <div className="text-xs uppercase tracking-[0.14em] inline-flex items-center gap-1.5" style={{ color: T.muted }}>
-              <Icon size={12} />
-              <span>{title}</span>
-              {headerMeta ? (
-                <span className="normal-case tracking-normal text-xs" style={{ color: T.muted }}>
-                  {headerMeta}
-                </span>
-              ) : null}
-            </div>
-            {subtitle ? <div className="text-[11px]" style={{ color: T.muted }}>{subtitle}</div> : null}
-          </button>
-        </div>
-
-        <div className="inline-flex items-center gap-1.5">
-          {onToggleVisibility ? (
-            <button
-              type="button"
-              onClick={onToggleVisibility}
-              className="h-6 w-6 inline-flex items-center justify-center"
-              style={{ color: T.muted }}
-              title="Hide section"
-              aria-label={`Hide ${title}`}
-            >
-              <VisibilityIcon size={14} strokeWidth={1.5} />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onToggle}
-            className="h-6 w-6 inline-flex items-center justify-center"
-            style={{ color: T.muted }}
-            title={open ? 'Collapse section' : 'Expand section'}
-            aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
-          >
-            {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-          </button>
-        </div>
-      </div>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden flex-1 min-h-0"
-          >
-            <div className={`p-3 ${bodyClassName}`.trim()}>{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-const DraggableSidebarSection = ({
-  sectionId,
-  isDragging,
-  onDragStateChange,
-  children,
-  wrapperClassName = '',
-  sectionClassName = '',
-  sectionBodyClassName = '',
-  ...sectionProps
-}) => {
-  const dragControls = useDragControls();
-
-  return (
-    <Reorder.Item
-      as="div"
-      value={sectionId}
-      dragListener={false}
-      dragControls={dragControls}
-      layout
-      whileDrag={{
-        scale: 1.02,
-        boxShadow: '0 0 12px rgba(88,166,255,0.3)',
-        zIndex: 30,
-      }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.7 }}
-      className={`list-none ${wrapperClassName}`.trim()}
-      style={{ position: 'relative' }}
-      onDragStart={() => onDragStateChange(sectionId)}
-      onDragEnd={() => onDragStateChange(null)}
-    >
-      <SidebarSection
-        {...sectionProps}
-        isDragging={isDragging}
-        onDragHandlePointerDown={(event) => dragControls.start(event)}
-        className={sectionClassName}
-        bodyClassName={sectionBodyClassName}
-      >
-        {children}
-      </SidebarSection>
-    </Reorder.Item>
-  );
-};
-
-const RightSidebar = ({ quoteMap }) => {
+const RightSidebar = () => {
   const [newsOpen, setNewsOpen] = useState(true);
-  const [watchlistOpen, setWatchlistOpen] = useState(true);
-  const [splitRatio, setSplitRatio] = useState(50);
-  const containerRef = useRef(null);
-  const isDraggingDivider = useRef(false);
-  const [watchlistRows, setWatchlistRows] = useState([]);
-  const [watchlistQuery, setWatchlistQuery] = useState('');
-  const [watchlistResults, setWatchlistResults] = useState([]);
-  const [watchlistSearchLoading, setWatchlistSearchLoading] = useState(false);
-  const [watchlistQuoteMap, setWatchlistQuoteMap] = useState({});
-  const watchlistHydratedRef = useRef(false);
-  const previousWatchlistSymbolsRef = useRef([]);
-  const watchlistLookupRef = useRef(null);
+  const [newsPanelHeight, setNewsPanelHeight] = useState(400);
+  const isDraggingHandle = useRef(false);
 
-  const watchlistSymbols = useMemo(
-    () => watchlistRows.map((row) => row.symbol).filter(Boolean),
-    [watchlistRows],
-  );
-
-  const fetchWatchlistQuotes = useCallback(async (symbols) => {
-    const targetSymbols = [...new Set((Array.isArray(symbols) ? symbols : [symbols]).map(normalizeSymbolKey).filter(Boolean))];
-    if (targetSymbols.length === 0) return;
-
-    try {
-      const params = new URLSearchParams({ symbols: targetSymbols.join(',') });
-      const response = await fetch(`/api/community/market-data?${params.toString()}`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-        cache: 'no-store',
-      });
-      if (!response.ok) return;
-
-      const payload = await response.json().catch(() => ({}));
-      const rows = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.data)
-          ? payload.data
-          : [];
-      if (rows.length === 0) return;
-
-      setWatchlistQuoteMap((prev) => mergeQuotesFromPayload(rows, prev));
-    } catch {
-      // keep existing quote cache if bootstrap fetch fails
-    }
+  const clampHeight = useCallback((h) => {
+    const maxH = (typeof window !== 'undefined' ? window.innerHeight : 800) - 200;
+    return Math.min(maxH, Math.max(150, h));
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const savedWatchlistRaw = window.localStorage.getItem(WATCHLIST_STORAGE_KEY);
-      if (!savedWatchlistRaw) {
-        watchlistHydratedRef.current = true;
-        return;
-      }
-      const parsed = JSON.parse(savedWatchlistRaw);
-      setWatchlistRows(normalizeWatchlistEntries(parsed));
-    } catch {
-      setWatchlistRows([]);
-    } finally {
-      watchlistHydratedRef.current = true;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!watchlistHydratedRef.current || typeof window === 'undefined') return;
-    window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlistRows));
-  }, [watchlistRows]);
-
-  useEffect(() => {
-    if (watchlistSymbols.length === 0) {
-      previousWatchlistSymbolsRef.current = [];
-      return;
-    }
-
-    const previousSymbols = previousWatchlistSymbolsRef.current;
-    const previousSet = new Set(previousSymbols);
-    const addedSymbols = watchlistSymbols.filter((symbol) => !previousSet.has(symbol));
-    const symbolsToBootstrap = previousSymbols.length === 0
-      ? watchlistSymbols
-      : (addedSymbols.length > 0 ? addedSymbols : watchlistSymbols);
-
-    previousWatchlistSymbolsRef.current = watchlistSymbols;
-    void fetchWatchlistQuotes(symbolsToBootstrap);
-  }, [watchlistSymbols, fetchWatchlistQuotes]);
-
-  useEffect(() => {
-    if (watchlistSymbols.length === 0) return undefined;
-    console.log('[CommunityPage][Watchlist] Subscribing Twelve Data symbols:', watchlistSymbols);
-
-    const unsubscribeQuotes = subscribeTwelveDataQuotes(watchlistSymbols, (update) => {
-      const symbol = normalizeSymbolKey(update?.symbol);
-      if (!symbol) return;
-      console.log('[CommunityPage][Watchlist] WS price update:', {
-        symbol,
-        price: update?.price,
-        dayChangePercent: update?.dayChangePercent ?? update?.percentChange ?? null,
-      });
-
-      setWatchlistQuoteMap((prev) => ({
-        ...prev,
-        [symbol]: mergeStreamQuote(prev[symbol] || {}, update, symbol),
-      }));
-    });
-
-    return () => {
-      console.log('[CommunityPage][Watchlist] Unsubscribing Twelve Data symbols:', watchlistSymbols);
-      unsubscribeQuotes?.();
-    };
-  }, [watchlistSymbols]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const lookup = async (query) => {
-      const trimmedQuery = String(query || '').trim();
-      if (!trimmedQuery) {
-        setWatchlistResults([]);
-        setWatchlistSearchLoading(false);
-        return;
-      }
-
-      let remoteRows = [];
-      try {
-        const params = new URLSearchParams({
-          q: trimmedQuery,
-          limit: String(WATCHLIST_SEARCH_LIMIT),
-        });
-        const payload = await cachedFetch(
-          `/api/community/symbol-search?${params.toString()}`,
-          { cache: 'no-store' },
-          45_000,
-        );
-        remoteRows = normalizeWatchlistSearchResults(payload);
-      } catch {
-        try {
-          const payload = await cachedFetch(
-            `/api/global-markets/list?market=nyse&q=${encodeURIComponent(trimmedQuery)}&limit=${WATCHLIST_SEARCH_LIMIT}`,
-            { cache: 'no-store' },
-            45_000,
-          );
-          remoteRows = normalizeWatchlistSearchResults(payload);
-        } catch {
-          remoteRows = [];
-        }
-      }
-
-      if (cancelled) return;
-
-      const existingSymbols = new Set(watchlistRows.map((row) => row.symbol));
-      const merged = remoteRows
-        .reduce((acc, row) => {
-          const entry = normalizeWatchlistEntry(row);
-          if (!entry || acc.some((item) => item.symbol === entry.symbol)) return acc;
-          acc.push(entry);
-          return acc;
-        }, [])
-        .filter((row) => !existingSymbols.has(row.symbol))
-        .slice(0, WATCHLIST_SEARCH_LIMIT);
-
-      setWatchlistResults(merged);
-      setWatchlistSearchLoading(false);
-    };
-
-    watchlistLookupRef.current = createDebouncedFn((query) => {
-      void lookup(query);
-    }, 320);
-
-    return () => {
-      cancelled = true;
-      watchlistLookupRef.current?.cancel?.();
-    };
-  }, [watchlistRows]);
-
-  useEffect(() => {
-    const trimmedQuery = String(watchlistQuery || '').trim();
-    if (!trimmedQuery) {
-      setWatchlistResults([]);
-      setWatchlistSearchLoading(false);
-      return;
-    }
-
-    setWatchlistSearchLoading(true);
-    watchlistLookupRef.current?.call(trimmedQuery);
-  }, [watchlistQuery]);
-
-  // Draggable divider handlers
-  const handleDividerMouseDown = useCallback((e) => {
+  const handleDragStart = useCallback((e) => {
     e.preventDefault();
-    isDraggingDivider.current = true;
+    isDraggingHandle.current = true;
+
+    const startY = e.clientY;
+    const startH = newsPanelHeight;
 
     const onMouseMove = (moveEvent) => {
-      if (!isDraggingDivider.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const y = moveEvent.clientY - rect.top;
-      const pct = Math.min(85, Math.max(15, (y / rect.height) * 100));
-      setSplitRatio(pct);
+      if (!isDraggingHandle.current) return;
+      const delta = moveEvent.clientY - startY;
+      setNewsPanelHeight(clampHeight(startH + delta));
     };
 
     const onMouseUp = () => {
-      isDraggingDivider.current = false;
+      isDraggingHandle.current = false;
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-  }, []);
-
-  const addWatchlistSymbol = (row) => {
-    const nextEntry = normalizeWatchlistEntry(row);
-    if (!nextEntry) return;
-
-    setWatchlistRows((prev) => {
-      if (prev.some((item) => item.symbol === nextEntry.symbol)) return prev;
-      return [...prev, nextEntry].slice(0, WATCHLIST_MAX_ROWS);
-    });
-    void fetchWatchlistQuotes([nextEntry.symbol]);
-    setWatchlistQuery('');
-    setWatchlistResults([]);
-    setWatchlistSearchLoading(false);
-  };
-
-  const renderWatchlistRow = (entry) => {
-    const symbol = normalizeSymbolKey(entry?.symbol);
-    if (!symbol) return null;
-
-    const quote = watchlistQuoteMap?.[symbol] || quoteMap?.[symbol] || null;
-    const price = toMaybeFiniteNumber(quote?.price);
-    const percent = toMaybeFiniteNumber(
-      quote?.dayChangePercent
-      ?? quote?.day_change_percent
-      ?? quote?.percentChange
-      ?? quote?.percent_change
-      ?? quote?.changePercent
-    );
-    const percentColor = percent === null ? T.muted : (percent >= 0 ? '#3fb950' : '#f85149');
-
-    return (
-      <div
-        key={`watchlist-row-${symbol}`}
-        className="rounded-lg border px-2.5 py-1.5 flex items-center justify-between gap-2"
-        style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.65)' }}
-      >
-        <div className="min-w-0">
-          <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{symbol}</div>
-          <div className="text-xs truncate" style={{ color: T.muted }}>{entry?.name || symbol}</div>
-        </div>
-        <div className="text-right flex-shrink-0 leading-tight">
-          <div className="text-xs font-mono" style={{ color: T.text }}>
-            {price === null ? '--' : formatPrice(price)}
-          </div>
-          <div className="text-xs font-mono" style={{ color: percentColor }}>
-            {percent === null ? '--' : formatSignedPercent(percent)}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const hasWatchlistQuery = String(watchlistQuery || '').trim().length > 0;
-  const bothOpen = newsOpen && watchlistOpen;
-  const neitherOpen = !newsOpen && !watchlistOpen;
-  const HEADER_H = 40;
-
-  const newsStyle = {};
-  const watchlistStyle = {};
-
-  if (bothOpen) {
-    newsStyle.height = `${splitRatio}%`;
-    watchlistStyle.height = `${100 - splitRatio}%`;
-  } else if (newsOpen && !watchlistOpen) {
-    newsStyle.flex = '1 1 0%';
-    newsStyle.minHeight = 0;
-  } else if (!newsOpen && watchlistOpen) {
-    watchlistStyle.flex = '1 1 0%';
-    watchlistStyle.minHeight = 0;
-  }
+  }, [newsPanelHeight, clampHeight]);
 
   return (
     <motion.aside
@@ -4289,14 +3809,14 @@ const RightSidebar = ({ quoteMap }) => {
       transition={{ duration: 0.22 }}
       className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
-      <div ref={containerRef} className="h-full flex-1 min-h-0 pr-1 flex flex-col">
+      <div className="h-full flex-1 min-h-0 pr-1 flex flex-col">
         {/* ── News Panel ── */}
-        <div className="flex flex-col min-h-0" style={newsOpen ? newsStyle : { flexShrink: 0 }}>
+        <div className="flex flex-col min-h-0 rounded-xl border border-white/6 bg-white/2 overflow-hidden">
+          {/* Header toggle */}
           <button
             type="button"
             onClick={() => setNewsOpen((prev) => !prev)}
-            className="flex items-center justify-between w-full px-3 py-2 rounded-t-xl border border-white/6 bg-white/2 hover:bg-white/4 transition-colors flex-shrink-0"
-            style={{ height: HEADER_H }}
+            className="flex items-center justify-between w-full px-3 py-2 hover:bg-white/4 transition-colors flex-shrink-0"
           >
             <div className="flex items-center gap-2">
               <Newspaper className="w-3.5 h-3.5 text-[#7d8590]" strokeWidth={1.5} />
@@ -4307,97 +3827,24 @@ const RightSidebar = ({ quoteMap }) => {
             </div>
             <ChevronDown className={`w-3.5 h-3.5 text-[#7d8590] transition-transform duration-200 ${newsOpen ? '' : '-rotate-90'}`} strokeWidth={1.5} />
           </button>
+
+          {/* Drag handle for resizing */}
           {newsOpen && (
-            <div className="flex-1 min-h-0 overflow-y-auto border-x border-white/6 bg-white/2">
-              <TodaysNews hideHeader />
+            <div className="flex justify-center py-0.5 flex-shrink-0">
+              <div
+                onMouseDown={handleDragStart}
+                className="h-1 w-12 rounded-full bg-white/10 hover:bg-[#58a6ff]/40 cursor-row-resize transition-colors duration-150"
+              />
             </div>
           )}
-        </div>
 
-        {/* ── Draggable Divider ── */}
-        {bothOpen && (
-          <div
-            onMouseDown={handleDividerMouseDown}
-            className="h-1 bg-white/10 hover:bg-[#58a6ff]/50 cursor-row-resize flex-shrink-0 transition-colors duration-150"
-          />
-        )}
-
-        {/* ── Watchlist Panel ── */}
-        <div className="flex flex-col min-h-0" style={watchlistOpen ? watchlistStyle : { flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={() => setWatchlistOpen((prev) => !prev)}
-            className={`flex items-center justify-between w-full px-3 py-2 border border-white/6 bg-white/2 hover:bg-white/4 transition-colors flex-shrink-0 ${!newsOpen ? 'rounded-t-xl' : ''} ${!watchlistOpen ? 'rounded-b-xl' : ''}`}
-            style={{ height: HEADER_H }}
-          >
-            <div className="flex items-center gap-2">
-              <Settings2 className="w-3.5 h-3.5 text-[#7d8590]" strokeWidth={1.5} />
-              <div className="text-left">
-                <div className="text-xs font-semibold text-[#e6edf3] leading-tight">WATCHLIST</div>
-                <div className="text-[10px] text-[#7d8590] leading-tight">Your saved tickers</div>
-              </div>
-            </div>
-            <ChevronDown className={`w-3.5 h-3.5 text-[#7d8590] transition-transform duration-200 ${watchlistOpen ? '' : '-rotate-90'}`} strokeWidth={1.5} />
-          </button>
-          {watchlistOpen && (
-            <div className="flex-1 min-h-0 overflow-y-auto border-x border-b border-white/6 rounded-b-xl bg-white/2 p-2 flex flex-col gap-2">
-              <div className="relative flex-shrink-0 sticky top-0 z-10" style={{ backgroundColor: 'rgba(13,17,23,0.9)' }}>
-                <input
-                  type="text"
-                  value={watchlistQuery}
-                  onChange={(event) => setWatchlistQuery(event.target.value)}
-                  placeholder="Add ticker..."
-                  className="w-full bg-white/5 border border-white/6 rounded-lg text-xs py-1.5 px-3 outline-none focus:ring-1 focus:ring-white/20"
-                  style={{ color: T.text }}
-                  aria-label="Add watchlist ticker"
-                />
-                <AnimatePresence initial={false}>
-                  {hasWatchlistQuery && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={OVERLAY_PANEL_TRANSITION}
-                      className="absolute left-0 right-0 top-full mt-1 rounded-2xl border overflow-hidden z-20 shadow-2xl shadow-black/40"
-                      style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.98)' }}
-                    >
-                      {watchlistSearchLoading ? (
-                        <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>Searching symbols...</div>
-                      ) : watchlistResults.length === 0 ? (
-                        <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>No symbols found.</div>
-                      ) : (
-                        <div className="max-h-44 overflow-y-auto divide-y divide-white/5">
-                          {watchlistResults.map((row) => (
-                            <button
-                              key={`watchlist-search-${row.symbol}`}
-                              type="button"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => addWatchlistSymbol(row)}
-                              className="w-full px-3 py-2 text-left hover:bg-white/5 transition-colors"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="min-w-0">
-                                  <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{row.symbol}</div>
-                                  <div className="text-xs truncate" style={{ color: T.muted }}>{row.name || row.symbol}</div>
-                                </div>
-                                <Plus size={12} strokeWidth={1.5} style={{ color: T.muted }} />
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <div className="flex-1 min-h-0 space-y-1.5 pr-0.5 overflow-y-auto scroll-smooth community-minimal-scrollbar scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                {watchlistRows.length === 0 ? (
-                  <div className="rounded-lg border px-2.5 py-2 text-xs" style={{ borderColor: T.border, color: T.muted }}>
-                    Search above to add symbols.
-                  </div>
-                ) : watchlistRows.map((row) => renderWatchlistRow(row))}
-              </div>
+          {/* News content */}
+          {newsOpen && (
+            <div
+              className="min-h-0 overflow-y-auto"
+              style={{ maxHeight: clampHeight(newsPanelHeight) }}
+            >
+              <TodaysNews hideHeader />
             </div>
           )}
         </div>
@@ -6180,7 +5627,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                   </div>
                 </div>
 
-                <RightSidebar quoteMap={quoteMap} />
+                <RightSidebar />
               </div>
             </div>
           </div>
