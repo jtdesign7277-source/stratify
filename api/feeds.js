@@ -8,28 +8,31 @@ const CACHE_TTL = 14400 // 4 hours
 const FEED_CATEGORIES = {
   'Market Pulse': [
     'Earnings', 'Momentum', 'Macro', 'Options', 'Sentiment',
-    'PreMarket', 'AfterHours', 'Sectors', 'Indices', 'Volume'
+    'PreMarket', 'AfterHours', 'Sectors', 'Indices', 'Volume',
+    'Upgrades', 'Downgrades',
   ],
   'Hot & Trending': [
     'Trending', 'MemeStocks', 'Runners', 'Squeezes', 'IPOs',
-    'SPACs', 'PennyStocks', 'Breakouts'
+    'SPACs', 'PennyStocks', 'Breakouts', 'SmallCaps', 'LargeCaps',
   ],
   'Tech & Innovation': [
-    'BigTech', 'AI', 'Semis', 'EVs', 'Fintech', 'Biotech', 'SpaceTech'
+    'BigTech', 'AI', 'Semis', 'EVs', 'Fintech', 'Biotech', 'SpaceTech',
+    'Energy', 'RealEstate',
   ],
   'Macro & Politics': [
     'FedWatch', 'Trump', 'ElonMusk', 'Politics', 'Tariffs',
-    'Bonds', 'Commodities', 'Forex', 'Housing', 'Jobs'
+    'Bonds', 'Commodities', 'Forex', 'Housing', 'Jobs',
   ],
   'Crypto': [
-    'Bitcoin', 'Ethereum', 'Altcoins', 'DeFi', 'CryptoNews'
+    'Bitcoin', 'Ethereum', 'Altcoins', 'DeFi', 'CryptoNews',
   ],
   'Strategy & Education': [
     'TechnicalAnalysis', 'Fundamentals', 'DayTrading',
-    'SwingTrades', 'Dividends', 'RiskManagement'
+    'SwingTrades', 'Dividends', 'RiskManagement',
+    'DarkPool', 'ShortInterest', 'Insiders', 'ETFs',
   ],
   'Culture & Vibes': [
-    'LossPorn', 'GainPorn', 'TradingMemes', 'HotTakes'
+    'LossPorn', 'GainPorn', 'TradingMemes', 'HotTakes',
   ],
 }
 
@@ -49,15 +52,19 @@ const FEED_PARAMS = {
   Sectors:      { search: 'sector stocks' },
   Indices:      { search: 'S&P 500 Nasdaq' },
   Volume:       { search: 'trading volume' },
+  Upgrades:     { search: 'stock upgrade' },
+  Downgrades:   { search: 'stock downgrade' },
   // Hot & Trending
   Trending:     { sort: 'entity_match_score' },
   MemeStocks:   { symbols: 'GME,AMC,BB,PLTR,SOFI' },
   Runners:      { search: 'stock surge breakout' },
   Squeezes:     { search: 'short squeeze' },
   IPOs:         { search: 'IPO' },
-  SPACs:        { search: 'acquisition merger' },
+  SPACs:        { search: 'SPAC merger' },
   PennyStocks:  { search: 'penny stock' },
   Breakouts:    { search: 'breakout stocks' },
+  SmallCaps:    { search: 'small cap stocks' },
+  LargeCaps:    { search: 'large cap stocks' },
   // Tech & Innovation
   BigTech:      { symbols: 'AAPL,MSFT,GOOGL,META,AMZN' },
   AI:           { search: 'artificial intelligence' },
@@ -66,6 +73,8 @@ const FEED_PARAMS = {
   Fintech:      { symbols: 'SOFI,HOOD,SQ,PYPL' },
   Biotech:      { search: 'biotech FDA' },
   SpaceTech:    { search: 'SpaceX space' },
+  Energy:       { search: 'oil gas energy' },
+  RealEstate:   { search: 'real estate REIT' },
   // Macro & Politics
   FedWatch:     { search: 'Federal Reserve' },
   Trump:        { search: 'Trump' },
@@ -90,6 +99,10 @@ const FEED_PARAMS = {
   SwingTrades:       { search: 'swing trade' },
   Dividends:         { search: 'dividend' },
   RiskManagement:    { search: 'risk management' },
+  DarkPool:          { search: 'dark pool' },
+  ShortInterest:     { search: 'short interest' },
+  Insiders:          { search: 'insider trading' },
+  ETFs:              { search: 'ETF fund' },
   // Culture & Vibes
   LossPorn:     { search: 'stock loss crash' },
   GainPorn:     { search: 'stock gain rally' },
@@ -213,15 +226,18 @@ export default async function handler(req, res) {
     })
   }
 
-  // Validate feed name
-  if (!feed || !ALL_FEEDS.includes(feed)) {
+  // Validate feed name — accept case-insensitive match so frontend lowercase IDs work
+  const normalizedFeed = ALL_FEEDS.find(
+    (f) => f.toLowerCase() === (feed || '').toLowerCase()
+  ) || feed
+  if (!feed || !ALL_FEEDS.includes(normalizedFeed)) {
     return res.status(400).json({
       error: `Invalid feed. Use ?action=list to see all ${ALL_FEEDS.length} available feeds.`,
       validFeeds: ALL_FEEDS,
     })
   }
 
-  console.log(`[feeds] Requested: #${feed}`)
+  console.log(`[feeds] Requested: #${normalizedFeed}`)
 
   // Redis cache
   let redis
@@ -231,13 +247,13 @@ export default async function handler(req, res) {
     console.error('[feeds] Redis init failed:', err.message)
   }
 
-  const cacheKey = `feed:v3:${feed.toLowerCase()}`
+  const cacheKey = `feed:v3:${normalizedFeed.toLowerCase()}`
 
   // Flush cache if requested
   if (flush === 'true' && redis) {
     try {
       await redis.del(cacheKey)
-      console.log(`[feeds] Cache FLUSHED for #${feed}`)
+      console.log(`[feeds] Cache FLUSHED for #${normalizedFeed}`)
     } catch (err) {
       console.error('[feeds] Redis DEL failed:', err.message)
     }
@@ -247,11 +263,11 @@ export default async function handler(req, res) {
     try {
       const cached = await redis.get(cacheKey)
       if (cached) {
-        console.log(`[feeds] Cache HIT for #${feed}`)
+        console.log(`[feeds] Cache HIT for #${normalizedFeed}`)
         const data = typeof cached === 'string' ? JSON.parse(cached) : cached
         return res.status(200).json({ ...data, source: 'cache', cacheHit: true })
       }
-      console.log(`[feeds] Cache MISS for #${feed}`)
+      console.log(`[feeds] Cache MISS for #${normalizedFeed}`)
     } catch (err) {
       console.error('[feeds] Redis GET failed:', err.message)
     }
@@ -260,10 +276,10 @@ export default async function handler(req, res) {
   // Fetch from Marketaux API
   const apiKey = process.env.MARKETAUX_API_KEY
   if (!apiKey) {
-    return res.status(500).json({ error: 'MARKETAUX_API_KEY not configured', feed, items: [] })
+    return res.status(500).json({ error: 'MARKETAUX_API_KEY not configured', feed: normalizedFeed, items: [] })
   }
 
-  const feedParams = FEED_PARAMS[feed] || { search: feed }
+  const feedParams = FEED_PARAMS[normalizedFeed] || { search: normalizedFeed }
 
   try {
     const params = new URLSearchParams({
@@ -281,7 +297,7 @@ export default async function handler(req, res) {
     params.set('published_after', sevenDaysAgo)
 
     const url = `https://api.marketaux.com/v1/news/all?${params.toString()}`
-    console.log(`[feeds] Fetching Marketaux for #${feed}...`)
+    console.log(`[feeds] Fetching Marketaux for #${normalizedFeed}...`)
 
     const response = await fetch(url, {
       signal: AbortSignal.timeout(10000),
@@ -296,18 +312,18 @@ export default async function handler(req, res) {
     const data = await response.json()
     const articles = data.data || []
 
-    console.log(`[feeds] Marketaux raw: ${articles.length} articles for #${feed}`)
+    console.log(`[feeds] Marketaux raw: ${articles.length} articles for #${normalizedFeed}`)
     if (articles.length === 0 && data.error) {
       console.error(`[feeds] Marketaux error:`, JSON.stringify(data.error).substring(0, 300))
     }
 
     // Transform to our format
     const items = articles
-      .map(a => transformArticle(a, feed))
+      .map(a => transformArticle(a, normalizedFeed))
       .filter(item => item.title && item.title.length > 10)
 
     const result = {
-      feed,
+      feed: normalizedFeed,
       items,
       generatedAt: new Date().toISOString(),
       itemCount: items.length,
@@ -317,7 +333,7 @@ export default async function handler(req, res) {
     if (redis) {
       try {
         await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL })
-        console.log(`[feeds] Cached #${feed} with ${CACHE_TTL}s TTL`)
+        console.log(`[feeds] Cached #${normalizedFeed} with ${CACHE_TTL}s TTL`)
       } catch (err) {
         console.error('[feeds] Redis SET failed:', err.message)
       }
@@ -325,7 +341,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ ...result, source: 'api', cacheHit: false })
   } catch (err) {
-    console.error(`[feeds] Error fetching #${feed}:`, err.message)
+    console.error(`[feeds] Error fetching #${normalizedFeed}:`, err.message)
 
     // Try stale cache
     if (redis) {
@@ -341,7 +357,7 @@ export default async function handler(req, res) {
     return res.status(500).json({
       error: 'Failed to fetch feed',
       details: err.message,
-      feed,
+      feed: normalizedFeed,
       items: [],
     })
   }
