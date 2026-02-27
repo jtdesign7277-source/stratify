@@ -663,13 +663,36 @@ const BASE_STREAM_STATUS = {
 const FEED_HASHTAGS = ['#Earnings', '#Momentum', '#Macro', '#Options', '#Sentiment'];
 
 const ALL_FEED_HASHTAGS = [
-  { id: 'earnings', label: 'Earnings', icon: 'BarChart3' },
-  { id: 'momentum', label: 'Momentum', icon: 'Flame' },
-  { id: 'trending', label: 'Trending', icon: 'TrendingUp' },
-  { id: 'options', label: 'Options', icon: 'ArrowLeftRight' },
-  { id: 'premarket', label: 'PreMarket', icon: 'Clock3' },
-  { id: 'memestocks', label: 'MemeStocks', icon: 'Flame' },
-  { id: 'ipos', label: 'IPOs', icon: 'Sparkles' },
+  { id: 'earnings', label: 'Earnings' },
+  { id: 'momentum', label: 'Momentum' },
+  { id: 'trending', label: 'Trending' },
+  { id: 'options', label: 'Options' },
+  { id: 'premarket', label: 'PreMarket' },
+  { id: 'memestocks', label: 'MemeStocks' },
+  { id: 'ipos', label: 'IPOs' },
+  { id: 'dividends', label: 'Dividends' },
+  { id: 'crypto', label: 'Crypto' },
+  { id: 'forex', label: 'Forex' },
+  { id: 'commodities', label: 'Commodities' },
+  { id: 'bonds', label: 'Bonds' },
+  { id: 'macro', label: 'Macro' },
+  { id: 'sentiment', label: 'Sentiment' },
+  { id: 'technicals', label: 'Technicals' },
+  { id: 'fundamentals', label: 'Fundamentals' },
+  { id: 'darkpool', label: 'Dark Pool' },
+  { id: 'shortinterest', label: 'Short Interest' },
+  { id: 'insiders', label: 'Insider Trades' },
+  { id: 'etfs', label: 'ETFs' },
+  { id: 'smallcaps', label: 'Small Caps' },
+  { id: 'largecaps', label: 'Large Caps' },
+  { id: 'biotech', label: 'Biotech' },
+  { id: 'energy', label: 'Energy' },
+  { id: 'ai', label: 'AI & Tech' },
+  { id: 'realestate', label: 'Real Estate' },
+  { id: 'spacs', label: 'SPACs' },
+  { id: 'afterhours', label: 'After Hours' },
+  { id: 'upgrades', label: 'Upgrades' },
+  { id: 'downgrades', label: 'Downgrades' },
 ];
 
 const MAX_VISIBLE_FEED_HASHTAGS = 5;
@@ -4522,7 +4545,7 @@ const FeedCustomizerModal = ({ open, onClose, enabledFeeds, onToggle }) => {
                 <X size={14} strokeWidth={1.5} />
               </button>
             </div>
-            <div className="p-5 space-y-2">
+            <div className="p-5 space-y-2 max-h-[60vh] overflow-y-auto">
               <p className="text-xs text-[#7d8590] mb-3">Choose up to {MAX_VISIBLE_FEED_HASHTAGS} feed channels to show when you click the Globe icon. {atLimit ? <span className="text-[#f0883e] font-medium">Limit reached — disable one to add another.</span> : null}</p>
               {ALL_FEED_HASHTAGS.map((feed) => {
                 const isEnabled = enabledFeeds.includes(feed.id);
