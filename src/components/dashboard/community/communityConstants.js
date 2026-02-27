@@ -25,6 +25,18 @@ export const AI_SEARCH_CLIENT_CACHE_TTL = 15 * 60 * 1000;
 export const AI_SEARCH_CLIENT_CACHE = new Map();
 export const AI_SEARCH_INFLIGHT = new Map();
 
+// ─── Mood System ──────────────────────────────────────────
+export const MOOD_LS_KEY = 'stratify_user_mood';
+export const MOOD_CONFIG = {
+  confident:  { emoji: '😎', label: 'Confident',  bg: 'bg-blue-500/20',   ring: 'ring-blue-500',   border: 'border border-blue-500/20',   cardBg: 'bg-blue-500/10'   },
+  winning:    { emoji: '🤑', label: 'Winning',    bg: 'bg-green-500/20',  ring: 'ring-green-500',  border: 'border border-green-500/20',  cardBg: 'bg-green-500/10'  },
+  happy:      { emoji: '😊', label: 'Happy',      bg: 'bg-yellow-500/20', ring: 'ring-yellow-500', border: 'border border-yellow-500/20', cardBg: 'bg-yellow-500/10' },
+  neutral:    { emoji: '😐', label: 'Neutral',    bg: 'bg-gray-500/20',   ring: 'ring-gray-500',   border: 'border border-gray-500/20',   cardBg: 'bg-gray-500/10'   },
+  frustrated: { emoji: '😤', label: 'Frustrated', bg: 'bg-orange-500/20', ring: 'ring-orange-500', border: 'border border-orange-500/20', cardBg: 'bg-orange-500/10' },
+  rage:       { emoji: '🤬', label: 'Rage',       bg: 'bg-red-500/20',    ring: 'ring-red-500',    border: 'border border-red-500/20',    cardBg: 'bg-red-500/10'    },
+};
+export const DEFAULT_MOOD = 'confident';
+
 // ─── Avatar Config ────────────────────────────────────────
 export const PROFILE_AVATAR_STYLES = ['bottts', 'avataaars', 'pixel-art', 'fun-emoji'];
 export const PROFILE_AVATAR_SEEDS_PER_STYLE = 24;

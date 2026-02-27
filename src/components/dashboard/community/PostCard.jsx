@@ -13,10 +13,11 @@ import {
   highlightTickers,
   shareToX,
 } from './communityHelpers';
-import { UserAvatar, PostTypeBadge, PnLCard, ShimmerBlock, XLogoIcon } from './CommunityShared';
+import { UserAvatar, PostTypeBadge, PnLCard, ShimmerBlock, XLogoIcon, MoodAvatar, ProBadge } from './CommunityShared';
+import { MOOD_LS_KEY, DEFAULT_MOOD } from './communityConstants';
 import ReactionBar from './ReactionBar';
 
-const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayName }) => {
+const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayName, userMood, isPro = false }) => {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(toFiniteNumber(post?.likes_count ?? post?.likes, 0));
   const [showReplies, setShowReplies] = useState(false);
@@ -229,7 +230,18 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
       style={{ borderColor: T.border, backgroundColor: T.card }}
     >
       <div className="flex gap-2">
-        <UserAvatar user={profileForRender} size={32} initialsClassName="text-xs" />
+        <div className="relative flex-shrink-0">
+          {isOwner ? (
+            <MoodAvatar mood={userMood || DEFAULT_MOOD} size={32} />
+          ) : (
+            <UserAvatar user={profileForRender} size={32} initialsClassName="text-xs" />
+          )}
+          {isOwner && isPro && (
+            <span className="absolute -bottom-0.5 -right-0.5">
+              <ProBadge size={14} />
+            </span>
+          )}
+        </div>
 
         <div className="flex-1 min-w-0">
           {normalizedPostType !== 'general' && (

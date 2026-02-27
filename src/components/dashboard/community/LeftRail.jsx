@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Compass, Clock3, BarChart3, Globe, Hash, Settings,
   PanelLeftClose, PanelRightClose, ChevronRight, Bell, BellOff, Trash2, Pencil, Check, X,
 } from 'lucide-react';
-import { T, ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS } from './communityConstants';
-import { UserAvatar } from './CommunityShared';
+import { T, ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS, MOOD_CONFIG, MOOD_LS_KEY, DEFAULT_MOOD } from './communityConstants';
+import { UserAvatar, MoodAvatar, ProBadge } from './CommunityShared';
 import { buildCurrentUserAvatarUrl, toMaybeFiniteNumber } from './communityHelpers';
+import { supabase } from '../../../lib/supabaseClient';
 
 const EXPLORE_TABS = [
   { id: 'history', label: 'History', icon: Clock3 },
@@ -43,6 +44,41 @@ const LeftRail = ({
   onExploreTabChange,
 }) => {
   const [priceAlertsOpen, setPriceAlertsOpen] = useState(false);
+  const [mood, setMood] = useState(() => {
+    try { return localStorage.getItem(MOOD_LS_KEY) || DEFAULT_MOOD; } catch { return DEFAULT_MOOD; }
+  });
+  const [moodPickerOpen, setMoodPickerOpen] = useState(false);
+  const moodPickerRef = useRef(null);
+  const isPro = true; // hardcoded until Stripe subscription wired
+
+  // Close mood picker on outside click / Escape
+  useEffect(() => {
+    if (!moodPickerOpen) return;
+    const onDown = (e) => {
+      if (moodPickerRef.current && !moodPickerRef.current.contains(e.target)) setMoodPickerOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setMoodPickerOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [moodPickerOpen]);
+
+  const selectMood = async (key) => {
+    setMood(key);
+    setMoodPickerOpen(false);
+    try {
+      localStorage.setItem(MOOD_LS_KEY, key);
+      // Notify same-tab listeners (storage event only fires cross-tab natively)
+      window.dispatchEvent(new StorageEvent('storage', { key: MOOD_LS_KEY, newValue: key }));
+    } catch { /* ignore */ }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) await supabase.auth.updateUser({ data: { mood: key } });
+    } catch { /* ignore */ }
+  };
 
   const profileName = String(displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader').trim() || 'Trader';
   const profileAvatarUrl = String(avatarUrl || currentUser?.avatar_url || buildCurrentUserAvatarUrl(profileName)).trim();
@@ -333,6 +369,67 @@ const LeftRail = ({
             </AnimatePresence>
           </div>
         )}
+      </div>
+
+      {/* ── Bottom mood / profile card ── */}
+      <div className="mt-auto border-t flex-shrink-0 relative" style={{ borderColor: T.border }}>
+        <div className="px-4 py-3 flex items-center gap-3">
+          {/* Avatar — click to open mood picker */}
+          <div className="relative" ref={moodPickerRef}>
+            <button
+              type="button"
+              onClick={() => setMoodPickerOpen((prev) => !prev)}
+              className={`w-10 h-10 rounded-full flex-shrink-0 ring-0 hover:ring-2 hover:ring-[#58a6ff]/50 transition-all duration-200 overflow-hidden ${moodPickerOpen ? 'ring-2 ring-[#58a6ff]/50' : ''}`}
+              title="Set your mood"
+            >
+              <MoodAvatar mood={mood} size={40} />
+            </button>
+
+            {/* Mood picker popup */}
+            <AnimatePresence>
+              {moodPickerOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full left-0 mb-2 z-50 bg-[#161b22] border border-white/10 rounded-xl p-3 shadow-xl"
+                  style={{ width: 220 }}
+                >
+                  <div className="text-[#7d8590] text-xs font-medium uppercase tracking-wide mb-2">
+                    How's your day?
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(MOOD_CONFIG).map(([key, cfg]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => selectMood(key)}
+                        className={`rounded-xl p-2 flex flex-col items-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 ${cfg.cardBg} ${cfg.border} ${mood === key ? 'ring-2 ring-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
+                      >
+                        <span className="text-2xl leading-none">{cfg.emoji}</span>
+                        <span className="text-[#c9d1d9] text-[10px] leading-tight">{cfg.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Name + mood label */}
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-base font-bold truncate" style={{ color: T.text }}>
+              {profileName}
+            </span>
+            <span className="text-xs truncate" style={{ color: T.muted }}>
+              Feeling {MOOD_CONFIG[mood]?.label?.toLowerCase() || 'confident'} {MOOD_CONFIG[mood]?.emoji || '😎'}
+            </span>
+          </div>
+
+          {/* Pro badge */}
+          {isPro && <ProBadge size={18} />}
+        </div>
       </div>
     </motion.aside>
   );

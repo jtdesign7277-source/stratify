@@ -58,6 +58,8 @@ import {
   AI_REWRITE_ACTION_ROW_VARIANTS,
   AI_REWRITE_ACTION_ITEM_VARIANTS,
   RAIL_TRENDS_PLACEHOLDER,
+  MOOD_LS_KEY,
+  DEFAULT_MOOD,
 } from './community/communityConstants';
 import {
   buildProfileAvatarUrl,
@@ -143,6 +145,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [filter, setFilter] = useState(null);
   const [sidebarArticle, setSidebarArticle] = useState(null); // article opened from right-sidebar news
   const [selectedTicker, setSelectedTicker] = useState(null); // ticker opened from watchlist
+  const [userMood, setUserMood] = useState(() => {
+    try { return localStorage.getItem(MOOD_LS_KEY) || DEFAULT_MOOD; } catch { return DEFAULT_MOOD; }
+  });
   const [searchMode, setSearchMode] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -361,6 +366,18 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       window.removeEventListener('storage', syncAvatarFromStorage);
     };
   }, [activeDisplayName]);
+
+  // Sync mood from localStorage when LeftRail updates it
+  useEffect(() => {
+    const syncMood = () => {
+      try {
+        const stored = localStorage.getItem(MOOD_LS_KEY);
+        if (stored) setUserMood(stored);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('storage', syncMood);
+    return () => window.removeEventListener('storage', syncMood);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1416,6 +1433,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                     currentUserAvatarUrl={activeAvatarUrl}
                                     onDelete={handleDeletePost}
                                     displayName={activeDisplayName}
+                                    userMood={userMood}
+                                    isPro={true}
                                   />
                                 ))}
                               </motion.div>

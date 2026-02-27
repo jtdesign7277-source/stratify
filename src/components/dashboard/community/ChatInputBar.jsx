@@ -16,11 +16,10 @@ import {
   generateSuggestions,
   toMaybeFiniteNumber,
   normalizeSymbolKey,
-  buildCurrentUserAvatarUrl,
   escapeRegExp,
 } from './communityHelpers';
 import SuggestionPopover from './SuggestionPopover';
-import { UserAvatar, XLogoIcon } from './CommunityShared';
+import { XLogoIcon } from './CommunityShared';
 
 const ChatInputBar = ({
   currentUser,
@@ -333,13 +332,6 @@ const ChatInputBar = ({
   const hintText = searchMode
     ? 'Enter to search, Shift+Enter for newline'
     : 'Enter to send, Shift+Enter for newline';
-  const chatAvatarSeed = String(currentUser?.display_name || currentUser?.email || 'Anonymous Trader').trim() || 'Anonymous Trader';
-  const chatAvatarUrl = String(
-    currentUserAvatarUrl
-    || currentUser?.avatar_url
-    || buildCurrentUserAvatarUrl(chatAvatarSeed)
-  ).trim();
-
   return (
     <div className="max-w-3xl mx-auto w-full">
       <motion.div
@@ -366,17 +358,6 @@ const ChatInputBar = ({
             }}
           >
             <div className="flex flex-1 items-start gap-2.5 px-3.5 pt-3">
-              <div className="mt-0.5 flex-shrink-0">
-                <UserAvatar
-                  user={{
-                    ...(currentUser || {}),
-                    display_name: chatAvatarSeed,
-                    avatar_url: chatAvatarUrl,
-                  }}
-                  size={32}
-                  initialsClassName="text-xs"
-                />
-              </div>
               <div className="mt-0.5 flex-shrink-0 flex items-center gap-1">
                 <button
                   type="button"
