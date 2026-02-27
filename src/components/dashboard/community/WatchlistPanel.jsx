@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { TrendingUp, ChevronDown, X, Search, Loader2 } from 'lucide-react';
+import { TrendingUp, ChevronDown, X, Search, Loader2, GripVertical, Trash2 } from 'lucide-react';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -110,13 +110,11 @@ function TickerSearchDropdown({ query, currentSymbols, onSelect }) {
         const res = await fetch(url);
         const data = await res.json();
         const hits = Array.isArray(data?.data) ? data.data : [];
-        // Filter out already-watched symbols
         const watchSet = new Set(currentSymbols.map(s => s.toUpperCase()));
         setResults(hits.filter(h => !watchSet.has(String(h.symbol || '').toUpperCase())));
       } catch { setResults([]); }
       finally { setLoading(false); }
     }, DEBOUNCE_MS);
-
     return () => clearTimeout(debounceRef.current);
   }, [query, currentSymbols]);
 
@@ -150,6 +148,107 @@ function TickerSearchDropdown({ query, currentSymbols, onSelect }) {
   );
 }
 
+// ── Ticker row ────────────────────────────────────────────────────────────────
+
+function TickerRow({
+  symbol, name, price, pctText, isPositive, isLast,
+  onNavigate, onRemove,
+  dragIndex, dropIndex, index,
+  onDragStart, onDragOver, onDragEnd, onDrop,
+}) {
+  const isDragTarget = dropIndex === index && dragIndex !== null && dragIndex !== index;
+  const isDragTargetAfter = dropIndex === index + 1 && dragIndex !== null;
+  const isBeingDragged = dragIndex === index;
+
+  return (
+    <div className="relative">
+      {/* Drop indicator line — above this row */}
+      {isDragTarget && (
+        <div className="absolute top-0 left-3 right-3 h-0.5 bg-[#58a6ff] rounded-full z-10 pointer-events-none" />
+      )}
+
+      <div
+        draggable
+        onDragStart={(e) => onDragStart(e, index)}
+        onDragOver={(e) => onDragOver(e, index)}
+        onDragEnd={onDragEnd}
+        onDrop={(e) => onDrop(e, index)}
+        className={[
+          'group flex items-center gap-2 px-3 py-4 transition-colors select-none',
+          isLast ? '' : 'border-b border-white/5',
+          isBeingDragged
+            ? 'bg-white/10 border border-[#58a6ff]/30 rounded-lg shadow-lg opacity-90'
+            : 'hover:bg-white/5 cursor-pointer',
+        ].join(' ')}
+      >
+        {/* Drag handle */}
+        <GripVertical
+          size={14}
+          strokeWidth={1.5}
+          className="text-[#7d8590] opacity-0 group-hover:opacity-50 flex-shrink-0 cursor-grab active:cursor-grabbing transition-opacity duration-200"
+        />
+
+        {/* Symbol + company name */}
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={() => onNavigate(symbol)}
+          onKeyDown={(e) => e.key === 'Enter' && onNavigate(symbol)}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="text-sm font-bold text-[#e6edf3] leading-tight">${symbol}</div>
+          {name && (
+            <div className="text-xs text-[#7d8590] truncate leading-tight mt-0.5">{name}</div>
+          )}
+        </div>
+
+        {/* Price */}
+        <div
+          className="text-right flex-shrink-0 cursor-pointer"
+          onClick={() => onNavigate(symbol)}
+        >
+          <span className="text-sm font-mono font-medium text-[#e6edf3]">
+            {price !== null ? `$${formatPrice(price)}` : '—'}
+          </span>
+        </div>
+
+        {/* % change */}
+        <div
+          className="text-right flex-shrink-0 min-w-[48px] cursor-pointer"
+          onClick={() => onNavigate(symbol)}
+        >
+          {pctText ? (
+            <span className={`text-xs font-mono ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+              {pctText}
+            </span>
+          ) : (
+            <span className="text-xs font-mono text-[#7d8590]">—</span>
+          )}
+        </div>
+
+        {/* Trash icon */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onRemove(symbol); }}
+          aria-label={`Remove ${symbol}`}
+          className="flex-shrink-0 opacity-0 group-hover:opacity-30 hover:!opacity-100 transition-opacity duration-200"
+        >
+          <Trash2
+            size={14}
+            strokeWidth={1.5}
+            className="text-[#7d8590] hover:text-red-400 transition-colors duration-200"
+          />
+        </button>
+      </div>
+
+      {/* Drop indicator line — after last row */}
+      {isLast && isDragTargetAfter && (
+        <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#58a6ff] rounded-full z-10 pointer-events-none" />
+      )}
+    </div>
+  );
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 const WatchlistPanel = () => {
@@ -161,14 +260,17 @@ const WatchlistPanel = () => {
   const [prevCloses, setPrevCloses] = useState({});
   const [connected, setConnected] = useState(false);
 
-  // Search state
+  // Search
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const searchWrapRef = useRef(null);
-  const searchInputRef = useRef(null);
+
+  // Drag-to-reorder
+  const [dragIndex, setDragIndex] = useState(null);
+  const [dropIndex, setDropIndex] = useState(null);
 
   const panelRef = useRef(null);
-  const isDragging = useRef(false);
+  const isPanelResizing = useRef(false);
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const mountedRef = useRef(true);
@@ -176,7 +278,7 @@ const WatchlistPanel = () => {
   // ── Persist watchlist ─────────────────────────────────────────────────────
   useEffect(() => { saveWatchlist(symbols); }, [symbols]);
 
-  // ── Fetch previous closes when symbols change ─────────────────────────────
+  // ── Fetch previous closes ─────────────────────────────────────────────────
   useEffect(() => {
     const apiKey = resolveApiKey();
     if (!apiKey) return;
@@ -185,7 +287,7 @@ const WatchlistPanel = () => {
     });
   }, [symbols]);
 
-  // ── Close dropdown on outside click ──────────────────────────────────────
+  // ── Close search dropdown on outside click ────────────────────────────────
   useEffect(() => {
     const onDown = (e) => {
       if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) {
@@ -196,17 +298,17 @@ const WatchlistPanel = () => {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  // ── Panel resize ──────────────────────────────────────────────────────────
+  // ── Panel resize (bottom drag handle) ────────────────────────────────────
   const handleResizeStart = useCallback((e) => {
     e.preventDefault();
-    isDragging.current = true;
+    isPanelResizing.current = true;
     const onMouseMove = (me) => {
-      if (!isDragging.current || !panelRef.current) return;
+      if (!isPanelResizing.current || !panelRef.current) return;
       const rect = panelRef.current.getBoundingClientRect();
       setPanelHeight(Math.min(600, Math.max(150, me.clientY - rect.top)));
     };
     const onMouseUp = () => {
-      isDragging.current = false;
+      isPanelResizing.current = false;
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
@@ -214,7 +316,7 @@ const WatchlistPanel = () => {
     document.addEventListener('mouseup', onMouseUp);
   }, []);
 
-  // ── WebSocket helpers ─────────────────────────────────────────────────────
+  // ── WebSocket ─────────────────────────────────────────────────────────────
   const wsSend = useCallback((payload) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload));
@@ -229,17 +331,11 @@ const WatchlistPanel = () => {
     try {
       const ws = new WebSocket(`${TWELVE_DATA_WS_URL}?apikey=${apiKey}`);
       wsRef.current = ws;
-
       ws.onopen = () => {
         if (!mountedRef.current) { ws.close(); return; }
         setConnected(true);
-        // Subscribe to current watchlist on (re)connect
-        ws.send(JSON.stringify({
-          action: 'subscribe',
-          params: { symbols: loadWatchlist().join(',') },
-        }));
+        ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: loadWatchlist().join(',') } }));
       };
-
       ws.onmessage = (event) => {
         if (!mountedRef.current) return;
         try {
@@ -249,9 +345,7 @@ const WatchlistPanel = () => {
             const price = data.price !== undefined ? Number(data.price) : null;
             const wsPercent = data.day_change_percent !== undefined
               ? Number(data.day_change_percent)
-              : data.percent_change !== undefined
-                ? Number(data.percent_change)
-                : null;
+              : data.percent_change !== undefined ? Number(data.percent_change) : null;
             setQuotes((prev) => ({
               ...prev,
               [sym]: {
@@ -262,9 +356,7 @@ const WatchlistPanel = () => {
           }
         } catch { /* ignore */ }
       };
-
       ws.onerror = () => { setConnected(false); };
-
       ws.onclose = () => {
         if (!mountedRef.current) return;
         setConnected(false);
@@ -298,27 +390,59 @@ const WatchlistPanel = () => {
   const handleSelectResult = useCallback((hit) => {
     const sym = String(hit.symbol || '').toUpperCase();
     if (!sym) return;
-    setSymbols((prev) => {
-      if (prev.includes(sym)) return prev;
-      return [...prev, sym];
-    });
-    // Store company name for the new ticker
+    setSymbols((prev) => prev.includes(sym) ? prev : [...prev, sym]);
     if (hit.instrument_name) {
       setCompanyNames((prev) => ({ ...prev, [sym]: hit.instrument_name }));
     }
-    // Subscribe on WS
     wsSend({ action: 'subscribe', params: { symbols: sym } });
-    // Clear search
     setSearchQuery('');
     setSearchFocused(false);
   }, [wsSend]);
 
   // ── Remove ticker ─────────────────────────────────────────────────────────
-  const handleRemove = useCallback((sym, e) => {
-    e.stopPropagation();
+  const handleRemove = useCallback((sym) => {
     setSymbols((prev) => prev.filter(s => s !== sym));
     wsSend({ action: 'unsubscribe', params: { symbols: sym } });
   }, [wsSend]);
+
+  // ── Drag-to-reorder handlers ──────────────────────────────────────────────
+  const handleDragStart = useCallback((e, index) => {
+    setDragIndex(index);
+    // Transparent drag image so the row itself shows during drag
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  }, []);
+
+  const handleDragOver = useCallback((e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropIndex(index);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null);
+    setDropIndex(null);
+  }, []);
+
+  const handleDrop = useCallback((e, index) => {
+    e.preventDefault();
+    const from = dragIndex;
+    if (from === null || from === index) {
+      setDragIndex(null);
+      setDropIndex(null);
+      return;
+    }
+    setSymbols((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      // Adjust target index after splice
+      const to = from < index ? index - 1 : index;
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setDragIndex(null);
+    setDropIndex(null);
+  }, [dragIndex]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -356,13 +480,10 @@ const WatchlistPanel = () => {
           {/* ── Search bar ── */}
           <div ref={searchWrapRef} className="relative px-2 pb-1.5 pt-1 flex-shrink-0">
             <div className={`flex items-center gap-2 bg-white/5 border rounded-lg px-3 py-2 transition-all ${
-              searchFocused
-                ? 'border-[#58a6ff]/50 ring-1 ring-[#58a6ff]/30'
-                : 'border-white/10'
+              searchFocused ? 'border-[#58a6ff]/50 ring-1 ring-[#58a6ff]/30' : 'border-white/10'
             }`}>
               <Search size={14} strokeWidth={1.5} className="text-[#7d8590] flex-shrink-0" />
               <input
-                ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -381,8 +502,6 @@ const WatchlistPanel = () => {
                 </button>
               )}
             </div>
-
-            {/* Autocomplete dropdown */}
             {searchFocused && searchQuery.trim() && (
               <TickerSearchDropdown
                 query={searchQuery}
@@ -395,73 +514,43 @@ const WatchlistPanel = () => {
           {/* ── Ticker list ── */}
           <div
             ref={panelRef}
-            className="overflow-y-auto flex-1"
+            className="overflow-y-auto"
             style={{ height: panelHeight + 'px' }}
+            // Cancel drop when over the scroll container itself (not a row)
+            onDragOver={(e) => e.preventDefault()}
           >
-            {symbols.map((symbol) => {
+            {symbols.map((symbol, index) => {
               const key = symbol.toUpperCase();
               const quote = quotes[key] || {};
               const price = quote.price ?? null;
-
               let pct = quote.wsPercent ?? null;
               if (pct === null && price !== null && prevCloses[key]) {
                 pct = ((price - prevCloses[key]) / prevCloses[key]) * 100;
               }
-
-              const pctText = formatPercent(pct);
-              const isPositive = pct !== null && pct >= 0;
-              const name = companyNames[symbol] || companyNames[key] || '';
-
               return (
-                <div
+                <TickerRow
                   key={symbol}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigateToTicker(symbol)}
-                  onKeyDown={(e) => e.key === 'Enter' && navigateToTicker(symbol)}
-                  className="group w-full grid grid-cols-[1fr_auto_auto] items-center gap-2 py-3 px-3 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
-                >
-                  {/* LEFT: symbol + company name */}
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold text-[#e6edf3] leading-tight">${symbol}</div>
-                    {name && (
-                      <div className="text-xs text-[#7d8590] truncate leading-tight mt-0.5">{name}</div>
-                    )}
-                  </div>
-
-                  {/* CENTER: price */}
-                  <div className="text-right">
-                    <span className="text-sm font-mono font-medium text-[#e6edf3]">
-                      {price !== null ? `$${formatPrice(price)}` : '—'}
-                    </span>
-                  </div>
-
-                  {/* RIGHT: % change + remove button */}
-                  <div className="flex flex-col items-end min-w-[52px] relative">
-                    {pctText ? (
-                      <span className={`text-xs font-mono group-hover:opacity-0 transition-opacity ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-                        {pctText}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-mono text-[#7d8590] group-hover:opacity-0 transition-opacity">—</span>
-                    )}
-                    {/* Remove (X) — overlays the % change on row hover */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleRemove(symbol, e)}
-                      className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity"
-                      tabIndex={-1}
-                      aria-label={`Remove ${symbol}`}
-                    >
-                      <X size={13} strokeWidth={2} className="text-[#7d8590] hover:text-red-400 transition-colors" />
-                    </button>
-                  </div>
-                </div>
+                  symbol={symbol}
+                  name={companyNames[symbol] || companyNames[key] || ''}
+                  price={price}
+                  pctText={formatPercent(pct)}
+                  isPositive={pct !== null && pct >= 0}
+                  isLast={index === symbols.length - 1}
+                  onNavigate={navigateToTicker}
+                  onRemove={handleRemove}
+                  index={index}
+                  dragIndex={dragIndex}
+                  dropIndex={dropIndex}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDragEnd={handleDragEnd}
+                  onDrop={handleDrop}
+                />
               );
             })}
           </div>
 
-          {/* ── Drag handle ── */}
+          {/* ── Resize drag handle ── */}
           <div
             onMouseDown={handleResizeStart}
             className="h-1.5 w-full cursor-row-resize group flex-shrink-0"
