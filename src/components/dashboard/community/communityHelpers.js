@@ -506,14 +506,16 @@ export const sanitizePostType = (type) => {
 };
 
 export const shareToX = (post) => {
-  let text = post.content;
+  let text = String(post?.content || '').trim();
   const pnlValue = Number(post?.metadata?.pnl);
   if (sanitizePostType(post?.post_type) === 'pnl' && Number.isFinite(pnlValue)) {
     const ticker = post?.metadata?.ticker ? `$${post.metadata.ticker}` : 'my trade';
-    text = `${ticker} ${formatSignedCurrency(pnlValue)}${Number.isFinite(Number(post?.metadata?.percent)) ? ` (${formatSignedPercent(Number(post.metadata.percent))})` : ''}\n\n${post.content}`;
+    const pnlStr = `${ticker} ${formatSignedCurrency(pnlValue)}${Number.isFinite(Number(post?.metadata?.percent)) ? ` ${formatSignedPercent(Number(post.metadata.percent))}` : ''}`;
+    text = text ? `${pnlStr}: ${text}` : pnlStr;
   }
-  text += '\n\nPowered by @StratifyTrading';
-  console.log('Share to X clicked (placeholder)', { postId: post?.id, text });
+  text = `${text} via @stratify_hq`.trim();
+  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://stratifymarket.com/dashboard')}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 // ─── Hashtag Feed Helpers ─────────────────────────────────

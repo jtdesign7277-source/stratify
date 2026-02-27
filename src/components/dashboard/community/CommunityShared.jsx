@@ -100,13 +100,11 @@ export const PostTypeBadge = ({ type }) => {
   const normalizedType = sanitizePostType(type);
   const config = POST_TYPE_CONFIG[normalizedType];
   if (!config?.badge) return null;
-  const Icon = config.icon;
   return (
     <div
-      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-[0.08em] border"
+      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-[0.08em] border"
       style={config.badge}
     >
-      <Icon size={12} strokeWidth={1.5} />
       <span>{config.label}</span>
     </div>
   );
@@ -126,13 +124,13 @@ export const PnLCard = ({ metadata }) => {
   return (
     <div className="mt-2">
       <div className="flex items-center gap-3 py-1.5 px-2 rounded-md bg-white/3 border border-white/6">
-        <span className="text-xs font-medium text-white">
+        <span className="text-sm font-medium text-white">
           {ticker ? `$${ticker}` : 'P&L'}
         </span>
-        <span className={`text-sm font-semibold ${moveClass}`}>
+        <span className={`text-base font-semibold ${moveClass}`}>
           {formatSignedCurrency(pnlValue)}
         </span>
-        <span className={`ml-auto text-xs font-medium ${moveClass}`}>
+        <span className={`ml-auto text-sm font-medium ${moveClass}`}>
           {hasPercent ? formatSignedPercent(percentValue) : '--'}
         </span>
       </div>

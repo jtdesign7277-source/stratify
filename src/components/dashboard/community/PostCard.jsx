@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Loader2 } from 'lucide-react';
+import { Heart, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
-import { T, CARD_VARIANTS, OVERLAY_PANEL_TRANSITION } from './communityConstants';
+import { T, CARD_VARIANTS } from './communityConstants';
 import {
   toFiniteNumber,
   buildCurrentUserAvatarUrl,
@@ -25,7 +25,6 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
   const [replying, setReplying] = useState(false);
   const [localRepliesCount, setLocalRepliesCount] = useState(toFiniteNumber(post?.replies_count ?? post?.comments_count, 0));
   const [loadingReplies, setLoadingReplies] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const isMock = Boolean(post?.is_mock);
 
   const initialReactions = useMemo(() => {
@@ -239,61 +238,14 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold truncate">{postAuthorLabel}</span>
-              <span className="text-xs" style={{ color: T.muted }}>•</span>
-              <span className="text-xs" style={{ color: T.muted }}>{timeAgo(post.created_at)}</span>
-            </div>
-
-            <div className="relative flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowMenu((openState) => !openState)}
-                className="h-6 w-6 inline-flex items-center justify-center"
-                style={{ color: T.muted }}
-              >
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </button>
-
-              <AnimatePresence initial={false}>
-                {showMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={OVERLAY_PANEL_TRANSITION}
-                    className="absolute right-0 top-8 z-20 w-36 rounded-2xl border py-1 shadow-2xl shadow-black/40"
-                    style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.96)' }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => { shareToX(post); setShowMenu(false); }}
-                      className="w-full px-3 py-2 text-xs text-left inline-flex items-center gap-1.5"
-                      style={{ color: T.text }}
-                    >
-                      <XLogoIcon className="h-3.5 w-3.5" />
-                      Share to X
-                    </button>
-                    {isOwner && (
-                      <button
-                        type="button"
-                        onClick={() => { onDelete?.(post.id, isMock); setShowMenu(false); }}
-                        className="w-full px-3 py-2 text-xs text-left inline-flex items-center gap-1.5"
-                        style={{ color: T.red }}
-                      >
-                        <Trash2 size={13} />
-                        Delete
-                      </button>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-base font-bold truncate" style={{ color: T.text }}>{postAuthorLabel}</span>
+            <span className="text-sm" style={{ color: T.muted }}>•</span>
+            <span className="text-sm" style={{ color: T.muted }}>{timeAgo(post.created_at)}</span>
           </div>
 
           <div
-            className="mt-2 text-sm leading-relaxed break-words"
+            className="mt-2 text-base leading-relaxed break-words"
             style={{ color: T.text }}
             dangerouslySetInnerHTML={{ __html: highlightTickers(post.content || '') }}
           />
@@ -312,36 +264,36 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
             </div>
           )}
 
-          <div className="mt-2 pt-2 border-t flex flex-wrap items-center gap-2" style={{ borderColor: T.border }}>
+          <div className="mt-2 pt-2 border-t flex flex-wrap items-center gap-3" style={{ borderColor: T.border }}>
             <button
               type="button"
               onClick={() => void toggleLike()}
-              className="inline-flex items-center gap-1 text-xs"
+              className="inline-flex items-center gap-1.5 text-base transition-colors hover:text-[#e6edf3]"
               style={{ color: liked ? T.red : T.muted }}
             >
-              <Heart className="h-3.5 w-3.5" fill={liked ? 'currentColor' : 'none'} />
+              <Heart className="h-[18px] w-[18px]" fill={liked ? 'currentColor' : 'none'} />
               <span>Like</span>
-              {likesCount > 0 ? <span className="text-xs" style={{ color: T.muted }}>{likesCount}</span> : null}
+              {likesCount > 0 ? <span className="text-sm" style={{ color: T.muted }}>{likesCount}</span> : null}
             </button>
 
             <button
               type="button"
               onClick={toggleReplies}
-              className="inline-flex items-center gap-1 text-xs"
+              className="inline-flex items-center gap-1.5 text-base transition-colors hover:text-[#e6edf3]"
               style={{ color: T.muted }}
             >
-              <MessageCircle className="h-3.5 w-3.5" />
+              <MessageCircle className="h-[18px] w-[18px]" />
               <span>Reply</span>
-              {repliesCount > 0 ? <span className="text-xs" style={{ color: T.muted }}>{repliesCount}</span> : null}
+              {repliesCount > 0 ? <span className="text-sm" style={{ color: T.muted }}>{repliesCount}</span> : null}
             </button>
 
             <button
               type="button"
               onClick={() => shareToX(post)}
-              className="inline-flex items-center gap-1 text-xs"
+              className="inline-flex items-center gap-1.5 text-base cursor-pointer transition-colors hover:text-[#e6edf3]"
               style={{ color: T.muted }}
             >
-              <XLogoIcon className="h-3.5 w-3.5" />
+              <XLogoIcon className="h-[18px] w-[18px]" />
               <span>Share</span>
             </button>
 
@@ -383,13 +335,13 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
                         <div key={reply.id} className="flex gap-2">
                           <UserAvatar user={replyProfileForRender} size={24} initialsClassName="text-xs" />
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="font-medium" style={{ color: T.text }}>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="font-semibold" style={{ color: T.text }}>
                                 {replyProfileForRender.display_name || reply.author_name || reply.author || 'Trader'}
                               </span>
-                              <span style={{ color: T.muted }}>{reply?.timestamp || timeAgo(reply.created_at)}</span>
+                              <span className="text-sm" style={{ color: T.muted }}>{reply?.timestamp || timeAgo(reply.created_at)}</span>
                             </div>
-                            <div className="mt-0.5 text-xs break-words" style={{ color: T.text }} dangerouslySetInnerHTML={{ __html: highlightTickers(reply.content || '') }} />
+                            <div className="mt-0.5 text-base break-words leading-relaxed" style={{ color: T.text }} dangerouslySetInnerHTML={{ __html: highlightTickers(reply.content || '') }} />
                             <ReactionBar
                               postId={reply.id}
                               currentUser={currentUser}
@@ -415,7 +367,7 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
                       void submitReply();
                     }}
                     placeholder="Write a reply..."
-                    className="flex-1 rounded-full border bg-transparent px-3 py-1.5 text-xs outline-none"
+                    className="flex-1 rounded-full border bg-transparent px-3 py-1.5 text-base outline-none"
                     style={{ borderColor: T.border, color: T.text }}
                   />
                   <button
@@ -425,7 +377,7 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
                     className="h-7 w-7 inline-flex items-center justify-center disabled:opacity-45"
                     style={{ color: T.blue }}
                   >
-                    {replying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    {replying ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Send className="h-[18px] w-[18px]" />}
                   </button>
                 </div>
               </motion.div>

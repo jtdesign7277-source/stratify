@@ -60,10 +60,10 @@ const ReactionBar = ({
         type="button"
         onClick={() => setShowPicker((openState) => !openState)}
         disabled={!interactive}
-        className={`inline-flex items-center gap-1 ${compact ? 'text-[11px]' : 'text-xs'} transition-colors ${interactive ? '' : 'cursor-not-allowed opacity-70'}`}
+        className={`inline-flex items-center gap-1.5 ${inActionRow ? 'text-base' : compact ? 'text-[11px]' : 'text-xs'} transition-colors hover:text-[#e6edf3] ${interactive ? '' : 'cursor-not-allowed opacity-70'}`}
         style={{ color: interactive ? T.muted : 'rgba(125,133,144,0.5)' }}
       >
-        <SmilePlus className={inActionRow ? 'h-3.5 w-3.5' : compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
+        <SmilePlus className={inActionRow ? 'h-[18px] w-[18px]' : compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
         {inActionRow ? <span>React</span> : null}
       </button>
 
@@ -94,7 +94,7 @@ const ReactionBar = ({
       <>
         {trigger}
         {reactions.length > 0 ? (
-          <div className="w-full mt-1 flex flex-wrap gap-1">
+          <div className="w-full mt-1 flex flex-wrap gap-1.5">
             <AnimatePresence initial={false}>
               {reactions.map((reaction) => (
                 <motion.button
@@ -107,10 +107,10 @@ const ReactionBar = ({
                   transition={{ duration: 0.16 }}
                   onClick={() => void toggleReaction(reaction.emoji)}
                   disabled={!interactive}
-                  className="inline-flex items-center gap-0.5 text-xs"
+                  className="inline-flex items-center gap-1 text-sm"
                   style={{ color: reaction.reacted ? T.blue : T.muted }}
                 >
-                  <EmojiGlyph emoji={reaction.emoji} size={13} />
+                  <EmojiGlyph emoji={reaction.emoji} size={16} />
                   <span className="font-semibold">{reaction.count}</span>
                 </motion.button>
               ))}
