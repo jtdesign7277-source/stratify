@@ -72,9 +72,16 @@ function FeedSkeleton({ feedName }) {
   )
 }
 
+// Strip citation tags that may leak from Claude web_search
+function stripCitations(text) {
+  if (!text) return ''
+  return text.replace(/<\/?cite[^>]*>/g, '')
+}
+
 // Highlight $TICKER in text
 function highlightTickers(text) {
   if (!text) return ''
+  text = stripCitations(text)
   return text.split(/(\$[A-Z]{1,5})/g).map((part, i) => {
     if (part.match(/^\$[A-Z]{1,5}$/)) {
       return (
