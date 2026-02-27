@@ -167,8 +167,8 @@ export default function StockDetailView({ ticker, onBack }) {
             <TvAdvancedChart tvSymbol={tvSymbol} />
           </div>
 
-          {/* Symbol info strip — no individual rounding */}
-          <div className="border-t" style={{ borderColor: T.border }}>
+          {/* Symbol info strip — clipped to essential info */}
+          <div className="border-t max-h-[120px] overflow-hidden" style={{ borderColor: T.border }}>
             <TvSymbolInfo tvSymbol={tvSymbol} />
           </div>
           {/* Bottom breathing room */}
