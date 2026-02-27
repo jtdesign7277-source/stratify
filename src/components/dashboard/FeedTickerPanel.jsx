@@ -1,5 +1,5 @@
-// FeedTickerPanel.jsx — Terminal-pro ticker panel with mini sparklines
-// Uses /api/stocks for real Twelve Data prices
+// FeedTickerPanel.jsx — Terminal-pro ticker panel with live price + real sparklines
+// Uses /api/stocks for latest prices and /api/sparkline for intraday closes
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
@@ -86,48 +86,49 @@ const FEED_TICKERS = {
   HotTakes:          ['SPY', 'QQQ', 'TSLA', 'NVDA'],
 }
 
-// Generate deterministic sparkline points from price + change
-function generateSparkline(price, changePct) {
-  if (!price || price === 0) return null
-  const points = 12
-  const w = 50
-  const h = 20
-  const trend = changePct || 0
-  // Seed from price for determinism
-  let seed = Math.round(price * 100)
-  const seededRandom = () => {
-    seed = (seed * 16807 + 0) % 2147483647
-    return (seed & 0x7fffffff) / 0x7fffffff
-  }
-  // Generate path trending in the direction of change
-  const values = []
-  let val = h / 2
-  for (let i = 0; i < points; i++) {
-    val += (seededRandom() - 0.45) * 4 + (trend / 100) * 1.5
-    val = Math.max(2, Math.min(h - 2, val))
-    values.push(val)
-  }
-  // Build SVG path
-  const step = w / (points - 1)
-  const d = values.map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)},${(h - v).toFixed(1)}`).join(' ')
-  return d
+function toNumericArray(values) {
+  if (!Array.isArray(values)) return []
+  return values
+    .map((value) => (typeof value === 'number' ? value : Number.parseFloat(value)))
+    .filter((value) => Number.isFinite(value))
 }
 
-// Mini sparkline SVG component
-function Sparkline({ price, changePct }) {
-  const path = useMemo(() => generateSparkline(price, changePct), [price, changePct])
-  if (!path) return <div className="w-[50px] h-[20px]" />
-  const color = (changePct || 0) >= 0 ? '#34d399' : '#f87171'
+function buildPolylinePoints(values, width = 60, height = 24, padding = 2) {
+  if (values.length < 2) return ''
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const xStep = (width - 1) / (values.length - 1)
+  const ySpan = height - padding * 2
+  const range = max - min
+
+  return values.map((value, index) => {
+    const x = index * xStep
+    const y = range === 0
+      ? height / 2
+      : padding + ((max - value) / range) * ySpan
+    return `${x.toFixed(2)},${y.toFixed(2)}`
+  }).join(' ')
+}
+
+function Sparkline({ prices }) {
+  const numericPrices = useMemo(() => toNumericArray(prices), [prices])
+  const points = useMemo(() => buildPolylinePoints(numericPrices), [numericPrices])
+  if (!points) return <div className="w-[60px] h-[24px]" />
+
+  const first = numericPrices[0]
+  const latest = numericPrices[numericPrices.length - 1]
+  const color = latest > first ? '#34d399' : latest < first ? '#f87171' : '#60a5fa'
+
   return (
-    <svg width="50" height="20" viewBox="0 0 50 20" className="flex-shrink-0">
-      <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="60" height="24" viewBox="0 0 60 24" className="flex-shrink-0">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
 export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
   const [tickerData, setTickerData] = useState({})
-  const [prevPrices, setPrevPrices] = useState({})
+  const [sparklineData, setSparklineData] = useState({})
   const [loading, setLoading] = useState(true)
   const intervalRef = useRef(null)
 
@@ -203,18 +204,42 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
   }, [equityTickers.join(','), cryptoTickers.join(',')])
 
   useEffect(() => {
-    setPrevPrices(prev => {
-      const next = { ...prev }
-      Object.entries(tickerData).forEach(([symbol, data]) => {
-        const p = data?.price || data?.close
-        if (p) next[symbol] = p
+    let mounted = true
+
+    async function loadSparklines() {
+      const results = await Promise.all(
+        allTickers.map(async (symbol) => {
+          try {
+            const res = await fetch(`/api/sparkline?symbol=${encodeURIComponent(symbol)}`)
+            if (!res.ok) return [symbol, null]
+            const payload = await res.json()
+            const values = toNumericArray(payload)
+            return [symbol, values.length > 1 ? values : null]
+          } catch (err) {
+            console.error('[FeedTickerPanel] Sparkline fetch error:', symbol, err)
+            return [symbol, null]
+          }
+        })
+      )
+
+      if (!mounted) return
+
+      const next = {}
+      results.forEach(([symbol, values]) => {
+        if (values) next[symbol] = values
       })
-      return next
-    })
-  }, [tickerData])
+      setSparklineData(next)
+    }
+
+    loadSparklines()
+
+    return () => {
+      mounted = false
+    }
+  }, [allTickers.join(',')])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#0a1628]">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#1a2538] bg-[#0a1628]/50">
         <div className="flex items-center gap-2">
@@ -236,7 +261,7 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
                 <div className="w-12 h-3 bg-[#1a2538] rounded mb-1" />
                 <div className="w-20 h-2 bg-[#1a2538] rounded" />
               </div>
-              <div className="w-[50px] h-[20px] bg-[#1a2538] rounded" />
+              <div className="w-[60px] h-[24px] bg-[#1a2538] rounded" />
               <div className="text-right">
                 <div className="w-14 h-3 bg-[#1a2538] rounded mb-1 ml-auto" />
                 <div className="w-16 h-4 bg-[#1a2538] rounded ml-auto" />
@@ -268,7 +293,7 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
                 </div>
 
                 {/* Middle: Sparkline */}
-                <Sparkline price={price} changePct={pct} />
+                <Sparkline prices={sparklineData[symbol]} />
 
                 {/* Right: Price + Change badge */}
                 <div className="text-right flex-shrink-0">
