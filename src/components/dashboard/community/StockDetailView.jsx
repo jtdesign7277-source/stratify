@@ -25,15 +25,17 @@ const TvAdvancedChart = memo(({ tvSymbol }) => {
 
     const widgetDiv = document.createElement('div');
     widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetDiv.style.height = 'calc(100% - 32px)';
+    widgetDiv.style.height = '100%';
     widgetDiv.style.width = '100%';
     el.appendChild(widgetDiv);
 
+    // Hidden copyright — satisfies TradingView ToS without consuming vertical space
     const copyright = document.createElement('div');
     copyright.className = 'tradingview-widget-copyright';
+    copyright.style.display = 'none';
     copyright.innerHTML =
       '<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">' +
-      '<span style="color:#58a6ff;font-size:11px">Track all markets on TradingView</span></a>';
+      'Track all markets on TradingView</a>';
     el.appendChild(copyright);
 
     const script = document.createElement('script');
@@ -71,7 +73,7 @@ const TvAdvancedChart = memo(({ tvSymbol }) => {
     <div
       ref={containerRef}
       className="tradingview-widget-container"
-      style={{ height: '100%', width: '100%' }}
+      style={{ height: '100%', width: '100%', display: 'block' }}
     />
   );
 });
@@ -158,17 +160,22 @@ export default function StockDetailView({ ticker, onBack }) {
 
       {/* ── Scrollable body ── */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {/* Symbol info strip */}
-        <div className="mx-3 mt-3 rounded-xl overflow-hidden border" style={{ borderColor: T.border }}>
-          <TvSymbolInfo tvSymbol={tvSymbol} />
-        </div>
-
-        {/* Advanced chart */}
+        {/* Unified card: one rounded-2xl wrapper clips all corners */}
         <div
-          className="mx-3 mt-3 mb-6 rounded-xl overflow-hidden border"
-          style={{ borderColor: T.border, height: '520px' }}
+          className="mx-3 mt-3 mb-6 rounded-2xl overflow-hidden border"
+          style={{ borderColor: T.border, backgroundColor: T.bg }}
         >
-          <TvAdvancedChart tvSymbol={tvSymbol} />
+          {/* Symbol info strip — no individual rounding */}
+          <div className="border-b" style={{ borderColor: T.border }}>
+            <TvSymbolInfo tvSymbol={tvSymbol} />
+          </div>
+
+          {/* Advanced chart — fills the unified card, rounded corners come from parent */}
+          <div style={{ height: '620px', width: '100%' }}>
+            <TvAdvancedChart tvSymbol={tvSymbol} />
+          </div>
+          {/* Bottom breathing room */}
+          <div style={{ height: 8 }} />
         </div>
       </div>
     </div>
