@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabaseClient';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
 import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
+import FeedsSidebar from './FeedsSidebar';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
@@ -3596,7 +3597,6 @@ const LeftRail = ({
   setIsEditingName,
   handleSaveName,
 }) => {
-  const [feedsOpen, setFeedsOpen] = useState(true);
   const [priceAlertsOpen, setPriceAlertsOpen] = useState(true);
   const profileAvatarSeed = displayName || 'Anonymous Trader';
   const profileAvatarUrl = String(avatarUrl || buildCurrentUserAvatarUrl(profileAvatarSeed)).trim();
@@ -3662,40 +3662,11 @@ const LeftRail = ({
           </div>
 
           <div className="w-full pt-2">
-            <button
-              type="button"
-              onClick={() => setFeedsOpen((prev) => !prev)}
-              className="w-full px-3 pt-4 pb-1 inline-flex items-center justify-between"
-            >
-              <span className="text-[11px] uppercase tracking-widest text-[#7d8590] transition-all duration-200">FEEDS</span>
-              {feedsOpen ? <ChevronDown size={14} style={{ color: T.muted }} /> : <ChevronRight size={14} style={{ color: T.muted }} />}
-            </button>
-
-            <AnimatePresence initial={false}>
-              {feedsOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-0.5">
-                    {FEED_HASHTAGS.map((hashtag) => {
-                      const active = filter === hashtag;
-                      return (
-                        <div
-                          key={hashtag}
-                          onClick={() => onFilter?.(active ? null : hashtag)}
-                          className={`px-3 py-1.5 text-sm text-[#7d8590] cursor-pointer hover:text-[#e6edf3] hover:bg-white/5 rounded-md transition-all duration-200${active ? ' text-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
-                        >
-                          {hashtag}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <FeedsSidebar
+              activeFeed={filter}
+              onFeedSelect={onFilter}
+              userId={currentUser?.id}
+            />
           </div>
 
           <div className="w-full pt-1">
