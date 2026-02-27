@@ -14,7 +14,7 @@ import {
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
   Plus, Wand2, Pencil, Hash,
-  CornerDownLeft,
+  CornerDownLeft, Search,
 } from 'lucide-react';
 
 // ─── Community Module Imports ─────────────────────────────
@@ -160,6 +160,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
   const [aiSearchResults, setAiSearchResults] = useState([]);
   const [aiSearchPending, setAiSearchPending] = useState([]);
+  const [marketauxResults, setMarketauxResults] = useState([]);
+  const [marketauxQuery, setMarketauxQuery] = useState('');
+  const [marketauxLoading, setMarketauxLoading] = useState(false);
   const [hashtagWebResults, setHashtagWebResults] = useState([]);
   const [hashtagWebLoading, setHashtagWebLoading] = useState(false);
   const [hashtagWebTag, setHashtagWebTag] = useState('');
@@ -334,9 +337,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       setPriceAlertPopoverOpen(false);
     };
 
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setPriceAlertPopoverOpen(false);
+    };
+
     document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [priceAlertPopoverOpen]);
 
@@ -912,9 +921,30 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     }
   };
 
+  const runMarketauxSearch = useCallback(async (queryText) => {
+    const q = String(queryText || '').trim();
+    if (!q) return;
+    setMarketauxQuery(q);
+    setMarketauxLoading(true);
+    setMarketauxResults([]);
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error('search failed');
+      const data = await res.json();
+      setMarketauxResults(Array.isArray(data.articles) ? data.articles : []);
+    } catch {
+      setMarketauxResults([]);
+    } finally {
+      setMarketauxLoading(false);
+    }
+  }, []);
+
   const runAiSearch = useCallback(async (queryText) => {
     const trimmedQuery = normalizeAiSearchQuery(queryText);
     if (!trimmedQuery) return false;
+
+    // Also fire Marketaux search in parallel for news article results
+    void runMarketauxSearch(trimmedQuery);
 
     const queryKey = trimmedQuery.toLowerCase();
     const cached = getClientAiSearchCached(queryKey);
@@ -982,7 +1012,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     } finally {
       setAiSearchPending((prev) => prev.filter((row) => row.key !== queryKey));
     }
-  }, [currentUser?.id, filter, trackedSymbols]);
+  }, [currentUser?.id, filter, trackedSymbols, runMarketauxSearch]);
 
   const clearAiSearchResult = useCallback((id) => {
     setAiSearchResults((prev) => prev.filter((row) => row.id !== id));
@@ -1039,6 +1069,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setHashtagWebResults([]);
     setHashtagWebLoading(false);
     setHashtagWebError('');
+    setMarketauxResults([]);
+    setMarketauxQuery('');
+    setMarketauxLoading(false);
   }, []);
 
   const shouldUseWebFallbackForFilter = useCallback((nextFilter) => {
@@ -1279,91 +1312,81 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                           <AnimatePresence initial={false}>
                             {priceAlertPopoverOpen && (
                               <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.18 }}
-                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center"
-                                onMouseDown={(e) => { if (e.target === e.currentTarget) setPriceAlertPopoverOpen(false); }}
+                                initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                                transition={{ duration: 0.15, ease: 'easeOut' }}
+                                className="absolute top-full right-0 mt-2 z-50 bg-[#161b22] border border-white/10 rounded-2xl p-4 shadow-xl w-[300px]"
                               >
-                                <motion.div
-                                  initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                                  exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                                  transition={{ duration: 0.18, ease: 'easeOut' }}
-                                  className="bg-[#161b22] border border-white/10 rounded-2xl p-5 w-[360px] shadow-2xl"
-                                  ref={priceAlertPopoverRef}
-                                >
-                                  {/* Header */}
-                                  <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                      <Bell className="h-4 w-4 text-[#58a6ff]" strokeWidth={1.5} />
-                                      <span className="text-[#e6edf3] text-base font-semibold">Set Price Alert</span>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => setPriceAlertPopoverOpen(false)}
-                                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-[#7d8590] hover:text-[#e6edf3] cursor-pointer transition"
-                                      aria-label="Close price alert"
-                                    >
-                                      <X className="w-4 h-4" strokeWidth={1.5} />
-                                    </button>
+                                {/* Header */}
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Bell className="h-4 w-4 text-[#58a6ff]" strokeWidth={1.5} />
+                                    <span className="text-[#e6edf3] text-sm font-semibold">Set Price Alert</span>
                                   </div>
-
-                                  {/* Ticker input */}
-                                  <input
-                                    type="text"
-                                    value={priceAlertTickerInput}
-                                    onChange={(event) => setPriceAlertTickerInput(normalizePriceAlertTicker(event.target.value))}
-                                    placeholder="$AAPL"
-                                    className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-[#e6edf3] text-sm font-mono placeholder-[#7d8590] focus:border-[#58a6ff]/50 focus:outline-none focus:ring-1 focus:ring-[#58a6ff]/30 mb-3"
-                                  />
-
-                                  {/* Price input */}
-                                  <input
-                                    type="number"
-                                    value={priceAlertTargetInput}
-                                    onChange={(event) => setPriceAlertTargetInput(event.target.value)}
-                                    onKeyDown={(event) => {
-                                      if (event.key === 'Enter') {
-                                        event.preventDefault();
-                                        void handleSetPriceAlert();
-                                      }
-                                    }}
-                                    placeholder="250.00"
-                                    className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-[#e6edf3] text-sm font-mono placeholder-[#7d8590] focus:border-[#58a6ff]/50 focus:outline-none focus:ring-1 focus:ring-[#58a6ff]/30 mb-3"
-                                  />
-
-                                  {/* Above / Below toggle */}
-                                  <div className="flex gap-2 mb-4">
-                                    {['above', 'below'].map((direction) => {
-                                      const active = priceAlertDirection === direction;
-                                      return (
-                                        <button
-                                          key={direction}
-                                          type="button"
-                                          onClick={() => setPriceAlertDirection(direction)}
-                                          className={`flex-1 rounded-xl py-2.5 text-sm font-medium transition cursor-pointer ${
-                                            active
-                                              ? 'bg-[#58a6ff] text-white'
-                                              : 'bg-[#0d1117] border border-white/10 text-[#7d8590] hover:bg-white/5 hover:text-[#e6edf3]'
-                                          }`}
-                                        >
-                                          {direction === 'above' ? '↑ Above' : '↓ Below'}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-
-                                  {/* Set Alert button */}
                                   <button
                                     type="button"
-                                    onClick={() => void handleSetPriceAlert()}
-                                    className="w-full bg-[#58a6ff] hover:bg-[#4a90e2] text-white rounded-xl py-3 text-sm font-semibold transition cursor-pointer"
+                                    onClick={() => setPriceAlertPopoverOpen(false)}
+                                    className="text-[#7d8590] hover:text-[#e6edf3] cursor-pointer transition"
+                                    aria-label="Close price alert"
                                   >
-                                    Set Alert
+                                    <X className="w-4 h-4" strokeWidth={1.5} />
                                   </button>
-                                </motion.div>
+                                </div>
+
+                                {/* Ticker input */}
+                                <input
+                                  type="text"
+                                  value={priceAlertTickerInput}
+                                  onChange={(event) => setPriceAlertTickerInput(normalizePriceAlertTicker(event.target.value))}
+                                  placeholder="$AAPL"
+                                  className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2.5 text-[#e6edf3] text-sm font-mono placeholder-[#7d8590] focus:border-[#58a6ff]/50 outline-none mb-2"
+                                />
+
+                                {/* Price input */}
+                                <input
+                                  type="number"
+                                  value={priceAlertTargetInput}
+                                  onChange={(event) => setPriceAlertTargetInput(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                      event.preventDefault();
+                                      void handleSetPriceAlert();
+                                    }
+                                  }}
+                                  placeholder="250.00"
+                                  className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2.5 text-[#e6edf3] text-sm font-mono placeholder-[#7d8590] focus:border-[#58a6ff]/50 outline-none mb-3"
+                                />
+
+                                {/* Above / Below toggle */}
+                                <div className="flex gap-2 mb-3">
+                                  {['above', 'below'].map((direction) => {
+                                    const active = priceAlertDirection === direction;
+                                    return (
+                                      <button
+                                        key={direction}
+                                        type="button"
+                                        onClick={() => setPriceAlertDirection(direction)}
+                                        className={`flex-1 rounded-lg py-2 text-xs font-medium transition cursor-pointer ${
+                                          active
+                                            ? 'bg-[#58a6ff] text-white'
+                                            : 'bg-[#0d1117] border border-white/10 text-[#7d8590] hover:bg-white/5'
+                                        }`}
+                                      >
+                                        {direction === 'above' ? '↑ Above' : '↓ Below'}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Set Alert button */}
+                                <button
+                                  type="button"
+                                  onClick={() => void handleSetPriceAlert()}
+                                  className="w-full bg-[#58a6ff] hover:bg-[#4a90e2] text-white rounded-xl py-2.5 text-sm font-semibold transition cursor-pointer"
+                                >
+                                  Set Alert
+                                </button>
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -1422,6 +1445,98 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                             }}
                           />
                         ))}
+
+                        {/* Marketaux news results */}
+                        {(marketauxLoading || marketauxResults.length > 0) && (
+                          <div className="mt-2">
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-1 py-2 border-b mb-2" style={{ borderColor: T.border }}>
+                              <div className="flex items-center gap-2">
+                                <Search className="w-3.5 h-3.5" style={{ color: T.muted }} strokeWidth={1.5} />
+                                <span className="text-sm font-medium" style={{ color: T.text }}>
+                                  Results for: <span className="text-[#58a6ff]">{marketauxQuery}</span>
+                                </span>
+                                {!marketauxLoading && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/5" style={{ color: T.muted }}>
+                                    {marketauxResults.length}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => { setMarketauxResults([]); setMarketauxQuery(''); }}
+                                className="transition-colors hover:text-[#e6edf3]"
+                                style={{ color: T.muted }}
+                                aria-label="Close search results"
+                              >
+                                <X className="w-3.5 h-3.5" strokeWidth={1.5} />
+                              </button>
+                            </div>
+
+                            {/* Loading skeletons */}
+                            {marketauxLoading && (
+                              <div className="space-y-2">
+                                {[1, 2, 3].map((i) => (
+                                  <div key={i} className="rounded-xl h-[100px] animate-pulse" style={{ backgroundColor: T.card }} />
+                                ))}
+                              </div>
+                            )}
+
+                            {/* No results */}
+                            {!marketauxLoading && marketauxResults.length === 0 && (
+                              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                                <Search className="w-8 h-8" style={{ color: T.muted }} strokeWidth={1} />
+                                <span className="text-sm" style={{ color: T.muted }}>No results found</span>
+                              </div>
+                            )}
+
+                            {/* Article cards */}
+                            {!marketauxLoading && marketauxResults.map((article) => (
+                              <div
+                                key={article.id}
+                                className="rounded-xl border p-3 mb-2 cursor-pointer transition-colors hover:bg-white/[0.03]"
+                                style={{ borderColor: T.border, backgroundColor: T.card }}
+                              >
+                                <div className="flex gap-3">
+                                  {article.image && (
+                                    <img
+                                      src={article.image}
+                                      alt=""
+                                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                                      loading="lazy"
+                                    />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                      {article.tickers?.map((t) => (
+                                        <span key={t} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">${t}</span>
+                                      ))}
+                                      <span className="text-[10px]" style={{ color: T.muted }}>{article.source} · {article.timeAgo}</span>
+                                    </div>
+                                    <div className="text-sm font-medium leading-snug line-clamp-2" style={{ color: T.text }}>
+                                      {article.title}
+                                    </div>
+                                    {article.description && (
+                                      <div className="text-xs mt-1 line-clamp-2" style={{ color: T.muted }}>
+                                        {article.description}
+                                      </div>
+                                    )}
+                                    <a
+                                      href={article.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[10px] mt-1 inline-block transition-colors hover:text-[#58a6ff]"
+                                      style={{ color: T.muted }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Read original ↗
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         {loading ? (
                           <>

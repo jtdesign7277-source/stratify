@@ -414,21 +414,25 @@ const ChatInputBar = ({
                     );
                   })
                 ) : (
-                  QUICK_POST_HASHTAGS.map((hashtag) => {
-                    const active = selectedHashtags.includes(hashtag);
-                    return (
-                      <button
-                        key={hashtag}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => toggleHashtag(hashtag)}
-                        className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
-                        title={hashtag}
-                      >
-                        {hashtag}
-                      </button>
-                    );
-                  })
+                  QUICK_POST_HASHTAGS.map((hashtag) => (
+                    <button
+                      key={hashtag}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        const query = HASHTAG_SEARCH_QUERIES[hashtag];
+                        if (query) {
+                          onSearch?.(query);
+                        } else {
+                          toggleHashtag(hashtag);
+                        }
+                      }}
+                      className="bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-[#58a6ff]/15 hover:border-[#58a6ff]/40 transition-all duration-150"
+                      title={`Search ${hashtag}`}
+                    >
+                      {hashtag}
+                    </button>
+                  ))
                 )}
               </div>
 
