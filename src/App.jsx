@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
+import TokensPage from './components/dashboard/TokensPage';
 import WhitePaperPage from './components/WhitePaperPage';
 import SpaceBackground from './components/SpaceBackground';
 import SignUpPage from './components/auth/SignUpPage';
@@ -1002,6 +1003,7 @@ function StratifyAppContent() {
     const normalizedPath = path.toLowerCase();
     if (normalizedPath === '/whitepaper') return 'whitepaper';
     if (normalizedPath === '/auth') return 'auth';
+    if (normalizedPath === '/tokens') return 'tokens';
     if (normalizedPath === '/dashboard' || normalizedPath === '/dashboard/') return 'dashboard';
     if (isLegacyXrayPath(path)) return 'dashboard';
 
@@ -1072,6 +1074,8 @@ function StratifyAppContent() {
       nextPath = '/whitepaper';
     } else if (nextPage === 'auth') {
       nextPath = '/auth';
+    } else if (nextPage === 'tokens') {
+      nextPath = '/tokens';
     } else if (nextPage === 'dashboard') {
       nextPath = '/dashboard';
     }
@@ -1498,8 +1502,11 @@ function StratifyAppContent() {
         onSignUp={() => navigateToPage('auth')}
         onCheckout={openCheckoutAuth}
         onDashboard={() => navigateToPage('dashboard')}
+        onBetaClick={() => navigateToPage('tokens')}
         canAccessDashboard={Boolean(isAuthenticated && isProUser)}
       />
+    ) : currentPage === 'tokens' ? (
+      <TokensPage onBack={() => navigateToPage('landing')} />
     ) : currentPage === 'auth' ? (
       <SignUpPage
         onSuccess={() => {
@@ -1516,6 +1523,7 @@ function StratifyAppContent() {
         onSignUp={() => navigateToPage('auth')}
         onCheckout={openCheckoutAuth}
         onDashboard={() => navigateToPage('dashboard')}
+        onBetaClick={() => navigateToPage('tokens')}
         canAccessDashboard={Boolean(isAuthenticated && isProUser)}
       />
     ) : isCheckoutVerifying || isSubscriptionRestoring ? (
@@ -1615,6 +1623,11 @@ function StratifyAppContent() {
         return;
       }
 
+      if (path === '/tokens') {
+        setCurrentPage('tokens');
+        return;
+      }
+
       if (path === '/dashboard' || path === '/dashboard/') {
         setCurrentPage('dashboard');
         return;
@@ -1641,7 +1654,8 @@ function StratifyAppContent() {
   }, [currentPage, isAuthenticated, loading]);
 
   const isInternalAppPage =
-    isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth';
+    currentPage === 'tokens' ||
+    (isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth');
   const backgroundVariant = isInternalAppPage ? 'app' : 'marketing';
 
   if (authGateTimedOut && !isAuthenticated) {

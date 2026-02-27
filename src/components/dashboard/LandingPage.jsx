@@ -406,7 +406,7 @@ const landingStyles = `
   }
 `;
 
-const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDashboard = false }) => {
+const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, onBetaClick, canAccessDashboard = false }) => {
   const [isFeatureMenuOpen, setIsFeatureMenuOpen] = useState(false);
   const [activeFeatureId, setActiveFeatureId] = useState(FEATURE_NAV_ITEMS[0].id);
   const featureMenuRef = useRef(null);
@@ -574,8 +574,14 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
         />
       </div>
 
-      <div className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2 text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-400/60">
-        BETA
+      <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2">
+        <button
+          type="button"
+          onClick={onBetaClick}
+          className="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-400/60 transition hover:text-emerald-300/90 cursor-pointer"
+        >
+          BETA
+        </button>
       </div>
 
       {/* Top Row (integrated into page, no separate header bar) */}
