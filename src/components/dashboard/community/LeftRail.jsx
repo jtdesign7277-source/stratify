@@ -5,7 +5,7 @@ import {
   PanelLeftClose, PanelRightClose, ChevronRight, Bell, BellOff, Trash2, Pencil, Check, X,
 } from 'lucide-react';
 import { T, ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS, MOOD_CONFIG, MOOD_LS_KEY, DEFAULT_MOOD } from './communityConstants';
-import { UserAvatar, MoodAvatar, ProBadge } from './CommunityShared';
+import { UserAvatar, MoodAvatar } from './CommunityShared';
 import { buildCurrentUserAvatarUrl, toMaybeFiniteNumber } from './communityHelpers';
 import { supabase } from '../../../lib/supabaseClient';
 
@@ -384,6 +384,14 @@ const LeftRail = ({
             >
               <MoodAvatar mood={mood} size={40} />
             </button>
+            {isPro && (
+              <span className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
+                <svg viewBox="0 0 22 22" className="w-5 h-5" fill="none">
+                  <circle cx="11" cy="11" r="11" fill="#1D9BF0" />
+                  <path d="M9.5 14.25L6.75 11.5L7.81 10.44L9.5 12.13L14.19 7.44L15.25 8.5L9.5 14.25Z" fill="white" />
+                </svg>
+              </span>
+            )}
 
             {/* Mood picker popup */}
             <AnimatePresence>
@@ -427,8 +435,6 @@ const LeftRail = ({
             </span>
           </div>
 
-          {/* Pro badge */}
-          {isPro && <ProBadge size={18} />}
         </div>
       </div>
     </motion.aside>
