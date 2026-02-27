@@ -67,6 +67,15 @@ export const MOCK_AUTHORS = [
 
 // ─── Storage Keys ─────────────────────────────────────────
 export const QUICK_POST_HASHTAGS = ['#earnings', '#momentum', '#macro', '#options', '#sentiment'];
+
+// Search query fired when each hashtag pill is clicked
+export const HASHTAG_SEARCH_QUERIES = {
+  '#earnings':  'earnings report',
+  '#momentum':  'momentum stocks',
+  '#macro':     'macro economics market',
+  '#options':   'options trading flow',
+  '#sentiment': 'market sentiment analysis',
+};
 export const USER_AVATAR_SEED_STORAGE_KEY = 'stratify_user_avatar_seed';
 export const USER_AVATAR_URL_STORAGE_KEY = 'stratify_user_avatar_url';
 export const DISPLAY_NAME_STORAGE_KEY = 'stratify_display_name';

@@ -210,15 +210,30 @@ export const sanitizeAiSearchData = (raw, query) => {
   };
 };
 
+const SUGGESTION_MAP = {
+  earn:      ['earnings reports today', 'earnings surprises this week', 'earnings calendar upcoming', 'earnings beats and misses', 'earnings season analysis'],
+  option:    ['options flow unusual activity', 'options expiration this week', 'options trading strategies', 'options volume leaders', 'options sentiment'],
+  momentum:  ['momentum stocks today', 'momentum breakout setups', 'momentum sector rotation', 'momentum trading signals', 'momentum vs value'],
+  macro:     ['macro economic outlook', 'macro fed rate decision', 'macro inflation data', 'macro treasury yields', 'macro GDP forecast'],
+  sentiment: ['market sentiment today', 'sentiment fear greed index', 'sentiment retail vs institutional', 'sentiment social media', 'sentiment put call ratio'],
+  dark:      ['dark pool activity', 'dark pool large trades', 'dark pool block orders', 'dark pool institutional flow', 'dark pool signals'],
+  short:     ['short interest highest', 'short squeeze candidates', 'short interest changes', 'short selling activity', 'short interest by sector'],
+  crypto:    ['crypto market today', 'crypto bitcoin analysis', 'crypto ethereum news', 'crypto regulation update', 'crypto whale activity'],
+  premarket: ['premarket movers today', 'premarket gap ups', 'premarket gap downs', 'premarket earnings', 'premarket futures'],
+};
+
 export const generateSuggestions = (query) => {
   if (!query || query.trim().length < 2) return [];
-  const q = query.trim();
+  const q = query.trim().toLowerCase();
+  const matchedKey = Object.keys(SUGGESTION_MAP).find((key) => q.includes(key));
+  if (matchedKey) return SUGGESTION_MAP[matchedKey];
+  const display = query.trim();
   return [
-    q + ' stock news today',
-    q + ' price prediction',
-    q + ' earnings report',
-    q + ' market analysis',
-    'What is happening with ' + q + ' today?',
+    `${display} stock news today`,
+    `${display} price prediction`,
+    `${display} market analysis`,
+    `${display} earnings report`,
+    `What is happening with ${display} today?`,
   ];
 };
 
