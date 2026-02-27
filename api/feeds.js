@@ -5,6 +5,27 @@ import { Redis } from '@upstash/redis'
 
 const CACHE_TTL = 14400 // 4 hours
 
+// Domains known to be paywalled — articles from these sources are filtered out
+const PAYWALLED_SOURCES = [
+  'seekingalpha.com',
+  'wsj.com',
+  'ft.com',
+  'barrons.com',
+  'bloomberg.com',
+  'economist.com',
+  'nytimes.com',
+  'washingtonpost.com',
+  'reuters.com',
+]
+
+function isPaywalled(article) {
+  const domain = String(article.url || '').toLowerCase()
+  const source = String(article.source || '').toLowerCase()
+  return PAYWALLED_SOURCES.some(
+    (s) => domain.includes(s) || source.includes(s.replace('.com', ''))
+  )
+}
+
 const FEED_CATEGORIES = {
   'Market Pulse': [
     'Earnings', 'Momentum', 'Macro', 'Options', 'Sentiment',
@@ -317,8 +338,9 @@ export default async function handler(req, res) {
       console.error(`[feeds] Marketaux error:`, JSON.stringify(data.error).substring(0, 300))
     }
 
-    // Transform to our format
+    // Transform to our format, excluding paywalled sources
     const items = articles
+      .filter(a => !isPaywalled(a))
       .map(a => transformArticle(a, normalizedFeed))
       .filter(item => item.title && item.title.length > 10)
 

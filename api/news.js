@@ -7,6 +7,27 @@ import { Redis } from '@upstash/redis'
 const CACHE_KEY = 'sidebar_news'
 const CACHE_TTL = 1800 // 30 minutes
 
+// Domains known to be paywalled — articles from these sources are filtered out
+const PAYWALLED_SOURCES = [
+  'seekingalpha.com',
+  'wsj.com',
+  'ft.com',
+  'barrons.com',
+  'bloomberg.com',
+  'economist.com',
+  'nytimes.com',
+  'washingtonpost.com',
+  'reuters.com',
+]
+
+function isPaywalled(article) {
+  const domain = String(article.url || '').toLowerCase()
+  const source = String(article.source || '').toLowerCase()
+  return PAYWALLED_SOURCES.some(
+    (s) => domain.includes(s) || source.includes(s.replace('.com', ''))
+  )
+}
+
 function getRedis() {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
@@ -153,6 +174,7 @@ export default async function handler(req, res) {
     console.log(`[news] Marketaux primary returned ${rawArticles.length} articles`)
 
     let articles = rawArticles
+      .filter((a) => !isPaywalled(a))
       .map(transformArticle)
       .filter((a) => a.title && a.title.length > 10)
 
@@ -178,6 +200,7 @@ export default async function handler(req, res) {
         if (fallbackRes.ok) {
           const fallbackData = await fallbackRes.json()
           const fallbackRaw = (fallbackData.data || [])
+            .filter((a) => !isPaywalled(a))
             .map(transformArticle)
             .filter((a) => a.title && a.title.length > 10)
 

@@ -221,37 +221,38 @@ export function ArticleReader({ item, onBack }) {
 
   // Rendered as a normal in-flow view — NOT an absolute overlay.
   // This keeps LeftRail and all sidebar content fully visible while reading.
+  // Structure: sticky toolbar (flex-shrink-0) + scrollable body (flex-1 overflow-y-auto)
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="flex-1 min-h-0 overflow-y-auto feed-scroll flex flex-col"
+      className="flex-1 min-h-0 flex flex-col"
     >
       {/* ── Sticky top toolbar ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-[#0d1117] sticky top-0 z-10 flex-shrink-0">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-[#0d1117] flex-shrink-0 rounded-t-none">
         {/* Left: Back button */}
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5 cursor-pointer transition-colors"
+          className="flex items-center gap-2 text-[#7d8590] hover:text-[#e6edf3] transition-colors cursor-pointer px-3 py-1.5 rounded-lg hover:bg-white/5"
         >
           <ArrowLeft size={16} strokeWidth={1.5} />
-          Back
+          <span className="text-sm font-medium">Back</span>
         </button>
 
-        {/* Right: Refresh + Original + Summarize */}
-        <div className="flex items-center gap-2">
+        {/* Right: Original + Summarize */}
+        <div className="flex items-center gap-3">
           {item?.url && (
             <a
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-[#7d8590] hover:text-[#58a6ff] hover:bg-white/5 rounded-lg px-2 py-1 transition-colors"
+              className="flex items-center gap-1.5 text-[#7d8590] hover:text-[#58a6ff] transition-colors text-sm"
               title="Open original article"
             >
               <ExternalLink size={14} strokeWidth={1.5} />
-              <span className="hidden sm:inline">Original</span>
+              <span>Original</span>
             </a>
           )}
 
@@ -259,12 +260,12 @@ export function ArticleReader({ item, onBack }) {
           <button
             onClick={handleSummarize}
             disabled={summarizing}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-              summarizing ? 'opacity-60 cursor-not-allowed' : ''
-            } ${
-              summary
-                ? 'bg-[#58a6ff]/20 text-[#58a6ff] hover:bg-[#58a6ff]/30'
-                : 'bg-[#58a6ff]/10 text-[#58a6ff] hover:bg-[#58a6ff]/20'
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
+              summarizing
+                ? 'opacity-60 cursor-not-allowed bg-[#58a6ff]/10 text-[#58a6ff] border-[#58a6ff]/20'
+                : summary
+                  ? 'bg-[#58a6ff]/20 text-[#58a6ff] hover:bg-[#58a6ff]/30 border-[#58a6ff]/30'
+                  : 'bg-[#58a6ff]/10 text-[#58a6ff] hover:bg-[#58a6ff]/20 border-[#58a6ff]/20'
             }`}
           >
             {summarizing ? (
@@ -287,105 +288,110 @@ export function ArticleReader({ item, onBack }) {
         </div>
       </div>
 
-      {/* ── Summary error toast ── */}
-      <AnimatePresence>
-        {summaryError && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-            className="mx-4 mt-3 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm"
-          >
-            {summaryError}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Scrollable body (toolbar stays pinned, this area scrolls) ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto feed-scroll">
 
-      {/* ── AI Summary card ── */}
-      <AnimatePresence>
-        {summary && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
-            <div className="mx-4 mt-3 mb-1 p-4 bg-[#161b22] border border-[#58a6ff]/20 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={14} strokeWidth={1.5} className="text-[#58a6ff]" />
-                  <span className="text-[#58a6ff] text-xs font-semibold uppercase tracking-wide">AI Summary</span>
+        {/* ── Summary error toast ── */}
+        <AnimatePresence>
+          {summaryError && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="mx-3 mt-3 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm"
+            >
+              {summaryError}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── AI Summary card ── */}
+        <AnimatePresence>
+          {summary && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <div className="mx-3 mt-3 mb-1 p-4 bg-[#161b22] border border-[#58a6ff]/20 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} strokeWidth={1.5} className="text-[#58a6ff]" />
+                    <span className="text-[#58a6ff] text-xs font-semibold uppercase tracking-wide">AI Summary</span>
+                  </div>
+                  <button
+                    onClick={() => setSummary(null)}
+                    className="text-[#7d8590] hover:text-[#e6edf3] transition-colors"
+                    aria-label="Dismiss summary"
+                  >
+                    <XIcon size={14} strokeWidth={1.5} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSummary(null)}
-                  className="text-[#7d8590] hover:text-[#e6edf3] transition-colors"
-                  aria-label="Dismiss summary"
-                >
-                  <XIcon size={14} strokeWidth={1.5} />
-                </button>
+                <p className="text-[#c9d1d9] text-sm leading-relaxed mt-2">{summary}</p>
               </div>
-              <p className="text-[#c9d1d9] text-sm leading-relaxed mt-2">{summary}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Article card ── */}
+        <div className="mx-3 mt-3 mb-6 rounded-2xl border border-white/10 bg-[#0d1117] overflow-hidden">
+
+          {/* Hero image — rounded top via parent overflow-hidden */}
+          {(article?.image || item?.image) && (
+            <div className="mx-4 mt-4 rounded-xl overflow-hidden">
+              <CardImage
+                src={article?.image || item?.image}
+                alt={stripCitations(article?.title || item?.title || '')}
+                className="w-full max-h-[380px] object-cover"
+              />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
 
-      {/* ── Article card ── */}
-      <div className="mx-4 mt-3 mb-6 rounded-2xl border border-white/10 bg-[#0d1117] overflow-hidden">
-
-        {/* Hero image — flush to top, rounded top corners from parent overflow-hidden */}
-        {(article?.image || item?.image) && (
-          <CardImage
-            src={article?.image || item?.image}
-            alt={stripCitations(article?.title || item?.title || '')}
-            className="w-full max-h-[400px] object-cover"
-          />
-        )}
-
-        <div className="p-6">
-          {/* Badge pills: category + sentiment */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`${cat.bg} ${cat.text} inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium`}>
-              <CatIcon size={12} strokeWidth={1.5} />
-              {item?.category}
-            </span>
-            {item?.sentiment && (
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${sentiment}`}>
-                {item.sentiment}
+          <div className="px-6 py-5">
+            {/* Badge pills: category + sentiment */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`${cat.bg} ${cat.text} inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium`}>
+                <CatIcon size={12} strokeWidth={1.5} />
+                {item?.category}
               </span>
-            )}
-          </div>
-
-          {/* Title */}
-          <h1 className="text-[#e6edf3] text-xl font-semibold leading-snug mt-4">
-            {stripCitations(article?.title || item?.title || '')}
-          </h1>
-
-          {/* Metadata: source, author, time */}
-          <div className="flex items-center gap-3 flex-wrap mt-2 pb-4 border-b border-white/6">
-            <div className="flex items-center gap-2">
-              {favicon && (
-                <img src={favicon} alt="" className="w-4 h-4 rounded" loading="lazy" />
+              {item?.sentiment && (
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${sentiment}`}>
+                  {item.sentiment}
+                </span>
               )}
-              <span className="text-[#7d8590] text-sm">
-                {stripCitations(article?.source || item?.source || '')}
-              </span>
             </div>
-            {article?.author && (
-              <div className="flex items-center gap-1.5 text-[#7d8590] text-sm">
-                <User size={14} strokeWidth={1.5} />
-                <span>{article.author}</span>
+
+            {/* Title */}
+            <h1 className="text-[#e6edf3] text-xl font-semibold leading-snug mt-4">
+              {stripCitations(article?.title || item?.title || '')}
+            </h1>
+
+            {/* Metadata: source, author, time */}
+            <div className="flex items-center gap-3 flex-wrap mt-2 pb-4 border-b border-white/6">
+              <div className="flex items-center gap-2">
+                {favicon && (
+                  <img src={favicon} alt="" className="w-4 h-4 rounded" loading="lazy" />
+                )}
+                <span className="text-[#7d8590] text-sm">
+                  {stripCitations(article?.source || item?.source || '')}
+                </span>
               </div>
-            )}
-            {item?.time && (
-              <div className="flex items-center gap-1.5 text-[#7d8590] text-sm">
-                <Clock size={14} strokeWidth={1.5} />
-                <span>{item.time}</span>
-              </div>
-            )}
-          </div>
+              {article?.author && (
+                <div className="flex items-center gap-1.5 text-[#7d8590] text-sm">
+                  <User size={14} strokeWidth={1.5} />
+                  <span>{article.author}</span>
+                </div>
+              )}
+              {item?.time && (
+                <div className="flex items-center gap-1.5 text-[#7d8590] text-sm">
+                  <Clock size={14} strokeWidth={1.5} />
+                  <span>{item.time}</span>
+                </div>
+              )}
+            </div>
 
           {/* Ticker pills */}
           {item?.tickers && item.tickers.length > 0 && (
@@ -484,8 +490,9 @@ export function ArticleReader({ item, onBack }) {
               </div>
             </div>
           )}
-        </div>
-      </div>
+          </div>{/* end px-6 py-5 */}
+        </div>{/* end article card */}
+      </div>{/* end scrollable body */}
     </motion.div>
   )
 }
