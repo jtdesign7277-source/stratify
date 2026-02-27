@@ -50,7 +50,7 @@ const FEED_PARAMS = {
   Volume:       { search: 'unusual volume dark pool block trade' },
   // Hot & Trending
   Trending:     { sort: 'entity_match_score', search: 'stock market trending' },
-  MemeStocks:   { symbols: 'GME,AMC,BB,BBBY,PLTR,SOFI', search: 'meme stock retail trader' },
+  MemeStocks:   { search: 'GME AMC meme stock short squeeze retail' },
   Runners:      { search: 'stock runner surge 10 percent breakout catalyst' },
   Squeezes:     { search: 'short squeeze short interest covering rally' },
   IPOs:         { search: 'IPO initial public offering listing debut' },
@@ -58,17 +58,17 @@ const FEED_PARAMS = {
   PennyStocks:  { search: 'penny stock small cap micro cap low price' },
   Breakouts:    { search: 'breakout resistance technical level all time high' },
   // Tech & Innovation
-  BigTech:      { symbols: 'AAPL,MSFT,GOOGL,META,AMZN', search: 'big tech' },
-  AI:           { symbols: 'NVDA,AMD,MSFT,GOOGL', search: 'artificial intelligence AI chip' },
-  Semis:        { symbols: 'NVDA,AMD,INTC,TSM,AVGO', search: 'semiconductor chip' },
-  EVs:          { symbols: 'TSLA,RIVN,LCID,NIO,LI', search: 'electric vehicle EV' },
-  Fintech:      { symbols: 'SOFI,HOOD,SQ,PYPL', search: 'fintech digital banking payments' },
-  Biotech:      { search: 'biotech FDA approval clinical trial drug' },
-  SpaceTech:    { symbols: 'RKLB,ASTS,LUNR', search: 'space rocket satellite launch' },
+  BigTech:      { symbols: 'AAPL,MSFT,GOOGL,META,AMZN' },
+  AI:           { search: 'artificial intelligence AI stocks NVDA chip GPU' },
+  Semis:        { symbols: 'NVDA,AMD,INTC,TSM,AVGO' },
+  EVs:          { symbols: 'TSLA,RIVN,LCID,NIO,LI' },
+  Fintech:      { symbols: 'SOFI,HOOD,SQ,PYPL' },
+  Biotech:      { search: 'biotech FDA approval clinical trial drug pipeline' },
+  SpaceTech:    { search: 'space rocket satellite SpaceX Rocket Lab launch' },
   // Macro & Politics
   FedWatch:     { search: 'Federal Reserve FOMC rate decision Powell' },
   Trump:        { search: 'Trump tariff policy executive order market' },
-  ElonMusk:     { symbols: 'TSLA', search: 'Elon Musk Tesla SpaceX DOGE' },
+  ElonMusk:     { search: 'Elon Musk Tesla SpaceX DOGE xAI' },
   Politics:     { search: 'politics regulation legislation government market' },
   Tariffs:      { search: 'tariff trade war import export duty' },
   Bonds:        { search: 'treasury bond yield interest rate TLT' },
@@ -275,9 +275,9 @@ export default async function handler(req, res) {
     if (feedParams.symbols) params.set('symbols', feedParams.symbols)
     if (feedParams.sort) params.set('sort', feedParams.sort)
 
-    // Get articles from last 3 days
-    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0]
-    params.set('published_after', threeDaysAgo)
+    // Get articles from last 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+    params.set('published_after', sevenDaysAgo)
 
     const url = `https://api.marketaux.com/v1/news/all?${params.toString()}`
     console.log(`[feeds] Fetching Marketaux for #${feed}...`)
