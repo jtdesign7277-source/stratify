@@ -50,7 +50,7 @@ const FEED_PARAMS = {
   Volume:       { search: 'unusual volume dark pool block trade' },
   // Hot & Trending
   Trending:     { sort: 'entity_match_score', search: 'stock market trending' },
-  MemeStocks:   { search: 'GME AMC meme stock short squeeze retail' },
+  MemeStocks:   { symbols: 'GME,AMC,BB,PLTR,SOFI' },
   Runners:      { search: 'stock runner surge 10 percent breakout catalyst' },
   Squeezes:     { search: 'short squeeze short interest covering rally' },
   IPOs:         { search: 'IPO initial public offering listing debut' },
@@ -295,7 +295,10 @@ export default async function handler(req, res) {
     const data = await response.json()
     const articles = data.data || []
 
-    console.log(`[feeds] Marketaux returned ${articles.length} articles for #${feed}`)
+    console.log(`[feeds] Marketaux raw: ${articles.length} articles for #${feed}`)
+    if (articles.length === 0 && data.error) {
+      console.error(`[feeds] Marketaux error:`, JSON.stringify(data.error).substring(0, 300))
+    }
 
     // Transform to our format
     const items = articles
