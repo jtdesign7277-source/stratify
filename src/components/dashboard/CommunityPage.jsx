@@ -130,6 +130,7 @@ import ReactionBar from './community/ReactionBar';
 import PostCard from './community/PostCard';
 import FeedCustomizerModal from './community/FeedCustomizerModal';
 import { HistoryView, DiscoverView, SpacesView, FinanceView, RightSidebar } from './community/ExploreViews';
+import LeftRail from './community/LeftRail';
 
 // ─── Main Community Page ──────────────────────────────────
 const CommunityPage = ({ tradeHistory = [] }) => {
