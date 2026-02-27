@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock3, Newspaper, ChevronDown } from 'lucide-react';
 import TodaysNews from 'components/dashboard/TodaysNews';
+import WatchlistPanel from './WatchlistPanel';
 
 // ─── History View ─────────────────────────────────────────
 export const HistoryView = ({ history, loading, onClear }) => {
@@ -356,23 +357,23 @@ export const FinanceView = ({ data, loading }) => {
 // ─── Right Sidebar ────────────────────────────────────────
 export const RightSidebar = () => {
   const [newsOpen, setNewsOpen] = useState(true);
-  const [panelHeight, setPanelHeight] = useState(400);
-  const panelRef = React.useRef(null);
-  const isDragging = React.useRef(false);
+  const [newsPanelHeight, setNewsPanelHeight] = useState(400);
+  const newsPanelRef = React.useRef(null);
+  const isNewsDragging = React.useRef(false);
 
-  const handleResizeStart = React.useCallback((e) => {
+  const handleNewsResizeStart = React.useCallback((e) => {
     e.preventDefault();
-    isDragging.current = true;
+    isNewsDragging.current = true;
 
     const onMouseMove = (moveEvent) => {
-      if (!isDragging.current || !panelRef.current) return;
-      const rect = panelRef.current.getBoundingClientRect();
+      if (!isNewsDragging.current || !newsPanelRef.current) return;
+      const rect = newsPanelRef.current.getBoundingClientRect();
       const newH = moveEvent.clientY - rect.top;
-      setPanelHeight(Math.min(800, Math.max(150, newH)));
+      setNewsPanelHeight(Math.min(800, Math.max(150, newH)));
     };
 
     const onMouseUp = () => {
-      isDragging.current = false;
+      isNewsDragging.current = false;
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
@@ -388,8 +389,12 @@ export const RightSidebar = () => {
       transition={{ duration: 0.22 }}
       className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
-      <div className="h-full flex-1 min-h-0 pr-1 flex flex-col">
-        <div className="flex flex-col min-h-0 rounded-xl border border-white/6 bg-white/2 overflow-hidden">
+      <div className="h-full flex-1 min-h-0 pr-1 flex flex-col gap-px overflow-y-auto">
+        {/* ── Watchlist panel ── */}
+        <WatchlistPanel />
+
+        {/* ── News panel ── */}
+        <div className="flex flex-col min-h-0 rounded-xl border border-white/6 bg-white/2 overflow-hidden flex-shrink-0">
           <button
             type="button"
             onClick={() => setNewsOpen((prev) => !prev)}
@@ -408,14 +413,14 @@ export const RightSidebar = () => {
           {newsOpen && (
             <>
               <div
-                ref={panelRef}
+                ref={newsPanelRef}
                 className="overflow-y-auto"
-                style={{ height: panelHeight + 'px' }}
+                style={{ height: newsPanelHeight + 'px' }}
               >
                 <TodaysNews hideHeader />
               </div>
               <div
-                onMouseDown={handleResizeStart}
+                onMouseDown={handleNewsResizeStart}
                 className="h-1.5 w-full cursor-row-resize group flex-shrink-0"
               >
                 <div className="w-10 h-1 rounded-full bg-white/10 group-hover:bg-[#58a6ff]/50 mx-auto transition-colors mt-px" />
