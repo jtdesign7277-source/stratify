@@ -185,7 +185,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+        max_tokens: 8192,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
@@ -222,21 +222,28 @@ REMINDER: Every result MUST be specifically about "${feed}" — reject anything 
 
     const data = await response.json()
 
+    // Log stop reason and block summary for debugging
+    const blockSummary = (data.content || []).map(b => b.type).join(', ')
+    console.log(`[feeds] stop_reason=${data.stop_reason}, blocks=[${blockSummary}], model=${data.model}`)
+
     // web_search responses have multiple content blocks (search results + text)
     // Extract only text blocks and parse the JSON from them
     const textContent = extractTextFromResponse(data.content)
-    console.log(`[feeds] Raw response (first 500 chars):`, textContent.substring(0, 500))
+    console.log(`[feeds] Text content length: ${textContent.length}`)
+
+    if (!textContent || textContent.trim().length === 0) {
+      console.error(`[feeds] Empty text response. stop_reason=${data.stop_reason}, blocks=${blockSummary}`)
+      console.error(`[feeds] Usage: input=${data.usage?.input_tokens}, output=${data.usage?.output_tokens}`)
+      throw new Error(`Claude returned no text (stop_reason=${data.stop_reason}, ${(data.content || []).length} blocks)`)
+    }
 
     const clean = textContent.replace(/```json|```/g, '').trim()
 
     // Find the JSON array in the text — it might have surrounding text
     let jsonMatch = clean.match(/\[[\s\S]*\]/)
 
-    // If no JSON found, Claude may have used all tokens on web_search.
-    // Log what we got and throw a clear error.
     if (!jsonMatch) {
-      console.error(`[feeds] No JSON array in response. Full text (first 1000 chars):`, textContent.substring(0, 1000))
-      console.error(`[feeds] Content blocks:`, JSON.stringify((data.content || []).map(b => ({ type: b.type, length: (b.text || '').length }))))
+      console.error(`[feeds] No JSON array. Text (first 500 chars):`, clean.substring(0, 500))
       throw new Error('No JSON array found in Claude response')
     }
 
