@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Home, Compass, Clock3, BarChart3, Globe, Hash, Settings,
+  Home, Compass, BarChart3, Hash, Settings,
   PanelLeftClose, PanelRightClose, ChevronRight, Bell, BellOff, Trash2, Pencil, Check, X,
 } from 'lucide-react';
 import { T, ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS, MOOD_CONFIG, MOOD_LS_KEY, DEFAULT_MOOD } from './communityConstants';
@@ -10,10 +10,8 @@ import { buildCurrentUserAvatarUrl, toMaybeFiniteNumber } from './communityHelpe
 import { supabase } from '../../../lib/supabaseClient';
 
 const EXPLORE_TABS = [
-  { id: 'history', label: 'History', icon: Clock3 },
   { id: 'discover', label: 'Discover', icon: Compass },
   { id: 'finance', label: 'Finance', icon: BarChart3 },
-  { id: 'spaces', label: 'Spaces', icon: Globe },
 ];
 
 const LeftRail = ({

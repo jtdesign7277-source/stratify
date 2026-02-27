@@ -7,7 +7,6 @@ import FeedView, { ArticleReader } from './FeedView';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
-import useClickHistory from '../../hooks/useClickHistory';
 import {
   Heart, MessageCircle, Send, X, TrendingUp, BarChart3, Bell, BellOff, Brain,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
@@ -132,7 +131,7 @@ import PostComposerModal from './community/PostComposerModal';
 import ReactionBar from './community/ReactionBar';
 import PostCard from './community/PostCard';
 import FeedCustomizerModal from './community/FeedCustomizerModal';
-import { HistoryView, DiscoverView, SpacesView, FinanceView, RightSidebar } from './community/ExploreViews';
+import { DiscoverView, FinanceView, RightSidebar } from './community/ExploreViews';
 import LeftRail from './community/LeftRail';
 import StockDetailView from './community/StockDetailView';
 import PriceAlertToasts from './community/PriceAlertToasts';
@@ -193,9 +192,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, []);
   const [activeExploreTab, setActiveExploreTab] = useState(null);
   const [discoverData, setDiscoverData] = useState(null);
-  const [financeData, setFinanceData] = useState(null);
   const [discoverLoading, setDiscoverLoading] = useState(false);
-  const [financeLoading, setFinanceLoading] = useState(false);
   const [displayName, setDisplayName] = useState(() => {
     if (typeof window === 'undefined') return 'Anonymous Trader';
     try {
@@ -221,28 +218,22 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
   const mockFeed = useMemo(() => generateMockFeed(), []);
 
-  const { history: clickHistory, loading: clickHistoryLoading, trackClick, clearHistory: clearClickHistory } = useClickHistory();
 
   // Preload discover + finance data on mount
   useEffect(() => {
     let cancelled = false;
     setDiscoverLoading(true);
-    setFinanceLoading(true);
 
-    Promise.allSettled([
-      fetch('/api/discover').then((r) => r.ok ? r.json() : null),
-      fetch('/api/finance').then((r) => r.ok ? r.json() : null),
-    ]).then(([discoverResult, financeResult]) => {
-      if (cancelled) return;
-      if (discoverResult.status === 'fulfilled' && discoverResult.value) {
-        setDiscoverData(discoverResult.value);
-      }
-      if (financeResult.status === 'fulfilled' && financeResult.value) {
-        setFinanceData(financeResult.value);
-      }
-      setDiscoverLoading(false);
-      setFinanceLoading(false);
-    });
+    fetch('/api/discover')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled) return;
+        if (data) setDiscoverData(data);
+        setDiscoverLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setDiscoverLoading(false);
+      });
 
     return () => { cancelled = true; };
   }, []);
@@ -1408,21 +1399,13 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                           onBack={() => setSidebarArticle(null)}
                         />
                       </AnimatePresence>
-                    ) : activeExploreTab === 'history' ? (
-                      <div className="flex-1 min-h-0 overflow-y-auto">
-                        <HistoryView history={clickHistory} loading={clickHistoryLoading} onClear={clearClickHistory} />
-                      </div>
                     ) : activeExploreTab === 'discover' ? (
                       <div className="flex-1 min-h-0 overflow-y-auto">
                         <DiscoverView data={discoverData} loading={discoverLoading} />
                       </div>
-                    ) : activeExploreTab === 'spaces' ? (
-                      <div className="flex-1 min-h-0 overflow-y-auto">
-                        <SpacesView />
-                      </div>
                     ) : activeExploreTab === 'finance' ? (
                       <div className="flex-1 min-h-0 overflow-y-auto">
-                        <FinanceView data={financeData} loading={financeLoading} />
+                        <FinanceView />
                       </div>
                     ) : filter ? (
                       <div className="flex-1 min-h-0 overflow-y-auto">

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock3, Newspaper, ChevronDown } from 'lucide-react';
+import { Clock3, Newspaper, ChevronDown, BarChart3, RefreshCw, ExternalLink } from 'lucide-react';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import WatchlistPanel from './WatchlistPanel';
 import IndexCards from './IndexCards';
@@ -206,95 +206,122 @@ export const SpacesView = () => (
 );
 
 // ─── Finance View ─────────────────────────────────────────
-export const FinanceView = ({ data, loading }) => {
-  const [expandedHeadline, setExpandedHeadline] = useState(null);
+export const FinanceView = () => {
+  const [articles, setArticles] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState(false);
 
-  const headlines = data?.marketSummary || [];
-  const trending = data?.trendingCompanies || [];
+  const fetchNews = useCallback(async () => {
+    setNewsLoading(true);
+    setNewsError(false);
+    try {
+      const res = await fetch('/api/search?q=financial+market+news');
+      if (!res.ok) throw new Error('failed');
+      const data = await res.json();
+      setArticles(Array.isArray(data.articles) ? data.articles : []);
+    } catch {
+      setNewsError(true);
+    } finally {
+      setNewsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void fetchNews(); }, [fetchNews]);
 
   return (
     <div className="p-3 space-y-4">
-      {/* Index cards — self-fetching, always shown */}
+      {/* Header */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-[#58a6ff]" strokeWidth={1.5} />
+          <span className="text-sm font-semibold text-[#e6edf3]">Finance</span>
+          {!newsLoading && articles.length > 0 && (
+            <span className="text-xs text-[#7d8590] bg-white/5 rounded-full px-2 py-0.5">{articles.length}</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={fetchNews}
+          disabled={newsLoading}
+          className="text-[#7d8590] hover:text-[#e6edf3] transition-colors disabled:opacity-40"
+          title="Refresh"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+        </button>
+      </div>
+
+      {/* Index cards — self-fetching */}
       <div>
         <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Indices</div>
         <IndexCards />
       </div>
 
-      {headlines.length > 0 && (
-        <div>
-          <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Market Summary</div>
-          <div className="space-y-1">
-            {headlines.map((hl, idx) => {
-              const isOpen = expandedHeadline === idx;
-              return (
-                <div key={`hl-${idx}`} className="rounded-xl border border-white/6 bg-white/2 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedHeadline(isOpen ? null : idx)}
-                    className="w-full flex items-center justify-between p-3 text-left hover:bg-white/3 transition-colors"
-                  >
-                    <span className="text-sm text-[#e6edf3] font-medium line-clamp-1 flex-1 mr-2">{hl.headline}</span>
-                    <ChevronDown className={`w-4 h-4 text-[#7d8590] flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} strokeWidth={1.5} />
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-3 pb-3 text-xs text-[#7d8590] space-y-1">
-                          <div>{hl.snippet}</div>
-                          <div className="flex items-center gap-2">
-                            <span>{hl.source}</span>
-                            {hl.url && <a href={hl.url} target="_blank" rel="noopener noreferrer" className="text-[#58a6ff] hover:underline">Read more</a>}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Latest financial news */}
+      <div>
+        <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Latest News</div>
 
-      {trending.length > 0 && (
-        <div>
-          <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Trending Companies</div>
-          <div className="space-y-1">
-            {trending.map((co) => {
-              const isPositive = (co.changePercent || 0) >= 0;
-              return (
-                <div key={co.ticker} className="flex items-center gap-3 rounded-xl border border-white/6 bg-white/2 p-3">
-                  {co.logoUrl ? (
-                    <img src={co.logoUrl} alt="" className="w-8 h-8 rounded-lg object-contain bg-white/4 flex-shrink-0" onError={(e) => { e.target.style.display = 'none'; }} />
-                  ) : (
-                    <div className="w-8 h-8 rounded-lg bg-white/6 flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[#e6edf3]">{co.name}</div>
-                    <div className="text-xs text-[#7d8590]">{co.ticker}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-[#e6edf3]">
-                      {co.price != null ? `$${co.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
-                    </div>
-                    {co.changePercent != null && (
-                      <div className={`text-xs font-medium ${isPositive ? 'text-emerald-400' : 'text-[#f85149]'}`}>
-                        {isPositive ? '+' : ''}{co.changePercent.toFixed(2)}%
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {newsLoading && (
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="rounded-xl border border-white/6 bg-white/2 p-3 animate-pulse h-[90px]" />
+            ))}
           </div>
-        </div>
-      )}
+        )}
+
+        {!newsLoading && newsError && (
+          <div className="text-xs text-[#7d8590] text-center py-6">
+            Couldn't load news. <button type="button" onClick={fetchNews} className="text-[#58a6ff] hover:underline">Retry</button>
+          </div>
+        )}
+
+        {!newsLoading && !newsError && articles.length === 0 && (
+          <div className="text-xs text-[#7d8590] text-center py-6">No articles found.</div>
+        )}
+
+        {!newsLoading && articles.map((article) => (
+          <div
+            key={article.id || article.url}
+            className="rounded-xl border border-white/6 bg-white/2 p-3 mb-2 hover:bg-white/4 transition-colors"
+          >
+            <div className="flex gap-3">
+              {article.image && (
+                <img
+                  src={article.image}
+                  alt=""
+                  className="w-14 h-14 rounded-lg object-cover flex-shrink-0 bg-white/4"
+                  loading="lazy"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                  {(article.tickers || []).slice(0, 3).map((t) => (
+                    <span key={t} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">${t}</span>
+                  ))}
+                  <span className="text-[10px] text-[#7d8590]">{article.source} · {article.timeAgo}</span>
+                </div>
+                <div className="text-sm font-medium text-[#e6edf3] line-clamp-2 leading-snug">
+                  {article.title}
+                </div>
+                {article.description && (
+                  <div className="text-xs text-[#7d8590] mt-1 line-clamp-1">{article.description}</div>
+                )}
+                {article.url && (
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 text-[10px] text-[#7d8590] hover:text-[#58a6ff] transition-colors mt-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Read original <ExternalLink className="w-2.5 h-2.5" strokeWidth={1.5} />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
