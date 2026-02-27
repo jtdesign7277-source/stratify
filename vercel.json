@@ -75,8 +75,44 @@
       "schedule": "0 15 * * 6"
     },
     {
-      "path": "/api/feeds-warm",
+      "path": "/api/feeds?feed=Earnings",
       "schedule": "0 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=Momentum",
+      "schedule": "1 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=Trending",
+      "schedule": "2 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=Options",
+      "schedule": "3 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=Macro",
+      "schedule": "4 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=Sentiment",
+      "schedule": "5 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=Bitcoin",
+      "schedule": "6 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=AI",
+      "schedule": "7 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=Trump",
+      "schedule": "8 12 * * 0"
+    },
+    {
+      "path": "/api/feeds?feed=MemeStocks",
+      "schedule": "9 12 * * 0"
     }
   ]
 }
