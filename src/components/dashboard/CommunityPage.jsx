@@ -1953,8 +1953,11 @@ const ChatInputBar = ({
               <div className="mt-0.5 flex-shrink-0 flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={switchToPostMode}
-                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5' : 'text-[#58a6ff] bg-[#58a6ff]/10'}`}
+                  onClick={() => {
+                    setShowFeedHashtags(false);
+                    switchToPostMode();
+                  }}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5' : 'text-[#58a6ff] bg-[#58a6ff]/10'} ${showFeedHashtags ? 'opacity-40' : ''}`}
                   title="Post mode"
                 >
                   <XLogoIcon className="w-4 h-4" />
@@ -1962,7 +1965,7 @@ const ChatInputBar = ({
                 <button
                   type="button"
                   onClick={() => setShowFeedHashtags(prev => !prev)}
-                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${showFeedHashtags ? 'text-[#58a6ff] bg-[#58a6ff]/10' : 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5'}`}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${showFeedHashtags ? 'text-[#58a6ff] bg-[#58a6ff]/10' : 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5 opacity-40'}`}
                   title="Feed channels"
                 >
                   <Globe className="w-4 h-4" strokeWidth={1.5} />
@@ -1984,21 +1987,41 @@ const ChatInputBar = ({
             <div className="flex items-center gap-1.5 px-3 py-1.5">
               {!searchMode ? (
                 <div className="flex items-center gap-1.5">
-                  {QUICK_POST_HASHTAGS.map((hashtag) => {
-                    const active = selectedHashtags.includes(hashtag);
-                    return (
-                      <button
-                        key={hashtag}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => toggleHashtag(hashtag)}
-                        className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
-                        title={hashtag}
-                      >
-                        {hashtag}
-                      </button>
-                    );
-                  })}
+                  {showFeedHashtags ? (
+                    visibleFeedHashtags.map((feed) => {
+                      const isActive = activeFeed && activeFeed.toLowerCase().replace('#', '') === feed.id;
+                      return (
+                        <button
+                          key={feed.id}
+                          type="button"
+                          onClick={() => onFeedSelect?.(isActive ? null : feed.id)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 cursor-pointer ${
+                            isActive
+                              ? 'bg-[#58a6ff]/15 border-[#58a6ff]/50 text-[#58a6ff] shadow-[0_0_8px_rgba(88,166,255,0.2)]'
+                              : 'bg-white/5 border-white/8 text-[#c9d1d9] hover:bg-white/10 hover:border-white/15 hover:text-[#e6edf3]'
+                          }`}
+                        >
+                          # {feed.label}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    QUICK_POST_HASHTAGS.map((hashtag) => {
+                      const active = selectedHashtags.includes(hashtag);
+                      return (
+                        <button
+                          key={hashtag}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => toggleHashtag(hashtag)}
+                          className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                          title={hashtag}
+                        >
+                          {hashtag}
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               ) : null}
 
@@ -2072,30 +2095,6 @@ const ChatInputBar = ({
             </div>
           </div>
         </div>
-
-        <AnimatePresence initial={false}>
-          {showFeedHashtags && visibleFeedHashtags.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-wrap gap-1.5 mt-2 overflow-hidden"
-            >
-              {visibleFeedHashtags.map((feed) => (
-                <button
-                  key={feed.id}
-                  type="button"
-                  onClick={() => onFeedSelect?.(activeFeed === feed.id ? null : feed.id)}
-                  className={'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all duration-200 ' + (activeFeed === feed.id ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : 'bg-white/4 border-white/8 text-[#7d8590] hover:bg-white/6 hover:text-[#e6edf3]')}
-                >
-                  <span className="text-[10px] opacity-60">#</span>
-                  {feed.label}
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <div className="mt-1.5 flex items-center justify-between">
           <div className="text-xs" style={{ color: '#7d8590' }}>{contextualStatus}</div>
