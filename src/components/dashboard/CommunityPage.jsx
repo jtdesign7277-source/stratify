@@ -4,7 +4,6 @@ import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion
 import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import FeedsSidebar from './FeedsSidebar';
 import FeedView from './FeedView';
-import ResizablePanelGroup from './ResizablePanelGroup';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
@@ -4476,14 +4475,10 @@ const RightSidebar = ({ quoteMap }) => {
           >
             {usesResizableSplit ? (
               <div className="h-full min-h-0">
-                <ResizablePanelGroup
-                  topPanel={LiveNewsWidget}
-                  bottomPanel={WatchlistWidget}
-                  defaultTopHeight={50}
-                  minTopHeight={15}
-                  minBottomHeight={15}
-                  containerClassName="h-full min-h-0"
-                />
+                <div className="h-full min-h-0">
+                  {LiveNewsWidget}
+                  {WatchlistWidget}
+                </div>
               </div>
             ) : (
               visibleSectionOrder.map((sectionId) => renderDraggableSection(sectionId))
