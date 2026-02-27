@@ -126,10 +126,7 @@ export default function StockDetailView({ ticker, onBack }) {
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       {/* ── Toolbar ── */}
-      <div
-        className="flex items-center justify-between px-5 py-3 border-b flex-shrink-0"
-        style={{ borderColor: T.border, backgroundColor: T.bg }}
-      >
+      <div className="flex items-center justify-between px-4 py-2 flex-shrink-0">
         {/* Left: Back */}
         <button
           onClick={onBack}
