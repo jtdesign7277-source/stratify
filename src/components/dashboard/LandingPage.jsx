@@ -574,14 +574,13 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, onBetaClick, 
         />
       </div>
 
-      <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2">
-        <button
-          type="button"
-          onClick={onBetaClick}
-          className="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-400/60 transition hover:text-emerald-300/90 cursor-pointer"
+      <div className="absolute left-1/2 top-4 z-50 -translate-x-1/2">
+        <a
+          href="/tokens"
+          className="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-400/60 transition hover:text-emerald-300/90 cursor-pointer inline-block"
         >
           BETA
-        </button>
+        </a>
       </div>
 
       {/* Top Row (integrated into page, no separate header bar) */}
