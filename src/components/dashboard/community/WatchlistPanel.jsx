@@ -1,13 +1,33 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { TrendingUp, ChevronDown } from 'lucide-react';
+import { TrendingUp, ChevronDown, X } from 'lucide-react';
 
 const DEFAULT_SYMBOLS = [
   'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA',
   'META', 'TSLA', 'SPY', 'QQQ', 'BTC/USD', 'ETH/USD',
 ];
 
+const COMPANY_NAMES = {
+  'AAPL':    'Apple Inc.',
+  'MSFT':    'Microsoft Corporation',
+  'GOOGL':   'Alphabet Inc.',
+  'AMZN':    'Amazon.com Inc.',
+  'NVDA':    'NVIDIA Corporation',
+  'META':    'Meta Platforms',
+  'TSLA':    'Tesla, Inc.',
+  'SPY':     'SPDR S&P 500',
+  'QQQ':     'Invesco QQQ Trust',
+  'BTC/USD': 'Bitcoin',
+  'ETH/USD': 'Ethereum',
+};
+
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const RECONNECT_DELAY_MS = 5000;
+
+const resolveApiKey = () =>
+  import.meta.env.VITE_TWELVEDATA_API_KEY
+  || import.meta.env.VITE_TWELVE_DATA_API_KEY
+  || import.meta.env.VITE_TWELVEDATA_APIKEY
+  || '';
 
 const formatPrice = (price) => {
   if (price === null || price === undefined) return '—';
@@ -22,7 +42,8 @@ const formatPercent = (pct) => {
   if (pct === null || pct === undefined) return null;
   const n = Number(pct);
   if (!Number.isFinite(n)) return null;
-  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}${n.toFixed(2)}%`;
 };
 
 const navigateToTicker = (symbol) => {
@@ -30,10 +51,40 @@ const navigateToTicker = (symbol) => {
   window.location.href = `/dashboard?symbol=${encodeURIComponent(base)}`;
 };
 
+// Fetch previous close prices for all symbols from Twelve Data REST API
+const fetchPreviousCloses = async (symbols, apiKey) => {
+  if (!apiKey) return {};
+  const results = {};
+  // Batch REST symbols — crypto uses different format, skip for previous close
+  const restSymbols = symbols.filter(s => !s.includes('/'));
+  if (restSymbols.length === 0) return results;
+
+  try {
+    const url = `https://api.twelvedata.com/quote?symbol=${restSymbols.join(',')}&apikey=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return results;
+    const data = await res.json();
+
+    // When multiple symbols: data is an object keyed by symbol
+    // When single symbol: data is the quote object directly
+    const isMulti = restSymbols.length > 1;
+    for (const sym of restSymbols) {
+      const q = isMulti ? data[sym] : data;
+      if (q && q.previous_close) {
+        results[sym.toUpperCase()] = Number(q.previous_close);
+      }
+    }
+  } catch {
+    // silently ignore — % change just won't show until WS provides it
+  }
+  return results;
+};
+
 const WatchlistPanel = () => {
   const [open, setOpen] = useState(true);
   const [panelHeight, setPanelHeight] = useState(300);
   const [quotes, setQuotes] = useState({});
+  const [prevCloses, setPrevCloses] = useState({});
   const [connected, setConnected] = useState(false);
 
   const panelRef = useRef(null);
@@ -42,6 +93,16 @@ const WatchlistPanel = () => {
   const reconnectTimerRef = useRef(null);
   const mountedRef = useRef(true);
 
+  // ── Fetch previous close on mount ──────────────────────────────────
+  useEffect(() => {
+    const apiKey = resolveApiKey();
+    if (!apiKey) return;
+    fetchPreviousCloses(DEFAULT_SYMBOLS, apiKey).then((closes) => {
+      if (mountedRef.current) setPrevCloses(closes);
+    });
+  }, []);
+
+  // ── Panel resize ───────────────────────────────────────────────────
   const handleResizeStart = useCallback((e) => {
     e.preventDefault();
     isDragging.current = true;
@@ -63,17 +124,13 @@ const WatchlistPanel = () => {
     document.addEventListener('mouseup', onMouseUp);
   }, []);
 
+  // ── WebSocket connection ───────────────────────────────────────────
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
 
-    const apiKey = import.meta.env.VITE_TWELVEDATA_API_KEY
-      || import.meta.env.VITE_TWELVE_DATA_API_KEY
-      || import.meta.env.VITE_TWELVEDATA_APIKEY;
-
-    if (!apiKey) {
-      return;
-    }
+    const apiKey = resolveApiKey();
+    if (!apiKey) return;
 
     try {
       const ws = new WebSocket(`${TWELVE_DATA_WS_URL}?apikey=${apiKey}`);
@@ -92,11 +149,11 @@ const WatchlistPanel = () => {
         if (!mountedRef.current) return;
         try {
           const data = JSON.parse(event.data);
-
           if (data?.event === 'price' && data?.symbol) {
             const sym = String(data.symbol).toUpperCase();
             const price = data.price !== undefined ? Number(data.price) : null;
-            const pct = data.day_change_percent !== undefined
+            // Prefer WS-provided day change percent; fall back to calculating from prevClose
+            const wsPercent = data.day_change_percent !== undefined
               ? Number(data.day_change_percent)
               : data.percent_change !== undefined
                 ? Number(data.percent_change)
@@ -106,7 +163,7 @@ const WatchlistPanel = () => {
               ...prev,
               [sym]: {
                 price: Number.isFinite(price) ? price : prev[sym]?.price ?? null,
-                percentChange: Number.isFinite(pct) ? pct : prev[sym]?.percentChange ?? null,
+                wsPercent: Number.isFinite(wsPercent) ? wsPercent : prev[sym]?.wsPercent ?? null,
               },
             }));
           }
@@ -115,9 +172,7 @@ const WatchlistPanel = () => {
         }
       };
 
-      ws.onerror = () => {
-        setConnected(false);
-      };
+      ws.onerror = () => { setConnected(false); };
 
       ws.onclose = () => {
         if (!mountedRef.current) return;
@@ -150,6 +205,7 @@ const WatchlistPanel = () => {
 
   return (
     <div className="flex flex-col min-h-0 rounded-xl border border-white/6 bg-white/2 overflow-hidden">
+
       {/* ── Header ── */}
       <button
         type="button"
@@ -163,7 +219,7 @@ const WatchlistPanel = () => {
             <div className="text-[10px] text-[#7d8590] leading-tight flex items-center gap-1">
               {connected ? (
                 <>
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
                   Live prices
                 </>
               ) : (
@@ -186,56 +242,71 @@ const WatchlistPanel = () => {
             className="overflow-y-auto"
             style={{ height: panelHeight + 'px' }}
           >
-            <div className="py-1">
-              {DEFAULT_SYMBOLS.map((symbol) => {
-                const key = symbol.toUpperCase();
-                const quote = quotes[key] || {};
-                const price = quote.price ?? null;
-                const pct = quote.percentChange ?? null;
-                const pctText = formatPercent(pct);
-                const isPositive = pct !== null && pct >= 0;
-                const isNegative = pct !== null && pct < 0;
+            {DEFAULT_SYMBOLS.map((symbol) => {
+              const key = symbol.toUpperCase();
+              const quote = quotes[key] || {};
+              const price = quote.price ?? null;
 
-                return (
-                  <button
-                    key={symbol}
-                    type="button"
-                    onClick={() => navigateToTicker(symbol)}
-                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm font-medium text-[#e6edf3] truncate">
-                        ${symbol}
-                      </span>
-                      {connected && price !== null && (
-                        <span className="inline-block w-1 h-1 rounded-full bg-green-400 opacity-70 flex-shrink-0" />
-                      )}
-                    </div>
+              // % change: prefer WS-provided, otherwise calculate from prevClose
+              let pct = quote.wsPercent ?? null;
+              if (pct === null && price !== null && prevCloses[key]) {
+                const prev = prevCloses[key];
+                pct = ((price - prev) / prev) * 100;
+              }
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-sm font-mono text-[#e6edf3]">
-                        {price !== null ? formatPrice(price) : '—'}
-                      </span>
-                      {pctText ? (
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded font-medium ${
-                            isPositive
-                              ? 'bg-green-500/20 text-green-400'
-                              : isNegative
-                                ? 'bg-red-500/20 text-red-400'
-                                : 'bg-white/8 text-[#7d8590]'
-                          }`}
-                        >
-                          {pctText}
-                        </span>
-                      ) : (
-                        <span className="text-xs px-2 py-0.5 rounded bg-white/5 text-[#7d8590]">—</span>
-                      )}
+              const pctText = formatPercent(pct);
+              const isPositive = pct !== null && pct >= 0;
+
+              const companyName = COMPANY_NAMES[symbol] || '';
+
+              return (
+                <div
+                  key={symbol}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigateToTicker(symbol)}
+                  onKeyDown={(e) => e.key === 'Enter' && navigateToTicker(symbol)}
+                  className="group w-full grid grid-cols-[1fr_auto_auto] items-center gap-2 py-3 px-3 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                >
+                  {/* LEFT: symbol + company name */}
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-[#e6edf3] leading-tight">
+                      ${symbol}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                    {companyName && (
+                      <div className="text-xs text-[#7d8590] truncate leading-tight mt-0.5">
+                        {companyName}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CENTER: price */}
+                  <div className="text-right">
+                    <span className="text-sm font-mono font-medium text-[#e6edf3]">
+                      {price !== null ? `$${formatPrice(price)}` : '—'}
+                    </span>
+                  </div>
+
+                  {/* RIGHT: % change */}
+                  <div className="text-right min-w-[52px]">
+                    {pctText ? (
+                      <span className={`text-xs font-mono ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                        {pctText}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-mono text-[#7d8590]">—</span>
+                    )}
+                    {/* Subtle remove button — only on hover */}
+                    <X
+                      size={10}
+                      strokeWidth={2}
+                      className="hidden"
+                      aria-hidden
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* ── Drag handle ── */}
