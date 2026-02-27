@@ -334,7 +334,7 @@ export const RightSidebar = ({ onArticleClick }) => {
       transition={{ duration: 0.22 }}
       className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
-      <div className="h-full flex-1 min-h-0 pr-1 flex flex-col gap-px overflow-y-auto">
+      <div className="h-full flex-1 min-h-0 pr-1 flex flex-col gap-3 overflow-y-auto">
         {/* ── Watchlist panel ── */}
         <WatchlistPanel />
 
