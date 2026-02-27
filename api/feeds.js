@@ -44,7 +44,7 @@ const FEED_PARAMS = {
   Macro:        { search: 'federal reserve economy' },
   Options:      { search: 'options trading' },
   Sentiment:    { search: 'market sentiment' },
-  PreMarket:    { search: 'premarket futures' },
+  PreMarket:    { search: 'stock market futures' },
   AfterHours:   { search: 'after hours' },
   Sectors:      { search: 'sector stocks' },
   Indices:      { search: 'S&P 500 Nasdaq' },
@@ -55,7 +55,7 @@ const FEED_PARAMS = {
   Runners:      { search: 'stock surge breakout' },
   Squeezes:     { search: 'short squeeze' },
   IPOs:         { search: 'IPO' },
-  SPACs:        { search: 'SPAC merger' },
+  SPACs:        { search: 'acquisition merger' },
   PennyStocks:  { search: 'penny stock' },
   Breakouts:    { search: 'breakout stocks' },
   // Tech & Innovation
@@ -69,7 +69,7 @@ const FEED_PARAMS = {
   // Macro & Politics
   FedWatch:     { search: 'Federal Reserve' },
   Trump:        { search: 'Trump' },
-  ElonMusk:     { search: 'Elon Musk' },
+  ElonMusk:     { symbols: 'TSLA' },
   Politics:     { search: 'politics market' },
   Tariffs:      { search: 'tariff trade' },
   Bonds:        { search: 'treasury bonds' },
