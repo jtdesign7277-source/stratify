@@ -300,7 +300,7 @@ export const FinanceView = ({ data, loading }) => {
 };
 
 // ─── Right Sidebar ────────────────────────────────────────
-export const RightSidebar = () => {
+export const RightSidebar = ({ onArticleClick }) => {
   const [newsOpen, setNewsOpen] = useState(true);
   const [newsPanelHeight, setNewsPanelHeight] = useState(400);
   const newsPanelRef = React.useRef(null);
@@ -362,7 +362,7 @@ export const RightSidebar = () => {
                 className="overflow-y-auto"
                 style={{ height: newsPanelHeight + 'px' }}
               >
-                <TodaysNews hideHeader />
+                <TodaysNews hideHeader onArticleClick={onArticleClick} />
               </div>
               <div
                 onMouseDown={handleNewsResizeStart}

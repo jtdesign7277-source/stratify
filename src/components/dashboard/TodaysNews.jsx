@@ -52,15 +52,34 @@ const sentimentConfig = {
 }
 
 // ── Single news item ──────────────────────────────────────────────
-function NewsItem({ article, index }) {
+function NewsItem({ article, index, onArticleClick }) {
   const sentiment = sentimentConfig[article.sentiment] || sentimentConfig.neutral
-  const SentimentIcon = sentiment.icon
+
+  const handleClick = () => {
+    if (onArticleClick) {
+      // Normalize to the shape ArticleReader / FeedView expects
+      onArticleClick({
+        title:     article.title,
+        source:    article.source,
+        url:       article.url,
+        time:      article.time,
+        sentiment: article.sentiment,
+        summary:   article.description || article.snippet || '',
+        image:     article.image || article.imageUrl || null,
+        tickers:   article.ticker ? [article.ticker] : (article.tickers || []),
+        category:  'NEWS',
+      })
+    } else if (article.url) {
+      window.open(article.url, '_blank', 'noopener,noreferrer')
+    }
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: index * 0.05 }}
+      onClick={handleClick}
       className="group px-3 py-2.5 hover:bg-[#0f1d32] rounded-lg cursor-pointer transition-colors"
     >
       <div className="flex items-start gap-2.5">
@@ -87,7 +106,7 @@ function NewsItem({ article, index }) {
           </div>
         </div>
 
-        {/* Hover arrow */}
+        {/* Hover arrow — chevron right when onArticleClick present, external link otherwise */}
         <ExternalLink
           size={12}
           strokeWidth={1.5}
@@ -122,7 +141,7 @@ function NewsSkeleton() {
 }
 
 // ── Main widget ───────────────────────────────────────────────────
-export default function TodaysNews({ onClose, collapsed: collapsedProp, hideHeader }) {
+export default function TodaysNews({ onClose, collapsed: collapsedProp, hideHeader, onArticleClick }) {
   const [articles, setArticles] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -299,7 +318,7 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp, hideHead
                 </div>
               ) : (
                 articles.map((article, i) => (
-                  <NewsItem key={`${article.title}-${i}`} article={article} index={i} />
+                  <NewsItem key={`${article.title}-${i}`} article={article} index={i} onArticleClick={onArticleClick} />
                 ))
               )}
             </div>

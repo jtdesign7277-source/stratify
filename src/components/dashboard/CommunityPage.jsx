@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { AnimatePresence, motion } from 'framer-motion';
 import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import FeedsSidebar from './FeedsSidebar';
-import FeedView from './FeedView';
+import FeedView, { ArticleReader } from './FeedView';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
@@ -140,6 +140,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState(null);
+  const [sidebarArticle, setSidebarArticle] = useState(null); // article opened from right-sidebar news
   const [searchMode, setSearchMode] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -1325,7 +1326,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     </div>
                     )}
 
-                    {activeExploreTab === 'history' ? (
+                    {sidebarArticle ? (
+                      <AnimatePresence mode="wait" initial={false}>
+                        <ArticleReader
+                          key={sidebarArticle.url || sidebarArticle.title}
+                          item={sidebarArticle}
+                          onBack={() => setSidebarArticle(null)}
+                        />
+                      </AnimatePresence>
+                    ) : activeExploreTab === 'history' ? (
                       <div className="flex-1 min-h-0 overflow-y-auto">
                         <HistoryView history={clickHistory} loading={clickHistoryLoading} onClear={clearClickHistory} />
                       </div>
@@ -1489,7 +1498,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                   </div>
                 </div>
 
-                <RightSidebar />
+                <RightSidebar onArticleClick={(article) => {
+                  setSidebarArticle(article);
+                  // Clear active filter/explore so the center panel is unobstructed
+                  setFilter(null);
+                  setActiveExploreTab(null);
+                }} />
               </div>
             </div>
           </div>

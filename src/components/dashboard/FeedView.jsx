@@ -123,7 +123,7 @@ function FeedSkeleton({ feedName }) {
 }
 
 // ─── Article Reader Overlay ──────────────────────────────────────────
-function ArticleReader({ item, onBack }) {
+export function ArticleReader({ item, onBack }) {
   const [article, setArticle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
