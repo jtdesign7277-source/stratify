@@ -189,16 +189,18 @@ export default async function handler(req, res) {
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `Search the web for the latest real news about: ${topicPrompt}
+          content: `You are a financial news curator. Your ONLY job is to find news specifically about: ${topicPrompt}
 
-Find 8-12 current, real news stories from the past few days. Use web search to find actual articles.
+CRITICAL CONSTRAINT: You MUST only return results specifically about the topic above. Do NOT include general market news, unrelated stories, or tangentially related content. Every single result must be directly and specifically about this exact topic.
+
+Search the web for the latest real news about this specific topic. Find 8-12 current, real news stories from the past few days.
 
 After searching, return ONLY a valid JSON array (no markdown, no backticks, no explanation before or after). Each item must have:
 - "title": real headline (max 80 chars)
 - "summary": 1-2 sentence summary of the actual article (max 120 chars)
 - "source": real source name (e.g. "Reuters", "Bloomberg", "CNBC", "WSJ", "Yahoo Finance", "MarketWatch")
 - "url": the actual URL of the article (or null if unavailable)
-- "image": the og:image or thumbnail URL from the source article if visible in search results, or null if unavailable
+- "image": the og:image or thumbnail URL from the source article if visible in search results, or null if unavailable. IMPORTANT: Try to find image URLs for as many articles as possible.
 - "ticker": primary relevant ticker with $ prefix (e.g. "$NVDA") or null
 - "tickers": array of all relevant tickers mentioned (e.g. ["$NVDA", "$AMD", "$TSM"])
 - "sentiment": "bullish", "bearish", or "neutral"
@@ -206,7 +208,8 @@ After searching, return ONLY a valid JSON array (no markdown, no backticks, no e
 - "category": one of "NEWS", "ANALYSIS", "DATA", "ALERT", "EARNINGS", "REGULATORY"
 
 Return real news only. No fabricated stories. JSON array only.
-Do NOT include any citation tags, HTML tags, or markdown in your response. Plain text only in title and summary fields.`
+Do NOT include any citation tags, HTML tags, or markdown in your response. Plain text only in title and summary fields.
+REMINDER: Every result MUST be specifically about "${feed}" — reject anything off-topic.`
         }],
       }),
     })
