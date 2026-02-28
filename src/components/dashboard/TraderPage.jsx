@@ -83,6 +83,9 @@ const TRADER_ORDER_TYPE_OPTIONS = [
   { value: 'stop_limit', label: 'Stop Limit' },
   { value: 'trailing_stop', label: 'Trailing Stop' },
 ];
+const NEWS_PANEL_DEFAULT_HEIGHT = 280;
+const NEWS_PANEL_MIN_HEIGHT = 100;
+const NEWS_PANEL_MAX_RATIO = 0.6;
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -1140,6 +1143,8 @@ export default function TraderPage({
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
+  const [newsPanelHeight, setNewsPanelHeight] = useState(NEWS_PANEL_DEFAULT_HEIGHT);
+  const [isResizingNewsPanel, setIsResizingNewsPanel] = useState(false);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [activeDragTicker, setActiveDragTicker] = useState('');
   const [dragPreviewScale, setDragPreviewScale] = useState(1);
@@ -1176,6 +1181,9 @@ export default function TraderPage({
   const chartTimeframeRef = useRef(chartTimeframe);
   const chartRequestIdRef = useRef(0);
   const dragPositionYRef = useRef(null);
+  const chartAndNewsContainerRef = useRef(null);
+  const newsPanelResizeStartYRef = useRef(0);
+  const newsPanelResizeStartHeightRef = useRef(NEWS_PANEL_DEFAULT_HEIGHT);
   const activeMarketExchanges = useMemo(() => {
     const market = MARKET_FILTER_BY_ID[activeMarket] || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET];
     return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
@@ -1192,6 +1200,74 @@ export default function TraderPage({
   const selectedTicker = selectedSymbol;
   const setSelectedTicker = setSelectedSymbol;
   const { sentimentMap } = useSentiment(watchlistSymbols);
+  const clampNewsPanelHeight = useCallback((nextHeight, containerHeight) => {
+    const safeContainerHeight = Number.isFinite(containerHeight) ? containerHeight : 0;
+    const maxPanelHeight = Math.max(
+      NEWS_PANEL_MIN_HEIGHT,
+      Math.floor(safeContainerHeight * NEWS_PANEL_MAX_RATIO)
+    );
+    const clamped = Math.min(Math.max(nextHeight, NEWS_PANEL_MIN_HEIGHT), maxPanelHeight);
+    return Math.round(clamped);
+  }, []);
+
+  const handleNewsPanelResizeStart = useCallback((event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    newsPanelResizeStartYRef.current = event.clientY;
+    newsPanelResizeStartHeightRef.current = newsPanelHeight;
+    setIsResizingNewsPanel(true);
+  }, [newsPanelHeight]);
+
+  useEffect(() => {
+    if (!isResizingNewsPanel) return undefined;
+
+    const handleMouseMove = (event) => {
+      const containerHeight = chartAndNewsContainerRef.current?.getBoundingClientRect()?.height;
+      if (!Number.isFinite(containerHeight) || containerHeight <= 0) return;
+
+      const deltaY = event.clientY - newsPanelResizeStartYRef.current;
+      const requestedHeight = newsPanelResizeStartHeightRef.current - deltaY;
+      const nextHeight = clampNewsPanelHeight(requestedHeight, containerHeight);
+      setNewsPanelHeight((previous) => (previous === nextHeight ? previous : nextHeight));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingNewsPanel(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'row-resize';
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [clampNewsPanelHeight, isResizingNewsPanel]);
+
+  useEffect(() => {
+    if (!chartAndNewsContainerRef.current || typeof ResizeObserver === 'undefined') return undefined;
+
+    const container = chartAndNewsContainerRef.current;
+    const syncHeightWithinBounds = () => {
+      const containerHeight = container.getBoundingClientRect().height;
+      if (!Number.isFinite(containerHeight) || containerHeight <= 0) return;
+      setNewsPanelHeight((previous) => clampNewsPanelHeight(previous, containerHeight));
+    };
+
+    syncHeightWithinBounds();
+    const observer = new ResizeObserver(() => {
+      syncHeightWithinBounds();
+    });
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [clampNewsPanelHeight]);
 
   const syncWatchlistValueLoadingState = useCallback((symbols) => {
     const normalizedSymbols = [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))];
@@ -2589,14 +2665,14 @@ export default function TraderPage({
   };
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="h-full w-full bg-[#0b0b0b] text-[#e5e7eb]">
+    <motion.div {...PAGE_TRANSITION} className="h-full min-h-0 w-full overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
       <motion.div
         {...sectionMotion(0)}
-        className={`grid h-full min-h-0 grid-cols-1 transition-[grid-template-columns] duration-200 ease-in-out ${
+        className={`grid h-full min-h-0 grid-cols-1 overflow-hidden transition-[grid-template-columns] duration-200 ease-in-out ${
           isWatchlistCollapsed ? 'lg:grid-cols-[60px_1fr]' : 'lg:grid-cols-[300px_1fr]'
         }`}
       >
-        <aside className="flex min-h-0 flex-col overflow-hidden border-b border-[#1f1f1f] lg:border-b-0 lg:border-r">
+        <aside className="flex h-full min-h-0 flex-col overflow-hidden border-b border-[#1f1f1f] lg:border-b-0 lg:border-r">
           <div className={`border-b border-[#1f1f1f] py-3 ${isWatchlistCollapsed ? 'px-2' : 'px-4'}`}>
             <div className={`flex items-center ${isWatchlistCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
               {!isWatchlistCollapsed && (
@@ -2694,7 +2770,7 @@ export default function TraderPage({
                 </div>
               </form>
 
-              <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-2 text-xs">
                   <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
                   {streamStatus.error ? (
@@ -2906,7 +2982,7 @@ export default function TraderPage({
             </>
           )}
           {isWatchlistCollapsed && (
-            <div className="flex-1 overflow-y-auto px-1 py-2 space-y-1">
+            <div className="flex-1 min-h-0 overflow-y-auto px-1 py-2 space-y-1">
               {watchlist.map((symbol, index) => {
                 const quote = quotesBySymbol[symbol] || {};
                 const changePercent = toNumber(quote?.changePercent) ?? 0;
@@ -3014,28 +3090,47 @@ export default function TraderPage({
               </div>
             </div>
 
-            <div className="relative min-h-[260px] flex-1">
-              <div ref={chartContainerRef} className="h-full w-full" />
+            <div ref={chartAndNewsContainerRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="relative min-h-[260px] flex-1">
+                <div ref={chartContainerRef} className="h-full w-full" />
 
-              {chartStatus.loading && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/55 text-sm text-[#9ca3af]">
-                  Loading candles...
-                </div>
-              )}
+                {chartStatus.loading && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/55 text-sm text-[#9ca3af]">
+                    Loading candles...
+                  </div>
+                )}
 
-              {!chartStatus.loading && chartStatus.error && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/65 px-6 text-center text-sm text-[#9ca3af]">
-                  {chartStatus.error}
+                {!chartStatus.loading && chartStatus.error && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/65 px-6 text-center text-sm text-[#9ca3af]">
+                    {chartStatus.error}
+                  </div>
+                )}
+              </div>
+
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize news panel"
+                onMouseDown={handleNewsPanelResizeStart}
+                className="flex h-[6px] shrink-0 cursor-row-resize items-center justify-center bg-white/5 transition hover:bg-white/10"
+              >
+                <div className="flex items-center gap-1">
+                  <span className="h-1 w-1 rounded-full bg-white/45" />
+                  <span className="h-1 w-1 rounded-full bg-white/45" />
+                  <span className="h-1 w-1 rounded-full bg-white/45" />
                 </div>
-              )}
+              </div>
+
+              <div className="min-h-0 shrink-0 overflow-hidden" style={{ height: `${newsPanelHeight}px` }}>
+                <ErrorBoundary>
+                  <NewsFeedPanel
+                    selectedSymbol={selectedTicker}
+                    onSymbolChange={setSelectedTicker}
+                    className="h-full min-h-0 overflow-hidden"
+                  />
+                </ErrorBoundary>
+              </div>
             </div>
-
-            <ErrorBoundary>
-              <NewsFeedPanel
-                selectedSymbol={selectedTicker}
-                onSymbolChange={setSelectedTicker}
-              />
-            </ErrorBoundary>
           </div>
 
           <div
