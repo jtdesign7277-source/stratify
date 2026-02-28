@@ -23,6 +23,7 @@ const ACTIVE_MARKET_STORAGE_KEY = 'stratify-trader-active-market';
 const CHART_TIMEFRAME_STORAGE_KEY = 'stratify-trader-chart-timeframe';
 const CHART_VIEWPORT_STORAGE_KEY = 'stratify-trader-chart-viewport';
 const PREVIOUS_CLOSE_CACHE_STORAGE_KEY = 'stratify-trader-prev-close-cache-v1';
+const NEWS_PANEL_HEIGHT_STORAGE_KEY = 'stratify-news-panel-height';
 const PREVIOUS_CLOSE_CACHE_TTL_MS = 1000 * 60 * 60 * 48;
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
 const MAX_SYMBOL_SEARCH_RESULTS = 15;
@@ -84,8 +85,8 @@ const TRADER_ORDER_TYPE_OPTIONS = [
   { value: 'trailing_stop', label: 'Trailing Stop' },
 ];
 const NEWS_PANEL_DEFAULT_HEIGHT = 280;
-const NEWS_PANEL_MIN_HEIGHT = 100;
-const NEWS_PANEL_MAX_RATIO = 0.6;
+const NEWS_PANEL_MIN_HEIGHT = 80;
+const NEWS_PANEL_MIN_CHART_SPACE = 120;
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -694,6 +695,15 @@ const loadInitialChartTimeframe = () => {
   return DEFAULT_CHART_TIMEFRAME;
 };
 
+const loadInitialNewsPanelHeight = () => {
+  if (typeof window === 'undefined') return NEWS_PANEL_DEFAULT_HEIGHT;
+  try {
+    const saved = Number(localStorage.getItem(NEWS_PANEL_HEIGHT_STORAGE_KEY));
+    if (Number.isFinite(saved) && saved > 0) return Math.round(saved);
+  } catch {}
+  return NEWS_PANEL_DEFAULT_HEIGHT;
+};
+
 function TraderOrderEntry({
   selectedSymbol,
   lastPrice,
@@ -1143,7 +1153,7 @@ export default function TraderPage({
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
-  const [newsPanelHeight, setNewsPanelHeight] = useState(NEWS_PANEL_DEFAULT_HEIGHT);
+  const [newsPanelHeight, setNewsPanelHeight] = useState(() => loadInitialNewsPanelHeight());
   const [isResizingNewsPanel, setIsResizingNewsPanel] = useState(false);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -1184,6 +1194,7 @@ export default function TraderPage({
   const chartAndNewsContainerRef = useRef(null);
   const newsPanelResizeStartYRef = useRef(0);
   const newsPanelResizeStartHeightRef = useRef(NEWS_PANEL_DEFAULT_HEIGHT);
+  const newsPanelHeightRef = useRef(newsPanelHeight);
   const activeMarketExchanges = useMemo(() => {
     const market = MARKET_FILTER_BY_ID[activeMarket] || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET];
     return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
@@ -1204,11 +1215,15 @@ export default function TraderPage({
     const safeContainerHeight = Number.isFinite(containerHeight) ? containerHeight : 0;
     const maxPanelHeight = Math.max(
       NEWS_PANEL_MIN_HEIGHT,
-      Math.floor(safeContainerHeight * NEWS_PANEL_MAX_RATIO)
+      Math.floor(safeContainerHeight - NEWS_PANEL_MIN_CHART_SPACE)
     );
     const clamped = Math.min(Math.max(nextHeight, NEWS_PANEL_MIN_HEIGHT), maxPanelHeight);
     return Math.round(clamped);
   }, []);
+
+  useEffect(() => {
+    newsPanelHeightRef.current = newsPanelHeight;
+  }, [newsPanelHeight]);
 
   const handleNewsPanelResizeStart = useCallback((event) => {
     if (event.button !== 0) return;
@@ -1232,6 +1247,11 @@ export default function TraderPage({
     };
 
     const handleMouseUp = () => {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(NEWS_PANEL_HEIGHT_STORAGE_KEY, String(newsPanelHeightRef.current));
+        } catch {}
+      }
       setIsResizingNewsPanel(false);
     };
 
@@ -2680,7 +2700,7 @@ export default function TraderPage({
   };
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="flex h-screen min-h-0 w-full flex-col overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
+    <motion.div {...PAGE_TRANSITION} className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
       <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
         <div>
           <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>

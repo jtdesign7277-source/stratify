@@ -2157,7 +2157,7 @@ export default function Dashboard({
         {/* Main Content Area - Three Collapsible Panels */}
         <div 
           id="main-content-area" 
-          className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} ${activeTab === 'crypto' || activeTab === 'terminal' ? 'overflow-hidden' : 'overflow-y-auto'} relative`}
+          className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
         >
           {/* Tab-based Views */}
           <AnimatePresence mode="wait">
