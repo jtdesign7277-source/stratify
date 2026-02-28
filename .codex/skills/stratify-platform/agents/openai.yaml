@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stratify Platform"
+  short_description: "Build Stratify features the platform-safe way"
+  default_prompt: "Use $stratify-platform to implement this Stratify task with cache-first data loading, tab preloading, and terminal-pro UI standards."
