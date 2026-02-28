@@ -86,7 +86,7 @@ const TRADER_ORDER_TYPE_OPTIONS = [
 ];
 const NEWS_PANEL_DEFAULT_HEIGHT = 280;
 const NEWS_PANEL_MIN_HEIGHT = 80;
-const NEWS_PANEL_MIN_CHART_SPACE = 120;
+const NEWS_PANEL_MIN_CHART_SPACE = 60;
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -2769,7 +2769,7 @@ export default function TraderPage({
 
           {!isWatchlistCollapsed && (
             <>
-              <form onSubmit={addSymbol} className="border-b border-[#1f1f1f] px-4 py-3">
+              <form onSubmit={addSymbol} className="shrink-0 border-b border-[#1f1f1f] px-4 py-3">
                 <div className="mb-3 flex items-center justify-center gap-1">
                   {MARKET_FILTERS.map((market, index) => (
                     <div key={market.id} className="flex items-center gap-1">
@@ -2839,7 +2839,7 @@ export default function TraderPage({
               </form>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-2 text-xs">
+                <div className="flex shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-2 text-xs">
                   <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
                   {streamStatus.error ? (
                     <span className="text-red-400">{streamStatus.error}</span>
@@ -2928,21 +2928,17 @@ export default function TraderPage({
                               return (
                                 <Draggable key={symbol} draggableId={symbol} index={index}>
                                   {(provided, snapshot) => (
-                                    <motion.div
+                                    <div
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
-                                      {...listItemMotion(index)}
-                                      whileHover={{ scale: 1.01 }}
-                                      whileTap={{ scale: 0.99 }}
-                                      transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
-                                      className={`group relative flex items-center justify-between cursor-pointer transition-all transition-transform duration-150 border-b border-[#1f1f1f]/30 ${
+                                      className={`group relative flex items-center justify-between cursor-pointer transition-colors duration-150 border-b border-[#1f1f1f]/30 ${
                                         isSelected ? 'bg-emerald-500/5 border-l border-l-emerald-500/30' : 'hover:bg-white/5'
                                       } px-4 py-3 ${
                                         snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
                                       } ${
                                         isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
                                       }`}
-                                      style={getDragPreviewStyle(provided.draggableProps.style, snapshot.isDragging, symbol)}
+                                      style={provided.draggableProps.style}
                                       onClick={() => setSelectedSymbol(symbol)}
                                     >
                                       <div
@@ -3034,7 +3030,7 @@ export default function TraderPage({
                                       >
                                         <X className="h-4 w-4" />
                                       </motion.button>
-                                    </motion.div>
+                                    </div>
                                   )}
                                 </Draggable>
                               );
@@ -3149,7 +3145,7 @@ export default function TraderPage({
                 aria-orientation="horizontal"
                 aria-label="Resize news panel"
                 onMouseDown={handleNewsPanelResizeStart}
-                className="flex h-[6px] shrink-0 cursor-row-resize items-center justify-center bg-white/5 transition hover:bg-white/10"
+                className="flex h-[10px] shrink-0 cursor-row-resize items-center justify-center bg-white/5 transition hover:bg-white/10"
               >
                 <div className="flex items-center gap-1">
                   <span className="h-1 w-1 rounded-full bg-white/45" />
