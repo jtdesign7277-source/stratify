@@ -1269,6 +1269,21 @@ export default function TraderPage({
     };
   }, [clampNewsPanelHeight]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+
+    const previousBodyOverflowY = document.body.style.overflowY;
+    const previousHtmlOverflowY = document.documentElement.style.overflowY;
+
+    document.body.style.overflowY = 'hidden';
+    document.documentElement.style.overflowY = 'hidden';
+
+    return () => {
+      document.body.style.overflowY = previousBodyOverflowY;
+      document.documentElement.style.overflowY = previousHtmlOverflowY;
+    };
+  }, []);
+
   const syncWatchlistValueLoadingState = useCallback((symbols) => {
     const normalizedSymbols = [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))];
 
@@ -2665,16 +2680,49 @@ export default function TraderPage({
   };
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="h-full min-h-0 w-full overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
+    <motion.div {...PAGE_TRANSITION} className="flex h-screen min-h-0 w-full flex-col overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
+      <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
+        <div>
+          <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
+          <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
+        </div>
+        <div className="text-right">
+          <div className="flex items-center justify-end gap-1">
+            <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
+              {formatPrice(selectedQuote?.price)}
+            </div>
+            {selectedPriceLoading && (
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
+            )}
+          </div>
+          <div
+            className={`flex items-center justify-end gap-1 text-xs font-medium tabular-nums ${
+              Number.isFinite(Number(selectedQuote?.changePercent))
+                ? Number(selectedQuote?.changePercent) >= 0
+                  ? 'text-emerald-400'
+                  : 'text-red-400'
+                : 'text-[#6b7280]'
+            }`}
+          >
+            <span>{formatSignedPercent(selectedQuote?.changePercent)}</span>
+            {selectedDayLoading && (
+              <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
+            )}
+          </div>
+        </div>
+      </div>
+
       <motion.div
         {...sectionMotion(0)}
-        className={`grid h-full min-h-0 grid-cols-1 overflow-hidden transition-[grid-template-columns] duration-200 ease-in-out ${
-          isWatchlistCollapsed ? 'lg:grid-cols-[60px_1fr]' : 'lg:grid-cols-[300px_1fr]'
-        }`}
+        className="flex flex-1 min-h-0 overflow-hidden"
       >
-        <aside className="flex h-full min-h-0 flex-col overflow-hidden border-b border-[#1f1f1f] lg:border-b-0 lg:border-r">
-          <div className={`border-b border-[#1f1f1f] py-3 ${isWatchlistCollapsed ? 'px-2' : 'px-4'}`}>
-            <div className={`flex items-center ${isWatchlistCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
+        <aside
+          className={`${
+            isWatchlistCollapsed ? 'w-[60px]' : 'w-[300px]'
+          } flex h-full min-h-0 shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-[#1f1f1f] transition-[width] duration-200 ease-in-out`}
+        >
+          <div className={`h-[68px] border-b border-[#1f1f1f] py-3 ${isWatchlistCollapsed ? 'px-2' : 'px-4'}`}>
+            <div className={`flex h-full items-center ${isWatchlistCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
               {!isWatchlistCollapsed && (
                 <div className="min-w-0">
                   <h2 className="text-sm font-medium text-white">Watchlist</h2>
@@ -3033,38 +3081,7 @@ export default function TraderPage({
 
         <section className="flex flex-1 min-h-0 overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
-              <div>
-                <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
-                <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
-              </div>
-              <div className="text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
-                    {formatPrice(selectedQuote?.price)}
-                  </div>
-                  {selectedPriceLoading && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
-                  )}
-                </div>
-                <div
-                  className={`flex items-center justify-end gap-1 text-xs font-medium tabular-nums ${
-                    Number.isFinite(Number(selectedQuote?.changePercent))
-                      ? Number(selectedQuote?.changePercent) >= 0
-                        ? 'text-emerald-400'
-                        : 'text-red-400'
-                      : 'text-[#6b7280]'
-                  }`}
-                >
-                  <span>{formatSignedPercent(selectedQuote?.changePercent)}</span>
-                  {selectedDayLoading && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="border-b border-[#1f1f1f] px-4 py-2">
+            <div className="shrink-0 border-b border-[#1f1f1f] px-4 py-2">
               <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
                 {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
                   const isActive = chartTimeframe === timeframe.id;
@@ -3091,7 +3108,7 @@ export default function TraderPage({
             </div>
 
             <div ref={chartAndNewsContainerRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="relative min-h-[260px] flex-1">
+              <div className="relative flex-1 min-h-0 overflow-hidden">
                 <div ref={chartContainerRef} className="h-full w-full" />
 
                 {chartStatus.loading && (
@@ -3121,7 +3138,7 @@ export default function TraderPage({
                 </div>
               </div>
 
-              <div className="min-h-0 shrink-0 overflow-hidden" style={{ height: `${newsPanelHeight}px` }}>
+              <div className="min-h-0 shrink-0 overflow-y-auto" style={{ height: `${newsPanelHeight}px` }}>
                 <ErrorBoundary>
                   <NewsFeedPanel
                     selectedSymbol={selectedTicker}
