@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
 const REFRESH_MS = 5 * 60 * 1000;
+const STORED_HEADLINES_KEY = 'stratify-live-headline-tape-v2';
+const STORED_HEADLINES_MAX_AGE_MS = 1000 * 60 * 60 * 72;
+const MIN_SCROLL_DURATION_SECONDS = 80;
+const PER_ITEM_SCROLL_SECONDS = 6;
 
 const SOURCE_COLORS = [
   { match: /reuters/i, className: 'bg-amber-400' },
@@ -12,50 +16,122 @@ const SOURCE_COLORS = [
   { match: /xai|grok|twitter|x\b/i, className: 'bg-emerald-400' },
 ];
 
-const SYMBOL_COLORS = ['text-emerald-300', 'text-sky-300'];
-
 const getDotClass = (source) => {
   if (!source) return 'bg-emerald-400';
   const match = SOURCE_COLORS.find((entry) => entry.match.test(source));
   return match ? match.className : 'bg-emerald-400';
 };
 
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const toPlainText = (value) => {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => toPlainText(entry))
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+  }
+  if (value && typeof value === 'object') {
+    const preferredKeys = ['text', 'title', 'headline', 'summary', 'description', 'name', 'en'];
+    for (const key of preferredKeys) {
+      const fromKey = toPlainText(value[key]);
+      if (fromKey) return fromKey;
+    }
+    for (const nested of Object.values(value)) {
+      const fromNested = toPlainText(nested);
+      if (fromNested) return fromNested;
+    }
+  }
+  return '';
+};
 
-const highlightSymbols = (text, symbols) => {
+const cleanHeadlineText = (value) => {
+  const text = toPlainText(value).replace(/\s+/g, ' ').trim();
   if (!text) return '';
-  if (!Array.isArray(symbols) || symbols.length === 0) return text;
+  if (/^\[object object\]$/i.test(text)) return '';
+  return text;
+};
 
-  const cleanSymbols = Array.from(
-    new Set(
-      symbols
-        .map((symbol) => String(symbol || '').trim())
-        .filter(Boolean)
-        .map((symbol) => symbol.toUpperCase())
-    )
-  );
+const cleanSourceText = (value) => {
+  const source = toPlainText(value).replace(/\s+/g, ' ').trim();
+  if (!source || /^\[object object\]$/i.test(source)) return 'Marketaux';
+  return source;
+};
 
-  if (cleanSymbols.length === 0) return text;
+const normalizeTickerItems = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => ({
+      text: cleanHeadlineText(item?.text || item?.headline || item?.title || item?.summary),
+      source: cleanSourceText(item?.source || item?.provider || 'Marketaux'),
+      symbols: Array.isArray(item?.symbols)
+        ? item.symbols
+            .map((symbol) => String(symbol || '').trim().toUpperCase())
+            .filter(Boolean)
+        : [],
+      timestamp: item?.timestamp || null,
+    }))
+    .filter((item) => item.text);
+};
 
-  const symbolSet = new Set(cleanSymbols);
-  const pattern = new RegExp(`(\\$?(?:${cleanSymbols.map(escapeRegExp).join('|')}))\\b`, 'gi');
-  const parts = String(text).split(pattern);
+const readStoredHeadlines = () => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORED_HEADLINES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const storedAt = Number(parsed?.storedAt);
+    if (!Number.isFinite(storedAt)) return [];
+    if (Date.now() - storedAt > STORED_HEADLINES_MAX_AGE_MS) return [];
+    return normalizeTickerItems(parsed?.items);
+  } catch {
+    return [];
+  }
+};
 
-  return parts.map((part, idx) => {
-    const normalized = part.replace('$', '').toUpperCase();
-    if (!symbolSet.has(normalized)) return part;
-    const colorClass = SYMBOL_COLORS[normalized.charCodeAt(0) % SYMBOL_COLORS.length];
-    return (
-      <span key={`${normalized}-${idx}`} className={`font-semibold ${colorClass}`}>
-        {part}
-      </span>
+const writeStoredHeadlines = (items) => {
+  if (typeof window === 'undefined') return;
+  const normalized = normalizeTickerItems(items);
+  if (normalized.length === 0) return;
+  try {
+    localStorage.setItem(
+      STORED_HEADLINES_KEY,
+      JSON.stringify({
+        storedAt: Date.now(),
+        items: normalized,
+      }),
     );
-  });
+  } catch {}
+};
+
+const buildFallbackMovementItems = () => {
+  return [
+    {
+      text: 'Waiting for fresh breaking headlines from Marketaux.',
+      source: 'Status',
+      symbols: [],
+      timestamp: null,
+    },
+    {
+      text: 'Showing the latest available market headlines when no breaking headlines are active.',
+      source: 'Marketaux',
+      symbols: [],
+      timestamp: null,
+    },
+    {
+      text: 'Headline tape refreshes every 5 minutes.',
+      source: 'Status',
+      symbols: [],
+      timestamp: null,
+    },
+  ];
 };
 
 const LiveAlertsTicker = () => {
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(() => readStoredHeadlines());
   const [isLoading, setIsLoading] = useState(true);
+  const [badgeLabel, setBadgeLabel] = useState(() => (readStoredHeadlines().length > 0 ? 'LATEST' : 'BREAKING'));
 
   useEffect(() => {
     let isMounted = true;
@@ -64,16 +140,39 @@ const LiveAlertsTicker = () => {
       if (showLoading && isMounted) setIsLoading(true);
 
       try {
-        const response = await fetch('/api/trending');
+        const params = new URLSearchParams();
+        if (showLoading) {
+          params.set('force', 'true');
+        }
+        const query = params.toString();
+        const url = query ? `/api/trending?${query}` : '/api/trending';
+        const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Trending fetch failed: ${response.status}`);
         const data = await response.json();
-        const nextItems = Array.isArray(data?.items) ? data.items : [];
+        const nextItems = normalizeTickerItems(data?.items);
 
         if (isMounted) {
-          setItems(nextItems);
+          if (nextItems.length > 0) {
+            setItems(nextItems);
+            writeStoredHeadlines(nextItems);
+            setBadgeLabel(String(data?.mode || '').includes('breaking') ? 'BREAKING' : 'LATEST');
+          } else {
+            const stored = readStoredHeadlines();
+            if (stored.length > 0) {
+              setItems(stored);
+              setBadgeLabel('LATEST');
+            }
+          }
         }
       } catch (error) {
         console.error('[LiveAlertsTicker] Trending fetch error:', error);
+        if (isMounted) {
+          const stored = readStoredHeadlines();
+          if (stored.length > 0) {
+            setItems(stored);
+            setBadgeLabel('LATEST');
+          }
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -91,12 +190,16 @@ const LiveAlertsTicker = () => {
   const baseItems = useMemo(() => {
     if (items.length > 0) return items;
     if (isLoading) {
-      return [{ text: 'Loading latest news...', source: 'Loading', symbols: [] }];
+      return [{ text: 'Loading breaking headlines...', source: 'Loading', symbols: [] }];
     }
-    return [{ text: 'No headlines available right now.', source: 'Status', symbols: [] }];
+    return buildFallbackMovementItems();
   }, [items, isLoading]);
 
   const allItems = baseItems.length > 0 ? [...baseItems, ...baseItems] : [];
+  const scrollDurationSeconds = useMemo(
+    () => Math.max(MIN_SCROLL_DURATION_SECONDS, Math.round(baseItems.length * PER_ITEM_SCROLL_SECONDS)),
+    [baseItems.length]
+  );
 
   return (
     <div className="relative h-8 overflow-hidden bg-[#151518] border-b border-[#1f1f1f]">
@@ -115,7 +218,7 @@ const LiveAlertsTicker = () => {
           display: inline-flex;
           align-items: center;
           white-space: nowrap;
-          animation: ticker-scroll 500s linear infinite;
+          animation: ticker-scroll ${scrollDurationSeconds}s linear infinite;
         }
         .live-ticker-content:hover {
           animation-play-state: paused;
@@ -129,7 +232,7 @@ const LiveAlertsTicker = () => {
       <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-3 bg-gradient-to-r from-[#151518] via-[#151518] to-transparent">
         <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#1e1e2d] border border-[#2a2a3d] rounded">
           <div className="w-1.5 h-1.5 rounded-full bg-[#00C853] animate-pulse shadow-[0_0_6px_rgba(0,200,83,0.6)]" />
-          <span className="text-[10px] font-semibold text-[#E8EAED] uppercase tracking-wider">LIVE</span>
+          <span className="text-[10px] font-semibold text-[#E8EAED] uppercase tracking-wider">{badgeLabel}</span>
         </div>
       </div>
 
@@ -143,7 +246,7 @@ const LiveAlertsTicker = () => {
               <span key={`${item.text}-${idx}`} className="flex items-center">
                 <span className={`inline-block mr-2 shrink-0 w-1.5 h-1.5 rounded-full ${dotClass}`} />
                 <span className="text-xs font-medium text-[#E8EAED]">
-                  {highlightSymbols(item.text, item.symbols)}
+                  {item.text}
                 </span>
                 <span className="mx-4 text-[#5f6368]">•</span>
               </span>

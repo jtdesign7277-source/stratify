@@ -398,7 +398,7 @@ const SophiaPanel = ({
           </button>
           <button
             onClick={cyclePanel}
-            className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors"
+            className="p-1 text-emerald-300/70 hover:text-emerald-300 transition-colors"
             title="Resize"
           >
             <ChevronsRight className="w-3.5 h-3.5" />

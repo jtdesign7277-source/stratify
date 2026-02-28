@@ -34,12 +34,13 @@ const DEFAULT_TIF = [
   { value: 'ioc', label: 'IOC' },
 ];
 
-export default function AlpacaOrderTicket({
+export default function OrderTicketPanel({
   side = 'buy',
   onSideChange,
   symbol = '',
   onSymbolSubmit,
   marketPrice,
+  positionSummary = null,
   quantity = '',
   onQuantityChange,
   orderType = 'market',
@@ -61,6 +62,7 @@ export default function AlpacaOrderTicket({
   extraFields = null,
   density = 'default',
   tradingMode,
+  surfaceTone = 'default',
   className = '',
 }) {
   const [symbolInput, setSymbolInput] = useState(symbol);
@@ -111,6 +113,7 @@ export default function AlpacaOrderTicket({
   const isTradeDensity = density === 'trade';
   const isCryptoDensity = density === 'crypto';
   const isCompactCryptoSticky = isCryptoDensity && stickyReviewFooter;
+  const isBlackSurface = surfaceTone === 'black';
 
   const panelPaddingClass = isTradeDensity ? 'p-2.5' : isCompactCryptoSticky ? 'p-2' : isCryptoDensity ? 'p-2' : 'p-3';
   const tabTextClass = isCompactCryptoSticky ? 'text-[13px]' : 'text-[14px]';
@@ -143,8 +146,11 @@ export default function AlpacaOrderTicket({
   const reviewButtonText = typeof reviewLabel === 'string' && reviewLabel.trim() ? reviewLabel : 'Review Order';
   const rootLayoutClass = stickyReviewFooter ? 'flex min-h-0 flex-col overflow-hidden' : '';
   const contentLayoutClass = stickyReviewFooter
-    ? `${contentTopClass} ${verticalGapClass} flex-1 min-h-0`
+    ? `${contentTopClass} ${verticalGapClass} flex-1 min-h-0 overflow-y-auto pr-0.5`
     : `${contentTopClass} ${verticalGapClass}`;
+  const panelSurfaceClass = isBlackSurface ? 'bg-[#0b0b0b]' : 'bg-[#0a1628]/95';
+  const controlSurfaceClass = isBlackSurface ? 'bg-[#0b0b0b]' : 'bg-[#050b16]';
+  const controlBorderClass = isBlackSurface ? 'border-[#1f1f1f] focus:border-emerald-500/60' : 'border-[#1f2a3a] focus:border-blue-500/60';
   const accountBadgeToneClass = isLiveMode
     ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
     : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
@@ -153,7 +159,7 @@ export default function AlpacaOrderTicket({
 
   return (
     <div
-      className={`rounded-xl border border-white/10 bg-[#0a1628]/95 ${panelPaddingClass} ${rootLayoutClass} text-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] backdrop-blur ${className}`}
+      className={`rounded-xl border border-white/10 ${panelSurfaceClass} ${panelPaddingClass} ${rootLayoutClass} text-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] backdrop-blur ${className}`}
     >
       <div className="mb-2.5 flex">
         <span
@@ -202,7 +208,7 @@ export default function AlpacaOrderTicket({
               }
             }}
             placeholder="Search by symbol..."
-            className={`${controlHeightClass} w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] ${symbolInputPaddingClass} ${controlTextClass} font-semibold text-white outline-none placeholder:text-gray-500 focus:border-blue-500/60`}
+            className={`${controlHeightClass} w-full rounded-lg border ${controlBorderClass} ${controlSurfaceClass} ${symbolInputPaddingClass} ${controlTextClass} font-semibold text-white outline-none placeholder:text-gray-500`}
           />
         </div>
 
@@ -210,6 +216,8 @@ export default function AlpacaOrderTicket({
           <span className={`${labelTextClass} font-semibold text-slate-200`}>Market Price</span>
           <span className={`${valueTextClass} font-semibold text-white`}>{marketPriceText}</span>
         </div>
+
+        {positionSummary}
 
         <div>
           <label className={`${labelSpacingClass} block ${labelTextClass} font-semibold text-slate-200`}>Quantity</label>
@@ -219,7 +227,7 @@ export default function AlpacaOrderTicket({
             min="0"
             value={activeAmount}
             onChange={(event) => handleAmountChange(event.target.value)}
-            className={`${controlHeightClass} w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 ${controlTextClass} font-semibold text-white outline-none focus:border-blue-500/60`}
+            className={`${controlHeightClass} w-full rounded-lg border ${controlBorderClass} ${controlSurfaceClass} px-3 ${controlTextClass} font-semibold text-white outline-none`}
           />
         </div>
 
@@ -229,7 +237,7 @@ export default function AlpacaOrderTicket({
             <select
               value={orderType}
               onChange={(event) => onOrderTypeChange?.(event.target.value)}
-              className={`${controlHeightClass} w-full appearance-none rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 pr-10 ${controlTextClass} font-semibold text-white outline-none focus:border-blue-500/60`}
+              className={`${controlHeightClass} w-full appearance-none rounded-lg border ${controlBorderClass} ${controlSurfaceClass} px-3 pr-10 ${controlTextClass} font-semibold text-white outline-none`}
             >
               {orderTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -278,7 +286,7 @@ export default function AlpacaOrderTicket({
             <select
               value={timeInForce}
               onChange={(event) => onTimeInForceChange?.(event.target.value)}
-              className={`${controlHeightClass} w-full appearance-none rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 pr-10 ${controlTextClass} font-semibold text-white outline-none focus:border-blue-500/60`}
+              className={`${controlHeightClass} w-full appearance-none rounded-lg border ${controlBorderClass} ${controlSurfaceClass} px-3 pr-10 ${controlTextClass} font-semibold text-white outline-none`}
             >
               {timeInForceOptions.map((option) => (
                 <option key={option.value} value={option.value}>

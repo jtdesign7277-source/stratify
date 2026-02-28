@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
@@ -7,14 +7,12 @@ import {
   Unlink,
   Wallet,
 } from 'lucide-react';
-import * as Grid from '@highcharts/grid-lite';
-import '@highcharts/grid-lite/css/grid-lite.css';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
 import { supabase } from '../../lib/supabaseClient';
 import useTradingMode from '../../hooks/useTradingMode';
 import usePortfolio from '../../hooks/usePortfolio';
+import { usePaperTrading } from '../../hooks/usePaperTrading';
 import { clearAlpacaCache } from '../../services/alpacaService';
-import './PortfolioHighchartsGrid.css';
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -137,13 +135,13 @@ const normalizePosition = (row) => {
   const qty = toNumber(row.qty ?? row.shares ?? row.quantity, 0);
   if (qty <= 0) return null;
 
-  const avgEntry = toNumber(row.avg_entry_price ?? row.avgEntryPrice ?? row.avgCost, 0);
+  const avgEntry = toNumber(row.avg_entry_price ?? row.avgEntryPrice ?? row.avgCost ?? row.avg_cost_basis, 0);
   const current = toNumber(row.current_price ?? row.currentPrice ?? row.price, avgEntry);
   const marketValue = toNumber(row.market_value ?? row.marketValue, qty * current);
   const costBasis = toNumber(row.cost_basis ?? row.costBasis, qty * avgEntry);
   const pnl = toNumber(row.unrealized_pl ?? row.pnl, marketValue - costBasis);
   const pnlPercent = normalizePercent(
-    row.unrealized_plpc ?? row.pnlPercent,
+    row.unrealized_plpc ?? row.pnlPercent ?? row.pnl_percent,
     costBasis > 0 ? (pnl / costBasis) * 100 : 0,
   );
   const dayPercent = normalizePercent(row.change_today ?? row.changeToday, 0);
@@ -285,7 +283,15 @@ const PortfolioPageRebuilt = ({
     switchTradingMode,
     switching,
   } = useTradingMode();
-  const portfolio = usePortfolio({ tradingMode });
+  const livePortfolio = usePortfolio({ tradingMode });
+  const {
+    portfolio: paperPortfolio,
+    trades: paperTrades,
+    loading: paperLoading,
+    error: paperError,
+    fetchPortfolio: fetchPaperPortfolio,
+    fetchTrades: fetchPaperTrades,
+  } = usePaperTrading();
 
   const [showBrokerModal, setShowBrokerModal] = useState(false);
   const [showLiveConfirm, setShowLiveConfirm] = useState(false);
@@ -293,8 +299,6 @@ const PortfolioPageRebuilt = ({
   const [dbConnections, setDbConnections] = useState([]);
   const [dbConnectionsLoaded, setDbConnectionsLoaded] = useState(false);
   const [expandedSymbol, setExpandedSymbol] = useState('');
-  const holdingsGridContainerRef = useRef(null);
-  const holdingsGridRef = useRef(null);
 
   const loadConnections = useCallback(async () => {
     try {
@@ -339,35 +343,43 @@ const PortfolioPageRebuilt = ({
     if (forceFresh) {
       clearAlpacaCache();
     }
-    await Promise.all([
-      portfolio.refresh({ forceFresh }),
-      loadConnections(),
-    ]);
-  }, [portfolio, loadConnections]);
+    const jobs = [loadConnections()];
+    if (isPaper) {
+      jobs.push(fetchPaperPortfolio({ silent: false }));
+      jobs.push(fetchPaperTrades({ limit: 50, offset: 0, silent: false }));
+    } else {
+      jobs.push(livePortfolio.refresh({ forceFresh }));
+    }
+    await Promise.allSettled(jobs);
+  }, [fetchPaperPortfolio, fetchPaperTrades, isPaper, livePortfolio, loadConnections]);
 
-  const account = portfolio.account || {};
-  const equity = toNumber(account.equity ?? account.portfolio_value, 0);
-  const cash = toNumber(account.cash, 0);
-  const buyingPower = toNumber(account.buying_power ?? account.buyingPower, 0);
-  const lastEquity = toNumber(account.last_equity, 0);
-  const dailyPnl = Number.isFinite(Number(account.daily_pnl))
-    ? toNumber(account.daily_pnl, 0)
+  const liveAccount = livePortfolio.account || {};
+  const equity = toNumber(liveAccount.equity ?? liveAccount.portfolio_value, 0);
+  const cash = toNumber(liveAccount.cash, 0);
+  const buyingPower = toNumber(liveAccount.buying_power ?? liveAccount.buyingPower, 0);
+  const lastEquity = toNumber(liveAccount.last_equity, 0);
+  const dailyPnl = Number.isFinite(Number(liveAccount.daily_pnl))
+    ? toNumber(liveAccount.daily_pnl, 0)
     : (equity - lastEquity);
   const dailyPnlPct = lastEquity > 0 ? (dailyPnl / lastEquity) * 100 : 0;
 
   const fallbackAlpacaPositions = Array.isArray(alpacaData?.positions) ? alpacaData.positions : [];
-  const sourcePositions = Array.isArray(portfolio.positions) && portfolio.positions.length > 0
-    ? portfolio.positions
+  const sourceLivePositions = Array.isArray(livePortfolio.positions) && livePortfolio.positions.length > 0
+    ? livePortfolio.positions
     : fallbackAlpacaPositions;
+  const sourcePaperPositions = Array.isArray(paperPortfolio?.positions) ? paperPortfolio.positions : [];
+  const sourcePositions = isPaper ? sourcePaperPositions : sourceLivePositions;
 
   const positions = useMemo(
     () => sourcePositions.map(normalizePosition).filter(Boolean),
     [sourcePositions],
   );
 
-  const portfolioTrades = Array.isArray(portfolio.tradeHistory) ? portfolio.tradeHistory : [];
-  const alpacaTrades = Array.isArray(alpacaData?.trades) ? alpacaData.trades : [];
-  const externalTrades = Array.isArray(propTradeHistory) ? propTradeHistory : [];
+  const portfolioTrades = isPaper
+    ? (Array.isArray(paperTrades) ? paperTrades : [])
+    : (Array.isArray(livePortfolio.tradeHistory) ? livePortfolio.tradeHistory : []);
+  const alpacaTrades = isPaper ? [] : (Array.isArray(alpacaData?.trades) ? alpacaData.trades : []);
+  const externalTrades = isPaper ? [] : (Array.isArray(propTradeHistory) ? propTradeHistory : []);
 
   const strategyNameBySymbol = useMemo(() => {
     const map = {};
@@ -404,14 +416,20 @@ const PortfolioPageRebuilt = ({
   }, [portfolioTrades, alpacaTrades, externalTrades, strategyNameBySymbol]);
 
   const hasLiveConnection = brokers.some((broker) => Boolean(broker.liveConnected || broker.is_paper === false));
-  const hasAnyConnection = brokers.length > 0;
-  const accountEquity = hasAnyConnection ? equity : 0;
-  const accountCash = hasAnyConnection ? cash : 0;
-  const accountBuyingPower = hasAnyConnection ? buyingPower : 0;
-  const accountDailyPnl = hasAnyConnection ? dailyPnl : 0;
-  const accountDailyPnlPct = hasAnyConnection ? dailyPnlPct : 0;
-  const displayedPositions = hasAnyConnection ? positions : [];
-  const displayedTrades = hasAnyConnection ? allTrades : [];
+  const hasAnyConnection = isPaper ? true : brokers.length > 0;
+  const accountEquity = isPaper
+    ? toNumber(paperPortfolio?.total_account_value, 0)
+    : (hasAnyConnection ? equity : 0);
+  const accountCash = isPaper
+    ? toNumber(paperPortfolio?.cash_balance, 0)
+    : (hasAnyConnection ? cash : 0);
+  const accountBuyingPower = isPaper
+    ? toNumber(paperPortfolio?.cash_balance, 0)
+    : (hasAnyConnection ? buyingPower : 0);
+  const accountDailyPnl = isPaper ? 0 : (hasAnyConnection ? dailyPnl : 0);
+  const accountDailyPnlPct = isPaper ? 0 : (hasAnyConnection ? dailyPnlPct : 0);
+  const displayedPositions = isPaper ? positions : (hasAnyConnection ? positions : []);
+  const displayedTrades = isPaper ? allTrades : (hasAnyConnection ? allTrades : []);
 
   const totals = useMemo(() => {
     const marketValue = displayedPositions.reduce((sum, pos) => sum + pos.marketValue, 0);
@@ -425,9 +443,11 @@ const PortfolioPageRebuilt = ({
       pnlPercent: costBasis > 0 ? (pnlTotal / costBasis) * 100 : 0,
     };
   }, [displayedPositions]);
-  const totalPortfolioValue = hasAnyConnection
-    ? (totals.marketValue + accountCash)
-    : accountEquity;
+  const totalPortfolioValue = isPaper
+    ? toNumber(paperPortfolio?.total_account_value, totals.marketValue + accountCash)
+    : (hasAnyConnection ? (totals.marketValue + accountCash) : accountEquity);
+  const totalPnlValue = isPaper ? toNumber(paperPortfolio?.total_pnl, 0) : totals.pnl;
+  const totalPnlPercentValue = isPaper ? toNumber(paperPortfolio?.total_pnl_percent, 0) : totals.pnlPercent;
 
   const tradesBySymbol = useMemo(() => {
     const map = new Map();
@@ -437,108 +457,8 @@ const PortfolioPageRebuilt = ({
     });
     return map;
   }, [displayedTrades]);
-
-  const holdingsGridColumns = useMemo(() => ([
-    { id: 'symbol', width: '6%', header: { format: 'Symbol' }, cells: { className: 'portfolio-col-symbol' } },
-    { id: 'companyName', width: '14%', header: { format: 'Company' }, cells: { className: 'portfolio-col-company' } },
-    { id: 'shares', width: '6%', header: { format: 'Shares' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'avgCostBasis', width: '8%', header: { format: 'Avg Cost' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'currentPrice', width: '8%', header: { format: 'Current' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'marketValue', width: '9%', header: { format: 'Market Value' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'totalCost', width: '9%', header: { format: 'Total Cost' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'unrealizedPnlDollars', width: '10%', header: { format: 'Unrealized $' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'unrealizedPnlPercent', width: '8%', header: { format: 'Unrealized %' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'dayChangeDollars', width: '8%', header: { format: 'Day $' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'dayChangePercent', width: '8%', header: { format: 'Day %' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'weight', width: '6%', header: { format: 'Weight' }, cells: { className: 'portfolio-col-numeric' } },
-  ]), []);
-
-  const holdingsGridDataTable = useMemo(() => {
-    const columns = {
-      symbol: [],
-      companyName: [],
-      shares: [],
-      avgCostBasis: [],
-      currentPrice: [],
-      marketValue: [],
-      totalCost: [],
-      unrealizedPnlDollars: [],
-      unrealizedPnlPercent: [],
-      dayChangeDollars: [],
-      dayChangePercent: [],
-      weight: [],
-    };
-
-    displayedPositions.forEach((position) => {
-      const totalCost = position.avgEntry * position.qty;
-      const weightPct = totals.marketValue > 0 ? (position.marketValue / totals.marketValue) * 100 : 0;
-
-      columns.symbol.push(position.symbol);
-      columns.companyName.push(position.name || position.symbol);
-      columns.shares.push(formatQuantity(position.qty));
-      columns.avgCostBasis.push(formatCurrency(position.avgEntry));
-      columns.currentPrice.push(formatCurrency(position.current));
-      columns.marketValue.push(formatCurrency(position.marketValue));
-      columns.totalCost.push(formatCurrency(totalCost));
-      columns.unrealizedPnlDollars.push(formatSignedCurrency(position.pnl));
-      columns.unrealizedPnlPercent.push(formatSignedPercent(position.pnlPercent));
-      columns.dayChangeDollars.push(formatSignedCurrency(position.dayPnl));
-      columns.dayChangePercent.push(formatSignedPercent(position.dayPercent));
-      columns.weight.push(formatPercent(weightPct));
-    });
-
-    return { columns };
-  }, [displayedPositions, totals.marketValue]);
-
-  useEffect(() => {
-    const container = holdingsGridContainerRef.current;
-    if (!container) return undefined;
-
-    if (holdingsGridRef.current) {
-      holdingsGridRef.current.destroy();
-      holdingsGridRef.current = null;
-    }
-
-    const grid = Grid.grid(container, {
-      dataTable: holdingsGridDataTable,
-      columns: holdingsGridColumns,
-      rendering: {
-        rows: {
-          strictHeights: false,
-        },
-      },
-    });
-
-    holdingsGridRef.current = grid;
-
-    const handleGridRowClick = (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-
-      const row = target.closest('tr[data-row-index]');
-      if (!row) return;
-
-      const rowIndex = Number.parseInt(row.getAttribute('data-row-index') || '', 10);
-      if (!Number.isFinite(rowIndex)) return;
-
-      const symbol = String(grid.presentationTable?.getCell('symbol', rowIndex) || '')
-        .trim()
-        .toUpperCase();
-      if (!symbol) return;
-
-      setExpandedSymbol((previous) => (previous === symbol ? '' : symbol));
-    };
-
-    container.addEventListener('click', handleGridRowClick);
-
-    return () => {
-      container.removeEventListener('click', handleGridRowClick);
-      if (holdingsGridRef.current) {
-        holdingsGridRef.current.destroy();
-        holdingsGridRef.current = null;
-      }
-    };
-  }, [holdingsGridColumns, holdingsGridDataTable]);
+  const activePortfolioLoading = isPaper ? paperLoading : livePortfolio.loading;
+  const activePortfolioError = isPaper ? paperError : livePortfolio.error;
 
   useEffect(() => {
     if (!expandedSymbol) return;
@@ -668,7 +588,7 @@ const PortfolioPageRebuilt = ({
                 transition={interactiveTransition}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/20 px-3 py-1.5 text-xs text-white/80 hover:border-cyan-400/40 hover:text-cyan-200 transition-colors"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${portfolio.loading || switching ? 'animate-spin' : ''}`} strokeWidth={1.6} />
+                <RefreshCw className={`w-3.5 h-3.5 ${activePortfolioLoading || switching ? 'animate-spin' : ''}`} strokeWidth={1.6} />
                 Refresh
               </motion.button>
               <motion.button
@@ -717,13 +637,19 @@ const PortfolioPageRebuilt = ({
               Live
             </motion.button>
             <div className="text-xs text-white/50">
-              {switching ? 'Switching trading mode...' : portfolio.loading ? 'Loading account...' : 'Ready'}
+              {switching ? 'Switching trading mode...' : activePortfolioLoading ? 'Loading account...' : 'Ready'}
             </div>
           </div>
 
           {modeError && (
             <div className="mt-3 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
               {modeError}
+            </div>
+          )}
+
+          {activePortfolioError && (
+            <div className="mt-3 rounded-lg border border-red-400/35 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              {String(activePortfolioError?.message || activePortfolioError)}
             </div>
           )}
         </motion.section>
@@ -796,11 +722,11 @@ const PortfolioPageRebuilt = ({
             {renderMetricCard('Cash Available', formatCurrency(accountCash))}
             {renderMetricCard(
               'Total P&L ($)',
-              formatSignedCurrency(totals.pnl),
+              formatSignedCurrency(totalPnlValue),
               null,
-              totals.pnl >= 0,
+              totalPnlValue >= 0,
             )}
-            {renderMetricCard('Total P&L (%)', formatSignedPercent(totals.pnlPercent))}
+            {renderMetricCard('Total P&L (%)', formatSignedPercent(totalPnlPercentValue))}
             {renderMetricCard(
               "Today's P&L",
               formatSignedCurrency(accountDailyPnl),
@@ -821,18 +747,56 @@ const PortfolioPageRebuilt = ({
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-xl border border-[#243247] bg-[#0b111b] p-2">
-              <div ref={holdingsGridContainerRef} className="portfolio-highcharts-grid" />
-            </div>
-
             {displayedPositions.length === 0 ? (
               <div className="rounded-lg border border-[#1f2632] bg-[#0c111a] px-4 py-3 text-sm text-white/55">
                 No open positions in this account mode yet.
               </div>
             ) : (
-              <div className="text-xs text-white/55">
-                Click a symbol row to view Layer 3 transaction drilldown.
-              </div>
+              <>
+                <div className="overflow-x-auto rounded-xl border border-[#243247] bg-[#0b111b]">
+                  <table className="w-full min-w-[920px] text-xs">
+                    <thead>
+                      <tr className="border-b border-[#1f2632] text-left text-[10px] uppercase tracking-[0.16em] text-white/45">
+                        <th className="px-3 py-2">Symbol</th>
+                        <th className="px-3 py-2 text-right">Quantity</th>
+                        <th className="px-3 py-2 text-right">Avg Cost</th>
+                        <th className="px-3 py-2 text-right">Current Price</th>
+                        <th className="px-3 py-2 text-right">Market Value</th>
+                        <th className="px-3 py-2 text-right">P&amp;L</th>
+                        <th className="px-3 py-2 text-right">P&amp;L %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedPositions.map((position, index) => {
+                        const isPositive = position.pnl >= 0;
+                        return (
+                          <motion.tr
+                            key={position.symbol}
+                            {...listItemMotion(index)}
+                            className="cursor-pointer border-b border-[#1a2230]/70 transition-colors hover:bg-white/5"
+                            onClick={() => setExpandedSymbol((previous) => (previous === position.symbol ? '' : position.symbol))}
+                          >
+                            <td className="px-3 py-2 font-semibold tracking-[0.04em] text-white">{position.symbol}</td>
+                            <td className="px-3 py-2 text-right font-mono text-white/80">{formatQuantity(position.qty)}</td>
+                            <td className="px-3 py-2 text-right font-mono text-white/80">{formatCurrency(position.avgEntry)}</td>
+                            <td className="px-3 py-2 text-right font-mono text-white/80">{formatCurrency(position.current)}</td>
+                            <td className="px-3 py-2 text-right font-mono text-white">{formatCurrency(position.marketValue)}</td>
+                            <td className={`px-3 py-2 text-right font-mono font-semibold ${isPositive ? 'text-emerald-300' : 'text-red-300'}`}>
+                              {formatSignedCurrency(position.pnl)}
+                            </td>
+                            <td className={`px-3 py-2 text-right font-mono font-semibold ${isPositive ? 'text-emerald-300' : 'text-red-300'}`}>
+                              {formatSignedPercent(position.pnlPercent)}
+                            </td>
+                          </motion.tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="text-xs text-white/55">
+                  Click a symbol row to view Layer 3 transaction drilldown.
+                </div>
+              </>
             )}
 
             {expandedSymbol && (

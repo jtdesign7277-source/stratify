@@ -670,8 +670,8 @@ export default function TopMetricsBar({
   }, [clockNow]);
 
   return (
-    <div className={`relative z-20 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
-      <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center justify-between bg-[#0a0f1a]/85">
+    <div className={`relative z-20 ${themeClasses.surfaceElevated} border-b ${themeClasses.border} bg-[#0b0b0b]`}>
+      <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center justify-between bg-[#0b0b0b]">
         <div className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-semibold">
           Global Desk Clock
         </div>
@@ -679,7 +679,7 @@ export default function TopMetricsBar({
           {worldClockData.map((clock) => (
             <div
               key={clock.id}
-              className="h-6 rounded-md border border-[#243046] bg-[#0b1220]/80 px-2.5 flex items-center gap-2"
+              className="h-6 rounded-md border border-[#243046] bg-[#0b0b0b] px-2.5 flex items-center gap-2"
               title={`${clock.city} (${clock.code}) market hours ${clock.hoursLabel}`}
             >
               <span className="text-[10px] uppercase tracking-wide text-white/55 font-semibold">{clock.city}</span>

@@ -70,6 +70,10 @@ const PREFETCH_SCANS = QUICK_SCANS; // Prefetch all 6 scans from Redis on mount
 const CACHE_TTL_MS = 604800000; // 7 days
 const FEED_TIMESTAMP_KEY = 'stratify-war-room-feed-ts';
 const WARROOM_TAB_CACHE_PREFIX = 'warroom_cache_';
+const LIVE_HEADLINE_STORAGE_KEY = 'stratify-live-headline-tape-v2';
+const LIVE_HEADLINE_MAX_AGE_MS = 1000 * 60 * 60 * 72;
+const MAX_LIVE_HEADLINE_ITEMS = 12;
+const LIVE_HEADLINE_REFRESH_MS = 5 * 60 * 1000;
 
 const getFeedTimestamp = () => {
   try { return Number(localStorage.getItem(FEED_TIMESTAMP_KEY)) || 0; } catch { return 0; }
@@ -127,6 +131,156 @@ const clearWarRoomCaches = () => {
     }
     keys.forEach((key) => localStorage.removeItem(key));
   } catch {}
+};
+
+const toPlainHeadlineText = (value, depth = 0) => {
+  if (depth > 3) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => toPlainHeadlineText(entry, depth + 1))
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+  }
+  if (value && typeof value === 'object') {
+    const preferredKeys = ['text', 'title', 'headline', 'summary', 'description', 'name', 'en'];
+    for (const key of preferredKeys) {
+      const fromKey = toPlainHeadlineText(value[key], depth + 1);
+      if (fromKey) return fromKey;
+    }
+    for (const nested of Object.values(value)) {
+      const fromNested = toPlainHeadlineText(nested, depth + 1);
+      if (fromNested) return fromNested;
+    }
+  }
+  return '';
+};
+
+const cleanHeadlineText = (value, max = 260) => {
+  const text = toPlainHeadlineText(value).replace(/\s+/g, ' ').trim();
+  if (!text || /^\[object object\]$/i.test(text)) return '';
+  return text.slice(0, max);
+};
+
+const cleanHeadlineSource = (value) => {
+  const source = cleanHeadlineText(value, 40);
+  return source || 'Marketaux';
+};
+
+const cleanHeadlineSymbols = (value) => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .map((symbol) => String(symbol || '').replace(/[^A-Za-z0-9./-]/g, '').toUpperCase())
+    .filter((symbol) => {
+      if (!symbol || seen.has(symbol)) return false;
+      seen.add(symbol);
+      return true;
+    });
+};
+
+const cleanHeadlineTimestamp = (value) => {
+  if (!value) return new Date().toISOString();
+  if (typeof value === 'number') {
+    const asDate = new Date(value > 1e12 ? value : value * 1000);
+    if (!Number.isNaN(asDate.getTime())) return asDate.toISOString();
+    return new Date().toISOString();
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString();
+  return parsed.toISOString();
+};
+
+const cleanHeadlineUrl = (value) => {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (!/^https?:\/\//i.test(url)) return '';
+  return url;
+};
+
+const normalizeHeadlineItems = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      const text = cleanHeadlineText(item?.text || item?.headline || item?.title || item?.summary);
+      if (!text) return null;
+      return {
+        text,
+        source: cleanHeadlineSource(item?.source || item?.provider),
+        symbols: cleanHeadlineSymbols(item?.symbols),
+        timestamp: cleanHeadlineTimestamp(item?.timestamp || item?.published_at || item?.created_at),
+        url: cleanHeadlineUrl(item?.url || item?.link || item?.href),
+      };
+    })
+    .filter(Boolean);
+};
+
+const headlineToIntelCard = (headline, index) => {
+  const source = cleanHeadlineSource(headline?.source);
+  const text = cleanHeadlineText(headline?.text || headline?.headline || headline?.title, 320);
+  if (!text) return null;
+  const symbols = cleanHeadlineSymbols(headline?.symbols).slice(0, 3);
+  const symbolTag = symbols.length > 0 ? ` · ${symbols.map((symbol) => `$${symbol}`).join(' ')}` : '';
+  const timestamp = cleanHeadlineTimestamp(headline?.timestamp);
+  const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40).replace(/(^-|-$)/g, '') || `item-${index}`;
+  const url = cleanHeadlineUrl(headline?.url);
+
+  return normalizeIntelItem({
+    id: `warroom-live-${slug}-${index}`,
+    title: `${source} Headline${symbolTag}`,
+    query: '',
+    content: text,
+    sources: url ? [{ title: source, url }] : [],
+    sourceLabel: 'Marketaux Live Feed',
+    createdAt: timestamp,
+  });
+};
+
+const buildHeadlineIntelCards = (items) =>
+  normalizeHeadlineItems(items)
+    .slice(0, MAX_LIVE_HEADLINE_ITEMS)
+    .map((headline, index) => headlineToIntelCard(headline, index))
+    .filter(Boolean);
+
+const readStoredHeadlineSnapshot = () => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LIVE_HEADLINE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const storedAt = Number(parsed?.storedAt || 0);
+    if (!storedAt || Date.now() - storedAt > LIVE_HEADLINE_MAX_AGE_MS) return [];
+    return normalizeHeadlineItems(parsed?.items);
+  } catch {
+    return [];
+  }
+};
+
+const mergeIntelFeed = (currentFeed, incomingCards = []) => {
+  const seen = new Set();
+  const merged = [];
+  const push = (card) => {
+    if (!card?.content) return;
+    const key = `${String(card.title || '').toLowerCase()}::${String(card.content || '').toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(card);
+  };
+
+  incomingCards.forEach(push);
+  currentFeed.forEach(push);
+  return merged.slice(0, 50);
+};
+
+const fetchTrendingIntelCards = async (options = {}) => {
+  const force = options?.force === true;
+  const query = force ? '?force=true' : '';
+  const response = await fetch(`/api/trending${query}`, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Trending fetch failed (${response.status})`);
+  const payload = await response.json().catch(() => ({}));
+  return buildHeadlineIntelCards(payload?.items);
 };
 
 const makeScanCard = (label, payload, query = '') =>
@@ -436,7 +590,7 @@ export default function WarRoom({ onClose }) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-load cached scans from Redis on mount for instant War Room data
+  // Auto-load War Room feed from local cache + Redis-backed snapshots for instant first-tab render.
   useEffect(() => {
     const cachedFeed = getWarRoomFeed();
     if (cachedFeed.length > 0 && isFeedFresh()) return; // fresh local cache, skip
@@ -444,22 +598,27 @@ export default function WarRoom({ onClose }) {
     let cancelled = false;
     setPrefetching(true);
 
+    const storedHeadlineCards = buildHeadlineIntelCards(readStoredHeadlineSnapshot());
+    if (storedHeadlineCards.length > 0) {
+      setIntelFeed((prev) => mergeIntelFeed(prev, storedHeadlineCards));
+      setFeedTimestamp();
+    }
+
     const prefetch = async () => {
-      const results = await Promise.allSettled(
-        PREFETCH_SCANS.map((scan) => fetchCachedScan(scan.label))
-      );
+      const [results, headlineCards] = await Promise.all([
+        Promise.allSettled(PREFETCH_SCANS.map((scan) => fetchCachedScan(scan.label))),
+        fetchTrendingIntelCards().catch(() => []),
+      ]);
       if (cancelled) return;
 
-      const newCards = results
+      const cachedScanCards = results
         .filter((r) => r.status === 'fulfilled' && r.value?.content)
         .map((r) => r.value);
+      const liveHeadlineCards = Array.isArray(headlineCards) ? headlineCards.filter((item) => item?.content) : [];
+      const newCards = [...liveHeadlineCards, ...cachedScanCards];
 
       if (newCards.length > 0) {
-        setIntelFeed((prev) => {
-          const existingTitles = new Set(prev.map((c) => c.title));
-          const unique = newCards.filter((c) => !existingTitles.has(c.title));
-          return [...unique, ...prev].slice(0, 50);
-        });
+        setIntelFeed((prev) => mergeIntelFeed(prev, newCards));
         setFeedTimestamp();
       }
 
@@ -484,6 +643,31 @@ export default function WarRoom({ onClose }) {
     prefetch();
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshLiveHeadlines = async (force = false) => {
+      try {
+        const liveCards = await fetchTrendingIntelCards({ force });
+        if (cancelled || liveCards.length === 0) return;
+        setIntelFeed((prev) => mergeIntelFeed(prev, liveCards));
+        setFeedTimestamp();
+      } catch {
+        // Keep existing feed; cached cards and quick scans still render.
+      }
+    };
+
+    refreshLiveHeadlines(false);
+    const interval = setInterval(() => {
+      refreshLiveHeadlines(false);
+    }, LIVE_HEADLINE_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     setWarRoomFeed(intelFeed);

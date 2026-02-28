@@ -1,20 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search, X } from 'lucide-react';
+import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Plus, Search, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
-import AlpacaOrderTicket from './AlpacaOrderTicket';
+import OrderTicketPanel from './OrderTicketPanel';
 import useTradingMode from '../../hooks/useTradingMode';
 import { useSentiment } from '../../hooks/useMarketAux';
-import { fetchAccount, placeOrder } from '../../services/alpacaService';
+import { usePaperTrading } from '../../hooks/usePaperTrading';
 import SentimentBadge from './SentimentBadge';
 import NewsFeedPanel from './NewsFeedPanel';
 import ErrorBoundary from '../shared/AppErrorBoundary';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
-const CHART_CANDLES_ENDPOINT = '/api/chart/candles';
+const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+const withApiBase = (path) => `${API_BASE}${path}`;
+const CHART_CANDLES_ENDPOINT = withApiBase('/api/chart/candles');
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const WATCHLIST_ORDER_STORAGE_KEY = 'watchlist_order';
@@ -24,10 +26,11 @@ const CHART_TIMEFRAME_STORAGE_KEY = 'stratify-trader-chart-timeframe';
 const CHART_VIEWPORT_STORAGE_KEY = 'stratify-trader-chart-viewport';
 const PREVIOUS_CLOSE_CACHE_STORAGE_KEY = 'stratify-trader-prev-close-cache-v1';
 const NEWS_PANEL_HEIGHT_STORAGE_KEY = 'stratify-news-panel-height';
+const NEWS_PANEL_COLLAPSED_STORAGE_KEY = 'stratify-news-panel-collapsed';
 const PREVIOUS_CLOSE_CACHE_TTL_MS = 1000 * 60 * 60 * 48;
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
-const MAX_SYMBOL_SEARCH_RESULTS = 15;
-const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
+const MAX_SYMBOL_SEARCH_RESULTS = 50;
+const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'ASX', 'TSE', 'CRYPTO', 'INDEX'];
 const DEFAULT_ACTIVE_MARKET = 'us';
 const DEFAULT_CHART_TIMEFRAME = '5M';
 const MAX_CHART_OUTPUTSIZE = '5000';
@@ -53,6 +56,19 @@ const MARKET_SYMBOLS = [
   { symbol: '6758.T', name: 'Sony Group Corporation', exchange: 'TSE' },
   { symbol: 'BHP.AX', name: 'BHP Group Limited', exchange: 'ASX' },
   { symbol: 'CBA.AX', name: 'Commonwealth Bank of Australia', exchange: 'ASX' },
+];
+const UNIVERSAL_FALLBACK_SYMBOLS = [
+  ...MARKET_SYMBOLS,
+  { symbol: 'BTC/USD', name: 'Bitcoin / US Dollar', exchange: 'CRYPTO', type: 'Cryptocurrency' },
+  { symbol: 'ETH/USD', name: 'Ethereum / US Dollar', exchange: 'CRYPTO', type: 'Cryptocurrency' },
+  { symbol: 'SOL/USD', name: 'Solana / US Dollar', exchange: 'CRYPTO', type: 'Cryptocurrency' },
+  { symbol: 'XRP/USD', name: 'XRP / US Dollar', exchange: 'CRYPTO', type: 'Cryptocurrency' },
+  { symbol: 'SPX', name: 'S&P 500 Index', exchange: 'INDEX', type: 'Index' },
+  { symbol: 'NDX', name: 'NASDAQ 100 Index', exchange: 'INDEX', type: 'Index' },
+  { symbol: 'DJI', name: 'Dow Jones Industrial Average', exchange: 'INDEX', type: 'Index' },
+  { symbol: 'VIX', name: 'CBOE Volatility Index', exchange: 'INDEX', type: 'Index' },
+  { symbol: 'FTSE', name: 'FTSE 100 Index', exchange: 'INDEX', type: 'Index' },
+  { symbol: 'AXJO', name: 'S&P/ASX 200 Index', exchange: 'INDEX', type: 'Index' },
 ];
 const CHART_TIMEFRAME_OPTIONS = [
   { id: '1M', label: '1M', interval: '1min', outputsize: '320' },
@@ -254,7 +270,7 @@ const scoreSearchEntry = (entry, query) => {
   return 99;
 };
 
-const buildSearchResults = (entries, query, watchlistSet = new Set(), allowedExchanges = null) => {
+const buildSearchResults = (entries, query) => {
   const normalizedQuery = String(query || '').trim();
   if (!normalizedQuery) return [];
 
@@ -263,14 +279,14 @@ const buildSearchResults = (entries, query, watchlistSet = new Set(), allowedExc
 
   entries.forEach((entry) => {
     const symbol = normalizeSymbol(entry?.symbol);
-    if (!symbol || seenSymbols.has(symbol) || watchlistSet.has(symbol)) return;
+    if (!symbol || seenSymbols.has(symbol)) return;
 
     const normalizedEntry = {
       symbol,
       exchange: normalizeExchangeLabel(entry?.exchange),
       name: String(entry?.name || '').trim(),
+      type: String(entry?.type || '').trim(),
     };
-    if (allowedExchanges && !allowedExchanges.has(normalizedEntry.exchange)) return;
 
     const score = scoreSearchEntry(normalizedEntry, normalizedQuery);
     if (score === 99) return;
@@ -302,6 +318,64 @@ const toNumber = (value) => {
   if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const toPaperSymbolKey = (value = '') =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+
+const findPaperPosition = (positions, symbol) => {
+  const rows = Array.isArray(positions) ? positions : [];
+  const targetKey = toPaperSymbolKey(symbol);
+  if (!targetKey) return null;
+  return rows.find((position) => toPaperSymbolKey(position?.symbol) === targetKey) || null;
+};
+
+const formatPaperSymbol = (value = '') => {
+  const normalized = normalizeSymbol(value);
+  if (!normalized) return '$--';
+  if (normalized.includes('/')) return `$${normalized.split('/')[0]}`;
+  if (normalized.endsWith('USD') && normalized.length <= 6) return `$${normalized.slice(0, -3)}`;
+  return `$${normalized}`;
+};
+
+const formatPaperCurrency = (value) => {
+  const parsed = Number(value);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(parsed) ? parsed : 0);
+};
+
+const formatSignedPaperCurrency = (value) => {
+  const parsed = Number(value);
+  const amount = Number.isFinite(parsed) ? parsed : 0;
+  const sign = amount > 0 ? '+' : amount < 0 ? '-' : '';
+  return `${sign}${formatPaperCurrency(Math.abs(amount))}`;
+};
+
+const formatPaperQuantity = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '0';
+  return parsed.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: parsed >= 1000 ? 2 : 6,
+  });
+};
+
+const formatPaperTimestamp = (value) => {
+  const parsed = new Date(value || Date.now());
+  if (Number.isNaN(parsed.getTime())) return '--';
+  return parsed.toLocaleString([], {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 const parseMarketOpen = (value) => {
@@ -704,16 +778,33 @@ const loadInitialNewsPanelHeight = () => {
   return NEWS_PANEL_DEFAULT_HEIGHT;
 };
 
+const loadInitialNewsPanelCollapsed = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(NEWS_PANEL_COLLAPSED_STORAGE_KEY) === 'true';
+  } catch {}
+  return false;
+};
+
 function TraderOrderEntry({
   selectedSymbol,
   lastPrice,
   onSymbolChange,
   onOrderPlaced,
-  tradingMode = 'paper',
-  canUseLiveTrading = true,
+  tradingMode: _tradingMode = 'paper',
+  canUseLiveTrading: _canUseLiveTrading = true,
 }) {
-  const normalizedTradingMode = String(tradingMode || '').toLowerCase() === 'live' ? 'live' : 'paper';
-  const isLiveMode = normalizedTradingMode === 'live';
+  const {
+    portfolio,
+    trades,
+    trading,
+    error,
+    buy,
+    sell,
+    closePosition,
+  } = usePaperTrading();
+  const normalizedTradingMode = 'paper';
+  const isLiveMode = false;
 
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
@@ -725,10 +816,8 @@ function TraderOrderEntry({
   const [trailAmount, setTrailAmount] = useState('');
   const [trailType, setTrailType] = useState('dollars');
   const [timeInForce, setTimeInForce] = useState('day');
-  const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-  const [buyingPowerDisplay, setBuyingPowerDisplay] = useState('$ -');
 
   const referencePrice = useMemo(() => {
     if (orderType === 'market' || orderType === 'trailing_stop') {
@@ -764,144 +853,97 @@ function TraderOrderEntry({
   const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
   const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
   const requiresTrail = orderType === 'trailing_stop';
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchBuyingPower = async () => {
-      try {
-        const payload = await fetchAccount({
-          mode: normalizedTradingMode,
-          forceFresh: true,
-        });
-        if (cancelled) return;
-
-        const buyingPower = payload?.buying_power ?? payload?.cash ?? payload?.buyingPower;
-        const parsed = Number(buyingPower);
-        if (!Number.isFinite(parsed)) return;
-
-        setBuyingPowerDisplay(
-          new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }).format(parsed),
-        );
-      } catch {
-        if (!cancelled) {
-          setBuyingPowerDisplay('$ -');
-        }
-      }
-    };
-
-    fetchBuyingPower();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [normalizedTradingMode]);
+  const positions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
+  const selectedPosition = useMemo(
+    () => findPaperPosition(positions, selectedSymbol),
+    [positions, selectedSymbol]
+  );
+  const hasSelectedPosition = Number(selectedPosition?.quantity) > 0;
+  const recentTrades = useMemo(
+    () => (Array.isArray(trades) ? trades.slice(0, 5) : []),
+    [trades]
+  );
+  const holdings = useMemo(
+    () => (Array.isArray(positions) ? positions.slice(0, 5) : []),
+    [positions]
+  );
+  const buyingPowerDisplay = formatPaperCurrency(portfolio?.cash_balance);
 
   const handleSubmit = () => {
-    if (isLiveMode && !canUseLiveTrading) {
-      alert('Live mode is available for Pro users. Upgrade your plan to place live trades.');
-      return;
-    }
-    if (!selectedSymbol || !hasValidOrderSize) return;
-    if (requiresLimit && (!Number.isFinite(limitPriceNumber) || limitPriceNumber <= 0)) return;
-    if (requiresStop && (!Number.isFinite(stopPriceNumber) || stopPriceNumber <= 0)) return;
-    if (requiresTrail && (!Number.isFinite(trailAmountNumber) || trailAmountNumber <= 0)) return;
+    if (!selectedSymbol || !hasValidOrderSize || trading) return;
     setConfirmModal(true);
   };
 
   const executeOrder = async () => {
-    if (!selectedSymbol) return;
-    if (isLiveMode && !canUseLiveTrading) {
-      alert('Live mode is available for Pro users. Upgrade your plan to place live trades.');
-      return;
-    }
-
-    setSubmitting(true);
+    if (!selectedSymbol || trading) return;
     setConfirmModal(false);
 
-    const normalizedTimeInForce = String(timeInForce || 'day').toLowerCase() === 'day'
-      ? 'gtc'
-      : String(timeInForce || 'gtc').toLowerCase();
-
-    const payload = {
-      symbol: selectedSymbol,
-      side,
-      type: orderType,
-      time_in_force: normalizedTimeInForce,
-    };
-
-    payload.qty = resolvedQuantity;
-    if (sizeMode === 'dollars') {
-      payload.notional = notionalNumber;
-    }
-
-    if (requiresLimit) payload.limit_price = limitPriceNumber;
-    if (requiresStop) payload.stop_price = stopPriceNumber;
-    if (requiresTrail) {
-      if (trailType === 'percent') {
-        payload.trail_percent = trailAmountNumber;
-      } else {
-        payload.trail_price = trailAmountNumber;
-      }
-    }
-
     try {
-      if (!Number.isFinite(payload.qty) || payload.qty <= 0) {
-        delete payload.qty;
+      if (!Number.isFinite(resolvedQuantity) || resolvedQuantity <= 0) {
+        throw new Error('Quantity must be greater than 0.');
       }
-
-      const result = await placeOrder(payload, {
-        mode: normalizedTradingMode,
-      });
+      const result = side === 'sell'
+        ? await sell(selectedSymbol, resolvedQuantity)
+        : await buy(selectedSymbol, resolvedQuantity);
 
       setLastResult('filled');
       setTimeout(() => setLastResult(null), 3000);
       onOrderPlaced?.(result);
-
-      try {
-        const refreshedAccount = await fetchAccount({
-          mode: normalizedTradingMode,
-          forceFresh: true,
-        });
-        const buyingPower = refreshedAccount?.buying_power ?? refreshedAccount?.cash ?? refreshedAccount?.buyingPower;
-        const parsed = Number(buyingPower);
-        if (Number.isFinite(parsed)) {
-          setBuyingPowerDisplay(
-            new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(parsed),
-          );
-        }
-      } catch {
-        // Ignore post-trade balance refresh failures.
+      if (sizeMode === 'shares') {
+        setQuantity('');
+      } else {
+        setDollarAmount('');
       }
     } catch (error) {
       console.error('Order submission error:', error);
-      const errorMsg = error?.message || 'Order rejected';
-      if (errorMsg.includes('not_connected') || errorMsg.toLowerCase().includes('no broker')) {
-        alert(`Order rejected\n\n${isLiveMode ? 'No live broker connected. Connect a live broker in Portfolio.' : 'No paper broker connected. Connect a broker in Portfolio.'}`);
-      } else if (errorMsg.toLowerCase().includes('insufficient')) {
-        alert('Order rejected\n\nInsufficient buying power. Check your account balance.');
-      } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not authorized')) {
-        alert('Order rejected\n\nYour broker credentials may not have trading permissions. Check your broker dashboard.');
-      } else {
-        alert(`Order rejected\n\n${errorMsg}`);
-      }
-
       setLastResult('rejected');
       setTimeout(() => setLastResult(null), 3000);
     }
-
-    setSubmitting(false);
   };
+
+  const handleClosePosition = async () => {
+    if (!selectedSymbol || !hasSelectedPosition || trading) return;
+    try {
+      await closePosition(selectedPosition?.symbol || selectedSymbol);
+      setLastResult('filled');
+      setTimeout(() => setLastResult(null), 3000);
+      onOrderPlaced?.({ symbol: selectedSymbol, side: 'sell', quantity: selectedPosition?.quantity || 0 });
+    } catch (closeError) {
+      console.error('Close position failed:', closeError);
+      setLastResult('rejected');
+      setTimeout(() => setLastResult(null), 3000);
+    }
+  };
+
+  const selectedPositionSymbol = String(selectedPosition?.symbol || selectedSymbol || '').replace('/USD', '');
+  const selectedPositionPnl = Number(selectedPosition?.pnl || 0);
+  const selectedPositionPnlPercent = Number(selectedPosition?.pnl_percent || 0);
+  const selectedPositionPnlClass = selectedPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+  const selectedPositionSummary = hasSelectedPosition ? (
+    <div className="rounded-md border border-white/10 bg-transparent px-2 py-1 text-[11px]">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 space-y-0.5">
+          <div className="truncate text-slate-300">
+            Holding: {formatPaperQuantity(selectedPosition.quantity)} {selectedPositionSymbol}
+          </div>
+          <div className="truncate text-slate-400">
+            Value: {formatPaperCurrency(selectedPosition.market_value)}
+          </div>
+          <div className={`truncate font-semibold ${selectedPositionPnlClass}`}>
+            {formatSignedPaperCurrency(selectedPositionPnl)} ({selectedPositionPnlPercent > 0 ? '+' : ''}{selectedPositionPnlPercent.toFixed(2)}%)
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleClosePosition}
+          disabled={trading}
+          className="shrink-0 rounded border border-red-500/30 px-2 py-0.5 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {trading ? 'Executing...' : 'Sell All'}
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   const fieldClassName =
     'h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60';
@@ -917,12 +959,13 @@ function TraderOrderEntry({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
-      <AlpacaOrderTicket
+      <OrderTicketPanel
         side={side}
         onSideChange={setSide}
         symbol={selectedSymbol ? `$${selectedSymbol}` : ''}
         onSymbolSubmit={handleSymbolSubmit}
         marketPrice={referencePrice}
+        positionSummary={selectedPositionSummary}
         quantity={quantity}
         onQuantityChange={setQuantity}
         orderType={orderType}
@@ -943,11 +986,12 @@ function TraderOrderEntry({
         estimatedCost={estimatedTotal}
         buyingPowerDisplay={buyingPowerDisplay}
         onReview={handleSubmit}
-        reviewDisabled={submitting || !selectedSymbol || !hasValidOrderSize || (isLiveMode && !canUseLiveTrading)}
-        reviewLabel={submitting ? 'Submitting...' : `Review ${isLiveMode ? 'Live' : 'Paper'} Order`}
+        reviewDisabled={trading || !selectedSymbol || !hasValidOrderSize}
+        reviewLabel={trading ? 'Executing...' : `Review ${side.toUpperCase()} Order`}
         density="crypto"
+        surfaceTone="black"
         stickyReviewFooter
-        className="flex-1 min-h-0"
+        className="shrink-0"
         extraFields={
           <div className="space-y-1">
             {(orderType === 'limit' || orderType === 'stop_limit') && (
@@ -1019,11 +1063,14 @@ function TraderOrderEntry({
                 Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedSymbol || '--'}
               </div>
             )}
+            <div className="text-[11px] text-slate-400">
+              Paper trades execute as market orders at the live quote.
+            </div>
           </div>
         }
       />
 
-      <div className="px-2">
+      <div className="mt-1 min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
         {lastResult && (
           <div
             className="animate-pulse rounded-lg py-2 text-center text-xs font-semibold"
@@ -1036,6 +1083,57 @@ function TraderOrderEntry({
             {lastResult === 'filled' ? 'Order Filled' : lastResult === 'rejected' ? 'Order Rejected' : 'Connection Error'}
           </div>
         )}
+
+        {error ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-xs text-red-300">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="flex items-center justify-between">
+            <span className="uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
+            <span className="font-semibold text-white">{buyingPowerDisplay}</span>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+            Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
+          </div>
+          {holdings.length > 0 ? (
+            <div className="mt-0.5 space-y-0.5">
+              {holdings.map((position) => (
+                <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-300">
+                    {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
+                  </span>
+                  <span className={Number(position.pnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {formatPaperCurrency(position.pnl)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+            Recent Trades {recentTrades.length ? `(${recentTrades.length})` : '(0)'}
+          </div>
+          {recentTrades.length > 0 ? (
+            <div className="mt-0.5 space-y-0.5">
+              {recentTrades.map((trade) => (
+                <div key={`paper-trade-${trade.id}`} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-300">
+                    {trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}
+                  </span>
+                  <span className="text-slate-500">{formatPaperTimestamp(trade.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <AnimatePresence>
@@ -1053,19 +1151,7 @@ function TraderOrderEntry({
                 Confirm {isLiveMode ? 'Live' : 'Paper'} Order
               </div>
               <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedSymbol || '--'} @ {
-                  orderType === 'market'
-                    ? 'MARKET'
-                    : orderType === 'limit'
-                      ? `$${limitPrice}`
-                      : orderType === 'stop'
-                        ? `STOP $${stopPrice}`
-                        : orderType === 'stop_limit'
-                          ? `STOP $${stopPrice} / LIMIT $${limitPrice}`
-                          : trailType === 'percent'
-                            ? `TRAIL ${trailAmount}%`
-                            : `TRAIL $${trailAmount}`
-                }
+                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {formatPaperSymbol(selectedSymbol)} @ MARKET
               </div>
               {sizeMode === 'dollars' && (
                 <div className="mt-1 text-[10px]" style={{ color: 'rgba(148, 163, 184, 0.45)' }}>
@@ -1090,6 +1176,7 @@ function TraderOrderEntry({
               <motion.button
                 type="button"
                 onClick={executeOrder}
+                disabled={trading}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 transition={interactiveTransition}
@@ -1100,7 +1187,7 @@ function TraderOrderEntry({
                   border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
                 }}
               >
-                Confirm {side.toUpperCase()} {isLiveMode ? '(LIVE)' : '(PAPER)'}
+                {trading ? 'Executing...' : `Confirm ${side.toUpperCase()} (PAPER)`}
               </motion.button>
             </div>
             </motion.div>
@@ -1122,7 +1209,11 @@ export default function TraderPage({
     ? canUseLiveTradingOverride
     : tradingModeState.canUseLiveTrading;
 
-  const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY;
+  const apiKey =
+    import.meta.env.VITE_TWELVE_DATA_API_KEY
+    || import.meta.env.VITE_TWELVEDATA_API_KEY
+    || import.meta.env.VITE_TWELVE_DATA_APIKEY
+    || '';
   const initialWatchlist = useMemo(() => loadInitialWatchlist(), []);
   const initialPreviousCloseCache = useMemo(() => loadPreviousCloseCache(), []);
 
@@ -1154,6 +1245,7 @@ export default function TraderPage({
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   const [newsPanelHeight, setNewsPanelHeight] = useState(() => loadInitialNewsPanelHeight());
+  const [isNewsPanelCollapsed, setIsNewsPanelCollapsed] = useState(() => loadInitialNewsPanelCollapsed());
   const [isResizingNewsPanel, setIsResizingNewsPanel] = useState(false);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -1179,6 +1271,7 @@ export default function TraderPage({
   const reconnectAttemptsRef = useRef(0);
   const closedByUserRef = useRef(false);
   const subscribedSymbolsRef = useRef(new Set());
+  const streamSubscriptionRef = useRef(new Set(initialWatchlist));
   const watchlistRef = useRef(new Set(initialWatchlist));
   const selectedSymbolRef = useRef(normalizeSymbol(selectedSymbol));
   const previousCloseCacheRef = useRef(initialPreviousCloseCache);
@@ -1195,14 +1288,30 @@ export default function TraderPage({
   const newsPanelResizeStartYRef = useRef(0);
   const newsPanelResizeStartHeightRef = useRef(NEWS_PANEL_DEFAULT_HEIGHT);
   const newsPanelHeightRef = useRef(newsPanelHeight);
-  const activeMarketExchanges = useMemo(() => {
-    const market = MARKET_FILTER_BY_ID[activeMarket] || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET];
-    return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
-  }, [activeMarket]);
+  const lastExpandedNewsPanelHeightRef = useRef(newsPanelHeight);
   const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
   const watchlistSymbols = useMemo(
     () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))],
     [watchlist]
+  );
+  const searchResultSymbols = useMemo(
+    () => [...new Set(searchResults.map((result) => normalizeSymbol(result?.symbol)).filter(Boolean))],
+    [searchResults]
+  );
+  const streamSubscriptionSymbols = useMemo(() => {
+    const next = [...watchlistSymbols];
+    if (isSearchDropdownOpen) {
+      next.push(...searchResultSymbols);
+    }
+    return [...new Set(next)];
+  }, [isSearchDropdownOpen, searchResultSymbols, watchlistSymbols]);
+  const streamSubscriptionKey = useMemo(
+    () => [...streamSubscriptionSymbols].sort().join(','),
+    [streamSubscriptionSymbols]
+  );
+  const searchResultSymbolSetKey = useMemo(
+    () => [...searchResultSymbols].sort().join(','),
+    [searchResultSymbols]
   );
   const watchlistSymbolSetKey = useMemo(
     () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))].sort().join(','),
@@ -1225,13 +1334,40 @@ export default function TraderPage({
     newsPanelHeightRef.current = newsPanelHeight;
   }, [newsPanelHeight]);
 
+  useEffect(() => {
+    if (!isNewsPanelCollapsed) {
+      lastExpandedNewsPanelHeightRef.current = newsPanelHeight;
+    }
+  }, [isNewsPanelCollapsed, newsPanelHeight]);
+
   const handleNewsPanelResizeStart = useCallback((event) => {
+    if (isNewsPanelCollapsed) return;
     if (event.button !== 0) return;
     event.preventDefault();
     newsPanelResizeStartYRef.current = event.clientY;
     newsPanelResizeStartHeightRef.current = newsPanelHeight;
     setIsResizingNewsPanel(true);
-  }, [newsPanelHeight]);
+  }, [isNewsPanelCollapsed, newsPanelHeight]);
+
+  const toggleNewsPanelCollapsed = useCallback(() => {
+    if (isNewsPanelCollapsed) {
+      const containerHeight = chartAndNewsContainerRef.current?.getBoundingClientRect()?.height;
+      const restoredHeight = clampNewsPanelHeight(lastExpandedNewsPanelHeightRef.current || NEWS_PANEL_DEFAULT_HEIGHT, containerHeight);
+      setNewsPanelHeight(restoredHeight);
+      newsPanelHeightRef.current = restoredHeight;
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(NEWS_PANEL_HEIGHT_STORAGE_KEY, String(restoredHeight));
+        } catch {}
+      }
+      setIsNewsPanelCollapsed(false);
+      return;
+    }
+
+    lastExpandedNewsPanelHeightRef.current = newsPanelHeightRef.current || newsPanelHeight || NEWS_PANEL_DEFAULT_HEIGHT;
+    setIsResizingNewsPanel(false);
+    setIsNewsPanelCollapsed(true);
+  }, [clampNewsPanelHeight, isNewsPanelCollapsed, newsPanelHeight]);
 
   useEffect(() => {
     if (!isResizingNewsPanel) return undefined;
@@ -1503,6 +1639,11 @@ export default function TraderPage({
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    localStorage.setItem(NEWS_PANEL_COLLAPSED_STORAGE_KEY, isNewsPanelCollapsed ? 'true' : 'false');
+  }, [isNewsPanelCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     localStorage.setItem(ACTIVE_MARKET_STORAGE_KEY, activeMarket);
   }, [activeMarket]);
 
@@ -1528,6 +1669,10 @@ export default function TraderPage({
   }, [watchlist, selectedSymbol, hydrateQuotesFromCache, syncWatchlistValueLoadingState]);
 
   useEffect(() => {
+    streamSubscriptionRef.current = new Set(streamSubscriptionSymbols);
+  }, [streamSubscriptionSymbols]);
+
+  useEffect(() => {
     if (!isSearchDropdownOpen || typeof window === 'undefined') return undefined;
 
     const handlePointerDown = (event) => {
@@ -1550,8 +1695,16 @@ export default function TraderPage({
       return undefined;
     }
 
-    const watchlistSet = new Set(watchlist.map(normalizeSymbol).filter(Boolean));
-    const fallbackMatches = buildSearchResults(MARKET_SYMBOLS, query, watchlistSet, activeMarketExchanges);
+    const fallbackMatches = buildSearchResults(UNIVERSAL_FALLBACK_SYMBOLS, query);
+    const manualSymbol = normalizeSymbol(query);
+    const manualEntry = manualSymbol
+      ? {
+          symbol: manualSymbol,
+          exchange: 'CUSTOM',
+          name: `Add $${manualSymbol}`,
+          type: 'Manual',
+        }
+      : null;
     setSearchResults([]);
     setIsSearchDropdownOpen(true);
     setIsSearchLoading(true);
@@ -1562,35 +1715,94 @@ export default function TraderPage({
 
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/symbol-search?query=${encodeURIComponent(query)}`, {
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        const payload = await response.json().catch(() => ({ data: [] }));
+        let apiMatches = [];
+
+        try {
+          const response = await fetch(
+            withApiBase(`/api/symbol-search?query=${encodeURIComponent(query)}&q=${encodeURIComponent(query)}`),
+            {
+              cache: 'no-store',
+              signal: controller.signal,
+            }
+          );
+          const payload = await response.json().catch(() => ({ data: [] }));
+
+          if (controller.signal.aborted || searchRequestRef.current !== requestId) return;
+
+          if (response.ok) {
+            const rows = Array.isArray(payload?.data) ? payload.data : [];
+            apiMatches = rows.map((item) => ({
+              symbol: item?.symbol,
+              exchange: item?.exchange,
+              name: item?.name || item?.instrument_name || item?.description,
+              type: item?.type || item?.instrument_type || item?.asset_type,
+            }));
+          }
+        } catch {}
+
+        if (apiMatches.length === 0) {
+          try {
+            const legacyResponse = await fetch(
+              withApiBase(`/api/stock/search?q=${encodeURIComponent(query)}`),
+              {
+                cache: 'no-store',
+                signal: controller.signal,
+              }
+            );
+            const legacyPayload = await legacyResponse.json().catch(() => ({}));
+            if (legacyResponse.ok) {
+              const legacyRows = Array.isArray(legacyPayload?.results) ? legacyPayload.results : [];
+              apiMatches = legacyRows.map((item) => ({
+                symbol: item?.symbol,
+                exchange: item?.exchange,
+                name: item?.name || item?.description,
+                type: item?.type || item?.quoteType || item?.asset_type,
+              }));
+            }
+          } catch {}
+        }
+
+        if (apiMatches.length === 0 && apiKey) {
+          const directResponse = await fetch(
+            `https://api.twelvedata.com/symbol_search?symbol=${encodeURIComponent(query)}&outputsize=120&apikey=${encodeURIComponent(apiKey)}`,
+            {
+              cache: 'no-store',
+              signal: controller.signal,
+            }
+          );
+
+          const directPayload = await directResponse.json().catch(() => ({}));
+          if (directResponse.ok && directPayload?.status !== 'error') {
+            const directRows = Array.isArray(directPayload?.data) ? directPayload.data : [];
+            apiMatches = directRows.map((item) => ({
+              symbol: item?.symbol,
+              exchange: item?.exchange,
+              name: item?.instrument_name || item?.name || item?.description,
+              type: item?.instrument_type || item?.type || item?.asset_type,
+            }));
+          }
+        }
 
         if (controller.signal.aborted || searchRequestRef.current !== requestId) return;
 
-        if (!response.ok) {
-          throw new Error(payload?.error || 'Symbol search failed');
-        }
-
-        const rows = Array.isArray(payload?.data) ? payload.data : [];
-        const apiMatches = rows.map((item) => ({
-          symbol: item?.symbol,
-          exchange: item?.exchange,
-          name: item?.name || item?.instrument_name || item?.description,
-        }));
-
-        const apiResults = buildSearchResults(
-          apiMatches,
-          query,
-          watchlistSet,
-          activeMarketExchanges
+        const mergedResults = buildSearchResults(
+          [...apiMatches, ...UNIVERSAL_FALLBACK_SYMBOLS, ...(manualEntry ? [manualEntry] : [])],
+          query
         );
-        setSearchResults(apiResults);
+        if (mergedResults.length > 0) {
+          setSearchResults(mergedResults);
+        } else if (manualEntry) {
+          setSearchResults([manualEntry]);
+        } else {
+          setSearchResults(fallbackMatches);
+        }
       } catch (error) {
         if (error?.name !== 'AbortError') {
-          setSearchResults(fallbackMatches);
+          if (manualEntry) {
+            setSearchResults([...fallbackMatches, manualEntry]);
+          } else {
+            setSearchResults(fallbackMatches);
+          }
         }
       } finally {
         if (!controller.signal.aborted && searchRequestRef.current === requestId) {
@@ -1603,7 +1815,7 @@ export default function TraderPage({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [activeMarketExchanges, symbolInput, watchlist]);
+  }, [apiKey, symbolInput]);
 
   const selectedQuote = selectedSymbol ? quotesBySymbol[selectedSymbol] : null;
   const selectedQuoteIsPlaceholder = selectedQuote?.isPlaceholder === true;
@@ -1675,7 +1887,7 @@ export default function TraderPage({
 
     try {
       const params = new URLSearchParams({ symbols: symbols.join(',') });
-      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const response = await fetch(withApiBase(`/api/stocks?${params.toString()}`), { cache: 'no-store' });
       const payload = await response.json().catch(() => []);
       if (!response.ok) return;
 
@@ -2132,16 +2344,15 @@ export default function TraderPage({
   }, [chartReady, chartTimeframe, selectedSymbol, loadCandles]);
 
   useEffect(() => {
-    const symbols = watchlist.map(normalizeSymbol).filter(Boolean);
-    const nextWatchlistSet = new Set(symbols);
-    watchlistRef.current = nextWatchlistSet;
+    const symbols = streamSubscriptionSymbols;
+    const nextStreamSet = new Set(symbols);
 
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
     const subscribed = subscribedSymbolsRef.current;
     const toSubscribe = symbols.filter((symbol) => !subscribed.has(symbol));
-    const toUnsubscribe = [...subscribed].filter((symbol) => !nextWatchlistSet.has(symbol));
+    const toUnsubscribe = [...subscribed].filter((symbol) => !nextStreamSet.has(symbol));
 
     if (toSubscribe.length > 0) {
       ws.send(
@@ -2162,12 +2373,18 @@ export default function TraderPage({
       );
       toUnsubscribe.forEach((symbol) => subscribed.delete(symbol));
     }
-  }, [watchlist]);
+  }, [streamSubscriptionKey, streamSubscriptionSymbols]);
 
   useEffect(() => {
     if (!watchlistSymbolSetKey) return;
     void fetchQuoteSnapshot();
   }, [watchlistSymbolSetKey, fetchQuoteSnapshot]);
+
+  useEffect(() => {
+    if (!isSearchDropdownOpen) return;
+    if (!searchResultSymbolSetKey) return;
+    void fetchQuoteSnapshot(searchResultSymbols);
+  }, [fetchQuoteSnapshot, isSearchDropdownOpen, searchResultSymbolSetKey, searchResultSymbols]);
 
   useEffect(() => {
     if (!apiKey) {
@@ -2437,7 +2654,7 @@ export default function TraderPage({
           error: '',
         });
 
-        const symbols = [...watchlistRef.current];
+        const symbols = [...streamSubscriptionRef.current];
         if (symbols.length > 0) {
           ws.send(
             JSON.stringify({
@@ -2693,9 +2910,10 @@ export default function TraderPage({
       : streamStatus.retryCount > 0
         ? `Reconnecting (${streamStatus.retryCount})`
         : 'Disconnected';
+  const activeStreamSymbolCount = streamSubscriptionSymbols.length;
   const extendedHoursStatus = getExtendedHoursStatus();
   const orderTicketStyle = {
-    background: '#060d18',
+    background: '#0b0b0b',
     border: '1px solid rgba(255, 255, 255, 0.06)',
   };
 
@@ -2734,12 +2952,12 @@ export default function TraderPage({
 
       <motion.div
         {...sectionMotion(0)}
-        className="flex flex-1 min-h-0 overflow-hidden"
+        className="flex flex-1 min-h-0 gap-2 overflow-hidden p-2"
       >
         <aside
           className={`${
             isWatchlistCollapsed ? 'w-[60px]' : 'w-[300px]'
-          } flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden border-r border-[#1f1f1f] transition-[width] duration-200 ease-in-out`}
+          } flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0b] transition-[width] duration-200 ease-in-out`}
         >
           <div className={`h-[68px] border-b border-[#1f1f1f] py-3 ${isWatchlistCollapsed ? 'px-2' : 'px-4'}`}>
             <div className={`flex h-full items-center ${isWatchlistCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
@@ -2755,13 +2973,17 @@ export default function TraderPage({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 transition={interactiveTransition}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-[#1f1f1f] bg-[#0f1012] text-[#9ca3af] transition-colors hover:border-[#374151] hover:text-white"
+                className={`inline-flex h-8 w-8 shrink-0 items-center justify-center border transition-colors ${
+                  isWatchlistCollapsed
+                    ? 'border-transparent bg-transparent text-emerald-300 hover:text-emerald-200'
+                    : 'border-transparent bg-transparent text-emerald-300/70 hover:text-emerald-300'
+                }`}
                 aria-label={isWatchlistCollapsed ? 'Expand watchlist' : 'Collapse watchlist'}
               >
                 {isWatchlistCollapsed ? (
-                  <ChevronsRight className="h-4 w-4" strokeWidth={1.8} />
+                  <ChevronsRight className="h-4 w-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" strokeWidth={1.8} />
                 ) : (
-                  <ChevronsLeft className="h-4 w-4" strokeWidth={1.8} />
+                  <ChevronsLeft className="h-4 w-4 text-emerald-300/70" strokeWidth={1.8} />
                 )}
               </motion.button>
             </div>
@@ -2801,37 +3023,58 @@ export default function TraderPage({
                     onFocus={() => {
                       if (symbolInput.trim()) setIsSearchDropdownOpen(true);
                     }}
-                    placeholder="Search symbols in selected market..."
+                    placeholder="Search stocks, crypto, indices..."
                     autoComplete="off"
                     className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
                   />
                   {isSearchDropdownOpen && symbolInput.trim() && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
                       {isSearchLoading ? (
                         <div className="px-3 py-2 text-xs text-[#7c8087]">Searching...</div>
                       ) : searchResults.length === 0 ? (
                         <div className="px-3 py-2 text-xs text-[#7c8087]">No matching symbols.</div>
                       ) : (
-                        searchResults.map((result, index) => (
-                          <motion.button
-                            key={`${result.symbol}-${result.exchange}`}
-                            type="button"
-                            {...listItemMotion(index)}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
-                            onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
-                            className="flex h-10 w-full items-center justify-between border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
-                          >
-                            <span className="truncate text-sm text-white">
-                              <span className="font-medium">${result.symbol}</span>
-                              <span className="ml-1 text-[#7c8087]">
-                                {'\u2014'} {result.name || result.symbol} ({result.exchange || 'Market'})
+                        searchResults.map((result, index) => {
+                          const normalized = normalizeSymbol(result?.symbol);
+                          const liveQuote = normalized ? quotesBySymbol[normalized] : null;
+                          const livePrice = toNumber(liveQuote?.price);
+                          const liveChangePercent = toNumber(liveQuote?.changePercent);
+
+                          return (
+                            <motion.button
+                              key={`${result.symbol}-${result.exchange}`}
+                              type="button"
+                              {...listItemMotion(index)}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
+                              onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
+                              className="flex h-10 w-full items-center justify-between gap-2 border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
+                            >
+                              <span className="truncate text-sm text-white">
+                                <span className="font-medium">${result.symbol}</span>
+                                <span className="ml-1 text-[#7c8087]">
+                                  {'\u2014'} {result.name || result.symbol} ({result.exchange || 'Market'}{result.type ? ` · ${result.type}` : ''})
+                                </span>
                               </span>
-                            </span>
-                            <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
-                          </motion.button>
-                        ))
+                              <div className="ml-2 flex shrink-0 items-center gap-2">
+                                {Number.isFinite(livePrice) && (
+                                  <span className="text-[11px] font-mono text-white/85">{formatPrice(livePrice)}</span>
+                                )}
+                                {Number.isFinite(liveChangePercent) && (
+                                  <span
+                                    className={`text-[10px] font-semibold ${
+                                      liveChangePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                    }`}
+                                  >
+                                    {formatSignedPercent(liveChangePercent)}
+                                  </span>
+                                )}
+                                <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
+                              </div>
+                            </motion.button>
+                          );
+                        })
                       )}
                     </div>
                   )}
@@ -2844,7 +3087,7 @@ export default function TraderPage({
                   {streamStatus.error ? (
                     <span className="text-red-400">{streamStatus.error}</span>
                   ) : (
-                    <span className="text-emerald-400">{watchlist.length} symbols</span>
+                    <span className="text-emerald-400">{activeStreamSymbolCount} symbols</span>
                   )}
                 </div>
 
@@ -3095,8 +3338,8 @@ export default function TraderPage({
           )}
         </aside>
 
-        <section className="flex flex-1 min-h-0 overflow-hidden">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <section className="flex flex-1 min-h-0 gap-2 overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0b]">
             <div className="shrink-0 border-b border-[#1f1f1f] px-4 py-2">
               <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
                 {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
@@ -3143,25 +3386,58 @@ export default function TraderPage({
               <div
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label="Resize news panel"
-                onMouseDown={handleNewsPanelResizeStart}
-                className="flex h-[10px] shrink-0 cursor-row-resize items-center justify-center bg-white/5 transition hover:bg-white/10"
+                aria-label={isNewsPanelCollapsed ? 'Expand news panel' : 'Resize news panel'}
+                onMouseDown={isNewsPanelCollapsed ? undefined : handleNewsPanelResizeStart}
+                className={`relative flex h-[12px] shrink-0 items-center justify-center ${
+                  isNewsPanelCollapsed ? '' : 'cursor-row-resize bg-white/5 transition hover:bg-white/10'
+                }`}
               >
-                <div className="flex items-center gap-1">
-                  <span className="h-1 w-1 rounded-full bg-white/45" />
-                  <span className="h-1 w-1 rounded-full bg-white/45" />
-                  <span className="h-1 w-1 rounded-full bg-white/45" />
-                </div>
+                {!isNewsPanelCollapsed && (
+                  <div className="flex items-center gap-1">
+                    <span className="h-1 w-1 rounded-full bg-white/45" />
+                    <span className="h-1 w-1 rounded-full bg-white/45" />
+                    <span className="h-1 w-1 rounded-full bg-white/45" />
+                  </div>
+                )}
+
+                <motion.button
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.stopPropagation();
+                  }}
+                  onClick={toggleNewsPanelCollapsed}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
+                  className={`absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors ${
+                    isNewsPanelCollapsed
+                      ? 'text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]'
+                      : 'text-emerald-300/70 hover:text-emerald-300'
+                  }`}
+                  title={isNewsPanelCollapsed ? 'Expand news panel' : 'Collapse news panel'}
+                  aria-label={isNewsPanelCollapsed ? 'Expand news panel' : 'Collapse news panel'}
+                >
+                  {isNewsPanelCollapsed ? (
+                    <ChevronsUp className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  ) : (
+                    <ChevronsDown className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  )}
+                </motion.button>
               </div>
 
-              <div className="min-h-0 shrink-0 overflow-y-auto" style={{ height: `${newsPanelHeight}px` }}>
-                <ErrorBoundary>
-                  <NewsFeedPanel
-                    selectedSymbol={selectedTicker}
-                    onSymbolChange={setSelectedTicker}
-                    className="h-full min-h-0 overflow-hidden"
-                  />
-                </ErrorBoundary>
+              <div
+                className="min-h-0 shrink-0 overflow-hidden transition-[height] duration-200"
+                style={{ height: isNewsPanelCollapsed ? 0 : `${newsPanelHeight}px` }}
+              >
+                <div className="h-full overflow-y-auto">
+                  <ErrorBoundary>
+                    <NewsFeedPanel
+                      selectedSymbol={selectedTicker}
+                      onSymbolChange={setSelectedTicker}
+                      className="h-full min-h-0 overflow-hidden"
+                    />
+                  </ErrorBoundary>
+                </div>
               </div>
             </div>
           </div>
@@ -3182,21 +3458,20 @@ export default function TraderPage({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   transition={interactiveTransition}
-                  className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10 pointer-events-auto relative z-20"
+                  className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:text-emerald-200 pointer-events-auto relative z-20"
                   style={{
-                    color: 'rgba(148, 163, 184, 0.6)',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    color: 'rgba(110, 231, 183, 0.92)',
+                    background: 'transparent',
                   }}
                   title="Expand order entry panel"
                   aria-label="Expand order entry panel"
                 >
-                  <ChevronsRight className="mx-auto h-3.5 w-3.5 pointer-events-none" strokeWidth={1.7} />
+                  <ChevronsLeft className="mx-auto h-3.5 w-3.5 pointer-events-none animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" strokeWidth={1.7} />
                 </motion.button>
                 <div
                   className="text-[9px] font-bold uppercase tracking-[0.2em]"
                   style={{
-                    color: 'rgba(96, 165, 250, 0.75)',
+                    color: 'rgba(110, 231, 183, 0.75)',
                     writingMode: 'vertical-rl',
                     textOrientation: 'mixed',
                   }}
@@ -3224,11 +3499,11 @@ export default function TraderPage({
                       whileTap={{ scale: 0.98 }}
                       transition={interactiveTransition}
                       className="flex h-7 w-7 items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer"
-                      style={{ color: 'rgba(148, 163, 184, 0.55)' }}
+                      style={{ color: 'rgba(110, 231, 183, 0.65)' }}
                       title="Collapse order entry panel"
                       aria-label="Collapse order entry panel"
                     >
-                      <ChevronsLeft className="h-4 w-4" strokeWidth={1.7} />
+                      <ChevronsLeft className="h-4 w-4 text-emerald-300/70" strokeWidth={1.7} />
                     </motion.button>
                   </div>
                 </div>

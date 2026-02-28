@@ -211,15 +211,19 @@ const Sidebar = ({
 
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide text-white hover:bg-emerald-500/10 transition-all duration-200 hover:-translate-y-0.5 border border-white/10 hover:border-emerald-400/40 ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
+            collapsed
+              ? 'text-emerald-300 hover:text-emerald-200'
+              : 'text-emerald-300/70 hover:text-emerald-300'
+          } ${
             collapsed ? 'justify-center px-2' : ''
           }`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
-            <ChevronsRight className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
+            <ChevronsRight className="w-[18px] h-[18px] flex-shrink-0 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" strokeWidth={1.5} />
           ) : (
-            <ChevronsLeft className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
+            <ChevronsLeft className="w-[18px] h-[18px] flex-shrink-0 text-emerald-300/70" strokeWidth={1.5} />
           )}
           {!collapsed && (
             <span className="whitespace-nowrap overflow-hidden">
