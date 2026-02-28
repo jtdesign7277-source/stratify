@@ -2133,8 +2133,8 @@ export default function Dashboard({
           <ChevronUp className="h-4 w-4" strokeWidth={1.5} />
         </motion.button>
       </motion.div>
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar 
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <Sidebar
           expanded={sidebarExpanded}
           onToggle={(val) => setSidebarExpanded(val)}
           activeTab={activeTab}
@@ -2168,7 +2168,7 @@ export default function Dashboard({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25 }}
-                className="h-full w-full"
+                className="h-full min-h-0 w-full"
               >
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
