@@ -7,7 +7,7 @@ import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import useTradingMode from '../../hooks/useTradingMode';
-import useSentiment from '../../hooks/useMarketAux';
+import { useSentiment } from '../../hooks/useMarketAux';
 import { fetchAccount, placeOrder } from '../../services/alpacaService';
 import SentimentBadge from './SentimentBadge';
 import NewsFeedPanel from './NewsFeedPanel';
