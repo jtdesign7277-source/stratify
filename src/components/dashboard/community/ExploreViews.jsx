@@ -359,7 +359,7 @@ export const RightSidebar = ({ onArticleClick, onTickerClick }) => {
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
+      className="hidden lg:flex w-[340px] h-full min-h-0 flex-col"
     >
       <div className="pr-1 flex flex-col gap-3 overflow-y-auto">
         {/* ── Watchlist panel ── */}

@@ -968,21 +968,19 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 transition={interactiveTransition}
-                className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10 pointer-events-auto relative z-20"
+                className="h-7 w-7 text-xs font-bold transition-opacity cursor-pointer pointer-events-auto relative z-20 hover:opacity-80"
                 style={{
-                  color: 'rgba(148, 163, 184, 0.6)',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  color: 'rgba(34, 197, 94, 0.9)',
                 }}
                 title="Expand order entry panel"
                 aria-label="Expand order entry panel"
               >
-                <ChevronsRight className="h-3.5 w-3.5 mx-auto pointer-events-none" strokeWidth={1.7} />
+                <ChevronsLeft className="h-3.5 w-3.5 mx-auto pointer-events-none" strokeWidth={1.7} />
               </motion.button>
               <div
                 className="text-[9px] font-bold tracking-[0.2em] uppercase"
                 style={{
-                  color: 'rgba(96, 165, 250, 0.75)',
+                  color: 'rgba(34, 197, 94, 0.85)',
                   writingMode: 'vertical-rl',
                   textOrientation: 'mixed',
                 }}
@@ -995,7 +993,7 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
               <div className="flex items-center justify-between border-b border-white/[0.06] px-2.5 py-1.5 shrink-0">
                 <span
                   className="text-[10px] font-bold tracking-[0.16em] uppercase"
-                  style={{ color: 'rgba(96, 165, 250, 0.85)' }}
+                  style={{ color: 'rgba(34, 197, 94, 0.85)' }}
                 >
                   Order Entry
                 </span>
@@ -1007,12 +1005,12 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   transition={interactiveTransition}
-                  className="h-7 w-7 flex items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer"
-                  style={{ color: 'rgba(148, 163, 184, 0.55)' }}
+                  className="h-7 w-7 flex items-center justify-center transition-opacity cursor-pointer hover:opacity-80"
+                  style={{ color: 'rgba(34, 197, 94, 0.8)' }}
                   title="Collapse order entry panel"
                   aria-label="Collapse order entry panel"
                 >
-                  <ChevronsLeft className="h-4 w-4" strokeWidth={1.7} />
+                  <ChevronsRight className="h-4 w-4" strokeWidth={1.7} />
                 </motion.button>
               </div>
 
