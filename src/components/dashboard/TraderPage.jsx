@@ -2739,7 +2739,7 @@ export default function TraderPage({
         <aside
           className={`${
             isWatchlistCollapsed ? 'w-[60px]' : 'w-[300px]'
-          } flex h-full min-h-0 shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-[#1f1f1f] transition-[width] duration-200 ease-in-out`}
+          } flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-[#1f1f1f] transition-[width] duration-200 ease-in-out`}
         >
           <div className={`h-[68px] border-b border-[#1f1f1f] py-3 ${isWatchlistCollapsed ? 'px-2' : 'px-4'}`}>
             <div className={`flex h-full items-center ${isWatchlistCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
