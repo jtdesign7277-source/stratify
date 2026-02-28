@@ -36,6 +36,7 @@ import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioPageRebuilt';
 import HistoryPage from './HistoryPage';
 import MarketMoversPage from './MarketMoversPage';
+import MarketIntelligence from './MarketIntelligence';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
 const tradePageModules = import.meta.glob('./TradePage.jsx');
@@ -2184,6 +2185,11 @@ export default function Dashboard({
           )}
           {activeTab === 'global-markets' && <GlobalMarketsPage />}
           {activeTab === 'market' && <MarketMoversPage />}
+          {activeTab === 'radar' && (
+            <AppErrorBoundary>
+              <MarketIntelligence />
+            </AppErrorBoundary>
+          )}
           {activeTab === 'ai-chat' && (
             <ProGate
               featureName="AI Chat"

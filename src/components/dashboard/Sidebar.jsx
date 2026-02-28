@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Crosshair,
-  SlidersHorizontal, 
+  SlidersHorizontal,
   Bitcoin,
-  Globe, 
-  LineChart, 
+  Globe,
+  LineChart,
   Microscope,
   BarChart3,
-  Wallet, 
-  History, 
+  Wallet,
+  History,
   Landmark,
   Calendar,
   Zap,
@@ -25,7 +25,8 @@ import {
   TrendingUp,
   Terminal,
   MessageCircle,
-  LogOut
+  LogOut,
+  Radar
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -78,6 +79,7 @@ const Sidebar = ({
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'trends', label: 'Trends', icon: BarChart3, isNew: true },
     { id: 'analytics', label: 'Watchlist', icon: LineChart },
+    { id: 'radar', label: 'Radar', icon: Radar, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
   ];
