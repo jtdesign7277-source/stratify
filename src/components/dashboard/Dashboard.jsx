@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
-import { ChevronUp, X } from 'lucide-react';
+import { ChevronsUp, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '../../lib/supabaseClient';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
@@ -2092,7 +2092,7 @@ export default function Dashboard({
               unrealizedPnl: totalTopBarUnrealizedPnL,
             } : null}
           />
-          <LiveAlertsTicker watchlist={watchlist} />
+          <LiveAlertsTicker />
         </motion.div>
 
         <AnimatePresence initial={false}>
@@ -2124,13 +2124,15 @@ export default function Dashboard({
           onClick={() => setIsTopBarCollapsed((prev) => !prev)}
           aria-label={isTopBarCollapsed ? 'Expand top header' : 'Collapse top header'}
           title={isTopBarCollapsed ? 'Expand top header' : 'Collapse top header'}
-          className={`absolute right-2 z-30 text-white/55 hover:text-white transition-colors ${
-            isTopBarCollapsed ? 'top-1.5' : 'bottom-1'
+          className={`absolute right-2 z-30 transition-colors ${
+            isTopBarCollapsed
+              ? 'top-1.5 text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]'
+              : 'bottom-1 text-emerald-300/70 hover:text-emerald-300'
           }`}
           animate={{ rotate: isTopBarCollapsed ? 180 : 0 }}
           transition={TOPBAR_ANIMATION}
         >
-          <ChevronUp className="h-4 w-4" strokeWidth={1.5} />
+          <ChevronsUp className="h-4 w-4" strokeWidth={1.5} />
         </motion.button>
       </motion.div>
       <div className="flex flex-1 min-h-0 overflow-hidden">

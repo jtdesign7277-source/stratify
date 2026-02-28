@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import {
   INDICATOR_OPTIONS,
   STRATEGY_INDICATOR_MAP,
@@ -671,6 +672,7 @@ if __name__ == "__main__":
     return (
       <div onClick={cyclePanel}
         className="w-12 flex flex-col items-center py-4 gap-3 bg-[#0b0b0b] border-l border-white/10 cursor-pointer hover:bg-[#0f1624] transition-colors">
+        <ChevronsLeft className="w-4 h-4 text-emerald-400 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
         <BrainIcon className="w-6 h-6 text-emerald-400" />
         <span className="text-[10px] text-white/50 tracking-widest" style={{ writingMode: 'vertical-rl' }}>SOPHIA AI</span>
       </div>
@@ -694,9 +696,7 @@ if __name__ == "__main__":
             className="p-1.5 hover:bg-white/10 rounded transition-colors"
             title={panelState === 'small' ? 'Expand Sophia panel' : 'Close Sophia panel'}
           >
-            <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronsRight className="w-4 h-4 text-emerald-300/70" strokeWidth={1.5} />
           </button>
         </div>
       </div>
