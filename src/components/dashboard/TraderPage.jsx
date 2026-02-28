@@ -7,7 +7,11 @@ import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import useTradingMode from '../../hooks/useTradingMode';
+import useSentiment from '../../hooks/useMarketAux';
 import { fetchAccount, placeOrder } from '../../services/alpacaService';
+import SentimentBadge from './SentimentBadge';
+import NewsFeedPanel from './NewsFeedPanel';
+import ErrorBoundary from '../shared/AppErrorBoundary';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const CHART_CANDLES_ENDPOINT = '/api/chart/candles';
@@ -1177,10 +1181,17 @@ export default function TraderPage({
     return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
   }, [activeMarket]);
   const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
+  const watchlistSymbols = useMemo(
+    () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))],
+    [watchlist]
+  );
   const watchlistSymbolSetKey = useMemo(
     () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))].sort().join(','),
     [watchlist]
   );
+  const selectedTicker = selectedSymbol;
+  const setSelectedTicker = setSelectedSymbol;
+  const { sentimentMap } = useSentiment(watchlistSymbols);
 
   const syncWatchlistValueLoadingState = useCallback((symbols) => {
     const normalizedSymbols = [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))];
@@ -2854,6 +2865,13 @@ export default function TraderPage({
                                           </div>
                                         )}
                                       </div>
+                                      <div className="mr-2 flex-shrink-0">
+                                        <SentimentBadge
+                                          score={sentimentMap[symbol]?.sentiment}
+                                          totalDocs={sentimentMap[symbol]?.totalDocs}
+                                          compact={true}
+                                        />
+                                      </div>
 
                                       <motion.button
                                         type="button"
@@ -2922,6 +2940,13 @@ export default function TraderPage({
                       {isDayLoading && (
                         <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating day change" />
                       )}
+                    </div>
+                    <div className="mt-1 flex justify-center">
+                      <SentimentBadge
+                        score={sentimentMap[symbol]?.sentiment}
+                        totalDocs={sentimentMap[symbol]?.totalDocs}
+                        compact={true}
+                      />
                     </div>
                   </motion.button>
                 );
@@ -3004,6 +3029,13 @@ export default function TraderPage({
                 </div>
               )}
             </div>
+
+            <ErrorBoundary>
+              <NewsFeedPanel
+                selectedSymbol={selectedTicker}
+                onSymbolChange={setSelectedTicker}
+              />
+            </ErrorBoundary>
           </div>
 
           <div

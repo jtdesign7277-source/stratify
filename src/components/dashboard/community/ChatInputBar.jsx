@@ -176,19 +176,29 @@ const ChatInputBar = ({
 
   const applySuggestion = useCallback((item, options = {}) => {
     const triggerSearch = Boolean(options?.triggerSearch);
-    if (searchMode) {
-      const text = String(item?.text || '').trim();
+    const text = String(item?.text || '').trim();
+    const isSearchSuggestion = Boolean(text);
+
+    // Search suggestion (in search mode OR plain text typed without $ prefix)
+    if (isSearchSuggestion && (searchMode || !item?.symbol)) {
       if (!text) return;
-      setMessage(text);
-      setDebouncedMessage(text);
-      setActiveSuggestion(0);
       if (triggerSearch) {
+        // Clear input, close dropdown, fire search immediately
+        setMessage('');
+        setDebouncedMessage('');
+        setSuggestions([]);
+        setActiveSuggestion(0);
         void onSearch?.(text);
+      } else {
+        setMessage(text);
+        setDebouncedMessage(text);
+        setActiveSuggestion(0);
       }
       window.requestAnimationFrame(() => inputRef.current?.focus());
       return;
     }
 
+    // Ticker suggestion ($SYMBOL)
     if (!item?.symbol) return;
     setMessage((prev) => {
       const replaced = prev.replace(/(?:^|\s)\$[A-Za-z0-9./=-]{0,14}$/, (match) => {
@@ -250,7 +260,10 @@ const ChatInputBar = ({
   const send = async () => {
     const trimmed = searchMode ? normalizeAiSearchQuery(message) : String(message || '').trim();
     if (!trimmed) return;
-    const ok = searchMode
+
+    // Plain text (no $ ticker) while not in post mode → treat as search
+    const isPlainSearch = !searchMode && hasPlainText;
+    const ok = (searchMode || isPlainSearch)
       ? await onSearch?.(trimmed)
       : await onSend?.(trimmed, 'general');
     if (ok !== false) {
@@ -306,13 +319,29 @@ const ChatInputBar = ({
       }
       if (event.key === 'Tab') {
         event.preventDefault();
-        applySuggestion(currentSuggestions[activeSuggestion] || currentSuggestions[0]);
+        applySuggestion(currentSuggestions[activeSuggestion] || currentSuggestions[0], { triggerSearch: true });
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSuggestions([]);
+        setActiveSuggestion(0);
         return;
       }
     }
 
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
+      // If showing search suggestions (plain text mode) and dropdown open, use highlighted suggestion
+      const isShowingSearchSuggestions = suggestionOpen && (searchMode || hasPlainText);
+      if (isShowingSearchSuggestions && currentSuggestions.length > 0) {
+        const picked = currentSuggestions[activeSuggestion] || currentSuggestions[0];
+        if (picked?.text) {
+          applySuggestion(picked, { triggerSearch: true });
+          return;
+        }
+      }
+      // Otherwise use raw input
       void send();
     }
   };
@@ -326,10 +355,14 @@ const ChatInputBar = ({
   const canUseInput = searchMode || Boolean(currentUser?.id);
   const hasMessage = Boolean(String(message || '').trim());
   const canUseAiRewriteTransfer = !searchMode && canUseInput && hasMessage;
+
+  // Show search suggestions when: search mode active OR user typed non-$ text
+  const hasPlainText = hasMessage && !tickerQuery;
   const suggestionOpen = searchMode
     ? searchSuggestions.length > 0
-    : Boolean(tickerQuery);
-  const suggestionRows = searchMode ? searchSuggestions : suggestions;
+    : Boolean(tickerQuery) || (hasPlainText && searchSuggestions.length > 0);
+  const suggestionRows = (searchMode || hasPlainText) ? searchSuggestions : suggestions;
+
   const hintText = searchMode
     ? 'Enter to search, Shift+Enter for newline'
     : 'Enter to send, Shift+Enter for newline';
@@ -344,8 +377,8 @@ const ChatInputBar = ({
         <div className="relative">
           <SuggestionPopover
             open={suggestionOpen}
-            mode={searchMode ? 'search' : 'post'}
-            loading={searchMode ? false : suggestionsLoading}
+            mode={(searchMode || hasPlainText) ? 'search' : 'post'}
+            loading={(searchMode || hasPlainText) ? false : suggestionsLoading}
             suggestions={suggestionRows}
             activeIndex={activeSuggestion}
             onPick={(item) => applySuggestion(item, { triggerSearch: true })}
