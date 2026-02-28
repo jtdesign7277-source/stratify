@@ -320,6 +320,7 @@ function OrderEntry({
   const [timeInForce, setTimeInForce] = useState('day');
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
+  const liveMarketPrice = Number(lastPrice) || 0;
   const symbolForTrade = normalizeCryptoSymbol(selectedCoin?.tradeSymbol || selectedCoin?.symbol || '');
   const positionCandidates = useMemo(() => ([
     symbolForTrade,
@@ -438,8 +439,28 @@ function OrderEntry({
   };
 
   const selectedPositionSymbol = String(selectedPosition?.symbol || symbolForTrade || '').replace('/USD', '');
-  const selectedPositionPnl = Number(selectedPosition?.pnl || 0);
-  const selectedPositionPnlPercent = Number(selectedPosition?.pnl_percent || 0);
+  const selectedPositionQty = Number(selectedPosition?.quantity || 0);
+  const selectedPositionAvgCost = Number(
+    selectedPosition?.avg_cost_basis
+    ?? selectedPosition?.avg_entry_price
+    ?? selectedPosition?.avgCost
+    ?? 0
+  );
+  const selectedPositionLivePrice = liveMarketPrice > 0
+    ? liveMarketPrice
+    : Number(selectedPosition?.current_price || 0);
+  const selectedPositionValue = selectedPositionQty > 0 && selectedPositionLivePrice > 0
+    ? selectedPositionQty * selectedPositionLivePrice
+    : Number(selectedPosition?.market_value || 0);
+  const selectedPositionCostBasis = selectedPositionQty > 0 && selectedPositionAvgCost > 0
+    ? selectedPositionQty * selectedPositionAvgCost
+    : 0;
+  const selectedPositionPnl = selectedPositionCostBasis > 0
+    ? selectedPositionValue - selectedPositionCostBasis
+    : Number(selectedPosition?.pnl || 0);
+  const selectedPositionPnlPercent = selectedPositionCostBasis > 0
+    ? (selectedPositionPnl / selectedPositionCostBasis) * 100
+    : Number(selectedPosition?.pnl_percent || 0);
   const selectedPositionPnlClass = selectedPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
   const selectedPositionSummary = hasSelectedPosition ? (
     <div className="rounded-md border border-white/10 bg-transparent px-2 py-1 text-[11px]">
@@ -449,7 +470,7 @@ function OrderEntry({
             Holding: {formatPaperQuantity(selectedPosition.quantity)} {selectedPositionSymbol}
           </div>
           <div className="truncate text-slate-400">
-            Value: {formatPaperCurrency(selectedPosition.market_value)}
+            Value: {formatPaperCurrency(selectedPositionValue)}
           </div>
           <div className={`truncate font-semibold ${selectedPositionPnlClass}`}>
             {formatSignedPaperCurrency(selectedPositionPnl)} ({selectedPositionPnlPercent > 0 ? '+' : ''}{selectedPositionPnlPercent.toFixed(2)}%)
@@ -486,7 +507,8 @@ function OrderEntry({
         onSideChange={setSide}
         symbol={`$${selectedCoin.symbol}`}
         onSymbolSubmit={handleSymbolSubmit}
-        marketPrice={referencePrice}
+        marketPrice={liveMarketPrice}
+        marketPriceDisplay="crypto"
         positionSummary={selectedPositionSummary}
         quantity={quantity}
         onQuantityChange={setQuantity}
