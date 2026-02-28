@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
@@ -14,6 +14,8 @@ import useSubscription from './hooks/useSubscription';
 import LiveScoresPill from './components/shared/LiveScoresPill';
 import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
 import AppErrorBoundary from './components/shared/AppErrorBoundary';
+import MarketIntelligence from './components/dashboard/MarketIntelPage';
+import { Radar } from 'lucide-react';
 import {
   clearPendingCheckoutSession,
   persistPendingCheckoutSession,
@@ -982,6 +984,19 @@ export class TeslaEMAStrategy extends Strategy {
   );
 };
 
+class RadarErrorBoundary extends React.Component {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center text-gray-400">
+        Radar failed to load. Try refreshing.
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 const AUTH_GATE_TIMEOUT_MS = 5000;
 const SUBSCRIPTION_RESTORE_TIMEOUT_MS = 12000;
 
@@ -1004,6 +1019,7 @@ function StratifyAppContent() {
     if (normalizedPath === '/whitepaper') return 'whitepaper';
     if (normalizedPath === '/auth') return 'auth';
     if (normalizedPath === '/tokens') return 'tokens';
+    if (normalizedPath === '/radar' || normalizedPath === '/radar/') return 'radar';
     if (normalizedPath === '/dashboard' || normalizedPath === '/dashboard/') return 'dashboard';
     if (isLegacyXrayPath(path)) return 'dashboard';
 
@@ -1076,6 +1092,8 @@ function StratifyAppContent() {
       nextPath = '/auth';
     } else if (nextPage === 'tokens') {
       nextPath = '/tokens';
+    } else if (nextPage === 'radar') {
+      nextPath = '/radar';
     } else if (nextPage === 'dashboard') {
       nextPath = '/dashboard';
     }
@@ -1592,6 +1610,10 @@ function StratifyAppContent() {
           ) : null}
         </div>
       </div>
+    ) : currentPage === 'radar' ? (
+      <RadarErrorBoundary>
+        <MarketIntelligence />
+      </RadarErrorBoundary>
     ) : (
       <Dashboard
         setCurrentPage={navigateToPage}
@@ -1630,6 +1652,11 @@ function StratifyAppContent() {
 
       if (path === '/dashboard' || path === '/dashboard/') {
         setCurrentPage('dashboard');
+        return;
+      }
+
+      if (path === '/radar' || path === '/radar/') {
+        setCurrentPage('radar');
         return;
       }
 
