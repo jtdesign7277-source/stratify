@@ -33,7 +33,7 @@ import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
 import WatchlistPage from './WatchlistPage';
 import GlobalMarketsPage from './GlobalMarketsPage';
-import PortfolioPage from './PortfolioPageRebuilt';
+import PortfolioPage from './PortfolioDashboard';
 import HistoryPage from './HistoryPage';
 import MarketMoversPage from './MarketMoversPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
