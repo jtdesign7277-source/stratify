@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUpRight, ChevronRight, PlayCircle, Shield, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useAuth } from '../../context/AuthContext';
 import useSubscription from '../../hooks/useSubscription';
 
 const seedStrategies = [
@@ -51,7 +52,8 @@ const DemoPanel = () => {
   const [pnlDelta, setPnlDelta] = useState(0);
   const [introComplete, setIntroComplete] = useState(false);
   const [showConfetti, setShowConfetti] = useState(true);
-  const { isProUser } = useSubscription();
+  const { user } = useAuth();
+  const { isProUser } = useSubscription(user);
 
   const audioRef = useRef(null);
   const confettiCanvasRef = useRef(null);

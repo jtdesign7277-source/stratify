@@ -166,7 +166,7 @@ export default function MoreInfoPage() {
   const [activeAvatarStyle, setActiveAvatarStyle] = useState('all');
   const [avatarStatus, setAvatarStatus] = useState(null);
   const { user, isAuthenticated, updateProfile } = useAuth();
-  const { isProUser, loading: subscriptionLoading } = useSubscription();
+  const { isProUser, loading: subscriptionLoading } = useSubscription(user);
 
   const fullName = user?.user_metadata?.full_name?.trim();
   const displayName = fullName || 'Stratify User';

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { isCreatorOverrideUser, isProStatus, normalizeSubscriptionStatus } from '../lib/subscriptionAccess';
 import { withTimeout } from '../lib/withTimeout';
 
 const SUBSCRIPTION_CHECK_TIMEOUT_MS = 5000;
-const PRO_STATUSES = new Set(['pro', 'elite', 'active', 'trialing', 'paid']);
 const SUBSCRIPTION_STATUS_CACHE_PREFIX = 'stratify-subscription-status:';
 
 const readCachedSubscriptionStatus = (userId) => {
@@ -11,7 +11,7 @@ const readCachedSubscriptionStatus = (userId) => {
   try {
     const raw = window.localStorage.getItem(`${SUBSCRIPTION_STATUS_CACHE_PREFIX}${userId}`);
     if (!raw) return null;
-    const normalized = String(raw).toLowerCase();
+    const normalized = normalizeSubscriptionStatus(raw);
     return normalized || null;
   } catch {
     return null;
@@ -21,7 +21,7 @@ const readCachedSubscriptionStatus = (userId) => {
 const writeCachedSubscriptionStatus = (userId, status) => {
   if (!userId || !status || typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(`${SUBSCRIPTION_STATUS_CACHE_PREFIX}${userId}`, String(status).toLowerCase());
+    window.localStorage.setItem(`${SUBSCRIPTION_STATUS_CACHE_PREFIX}${userId}`, normalizeSubscriptionStatus(status));
   } catch {
     // ignore cache write failures
   }
@@ -64,7 +64,7 @@ export default function useSubscription(userOverride) {
         throw fetchError;
       }
 
-      const normalizedStatus = String(data?.subscription_status ?? 'free').toLowerCase();
+      const normalizedStatus = normalizeSubscriptionStatus(data?.subscription_status ?? 'free');
       setSubscriptionStatus(normalizedStatus);
       writeCachedSubscriptionStatus(userId, normalizedStatus);
     } catch (fetchError) {
@@ -100,8 +100,25 @@ export default function useSubscription(userOverride) {
     } catch (userError) {
       console.error('[Subscription] Failed to load user during subscription check:', userError);
       setError(userError);
-      setUser(null);
-      return null;
+
+      try {
+        const { data: sessionData, error: sessionError } = await withSubscriptionTimeout(
+          supabase.auth.getSession(),
+          'Session fallback lookup'
+        );
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        const fallbackUser = sessionData?.session?.user ?? null;
+        setUser(fallbackUser);
+        return fallbackUser;
+      } catch (sessionFallbackError) {
+        console.error('[Subscription] Session fallback lookup failed:', sessionFallbackError);
+        setUser(null);
+        return null;
+      }
     }
   }, [userOverride]);
 
@@ -166,7 +183,7 @@ export default function useSubscription(userOverride) {
           filter: `id=eq.${user.id}`,
         },
         (payload) => {
-          const nextStatus = String(payload?.new?.subscription_status || 'free').toLowerCase();
+          const nextStatus = normalizeSubscriptionStatus(payload?.new?.subscription_status || 'free');
           setSubscriptionStatus(nextStatus);
         }
       )
@@ -177,11 +194,14 @@ export default function useSubscription(userOverride) {
     };
   }, [user?.id]);
 
-  const isProUser = PRO_STATUSES.has(String(subscriptionStatus || '').toLowerCase());
+  const hasCreatorOverride = isCreatorOverrideUser(user);
+  const normalizedStatus = normalizeSubscriptionStatus(subscriptionStatus);
+  const isProUser = hasCreatorOverride || isProStatus(normalizedStatus);
 
   return {
-    subscriptionStatus,
+    subscriptionStatus: normalizedStatus || null,
     isProUser,
+    hasCreatorOverride,
     loading,
     error,
     refetch,

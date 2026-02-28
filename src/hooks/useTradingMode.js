@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { isCreatorOverrideUser, isProStatus, normalizeSubscriptionStatus } from '../lib/subscriptionAccess';
 import { clearAlpacaCache } from '../services/alpacaService';
 
 const STORAGE_KEY = 'stratify-trading-mode';
@@ -42,16 +43,12 @@ const emitWindowEvent = (eventName, detail) => {
   window.dispatchEvent(new CustomEvent(eventName, { detail }));
 };
 
-const isProStatus = (value) => {
-  const normalized = String(value || '').toLowerCase();
-  return normalized === 'pro' || normalized === 'elite';
-};
-
 const normalizeUserState = (value) => (value && typeof value === 'object' ? value : {});
 
 export default function useTradingMode() {
   const [tradingMode, setTradingMode] = useState(() => readStoredMode());
   const [userId, setUserId] = useState(null);
+  const [isCreatorOverride, setIsCreatorOverride] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState('free');
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(false);
@@ -107,7 +104,7 @@ export default function useTradingMode() {
           return;
         }
 
-        setSubscriptionStatus(String(fallback.data?.subscription_status || 'free').toLowerCase());
+        setSubscriptionStatus(normalizeSubscriptionStatus(fallback.data?.subscription_status || 'free'));
         applyMode(PAPER_MODE, { persist: true, broadcast: false });
         setLoading(false);
         return;
@@ -119,7 +116,7 @@ export default function useTradingMode() {
     }
 
     const profileMode = normalizeMode(primary.data?.trading_mode || readStoredMode());
-    const profileSubscription = String(primary.data?.subscription_status || 'free').toLowerCase();
+    const profileSubscription = normalizeSubscriptionStatus(primary.data?.subscription_status || 'free');
 
     applyMode(profileMode, { persist: true, broadcast: false });
     setSubscriptionStatus(profileSubscription);
@@ -133,8 +130,10 @@ export default function useTradingMode() {
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
 
-      const nextUserId = session?.user?.id || null;
+      const nextUser = session?.user ?? null;
+      const nextUserId = nextUser?.id || null;
       setUserId(nextUserId);
+      setIsCreatorOverride(isCreatorOverrideUser(nextUser));
       await loadProfileState(nextUserId);
     };
 
@@ -142,8 +141,10 @@ export default function useTradingMode() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (cancelled) return;
-      const nextUserId = session?.user?.id || null;
+      const nextUser = session?.user ?? null;
+      const nextUserId = nextUser?.id || null;
       setUserId(nextUserId);
+      setIsCreatorOverride(isCreatorOverrideUser(nextUser));
       await loadProfileState(nextUserId);
     });
 
@@ -190,7 +191,7 @@ export default function useTradingMode() {
         },
         (payload) => {
           const nextMode = normalizeMode(payload?.new?.trading_mode || PAPER_MODE);
-          const nextStatus = String(payload?.new?.subscription_status || subscriptionStatus || 'free').toLowerCase();
+          const nextStatus = normalizeSubscriptionStatus(payload?.new?.subscription_status || subscriptionStatus || 'free');
           applyMode(nextMode, { persist: true, broadcast: false });
           setSubscriptionStatus(nextStatus);
         }
@@ -210,7 +211,7 @@ export default function useTradingMode() {
       return { ok: true, changed: false, mode: previousMode };
     }
 
-    if (targetMode === LIVE_MODE && !isProStatus(subscriptionStatus)) {
+    if (targetMode === LIVE_MODE && !isCreatorOverride && !isProStatus(subscriptionStatus)) {
       return {
         ok: false,
         changed: false,
@@ -296,7 +297,7 @@ export default function useTradingMode() {
 
     setSwitching(false);
     return { ok: true, changed: true, mode: targetMode };
-  }, [applyMode, clearCachedBrokerData, subscriptionStatus, tradingMode, userId]);
+  }, [applyMode, clearCachedBrokerData, isCreatorOverride, subscriptionStatus, tradingMode, userId]);
 
   const refreshTradingMode = useCallback(async () => {
     if (!userId) return;
@@ -306,7 +307,7 @@ export default function useTradingMode() {
   const state = useMemo(() => {
     const isPaper = tradingMode === PAPER_MODE;
     const isLive = tradingMode === LIVE_MODE;
-    const isProUser = isProStatus(subscriptionStatus);
+    const isProUser = isCreatorOverride || isProStatus(subscriptionStatus);
     return {
       tradingMode,
       isPaper,
@@ -316,6 +317,7 @@ export default function useTradingMode() {
       error,
       isProUser,
       subscriptionStatus,
+      hasCreatorOverride: isCreatorOverride,
       canUseLiveTrading: isProUser,
       switchTradingMode,
       refreshTradingMode,
@@ -326,6 +328,7 @@ export default function useTradingMode() {
     error,
     loading,
     refreshTradingMode,
+    isCreatorOverride,
     subscriptionStatus,
     switchTradingMode,
     switching,

@@ -742,7 +742,7 @@ export default function Dashboard({
   }, []);
   
   const { user } = useAuth();
-  const { subscriptionStatus, loading: subscriptionLoading } = useSubscription();
+  const { isProUser, loading: subscriptionLoading } = useSubscription(user);
   const { trades, addTrade, removeTrade, clearTrades } = useTradeHistoryStore();
   const { watchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop } = useWatchlistSync(user);
   const {
@@ -919,7 +919,7 @@ export default function Dashboard({
   const deployedStrategiesRef = useRef(deployedStrategies);
   const allocationResolverRef = useRef(null);
 
-  const isPaidTier = subscriptionStatus === 'pro' || subscriptionStatus === 'elite';
+  const isPaidTier = isProUser;
   const hasConnectedBroker = useMemo(
     () => connectedBrokers.length > 0 || hasBrokerAccountData(alpacaData),
     [connectedBrokers, alpacaData],

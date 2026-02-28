@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import { persistPendingCheckoutSession } from '../lib/checkoutSession';
 import {
   getPreferredProBillingInterval,
@@ -17,9 +17,9 @@ export default function UpgradePrompt({
   priceId,
   className = '',
 }) {
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { user, isAuthenticated } = useAuth();
   const preferredInterval = getPreferredProBillingInterval();
   const isYearlySelected = preferredInterval === PRO_BILLING_INTERVAL_YEARLY && Boolean(PRO_YEARLY_STRIPE_PRICE_ID);
   const checkoutPriceId = priceId || resolveProCheckoutPriceId(preferredInterval);
@@ -27,36 +27,13 @@ export default function UpgradePrompt({
     ? `Upgrade to Pro - Yearly (${PRO_YEARLY_DISCOUNT_LABEL})`
     : `Upgrade to Pro - ${PRO_MONTHLY_PRICE_LABEL}`;
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (isMounted) {
-        setUser(data?.user ?? null);
-      }
-    };
-
-    loadUser();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isMounted) return;
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      isMounted = false;
-      authListener?.subscription?.unsubscribe();
-    };
-  }, []);
-
   const handleUpgrade = async () => {
     if (!checkoutPriceId) {
       setError('Missing Stripe price ID.');
       return;
     }
 
-    if (!user?.id || !user?.email) {
+    if (!isAuthenticated || !user?.id || !user?.email) {
       setError('Please sign in to upgrade.');
       return;
     }

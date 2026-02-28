@@ -1,8 +1,10 @@
+import { useAuth } from '../context/AuthContext';
 import useSubscription from '../hooks/useSubscription';
 import UpgradePrompt from './UpgradePrompt';
 
 export default function ProGate({ children, featureName, description }) {
-  const { isProUser, loading } = useSubscription();
+  const { user } = useAuth();
+  const { isProUser, loading } = useSubscription(user);
 
   if (loading) {
     return (
