@@ -2058,7 +2058,7 @@ export default function Dashboard({
   );
 
   return (
-    <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
+    <div className={`h-screen h-[100dvh] w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
       <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
       <motion.div
         className="relative z-20 overflow-visible"

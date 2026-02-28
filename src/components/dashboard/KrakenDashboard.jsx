@@ -1258,7 +1258,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
     : zeroDisplay;
 
   return (
-    <div className={`h-screen w-screen flex overflow-hidden ${themeClasses.bg} ${themeClasses.text}`}>
+    <div className={`h-screen h-[100dvh] w-screen flex overflow-hidden ${themeClasses.bg} ${themeClasses.text}`}>
       
       {/* Left Sidebar - Uses existing Sidebar component */}
       <Sidebar 
