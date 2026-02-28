@@ -18,7 +18,7 @@ export default function TradePage({ onPinToTop }) {
   const { tradingMode, isLive, canUseLiveTrading } = useTradingMode();
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="relative flex-1 min-h-0">
+    <motion.div {...PAGE_TRANSITION} className="relative h-full min-h-0 w-full overflow-hidden">
       <AnimatePresence initial={false}>
         {isLive && (
           <motion.div
@@ -33,7 +33,7 @@ export default function TradePage({ onPinToTop }) {
         )}
       </AnimatePresence>
 
-      <motion.div {...sectionMotion(1)} className="h-full w-full">
+      <motion.div {...sectionMotion(1)} className="h-full min-h-0 w-full overflow-hidden">
         <TraderPage
           onPinToTop={onPinToTop}
           tradingMode={tradingMode}

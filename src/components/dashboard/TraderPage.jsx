@@ -2739,7 +2739,7 @@ export default function TraderPage({
         <aside
           className={`${
             isWatchlistCollapsed ? 'w-[60px]' : 'w-[300px]'
-          } flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-[#1f1f1f] transition-[width] duration-200 ease-in-out`}
+          } flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden border-r border-[#1f1f1f] transition-[width] duration-200 ease-in-out`}
         >
           <div className={`h-[68px] border-b border-[#1f1f1f] py-3 ${isWatchlistCollapsed ? 'px-2' : 'px-4'}`}>
             <div className={`flex h-full items-center ${isWatchlistCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
@@ -2848,7 +2848,7 @@ export default function TraderPage({
                   )}
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
+                <div className="h-0 min-h-0 flex-1 overflow-y-auto watchlist-scrollable">
                   <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
                     <Droppable droppableId="watchlist">
                       {(provided) => (
@@ -3046,7 +3046,7 @@ export default function TraderPage({
             </>
           )}
           {isWatchlistCollapsed && (
-            <div className="flex-1 min-h-0 overflow-y-auto px-1 py-2 space-y-1">
+            <div className="h-0 min-h-0 flex-1 overflow-y-auto watchlist-scrollable px-1 py-2 space-y-1">
               {watchlist.map((symbol, index) => {
                 const quote = quotesBySymbol[symbol] || {};
                 const changePercent = toNumber(quote?.changePercent) ?? 0;
