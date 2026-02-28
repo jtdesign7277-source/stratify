@@ -9,7 +9,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-const MARKETAUX_TOKEN = process.env.MARKETAUX_API_TOKEN;
+const MARKETAUX_TOKEN = process.env.MARKETAUX_API_KEY;
 const CACHE_TTL = 300; // 5 minutes
 
 export default async function handler(req, res) {
