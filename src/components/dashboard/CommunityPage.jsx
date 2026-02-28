@@ -1177,7 +1177,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           body: JSON.stringify({ hashtag: `#${tag}` }),
         };
 
-        let response = await fetch('/api/community/hashtag-search.js', requestOptions);
+        let response = await fetch('/api/community/hashtag-search', requestOptions);
         if (response.status === 404) {
           response = await fetch('/api/community/hashtag-search', requestOptions);
         }
