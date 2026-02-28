@@ -1,7 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
-import usePaperTrading from '../../hooks/usePaperTrading';
+import { usePaperTrading } from '../../hooks/usePaperTrading';
+import { subscribeCryptoPrices } from '../../services/twelveDataStream';
+import { getMarketStatus } from '../../lib/marketHours';
+import { supabase } from '../../lib/supabaseClient';
 import {
   Wallet, TrendingUp, TrendingDown, DollarSign, PieChart,
   BarChart3, Clock, RefreshCw, ChevronDown, ChevronUp, X,
@@ -72,6 +75,88 @@ const fmtPct = (v) => {
 const fmtQty = (v) => {
   const n = Number(v || 0);
   return n >= 1 ? n.toFixed(2) : n.toFixed(6);
+};
+
+const API_BASE = String(import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const withApiBase = (path) => `${API_BASE}${path}`;
+
+const KNOWN_CRYPTO_BASES = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LINK', 'ADA', 'AVAX', 'DOT']);
+
+const toSymbolKey = (value = '') =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+
+const normalizeSymbol = (value = '') =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/^\$/, '')
+    .replace(/_/g, '/')
+    .replace(/-/g, '/');
+
+const getCryptoBase = (symbol = '') => {
+  const normalized = normalizeSymbol(symbol);
+  if (!normalized) return '';
+  if (normalized.includes('/')) {
+    return normalized.split('/')[0] || '';
+  }
+  if (normalized.endsWith('USD') && normalized.length > 3) {
+    return normalized.slice(0, -3);
+  }
+  if (KNOWN_CRYPTO_BASES.has(normalized)) {
+    return normalized;
+  }
+  return '';
+};
+
+const isCryptoSymbol = (symbol = '') => Boolean(getCryptoBase(symbol));
+
+const toStreamSymbol = (symbol = '') => {
+  const base = getCryptoBase(symbol);
+  if (base) return `${base}/USD`;
+  return normalizeSymbol(symbol);
+};
+
+const parseHistoryPoint = (entry) => {
+  if (Array.isArray(entry) && entry.length >= 2) {
+    const timestamp = Number(entry[0]);
+    const value = Number(entry[1]);
+    if (Number.isFinite(timestamp) && Number.isFinite(value)) {
+      return [timestamp, value];
+    }
+    return null;
+  }
+
+  if (!entry || typeof entry !== 'object') return null;
+
+  const rawTime =
+    entry.timestamp
+    ?? entry.time
+    ?? entry.date
+    ?? entry.created_at
+    ?? entry.recorded_at;
+  const rawValue =
+    entry.value
+    ?? entry.total_account_value
+    ?? entry.account_value
+    ?? entry.balance
+    ?? entry.equity;
+
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) return null;
+
+  let timestamp = Number(rawTime);
+  if (!Number.isFinite(timestamp)) {
+    const parsed = Date.parse(String(rawTime || ''));
+    timestamp = Number.isFinite(parsed) ? parsed : NaN;
+  } else if (timestamp < 1e12) {
+    timestamp *= 1000;
+  }
+
+  if (!Number.isFinite(timestamp)) return null;
+  return [timestamp, value];
 };
 
 // ─── KPI Card ──────────────────────────────────────────────
@@ -155,35 +240,183 @@ function HoldingRow({ position, onClose }) {
   );
 }
 
-// ─── Generate Mock Portfolio History ───────────────────────
-function generatePortfolioHistory(currentValue, days = 90) {
-  const data = [];
-  const now = Date.now();
-  let value = currentValue * 0.85; // start lower
-
-  for (let i = days; i >= 0; i--) {
-    const timestamp = now - (i * 24 * 60 * 60 * 1000);
-    const change = (Math.random() - 0.45) * (currentValue * 0.015);
-    value = Math.max(value + change, currentValue * 0.7);
-    if (i === 0) value = currentValue;
-    data.push([timestamp, Math.round(value * 100) / 100]);
-  }
-  return data;
-}
-
 // ─── Main Portfolio Dashboard ──────────────────────────────
 export default function PortfolioDashboard() {
-  const { portfolio, trades, loading, error, closePosition, fetchPortfolio } = usePaperTrading();
+  const {
+    portfolio,
+    trades,
+    loading,
+    error,
+    closePosition,
+    fetchPortfolio,
+    updatePositionPrice,
+  } = usePaperTrading();
   const [sortField, setSortField] = useState('market_value');
   const [sortDir, setSortDir] = useState('desc');
+  const [portfolioHistory, setPortfolioHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [equityMarketStatus, setEquityMarketStatus] = useState(() => getMarketStatus(new Date()));
 
   const positions = portfolio?.positions || [];
   const cashBalance = Number(portfolio?.cash_balance || 0);
   const totalValue = Number(portfolio?.total_account_value || 0);
   const totalPnl = Number(portfolio?.total_pnl || 0);
   const totalPnlPct = Number(portfolio?.total_pnl_percent || 0);
-  const startingBalance = 100000;
+  const startingBalance = Number(portfolio?.starting_balance || 100000);
   const investedValue = totalValue - cashBalance;
+
+  const fetchPortfolioHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError('');
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = String(data?.session?.access_token || '').trim();
+      if (!token) {
+        setPortfolioHistory([]);
+        return;
+      }
+
+      const response = await fetch(withApiBase('/api/paper-history?limit=365'), {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load history (${response.status})`);
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      const source = Array.isArray(payload?.history)
+        ? payload.history
+        : Array.isArray(payload?.values)
+          ? payload.values
+          : Array.isArray(payload?.points)
+            ? payload.points
+            : [];
+
+      const points = source
+        .map(parseHistoryPoint)
+        .filter(Boolean)
+        .sort((a, b) => a[0] - b[0]);
+
+      setPortfolioHistory(points);
+    } catch (historyLoadError) {
+      console.error('Failed to load paper history:', historyLoadError);
+      setHistoryError(String(historyLoadError?.message || 'Failed to load portfolio history.'));
+      setPortfolioHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPortfolioHistory();
+  }, [fetchPortfolioHistory]);
+
+  useEffect(() => {
+    const refreshMarketStatus = () => {
+      setEquityMarketStatus(getMarketStatus(new Date()));
+    };
+    refreshMarketStatus();
+    const intervalId = setInterval(refreshMarketStatus, 60_000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    const handleTradeExecuted = () => {
+      fetchPortfolio({ silent: true });
+      fetchPortfolioHistory();
+    };
+
+    window.addEventListener('paper-trade-executed', handleTradeExecuted);
+    return () => {
+      window.removeEventListener('paper-trade-executed', handleTradeExecuted);
+    };
+  }, [fetchPortfolio, fetchPortfolioHistory]);
+
+  const hasEquityPositions = useMemo(
+    () => positions.some((position) => !isCryptoSymbol(position?.symbol)),
+    [positions]
+  );
+
+  const streamSymbolMap = useMemo(() => {
+    const map = new Map();
+    positions.forEach((position) => {
+      const positionSymbol = String(position?.symbol || '').trim();
+      const streamSymbol = toStreamSymbol(positionSymbol);
+      const key = toSymbolKey(streamSymbol);
+      if (!key) return;
+      if (!map.has(key)) {
+        map.set(key, new Set());
+      }
+      map.get(key).add(positionSymbol);
+    });
+    return map;
+  }, [positions]);
+
+  const streamTargets = useMemo(() => {
+    const equities = [];
+    const crypto = [];
+    const seen = new Set();
+
+    positions.forEach((position) => {
+      const streamSymbol = toStreamSymbol(position?.symbol);
+      if (!streamSymbol || seen.has(streamSymbol)) return;
+      seen.add(streamSymbol);
+      if (isCryptoSymbol(position?.symbol)) {
+        crypto.push(streamSymbol);
+      } else {
+        equities.push(streamSymbol);
+      }
+    });
+
+    return { equities, crypto };
+  }, [positions]);
+
+  useEffect(() => {
+    const isEquityOpen = equityMarketStatus === 'Open';
+    const symbols = [
+      ...streamTargets.crypto,
+      ...(isEquityOpen ? streamTargets.equities : []),
+    ];
+    if (symbols.length === 0) return undefined;
+
+    const unsubscribe = subscribeCryptoPrices(symbols, ({ symbol, price }) => {
+      const normalizedPrice = Number(price);
+      if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) return;
+
+      const targets = streamSymbolMap.get(toSymbolKey(symbol));
+      if (!targets || targets.size === 0) return;
+
+      targets.forEach((targetSymbol) => {
+        updatePositionPrice(targetSymbol, normalizedPrice);
+      });
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [equityMarketStatus, streamTargets, streamSymbolMap, updatePositionPrice]);
+
+  const marketStatusBadge = useMemo(() => {
+    if (!hasEquityPositions) return null;
+    if (equityMarketStatus === 'Open') {
+      return { label: 'Market Open', className: 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400' };
+    }
+    if (equityMarketStatus === 'Pre-Market') {
+      return { label: 'Pre-market', className: 'border-amber-400/25 bg-amber-400/10 text-amber-300' };
+    }
+    if (equityMarketStatus === 'After Hours') {
+      return { label: 'After-hours', className: 'border-blue-400/25 bg-blue-400/10 text-blue-300' };
+    }
+    return { label: 'Market Closed', className: 'border-white/15 bg-white/5 text-slate-300' };
+  }, [equityMarketStatus, hasEquityPositions]);
 
   // Sort positions
   const sortedPositions = useMemo(() => {
@@ -259,9 +492,9 @@ export default function PortfolioDashboard() {
     },
     series: [{
       name: 'Portfolio Value',
-      data: generatePortfolioHistory(totalValue || startingBalance),
+      data: portfolioHistory,
     }],
-  }), [totalValue, totalPnl]);
+  }), [portfolioHistory, totalPnl]);
 
   // ─── Allocation Donut Chart ────────────────────────────
   const allocationOptions = useMemo(() => {
@@ -337,10 +570,18 @@ export default function PortfolioDashboard() {
           <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             Paper Mode
           </span>
+          {marketStatusBadge ? (
+            <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md border ${marketStatusBadge.className}`}>
+              {marketStatusBadge.label}
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchPortfolio}
+            onClick={() => {
+              fetchPortfolio();
+              fetchPortfolioHistory();
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-[#0f1d32] border border-[#1a2538] transition-all"
           >
             <RefreshCw size={11} strokeWidth={1.5} />
@@ -399,15 +640,26 @@ export default function PortfolioDashboard() {
             <div className="flex items-center gap-2">
               <BarChart3 size={13} strokeWidth={1.5} className="text-blue-400" />
               <span className="text-white text-xs font-medium">Portfolio Performance</span>
-              <span className="text-gray-600 text-[10px]">90 days</span>
+              <span className="text-gray-600 text-[10px]">History</span>
             </div>
             <span className={`text-xs font-mono font-medium ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {fmtPct(totalPnlPct)}
             </span>
           </div>
           <div className="p-2">
-            <HighchartsReact highcharts={Highcharts} options={performanceOptions} />
+            {portfolioHistory.length > 0 ? (
+              <HighchartsReact highcharts={Highcharts} options={performanceOptions} />
+            ) : (
+              <div className="flex h-[260px] items-center justify-center text-xs text-slate-500">
+                {historyLoading ? 'Loading portfolio history...' : 'Portfolio history will populate as you trade'}
+              </div>
+            )}
           </div>
+          {historyError ? (
+            <div className="border-t border-[#1a2538] px-4 py-2 text-[11px] text-red-300">
+              {historyError}
+            </div>
+          ) : null}
         </div>
 
         {/* Allocation Donut (2/5) */}
@@ -518,7 +770,7 @@ export default function PortfolioDashboard() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-gray-300 font-mono text-xs">@ {fmt(trade.price)}</span>
-                    <span className="text-gray-500 font-mono text-xs">{fmt(trade.total_value)}</span>
+                    <span className="text-gray-500 font-mono text-xs">{fmt(trade.total_cost ?? trade.total_value)}</span>
                     <span className="text-gray-600 text-[10px]">
                       {new Date(trade.created_at).toLocaleString('en-US', {
                         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',

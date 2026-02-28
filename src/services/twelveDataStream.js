@@ -4,6 +4,7 @@
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY;
+const toSymbolKey = (value = '') => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 class TwelveDataStream {
   constructor() {
@@ -44,7 +45,7 @@ class TwelveDataStream {
         // Resubscribe to all symbols
         if (this.subscribedSymbols.size > 0) {
           const symbols = Array.from(this.subscribedSymbols);
-          this.send({ action: 'subscribe', params: { symbols } });
+          this.send({ action: 'subscribe', params: { symbols: symbols.join(',') } });
           console.log('[TwelveData] Resubscribed to:', symbols);
         }
 
@@ -59,14 +60,26 @@ class TwelveDataStream {
             console.log('[TwelveData] Subscribe status:', data);
           } else if (data.event === 'price') {
             // Real-time price update
-            const symbol = data.symbol;
+            const symbol = this.normalizeSymbol(data.symbol || data?.meta?.symbol || '');
             const price = parseFloat(data.price);
+            if (!symbol || !Number.isFinite(price)) return;
             
-            if (this.subscribers.has(symbol)) {
-              this.subscribers.get(symbol).forEach(callback => {
+            const directSubscribers = this.subscribers.get(symbol);
+            if (directSubscribers && directSubscribers.size > 0) {
+              directSubscribers.forEach((callback) => {
                 callback({ symbol, price, timestamp: data.timestamp });
               });
+              return;
             }
+
+            const incomingKey = toSymbolKey(symbol);
+            if (!incomingKey) return;
+            this.subscribers.forEach((callbacks, subscribedSymbol) => {
+              if (toSymbolKey(subscribedSymbol) !== incomingKey) return;
+              callbacks.forEach((callback) => {
+                callback({ symbol, price, timestamp: data.timestamp });
+              });
+            });
           } else if (data.event === 'heartbeat') {
             console.log('[TwelveData] Heartbeat received');
           }
@@ -105,7 +118,12 @@ class TwelveDataStream {
     }
 
     // Normalize symbols to Twelve Data format (e.g., BTC/USD)
-    const normalizedSymbols = symbols.map(s => this.normalizeSymbol(s));
+    const normalizedSymbols = symbols
+      .map((s) => this.normalizeSymbol(s))
+      .filter(Boolean);
+    if (normalizedSymbols.length === 0 || typeof callback !== 'function') {
+      return () => {};
+    }
 
     normalizedSymbols.forEach(symbol => {
       if (!this.subscribers.has(symbol)) {
@@ -117,7 +135,7 @@ class TwelveDataStream {
 
     // Subscribe via WebSocket if connected
     if (this.isConnected) {
-      this.send({ action: 'subscribe', params: { symbols: normalizedSymbols } });
+      this.send({ action: 'subscribe', params: { symbols: normalizedSymbols.join(',') } });
       console.log('[TwelveData] Subscribed to:', normalizedSymbols);
     } else {
       // Connect if not already
@@ -133,7 +151,7 @@ class TwelveDataStream {
             this.subscribers.delete(symbol);
             this.subscribedSymbols.delete(symbol);
             if (this.isConnected) {
-              this.send({ action: 'unsubscribe', params: { symbols: [symbol] } });
+              this.send({ action: 'unsubscribe', params: { symbols: symbol } });
               console.log('[TwelveData] Unsubscribed from:', symbol);
             }
           }
@@ -145,12 +163,22 @@ class TwelveDataStream {
   normalizeSymbol(symbol) {
     // Convert to Twelve Data format
     // BTC/USD, BTCUSD, BTC-USD → BTC/USD
-    return String(symbol || '')
+    const normalized = String(symbol || '')
       .trim()
       .toUpperCase()
       .replace(/_/g, '/')
-      .replace(/-/g, '/')
-      .replace(/([A-Z]{3,4})([A-Z]{3})/, '$1/$2'); // BTCUSD → BTC/USD
+      .replace(/-/g, '/');
+    if (!normalized) return '';
+    if (normalized.includes('/')) return normalized;
+
+    const compact = normalized.replace(/[^A-Z0-9]/g, '');
+    if (!compact) return '';
+
+    if (compact.endsWith('USD') && compact.length > 3) {
+      return `${compact.slice(0, -3)}/USD`;
+    }
+
+    return compact;
   }
 
   scheduleReconnect() {

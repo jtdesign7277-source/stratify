@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import useTradingMode from '../../hooks/useTradingMode';
 
-const formatMoney = (value) => {
+const formatMoney = (value, { minimumFractionDigits = 2, maximumFractionDigits = 2 } = {}) => {
   const number = Number(value);
   if (!Number.isFinite(number)) return '$ -';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits,
+    maximumFractionDigits,
   }).format(number);
 };
 
@@ -40,6 +40,8 @@ export default function OrderTicketPanel({
   symbol = '',
   onSymbolSubmit,
   marketPrice,
+  marketPriceDisplay = 'default',
+  positionSummary = null,
   quantity = '',
   onQuantityChange,
   orderType = 'market',
@@ -97,8 +99,13 @@ export default function OrderTicketPanel({
   const marketPriceText = useMemo(() => {
     if (marketPrice === null || marketPrice === undefined) return 'Loading...';
     if (marketPrice === 0) return '$ -';
+    if (marketPriceDisplay === 'crypto') {
+      const absolute = Math.abs(Number(marketPrice) || 0);
+      const maxFractionDigits = absolute >= 1000 ? 2 : absolute >= 1 ? 4 : 6;
+      return formatMoney(marketPrice, { minimumFractionDigits: 2, maximumFractionDigits: maxFractionDigits });
+    }
     return formatMoney(marketPrice);
-  }, [marketPrice]);
+  }, [marketPrice, marketPriceDisplay]);
   const estimatedCostText = useMemo(() => {
     if ((marketPrice === null || marketPrice === undefined || marketPrice === 0) && !activeAmount) {
       return 'Enter quantity';
@@ -145,7 +152,7 @@ export default function OrderTicketPanel({
   const reviewButtonText = typeof reviewLabel === 'string' && reviewLabel.trim() ? reviewLabel : 'Review Order';
   const rootLayoutClass = stickyReviewFooter ? 'flex min-h-0 flex-col overflow-hidden' : '';
   const contentLayoutClass = stickyReviewFooter
-    ? `${contentTopClass} ${verticalGapClass} flex-1 min-h-0`
+    ? `${contentTopClass} ${verticalGapClass} flex-1 min-h-0 overflow-y-auto pr-0.5`
     : `${contentTopClass} ${verticalGapClass}`;
   const panelSurfaceClass = isBlackSurface ? 'bg-[#0b0b0b]' : 'bg-[#0a1628]/95';
   const controlSurfaceClass = isBlackSurface ? 'bg-[#0b0b0b]' : 'bg-[#050b16]';
@@ -215,6 +222,8 @@ export default function OrderTicketPanel({
           <span className={`${labelTextClass} font-semibold text-slate-200`}>Market Price</span>
           <span className={`${valueTextClass} font-semibold text-white`}>{marketPriceText}</span>
         </div>
+
+        {positionSummary}
 
         <div>
           <label className={`${labelSpacingClass} block ${labelTextClass} font-semibold text-slate-200`}>Quantity</label>

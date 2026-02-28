@@ -8,7 +8,7 @@ import { getExtendedHoursStatus } from '../../lib/marketHours';
 import OrderTicketPanel from './OrderTicketPanel';
 import useTradingMode from '../../hooks/useTradingMode';
 import { useSentiment } from '../../hooks/useMarketAux';
-import { fetchTradingAccount, placeTradingOrder } from '../../services/tradingService';
+import { usePaperTrading } from '../../hooks/usePaperTrading';
 import SentimentBadge from './SentimentBadge';
 import NewsFeedPanel from './NewsFeedPanel';
 import ErrorBoundary from '../shared/AppErrorBoundary';
@@ -318,6 +318,64 @@ const toNumber = (value) => {
   if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const toPaperSymbolKey = (value = '') =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+
+const findPaperPosition = (positions, symbol) => {
+  const rows = Array.isArray(positions) ? positions : [];
+  const targetKey = toPaperSymbolKey(symbol);
+  if (!targetKey) return null;
+  return rows.find((position) => toPaperSymbolKey(position?.symbol) === targetKey) || null;
+};
+
+const formatPaperSymbol = (value = '') => {
+  const normalized = normalizeSymbol(value);
+  if (!normalized) return '$--';
+  if (normalized.includes('/')) return `$${normalized.split('/')[0]}`;
+  if (normalized.endsWith('USD') && normalized.length <= 6) return `$${normalized.slice(0, -3)}`;
+  return `$${normalized}`;
+};
+
+const formatPaperCurrency = (value) => {
+  const parsed = Number(value);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(parsed) ? parsed : 0);
+};
+
+const formatSignedPaperCurrency = (value) => {
+  const parsed = Number(value);
+  const amount = Number.isFinite(parsed) ? parsed : 0;
+  const sign = amount > 0 ? '+' : amount < 0 ? '-' : '';
+  return `${sign}${formatPaperCurrency(Math.abs(amount))}`;
+};
+
+const formatPaperQuantity = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '0';
+  return parsed.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: parsed >= 1000 ? 2 : 6,
+  });
+};
+
+const formatPaperTimestamp = (value) => {
+  const parsed = new Date(value || Date.now());
+  if (Number.isNaN(parsed.getTime())) return '--';
+  return parsed.toLocaleString([], {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 const parseMarketOpen = (value) => {
@@ -733,11 +791,20 @@ function TraderOrderEntry({
   lastPrice,
   onSymbolChange,
   onOrderPlaced,
-  tradingMode = 'paper',
-  canUseLiveTrading = true,
+  tradingMode: _tradingMode = 'paper',
+  canUseLiveTrading: _canUseLiveTrading = true,
 }) {
-  const normalizedTradingMode = String(tradingMode || '').toLowerCase() === 'live' ? 'live' : 'paper';
-  const isLiveMode = normalizedTradingMode === 'live';
+  const {
+    portfolio,
+    trades,
+    trading,
+    error,
+    executeTrade,
+    closePosition,
+    fetchPortfolio,
+  } = usePaperTrading();
+  const normalizedTradingMode = 'paper';
+  const isLiveMode = false;
 
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
@@ -749,10 +816,11 @@ function TraderOrderEntry({
   const [trailAmount, setTrailAmount] = useState('');
   const [trailType, setTrailType] = useState('dollars');
   const [timeInForce, setTimeInForce] = useState('day');
-  const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-  const [buyingPowerDisplay, setBuyingPowerDisplay] = useState('$ -');
+  const [inlineError, setInlineError] = useState('');
+  const [successToast, setSuccessToast] = useState('');
+  const liveMarketPrice = toNumber(lastPrice) ?? 0;
 
   const referencePrice = useMemo(() => {
     if (orderType === 'market' || orderType === 'trailing_stop') {
@@ -788,144 +856,177 @@ function TraderOrderEntry({
   const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
   const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
   const requiresTrail = orderType === 'trailing_stop';
+  const positions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
+  const selectedPosition = useMemo(
+    () => findPaperPosition(positions, selectedSymbol),
+    [positions, selectedSymbol]
+  );
+  const hasSelectedPosition = Number(selectedPosition?.quantity) > 0;
+  const recentTrades = useMemo(
+    () => (Array.isArray(trades) ? trades.slice(0, 5) : []),
+    [trades]
+  );
+  const holdings = useMemo(
+    () => (Array.isArray(positions) ? positions.slice(0, 5) : []),
+    [positions]
+  );
+  const buyingPowerDisplay = formatPaperCurrency(portfolio?.cash_balance);
+  const availableCash = toNumber(portfolio?.cash_balance, 0);
+  const selectedPositionQtyOwned = toNumber(selectedPosition?.quantity, 0);
+  const executionPrice = liveMarketPrice > 0 ? liveMarketPrice : referencePrice;
 
   useEffect(() => {
-    let cancelled = false;
+    if (!successToast) return undefined;
+    const timer = setTimeout(() => setSuccessToast(''), 2800);
+    return () => clearTimeout(timer);
+  }, [successToast]);
 
-    const fetchBuyingPower = async () => {
-      try {
-        const payload = await fetchTradingAccount({
-          mode: normalizedTradingMode,
-          forceFresh: true,
-        });
-        if (cancelled) return;
+  const getValidationError = () => {
+    if (!selectedSymbol) return 'Select a symbol first.';
+    if (trading) return 'Trade is already executing.';
+    if (!hasValidOrderSize || !Number.isFinite(resolvedQuantity) || resolvedQuantity <= 0) {
+      return 'Quantity must be greater than 0.';
+    }
+    if (!Number.isFinite(executionPrice) || executionPrice <= 0) {
+      return 'Live market price is unavailable.';
+    }
 
-        const buyingPower = payload?.buying_power ?? payload?.cash ?? payload?.buyingPower;
-        const parsed = Number(buyingPower);
-        if (!Number.isFinite(parsed)) return;
-
-        setBuyingPowerDisplay(
-          new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }).format(parsed),
-        );
-      } catch {
-        if (!cancelled) {
-          setBuyingPowerDisplay('$ -');
-        }
+    if (side === 'buy') {
+      const totalCost = resolvedQuantity * executionPrice;
+      if (totalCost > availableCash) {
+        return `Insufficient cash. Available: ${formatPaperCurrency(availableCash)}`;
       }
-    };
+      return '';
+    }
 
-    fetchBuyingPower();
+    if (resolvedQuantity > selectedPositionQtyOwned) {
+      return `Insufficient shares. Owned: ${formatPaperQuantity(selectedPositionQtyOwned)}.`;
+    }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [normalizedTradingMode]);
+    return '';
+  };
 
   const handleSubmit = () => {
-    if (isLiveMode && !canUseLiveTrading) {
-      alert('Live mode is available for Pro users. Upgrade your plan to place live trades.');
+    const validationError = getValidationError();
+    if (validationError) {
+      setInlineError(validationError);
       return;
     }
-    if (!selectedSymbol || !hasValidOrderSize) return;
-    if (requiresLimit && (!Number.isFinite(limitPriceNumber) || limitPriceNumber <= 0)) return;
-    if (requiresStop && (!Number.isFinite(stopPriceNumber) || stopPriceNumber <= 0)) return;
-    if (requiresTrail && (!Number.isFinite(trailAmountNumber) || trailAmountNumber <= 0)) return;
+    setInlineError('');
     setConfirmModal(true);
   };
 
   const executeOrder = async () => {
-    if (!selectedSymbol) return;
-    if (isLiveMode && !canUseLiveTrading) {
-      alert('Live mode is available for Pro users. Upgrade your plan to place live trades.');
+    const validationError = getValidationError();
+    if (validationError) {
+      setInlineError(validationError);
       return;
     }
 
-    setSubmitting(true);
     setConfirmModal(false);
 
-    const normalizedTimeInForce = String(timeInForce || 'day').toLowerCase() === 'day'
-      ? 'gtc'
-      : String(timeInForce || 'gtc').toLowerCase();
-
-    const payload = {
-      symbol: selectedSymbol,
-      side,
-      type: orderType,
-      time_in_force: normalizedTimeInForce,
-    };
-
-    payload.qty = resolvedQuantity;
-    if (sizeMode === 'dollars') {
-      payload.notional = notionalNumber;
-    }
-
-    if (requiresLimit) payload.limit_price = limitPriceNumber;
-    if (requiresStop) payload.stop_price = stopPriceNumber;
-    if (requiresTrail) {
-      if (trailType === 'percent') {
-        payload.trail_percent = trailAmountNumber;
-      } else {
-        payload.trail_price = trailAmountNumber;
-      }
-    }
-
     try {
-      if (!Number.isFinite(payload.qty) || payload.qty <= 0) {
-        delete payload.qty;
-      }
-
-      const result = await placeTradingOrder(payload, {
-        mode: normalizedTradingMode,
+      const result = await executeTrade({
+        symbol: selectedSymbol,
+        side,
+        quantity: resolvedQuantity,
+        price: executionPrice,
       });
+
+      await fetchPortfolio({ silent: true });
 
       setLastResult('filled');
       setTimeout(() => setLastResult(null), 3000);
+      setInlineError('');
+      const actionLabel = side === 'buy' ? 'Bought' : 'Sold';
+      const totalCost = resolvedQuantity * executionPrice;
+      setSuccessToast(
+        `${actionLabel} ${formatPaperQuantity(resolvedQuantity)} ${formatPaperSymbol(selectedSymbol)} @ ${formatPaperCurrency(executionPrice)} · Total: ${formatPaperCurrency(totalCost)}`
+      );
       onOrderPlaced?.(result);
-
-      try {
-        const refreshedAccount = await fetchTradingAccount({
-          mode: normalizedTradingMode,
-          forceFresh: true,
-        });
-        const buyingPower = refreshedAccount?.buying_power ?? refreshedAccount?.cash ?? refreshedAccount?.buyingPower;
-        const parsed = Number(buyingPower);
-        if (Number.isFinite(parsed)) {
-          setBuyingPowerDisplay(
-            new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(parsed),
-          );
-        }
-      } catch {
-        // Ignore post-trade balance refresh failures.
+      if (sizeMode === 'shares') {
+        setQuantity('');
+      } else {
+        setDollarAmount('');
       }
     } catch (error) {
       console.error('Order submission error:', error);
-      const errorMsg = error?.message || 'Order rejected';
-      if (errorMsg.includes('not_connected') || errorMsg.toLowerCase().includes('no broker')) {
-        alert(`Order rejected\n\n${isLiveMode ? 'No live broker connected. Connect a live broker in Portfolio.' : 'No paper broker connected. Connect a broker in Portfolio.'}`);
-      } else if (errorMsg.toLowerCase().includes('insufficient')) {
-        alert('Order rejected\n\nInsufficient buying power. Check your account balance.');
-      } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not authorized')) {
-        alert('Order rejected\n\nYour broker credentials may not have trading permissions. Check your broker dashboard.');
-      } else {
-        alert(`Order rejected\n\n${errorMsg}`);
-      }
-
+      setInlineError(String(error?.message || 'Trade rejected.'));
       setLastResult('rejected');
       setTimeout(() => setLastResult(null), 3000);
     }
-
-    setSubmitting(false);
   };
+
+  const handleClosePosition = async () => {
+    if (!selectedSymbol || !hasSelectedPosition || trading) return;
+    try {
+      await closePosition(selectedPosition?.symbol || selectedSymbol);
+      await fetchPortfolio({ silent: true });
+      setLastResult('filled');
+      setTimeout(() => setLastResult(null), 3000);
+      setInlineError('');
+      setSuccessToast(
+        `Sold ${formatPaperQuantity(selectedPosition?.quantity || 0)} ${formatPaperSymbol(selectedSymbol)} @ MARKET`
+      );
+      onOrderPlaced?.({ symbol: selectedSymbol, side: 'sell', quantity: selectedPosition?.quantity || 0 });
+    } catch (closeError) {
+      console.error('Close position failed:', closeError);
+      setInlineError(String(closeError?.message || 'Close position failed.'));
+      setLastResult('rejected');
+      setTimeout(() => setLastResult(null), 3000);
+    }
+  };
+
+  const selectedPositionSymbol = String(selectedPosition?.symbol || selectedSymbol || '').replace('/USD', '');
+  const selectedPositionQty = Number(selectedPosition?.quantity || 0);
+  const selectedPositionAvgCost = Number(
+    selectedPosition?.avg_cost_basis
+    ?? selectedPosition?.avg_entry_price
+    ?? selectedPosition?.avgCost
+    ?? 0
+  );
+  const selectedPositionLivePrice = liveMarketPrice > 0
+    ? liveMarketPrice
+    : Number(selectedPosition?.current_price || 0);
+  const selectedPositionValue = selectedPositionQty > 0 && selectedPositionLivePrice > 0
+    ? selectedPositionQty * selectedPositionLivePrice
+    : Number(selectedPosition?.market_value || 0);
+  const selectedPositionCostBasis = selectedPositionQty > 0 && selectedPositionAvgCost > 0
+    ? selectedPositionQty * selectedPositionAvgCost
+    : 0;
+  const selectedPositionPnl = selectedPositionCostBasis > 0
+    ? selectedPositionValue - selectedPositionCostBasis
+    : Number(selectedPosition?.pnl || 0);
+  const selectedPositionPnlPercent = selectedPositionCostBasis > 0
+    ? (selectedPositionPnl / selectedPositionCostBasis) * 100
+    : Number(selectedPosition?.pnl_percent || 0);
+  const selectedPositionPnlClass = selectedPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+  const selectedPositionSummary = hasSelectedPosition ? (
+    <div className="rounded-md border border-white/10 bg-transparent px-2 py-1 text-[11px]">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 space-y-0.5">
+          <div className="truncate text-slate-300">
+            Position: {formatPaperQuantity(selectedPosition.quantity)} shares · Avg {formatPaperCurrency(selectedPosition.avg_cost_basis)} · P&L{' '}
+            <span className={selectedPositionPnlClass}>{formatSignedPaperCurrency(selectedPositionPnl)}</span>
+          </div>
+          <div className="truncate text-slate-400">
+            Value: {formatPaperCurrency(selectedPositionValue)}
+          </div>
+          <div className={`truncate font-semibold ${selectedPositionPnlClass}`}>
+            {formatSignedPaperCurrency(selectedPositionPnl)} ({selectedPositionPnlPercent > 0 ? '+' : ''}{selectedPositionPnlPercent.toFixed(2)}%)
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleClosePosition}
+          disabled={trading}
+          className="shrink-0 rounded border border-red-500/30 px-2 py-0.5 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {trading ? 'Executing...' : 'Sell All'}
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   const fieldClassName =
     'h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60';
@@ -946,7 +1047,8 @@ function TraderOrderEntry({
         onSideChange={setSide}
         symbol={selectedSymbol ? `$${selectedSymbol}` : ''}
         onSymbolSubmit={handleSymbolSubmit}
-        marketPrice={referencePrice}
+        marketPrice={liveMarketPrice}
+        positionSummary={selectedPositionSummary}
         quantity={quantity}
         onQuantityChange={setQuantity}
         orderType={orderType}
@@ -967,12 +1069,12 @@ function TraderOrderEntry({
         estimatedCost={estimatedTotal}
         buyingPowerDisplay={buyingPowerDisplay}
         onReview={handleSubmit}
-        reviewDisabled={submitting || !selectedSymbol || !hasValidOrderSize || (isLiveMode && !canUseLiveTrading)}
-        reviewLabel={submitting ? 'Submitting...' : `Review ${isLiveMode ? 'Live' : 'Paper'} Order`}
+        reviewDisabled={trading || !selectedSymbol || !hasValidOrderSize}
+        reviewLabel={trading ? 'Executing...' : `Review ${side.toUpperCase()} Order`}
         density="crypto"
         surfaceTone="black"
         stickyReviewFooter
-        className="flex-1 min-h-0"
+        className="shrink-0"
         extraFields={
           <div className="space-y-1">
             {(orderType === 'limit' || orderType === 'stop_limit') && (
@@ -1044,11 +1146,14 @@ function TraderOrderEntry({
                 Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedSymbol || '--'}
               </div>
             )}
+            <div className="text-[11px] text-slate-400">
+              Paper trades execute as market orders at the live quote.
+            </div>
           </div>
         }
       />
 
-      <div className="px-2">
+      <div className="mt-1 min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
         {lastResult && (
           <div
             className="animate-pulse rounded-lg py-2 text-center text-xs font-semibold"
@@ -1061,6 +1166,69 @@ function TraderOrderEntry({
             {lastResult === 'filled' ? 'Order Filled' : lastResult === 'rejected' ? 'Order Rejected' : 'Connection Error'}
           </div>
         )}
+
+        {error ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-xs text-red-300">
+            {error}
+          </div>
+        ) : null}
+
+        {inlineError ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-xs text-red-300">
+            {inlineError}
+          </div>
+        ) : null}
+
+        {successToast ? (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-300">
+            {successToast}
+          </div>
+        ) : null}
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="flex items-center justify-between">
+            <span className="uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
+            <span className="font-semibold text-white">{buyingPowerDisplay}</span>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+            Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
+          </div>
+          {holdings.length > 0 ? (
+            <div className="mt-0.5 space-y-0.5">
+              {holdings.map((position) => (
+                <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-300">
+                    {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
+                  </span>
+                  <span className={Number(position.pnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {formatPaperCurrency(position.pnl)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+            Recent Trades {recentTrades.length ? `(${recentTrades.length})` : '(0)'}
+          </div>
+          {recentTrades.length > 0 ? (
+            <div className="mt-0.5 space-y-0.5">
+              {recentTrades.map((trade) => (
+                <div key={`paper-trade-${trade.id}`} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-300">
+                    {trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}
+                  </span>
+                  <span className="text-slate-500">{formatPaperTimestamp(trade.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <AnimatePresence>
@@ -1078,19 +1246,7 @@ function TraderOrderEntry({
                 Confirm {isLiveMode ? 'Live' : 'Paper'} Order
               </div>
               <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedSymbol || '--'} @ {
-                  orderType === 'market'
-                    ? 'MARKET'
-                    : orderType === 'limit'
-                      ? `$${limitPrice}`
-                      : orderType === 'stop'
-                        ? `STOP $${stopPrice}`
-                        : orderType === 'stop_limit'
-                          ? `STOP $${stopPrice} / LIMIT $${limitPrice}`
-                          : trailType === 'percent'
-                            ? `TRAIL ${trailAmount}%`
-                            : `TRAIL $${trailAmount}`
-                }
+                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {formatPaperSymbol(selectedSymbol)} @ MARKET
               </div>
               {sizeMode === 'dollars' && (
                 <div className="mt-1 text-[10px]" style={{ color: 'rgba(148, 163, 184, 0.45)' }}>
@@ -1115,6 +1271,7 @@ function TraderOrderEntry({
               <motion.button
                 type="button"
                 onClick={executeOrder}
+                disabled={trading}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 transition={interactiveTransition}
@@ -1125,7 +1282,7 @@ function TraderOrderEntry({
                   border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
                 }}
               >
-                Confirm {side.toUpperCase()} {isLiveMode ? '(LIVE)' : '(PAPER)'}
+                {trading ? 'Executing...' : `Confirm ${side.toUpperCase()} (PAPER)`}
               </motion.button>
             </div>
             </motion.div>

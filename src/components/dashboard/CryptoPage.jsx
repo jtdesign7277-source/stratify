@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { subscribeCryptoPrices, getTwelveDataConnectionStatus } from '../../services/twelveDataStream';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
-import useTradingMode from '../../hooks/useTradingMode';
-import { fetchAccount, placeOrder } from '../../services/alpacaService';
+import { usePaperTrading } from '../../hooks/usePaperTrading';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT (uses existing app client)
@@ -98,41 +97,6 @@ const modalPanelMotion = {
   transition: { type: 'spring', stiffness: 300, damping: 25 },
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// SUPABASE HOOKS — User data persistence
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// Save order to Supabase
-async function saveOrder(userId, order) {
-  const { data, error } = await supabase
-    .from('crypto_orders')
-    .insert({
-      user_id: userId,
-      symbol: order.symbol,
-      side: order.side,
-      order_type: order.orderType,
-      quantity: order.quantity,
-      limit_price: order.limitPrice || null,
-      stop_price: order.stopPrice || null,
-      time_in_force: order.timeInForce,
-      status: 'submitted',
-      created_at: new Date().toISOString(),
-    })
-    .select();
-  return { data, error };
-}
-
-// Fetch user's order history
-async function fetchOrderHistory(userId) {
-  const { data, error } = await supabase
-    .from('crypto_orders')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(50);
-  return { data: data || [], error };
-}
-
 // Save user's last selected coin preference
 async function saveUserPreference(userId, coinSymbol) {
   const { error } = await supabase
@@ -163,6 +127,63 @@ const normalizeCryptoSymbol = (symbol = '') => String(symbol || '')
   .toUpperCase()
   .replace(/_/g, '/')  // Convert underscores to forward slash
   .replace(/-/g, '/'); // Convert hyphens to forward slash (normalize to BTC/USD format)
+
+const toPaperSymbolKey = (value = '') =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+
+const matchesPaperSymbol = (positionSymbol, candidates = []) => {
+  const positionKey = toPaperSymbolKey(positionSymbol);
+  if (!positionKey) return false;
+  return candidates.some((candidate) => toPaperSymbolKey(candidate) === positionKey);
+};
+
+const formatPaperSymbol = (value = '') => {
+  const normalized = normalizeCryptoSymbol(value);
+  if (!normalized) return '$--';
+  if (normalized.includes('/')) return `$${normalized.split('/')[0]}`;
+  if (normalized.endsWith('USD') && normalized.length <= 6) return `$${normalized.slice(0, -3)}`;
+  return `$${normalized}`;
+};
+
+const formatPaperCurrency = (value) => {
+  const parsed = Number(value);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(parsed) ? parsed : 0);
+};
+
+const formatSignedPaperCurrency = (value) => {
+  const parsed = Number(value);
+  const amount = Number.isFinite(parsed) ? parsed : 0;
+  const sign = amount > 0 ? '+' : amount < 0 ? '-' : '';
+  return `${sign}${formatPaperCurrency(Math.abs(amount))}`;
+};
+
+const formatPaperQuantity = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '0';
+  return parsed.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: parsed >= 1000 ? 2 : 6,
+  });
+};
+
+const formatPaperTimestamp = (value) => {
+  const parsed = new Date(value || Date.now());
+  if (Number.isNaN(parsed.getTime())) return '--';
+  return parsed.toLocaleString([], {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 function useCryptoOrderbook(tradeSymbol) {
   const [connected, setConnected] = useState(false);
@@ -273,14 +294,20 @@ function useCryptoOrderbook(tradeSymbol) {
 function OrderEntry({
   selectedCoin,
   lastPrice,
-  userId,
   onOrderPlaced,
   onSymbolChange,
-  buyingPowerDisplay,
 }) {
-  const { tradingMode } = useTradingMode();
-  const normalizedTradingMode = String(tradingMode || '').trim().toLowerCase() === 'live' ? 'live' : 'paper';
-  const isLiveMode = normalizedTradingMode === 'live';
+  const {
+    portfolio,
+    trades,
+    trading,
+    error,
+    executeTrade,
+    closePosition,
+    fetchPortfolio,
+  } = usePaperTrading();
+  const normalizedTradingMode = 'paper';
+  const isLiveMode = false;
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
   const [sizeMode, setSizeMode] = useState('shares');
@@ -291,10 +318,18 @@ function OrderEntry({
   const [trailAmount, setTrailAmount] = useState('');
   const [trailType, setTrailType] = useState('dollars');
   const [timeInForce, setTimeInForce] = useState('day');
-  const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-  const [accountBuyingPowerDisplay, setAccountBuyingPowerDisplay] = useState(buyingPowerDisplay || '$ -');
+  const [inlineError, setInlineError] = useState('');
+  const [successToast, setSuccessToast] = useState('');
+  const liveMarketPrice = Number(lastPrice) || 0;
+  const symbolForTrade = normalizeCryptoSymbol(selectedCoin?.tradeSymbol || selectedCoin?.symbol || '');
+  const positionCandidates = useMemo(() => ([
+    symbolForTrade,
+    selectedCoin?.symbol,
+    `${selectedCoin?.symbol || ''}/USD`,
+    `${selectedCoin?.symbol || ''}USD`,
+  ]).filter(Boolean), [selectedCoin?.symbol, symbolForTrade]);
 
   const referencePrice = useMemo(() => {
     const price =
@@ -335,169 +370,184 @@ function OrderEntry({
   const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
   const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
   const requiresTrail = orderType === 'trailing_stop';
+  const positions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
+  const selectedPosition = useMemo(
+    () => positions.find((position) => matchesPaperSymbol(position?.symbol, positionCandidates)) || null,
+    [positionCandidates, positions]
+  );
+  const hasSelectedPosition = Number(selectedPosition?.quantity) > 0;
+  const recentTrades = useMemo(
+    () => (Array.isArray(trades) ? trades.slice(0, 5) : []),
+    [trades]
+  );
+  const holdings = useMemo(
+    () => (Array.isArray(positions) ? positions.slice(0, 5) : []),
+    [positions]
+  );
+  const accountBuyingPowerDisplay = formatPaperCurrency(portfolio?.cash_balance);
+  const availableCash = Number(portfolio?.cash_balance || 0);
+  const selectedPositionQtyOwned = Number(selectedPosition?.quantity || 0);
+  const executionPrice = liveMarketPrice > 0 ? liveMarketPrice : referencePrice;
   const accountBadgeToneClass = isLiveMode
     ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
     : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
   const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
 
   useEffect(() => {
-    setAccountBuyingPowerDisplay(buyingPowerDisplay || '$ -');
-  }, [buyingPowerDisplay]);
+    if (!successToast) return undefined;
+    const timer = setTimeout(() => setSuccessToast(''), 2800);
+    return () => clearTimeout(timer);
+  }, [successToast]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const getValidationError = () => {
+    if (!symbolForTrade) return 'Select a symbol first.';
+    if (trading) return 'Trade is already executing.';
+    if (!hasValidOrderSize || !Number.isFinite(resolvedQuantity) || resolvedQuantity <= 0) {
+      return 'Quantity must be greater than 0.';
+    }
+    if (!Number.isFinite(executionPrice) || executionPrice <= 0) {
+      return 'Live market price is unavailable.';
+    }
 
-    const fetchBuyingPower = async () => {
-      try {
-        const response = await fetch(`/api/account?mode=${normalizedTradingMode}`, {
-          headers: { 'x-trading-mode': normalizedTradingMode },
-        });
-        const payload = await response.json();
-        if (!response.ok || cancelled) return;
-        const buyingPower = payload?.buying_power ?? payload?.cash ?? payload?.buyingPower;
-        const parsed = Number(buyingPower);
-        if (!Number.isFinite(parsed)) return;
-        setAccountBuyingPowerDisplay(new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(parsed));
-      } catch {
-        if (!cancelled) {
-          setAccountBuyingPowerDisplay('$ -');
-        }
+    if (side === 'buy') {
+      const totalCost = resolvedQuantity * executionPrice;
+      if (totalCost > availableCash) {
+        return `Insufficient cash. Available: ${formatPaperCurrency(availableCash)}`;
       }
-    };
+      return '';
+    }
 
-    fetchBuyingPower();
-    return () => {
-      cancelled = true;
-    };
-  }, [normalizedTradingMode]);
+    if (resolvedQuantity > selectedPositionQtyOwned) {
+      return `Insufficient shares. Owned: ${formatPaperQuantity(selectedPositionQtyOwned)}.`;
+    }
+
+    return '';
+  };
 
   const handleSubmit = () => {
-    if (!hasValidOrderSize) return;
-    if (requiresLimit && (!Number.isFinite(limitPriceNumber) || limitPriceNumber <= 0)) return;
-    if (requiresStop && (!Number.isFinite(stopPriceNumber) || stopPriceNumber <= 0)) return;
-    if (requiresTrail && (!Number.isFinite(trailAmountNumber) || trailAmountNumber <= 0)) return;
+    const validationError = getValidationError();
+    if (validationError) {
+      setInlineError(validationError);
+      return;
+    }
+    setInlineError('');
     setConfirmModal(true);
   };
 
   const executeOrder = async () => {
-    setSubmitting(true);
+    const validationError = getValidationError();
+    if (validationError) {
+      setInlineError(validationError);
+      return;
+    }
     setConfirmModal(false);
-    const normalizedTimeInForce = String(timeInForce || 'day').toLowerCase() === 'day'
-      ? 'gtc'
-      : String(timeInForce || 'gtc').toLowerCase();
-
-    const order = {
-      symbol: selectedCoin.tradeSymbol,
-      side,
-      type: orderType,
-      time_in_force: normalizedTimeInForce,
-      qty: resolvedQuantity,
-      notional: sizeMode === 'dollars' ? notionalNumber : null,
-      limit_price: requiresLimit ? limitPriceNumber : null,
-      stop_price: requiresStop ? stopPriceNumber : null,
-      ...(requiresTrail
-        ? (trailType === 'percent'
-          ? { trail_percent: trailAmountNumber }
-          : { trail_price: trailAmountNumber })
-        : {})
-    };
 
     try {
-      if (!Number.isFinite(order.qty) || order.qty <= 0) {
-        delete order.qty;
-      }
-      if (!Number.isFinite(order.notional) || order.notional <= 0) {
-        delete order.notional;
-      }
-      if (!Number.isFinite(order.limit_price) || order.limit_price <= 0) {
-        delete order.limit_price;
-      }
-      if (!Number.isFinite(order.stop_price) || order.stop_price <= 0) {
-        delete order.stop_price;
-      }
-      if (!Number.isFinite(order.trail_price) || order.trail_price <= 0) {
-        delete order.trail_price;
-      }
-      if (!Number.isFinite(order.trail_percent) || order.trail_percent <= 0) {
-        delete order.trail_percent;
-      }
-
-      const result = await placeOrder(order, {
-        mode: normalizedTradingMode,
+      const result = await executeTrade({
+        symbol: symbolForTrade,
+        side,
+        quantity: resolvedQuantity,
+        price: executionPrice,
       });
 
-      // Save to Supabase
-      if (userId) {
-        await saveOrder(userId, {
-          symbol: order.symbol,
-          side: order.side,
-          orderType: order.type,
-          quantity: order.qty || resolvedQuantity,
-          limitPrice: order.limit_price || null,
-          stopPrice: order.stop_price || null,
-          timeInForce: order.time_in_force,
-          status: 'filled',
-        });
-      }
+      await fetchPortfolio({ silent: true });
 
       setLastResult('filled');
       setTimeout(() => setLastResult(null), 3000);
+      setInlineError('');
+      const actionLabel = side === 'buy' ? 'Bought' : 'Sold';
+      const totalCost = resolvedQuantity * executionPrice;
+      setSuccessToast(
+        `${actionLabel} ${formatPaperQuantity(resolvedQuantity)} ${formatPaperSymbol(symbolForTrade)} @ ${formatPaperCurrency(executionPrice)} · Total: ${formatPaperCurrency(totalCost)}`
+      );
       onOrderPlaced?.(result);
-      handleOrderPlaced();
-
-      try {
-        const refreshedAccount = await fetchAccount({
-          mode: normalizedTradingMode,
-          forceFresh: true,
-        });
-        const buyingPower = refreshedAccount?.buying_power ?? refreshedAccount?.cash ?? refreshedAccount?.buyingPower;
-        const parsed = Number(buyingPower);
-        if (Number.isFinite(parsed)) {
-          setAccountBuyingPowerDisplay(new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }).format(parsed));
-        }
-      } catch {
-        // Ignore post-order balance refresh failures.
+      if (sizeMode === 'shares') {
+        setQuantity('');
+      } else {
+        setDollarAmount('');
       }
     } catch (err) {
-      if (userId) {
-        await saveOrder(userId, {
-          symbol: order.symbol,
-          side: order.side,
-          orderType: order.type,
-          quantity: order.qty || resolvedQuantity,
-          limitPrice: order.limit_price || null,
-          stopPrice: order.stop_price || null,
-          timeInForce: order.time_in_force,
-          status: 'error',
-        });
-      }
       console.error('Order submission error:', err);
-      const errorMsg = err?.message || 'Order rejected';
-      if (errorMsg.includes('not_connected') || errorMsg.toLowerCase().includes('no broker')) {
-        alert(`❌ No broker connected\n\nPlease connect your ${isLiveMode ? 'live' : 'paper'} broker account in Portfolio before trading.`);
-      } else if (errorMsg.toLowerCase().includes('insufficient')) {
-        alert('❌ Order rejected\n\nInsufficient buying power. Check your account balance.');
-      } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not authorized')) {
-        alert('❌ Order rejected\n\nYour broker credentials may not have trading permissions.');
-      } else {
-        alert(`❌ Order rejected\n\n${errorMsg}`);
-      }
-      setLastResult('error');
+      setInlineError(String(err?.message || 'Trade rejected.'));
+      setLastResult('rejected');
       setTimeout(() => setLastResult(null), 3000);
     }
-
-    setSubmitting(false);
   };
+
+  const handleClosePosition = async () => {
+    if (!hasSelectedPosition || trading) return;
+    try {
+      await closePosition(selectedPosition?.symbol || symbolForTrade);
+      await fetchPortfolio({ silent: true });
+      setLastResult('filled');
+      setTimeout(() => setLastResult(null), 3000);
+      setInlineError('');
+      setSuccessToast(
+        `Sold ${formatPaperQuantity(selectedPosition?.quantity || 0)} ${formatPaperSymbol(symbolForTrade)} @ MARKET`
+      );
+      onOrderPlaced?.({
+        symbol: selectedPosition?.symbol || symbolForTrade,
+        side: 'sell',
+        quantity: selectedPosition?.quantity || 0,
+      });
+    } catch (closeError) {
+      console.error('Close position failed:', closeError);
+      setInlineError(String(closeError?.message || 'Close position failed.'));
+      setLastResult('rejected');
+      setTimeout(() => setLastResult(null), 3000);
+    }
+  };
+
+  const selectedPositionSymbol = String(selectedPosition?.symbol || symbolForTrade || '').replace('/USD', '');
+  const selectedPositionQty = Number(selectedPosition?.quantity || 0);
+  const selectedPositionAvgCost = Number(
+    selectedPosition?.avg_cost_basis
+    ?? selectedPosition?.avg_entry_price
+    ?? selectedPosition?.avgCost
+    ?? 0
+  );
+  const selectedPositionLivePrice = liveMarketPrice > 0
+    ? liveMarketPrice
+    : Number(selectedPosition?.current_price || 0);
+  const selectedPositionValue = selectedPositionQty > 0 && selectedPositionLivePrice > 0
+    ? selectedPositionQty * selectedPositionLivePrice
+    : Number(selectedPosition?.market_value || 0);
+  const selectedPositionCostBasis = selectedPositionQty > 0 && selectedPositionAvgCost > 0
+    ? selectedPositionQty * selectedPositionAvgCost
+    : 0;
+  const selectedPositionPnl = selectedPositionCostBasis > 0
+    ? selectedPositionValue - selectedPositionCostBasis
+    : Number(selectedPosition?.pnl || 0);
+  const selectedPositionPnlPercent = selectedPositionCostBasis > 0
+    ? (selectedPositionPnl / selectedPositionCostBasis) * 100
+    : Number(selectedPosition?.pnl_percent || 0);
+  const selectedPositionPnlClass = selectedPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+  const selectedPositionSummary = hasSelectedPosition ? (
+    <div className="rounded-md border border-white/10 bg-transparent px-2 py-1 text-[11px]">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 space-y-0.5">
+          <div className="truncate text-slate-300">
+            Position: {formatPaperQuantity(selectedPosition.quantity)} {selectedPositionSymbol} · Avg {formatPaperCurrency(selectedPosition.avg_cost_basis)} · P&L{' '}
+            <span className={selectedPositionPnlClass}>{formatSignedPaperCurrency(selectedPositionPnl)}</span>
+          </div>
+          <div className="truncate text-slate-400">
+            Value: {formatPaperCurrency(selectedPositionValue)}
+          </div>
+          <div className={`truncate font-semibold ${selectedPositionPnlClass}`}>
+            {formatSignedPaperCurrency(selectedPositionPnl)} ({selectedPositionPnlPercent > 0 ? '+' : ''}{selectedPositionPnlPercent.toFixed(2)}%)
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleClosePosition}
+          disabled={trading}
+          className="shrink-0 rounded border border-red-500/30 px-2 py-0.5 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {trading ? 'Executing...' : 'Sell All'}
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   const fieldClassName =
     'h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60';
@@ -518,7 +568,9 @@ function OrderEntry({
         onSideChange={setSide}
         symbol={`$${selectedCoin.symbol}`}
         onSymbolSubmit={handleSymbolSubmit}
-        marketPrice={referencePrice}
+        marketPrice={liveMarketPrice}
+        marketPriceDisplay="crypto"
+        positionSummary={selectedPositionSummary}
         quantity={quantity}
         onQuantityChange={setQuantity}
         orderType={orderType}
@@ -539,11 +591,12 @@ function OrderEntry({
         estimatedCost={estimatedTotal}
         buyingPowerDisplay={accountBuyingPowerDisplay}
         onReview={handleSubmit}
-        reviewDisabled={submitting || !hasValidOrderSize}
-        reviewLabel={submitting ? 'Submitting...' : `Review ${isLiveMode ? 'Live' : 'Paper'} Order`}
+        reviewDisabled={trading || !hasValidOrderSize || !symbolForTrade}
+        reviewLabel={trading ? 'Executing...' : `Review ${side.toUpperCase()} Order`}
         density="crypto"
+        surfaceTone="black"
         stickyReviewFooter
-        className="flex-1 min-h-0"
+        className="shrink-0"
         extraFields={
           <div className="space-y-1">
             {(orderType === 'limit' || orderType === 'stop_limit') && (
@@ -615,12 +668,14 @@ function OrderEntry({
                 Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
               </div>
             )}
+            <div className="text-[11px] text-slate-400">
+              Paper trades execute as market orders at the live quote.
+            </div>
           </div>
         }
       />
 
-      {/* ── Order Result Flash ────────────────────────────────── */}
-      <div className="px-2">
+      <div className="mt-1 min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
         {lastResult && (
           <div className="text-center text-xs font-semibold py-2 rounded-lg animate-pulse"
             style={{
@@ -629,12 +684,74 @@ function OrderEntry({
               border: `1px solid ${lastResult === 'filled' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
             }}
           >
-            {lastResult === 'filled' ? 'Order Filled ✓' : lastResult === 'rejected' ? 'Order Rejected ✗' : 'Connection Error ✗'}
+            {lastResult === 'filled' ? 'Order Filled' : lastResult === 'rejected' ? 'Order Rejected' : 'Connection Error'}
           </div>
         )}
+
+        {error ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-xs text-red-300">
+            {error}
+          </div>
+        ) : null}
+
+        {inlineError ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-xs text-red-300">
+            {inlineError}
+          </div>
+        ) : null}
+
+        {successToast ? (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-300">
+            {successToast}
+          </div>
+        ) : null}
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="flex items-center justify-between">
+            <span className="uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
+            <span className="font-semibold text-white">{accountBuyingPowerDisplay}</span>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+            Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
+          </div>
+          {holdings.length > 0 ? (
+            <div className="mt-0.5 space-y-0.5">
+              {holdings.map((position) => (
+                <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-300">
+                    {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
+                  </span>
+                  <span className={Number(position.pnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {formatPaperCurrency(position.pnl)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+            Recent Trades {recentTrades.length ? `(${recentTrades.length})` : '(0)'}
+          </div>
+          {recentTrades.length > 0 ? (
+            <div className="mt-0.5 space-y-0.5">
+              {recentTrades.map((trade) => (
+                <div key={`paper-trade-${trade.id}`} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-300">
+                    {trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}
+                  </span>
+                  <span className="text-slate-500">{formatPaperTimestamp(trade.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      {/* ── Confirmation Modal ──────────────────────────────────── */}
       <AnimatePresence>
         {confirmModal && (
           <motion.div
@@ -655,19 +772,7 @@ function OrderEntry({
                 Confirm {isLiveMode ? 'Live' : 'Paper'} Order
               </div>
               <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedCoin.symbol} @ {
-                  orderType === 'market'
-                    ? 'MARKET'
-                    : orderType === 'limit'
-                      ? `$${limitPrice}`
-                      : orderType === 'stop'
-                        ? `STOP $${stopPrice}`
-                        : orderType === 'stop_limit'
-                          ? `STOP $${stopPrice} / LIMIT $${limitPrice}`
-                          : trailType === 'percent'
-                            ? `TRAIL ${trailAmount}%`
-                            : `TRAIL $${trailAmount}`
-                }
+                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {formatPaperSymbol(symbolForTrade)} @ MARKET
               </div>
               {sizeMode === 'dollars' && (
                 <div className="text-[10px] mt-1" style={{ color: 'rgba(148, 163, 184, 0.45)' }}>
@@ -690,6 +795,7 @@ function OrderEntry({
               </motion.button>
               <motion.button
                 onClick={executeOrder}
+                disabled={trading}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 transition={interactiveTransition}
@@ -700,7 +806,7 @@ function OrderEntry({
                   border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
                 }}
               >
-                Confirm {side.toUpperCase()} {isLiveMode ? '(LIVE)' : '(PAPER)'}
+                {trading ? 'Executing...' : `Confirm ${side.toUpperCase()} (PAPER)`}
               </motion.button>
             </div>
             </motion.div>
@@ -743,57 +849,33 @@ function CoinSelector({ coins, selected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN CRYPTO PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
+export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
   const [selectedCoin, setSelectedCoin] = useState(CRYPTO_COINS[0]);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   const [userId, setUserId] = useState(null);
-  const [orderHistory, setOrderHistory] = useState([]);
   const { connected, hasRecentMessage, lastPrice } = useCryptoOrderbook(selectedCoin.tradeSymbol);
   const streamLive = connected || hasRecentMessage;
 
-  // Extract buying power from connected broker account data
-  const buyingPower = brokerData?.account?.buying_power || 0;
-  const buyingPowerFormatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(buyingPower) || 0);
-
-  // Get current user from Supabase auth
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
         setUserId(data.user.id);
-        // Load user's preferred coin
         loadUserPreference(data.user.id).then(({ data: pref }) => {
           if (pref?.crypto_default_coin) {
             const coin = CRYPTO_COINS.find((c) => c.symbol === pref.crypto_default_coin);
             if (coin) setSelectedCoin(coin);
           }
         });
-        // Load order history
-        fetchOrderHistory(data.user.id).then(({ data: orders }) => {
-          if (orders) setOrderHistory(orders);
-        });
       }
     });
   }, []);
 
-  // Save preference when coin changes
   const handleCoinSelect = (coin) => {
     setSelectedCoin(coin);
     if (userId) saveUserPreference(userId, coin.symbol);
   };
 
-  // Refresh order history after placing
   const handleOrderPlaced = () => {
-    if (userId) {
-      fetchOrderHistory(userId).then(({ data: orders }) => {
-        if (orders) setOrderHistory(orders);
-      });
-    }
-    // Trigger parent data refresh to update buying power
     if (onOrderPlaced) {
       onOrderPlaced();
     }
@@ -806,7 +888,7 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
   };
 
   const orderTicketStyle = {
-    background: '#060d18',
+    background: '#0b0b0b',
     border: '1px solid rgba(255, 255, 255, 0.06)',
   };
 
@@ -938,9 +1020,7 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
                 <OrderEntry
                   selectedCoin={selectedCoin}
                   lastPrice={lastPrice}
-                  userId={userId}
                   onOrderPlaced={handleOrderPlaced}
-                  buyingPowerDisplay={buyingPowerFormatted}
                   onSymbolChange={(symbolInput) => {
                     const normalized = String(symbolInput || '').toUpperCase();
                     const nextCoin = CRYPTO_COINS.find((coin) =>
