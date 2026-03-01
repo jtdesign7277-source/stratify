@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, ArrowLeftRight, Brain, Bell, BarChart3, Globe, MessageCircle } from 'lucide-react';
+import { TrendingUp, ArrowLeftRight, Bell, BarChart3, Globe, MessageCircle } from 'lucide-react';
 import {
   T,
   POST_TYPE_CONFIG,

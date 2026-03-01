@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, TrendingUp, ArrowLeftRight, Brain, Bell, BarChart3, Globe, MessageCircle,
+  X, TrendingUp, ArrowLeftRight, Bell, BarChart3, Globe, MessageCircle,
   Camera, SmilePlus, Wand2, Send, Loader2,
 } from 'lucide-react';
+import SophiaMark from '../SophiaMark';
 import EmojiPicker from '../EmojiPicker';
 import {
   T,
@@ -302,7 +303,7 @@ const PostComposerModal = ({
               <motion.div {...modalSectionMotion(1)} className="flex flex-wrap gap-2">
                 <ComposerTypePill active={postType === 'general'} icon={MessageCircle} label="General" onClick={() => setPostType('general')} accent={T.blue} />
                 <ComposerTypePill active={postType === 'trade'} icon={ArrowLeftRight} label="Trade" onClick={() => setPostType('trade')} accent={T.blue} />
-                <ComposerTypePill active={postType === 'strategy'} icon={Brain} label="Strategy" onClick={() => setPostType('strategy')} accent="#c297ff" />
+                <ComposerTypePill active={postType === 'strategy'} icon={SophiaMark} label="Strategy" onClick={() => setPostType('strategy')} accent="#c297ff" />
                 <ComposerTypePill active={postType === 'alert'} icon={Bell} label="Alert" onClick={() => setPostType('alert')} accent="#f0883e" />
                 <ComposerTypePill active={postType === 'pnl'} icon={TrendingUp} label="P&L" onClick={() => setPostType('pnl')} accent={T.green} />
                 <ComposerTypePill active={postType === 'earnings'} icon={BarChart3} label="Earnings" onClick={() => setPostType('earnings')} accent="#d29922" />

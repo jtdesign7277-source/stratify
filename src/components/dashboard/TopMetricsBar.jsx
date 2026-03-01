@@ -693,21 +693,21 @@ export default function TopMetricsBar({
 
   return (
     <div className={`relative z-20 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
-      <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center justify-end bg-[#0a0f1a]/85">
-        <div className="flex items-center gap-2">
+      <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center bg-[#0b0b0b]">
+        <div className="flex w-full items-center justify-between gap-2">
           {worldClockData.map((clock) => (
             <div
               key={clock.id}
-              className="h-6 rounded-md border border-[#243046] bg-[#0b1220]/80 px-2.5 flex items-center gap-2"
+              className="h-6 min-w-0 rounded-md border border-[#1f1f1f] bg-[#0b0b0b] px-2.5 flex items-center gap-2"
               title={`${clock.city} (${clock.code}) market hours ${clock.hoursLabel}`}
             >
               <span className="text-[10px] uppercase tracking-wide text-white/55 font-semibold">{clock.city}</span>
               <span className="text-[11px] font-mono text-white">{clock.localTime}</span>
-              <span className={`h-1.5 w-1.5 rounded-full ${clock.isOpen ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span className={`text-[10px] font-semibold uppercase tracking-wide ${clock.isOpen ? 'text-emerald-400' : 'text-amber-300'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${clock.isOpen ? 'bg-emerald-400' : 'bg-blue-600'}`} />
+              <span className={`text-[10px] font-semibold uppercase tracking-wide ${clock.isOpen ? 'text-emerald-400' : 'text-blue-500'}`}>
                 {clock.isOpen ? 'Open' : 'Closed'}
               </span>
-              <span className={`text-[10px] ${clock.isOpen ? 'text-emerald-300/85' : 'text-amber-200/85'}`}>
+              <span className={`text-[10px] ${clock.isOpen ? 'text-emerald-300/85' : 'text-blue-400/80'}`}>
                 {clock.transitionVerb} {clock.countdownLabel}
               </span>
             </div>
@@ -728,9 +728,9 @@ export default function TopMetricsBar({
           )}
         </div>
 
-        {/* Mini Pills Bar - slot 1 + 4 ticker slots */}
+        {/* Mini Pills Bar - 4 ticker slots */}
         <div className="relative z-20 flex items-center gap-2 mx-6 flex-1 justify-center">
-          {[1, 2, 3, 4, 5].map((slot) => (
+          {[2, 3, 4, 5].map((slot) => (
             <div
               key={slot}
               className={`relative z-10 pointer-events-auto h-8 rounded-full transition-all ${
@@ -845,9 +845,6 @@ export default function TopMetricsBar({
           </div>
           {/* Notification Bell */}
           <NotificationButton themeClasses={themeClasses} />
-          <button onClick={onLogout} className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors ${themeClasses.textMuted}`}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-          </button>
         </div>
       </div>
     </div>

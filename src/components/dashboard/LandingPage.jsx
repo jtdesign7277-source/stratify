@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Ban,
   Bell,
-  Brain,
   ChevronDown,
   Code,
   Crosshair,
@@ -15,6 +14,7 @@ import {
   Shield,
 } from 'lucide-react';
 import GlobalMarketsBadge from './GlobalMarketsBadge';
+import SophiaMark from './SophiaMark';
 import {
   PRO_MONTHLY_PRICE_LABEL,
 } from '../../lib/billing';
@@ -41,7 +41,7 @@ const FEATURE_CARDS = [
   {
     title: 'Sophia AI',
     description: 'Your personal trading analyst that knows your portfolio.',
-    icon: Brain,
+    icon: SophiaMark,
     signal: 'AI Analyst',
     meta: 'Context-aware strategy reasoning',
   },

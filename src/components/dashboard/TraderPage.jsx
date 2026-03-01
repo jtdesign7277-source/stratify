@@ -12,6 +12,7 @@ import { usePaperTrading } from '../../hooks/usePaperTrading';
 import SentimentBadge from './SentimentBadge';
 import NewsFeedPanel from './NewsFeedPanel';
 import ErrorBoundary from '../shared/AppErrorBoundary';
+import MiniGamePill from '../shared/MiniGamePill';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
@@ -45,18 +46,37 @@ const MARKET_FILTER_BY_ID = MARKET_FILTERS.reduce((accumulator, market) => {
 }, {});
 const MARKET_SYMBOLS = [
   { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
+  { symbol: 'AMZN', name: 'Amazon.com, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'META', name: 'Meta Platforms, Inc.', exchange: 'NASDAQ' },
   { symbol: 'TSLA', name: 'Tesla, Inc.', exchange: 'NASDAQ' },
   { symbol: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ' },
   { symbol: 'NVDA', name: 'NVIDIA Corporation', exchange: 'NASDAQ' },
   { symbol: 'JPM', name: 'JPMorgan Chase & Co.', exchange: 'NYSE' },
   { symbol: 'V', name: 'Visa Inc.', exchange: 'NYSE' },
+  { symbol: 'SHEL', name: 'Shell plc', exchange: 'LSE' },
+  { symbol: 'AZN', name: 'AstraZeneca PLC', exchange: 'LSE' },
+  { symbol: 'HSBA', name: 'HSBC Holdings plc', exchange: 'LSE' },
+  { symbol: 'BP', name: 'BP p.l.c.', exchange: 'LSE' },
+  { symbol: 'BARC', name: 'Barclays PLC', exchange: 'LSE' },
+  { symbol: 'LLOY', name: 'Lloyds Banking Group plc', exchange: 'LSE' },
   { symbol: 'BP.L', name: 'BP p.l.c.', exchange: 'LSE' },
   { symbol: 'VOD.LON', name: 'Vodafone Group Plc', exchange: 'LSE' },
+  { symbol: 'BHP', name: 'BHP Group Limited', exchange: 'ASX' },
+  { symbol: 'CBA', name: 'Commonwealth Bank of Australia', exchange: 'ASX' },
+  { symbol: 'WBC', name: 'Westpac Banking Corporation', exchange: 'ASX' },
+  { symbol: 'NAB', name: 'National Australia Bank Limited', exchange: 'ASX' },
+  { symbol: 'ANZ', name: 'ANZ Group Holdings Limited', exchange: 'ASX' },
+  { symbol: 'CSL', name: 'CSL Limited', exchange: 'ASX' },
   { symbol: '7203.T', name: 'Toyota Motor Corporation', exchange: 'TSE' },
   { symbol: '6758.T', name: 'Sony Group Corporation', exchange: 'TSE' },
   { symbol: 'BHP.AX', name: 'BHP Group Limited', exchange: 'ASX' },
   { symbol: 'CBA.AX', name: 'Commonwealth Bank of Australia', exchange: 'ASX' },
 ];
+const MARKET_WATCHLIST_PRESETS = {
+  us: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'],
+  london: ['SHEL', 'AZN', 'HSBA', 'BP', 'BARC', 'LLOY'],
+  sydney: ['BHP', 'CBA', 'WBC', 'NAB', 'ANZ', 'CSL'],
+};
 const UNIVERSAL_FALLBACK_SYMBOLS = [
   ...MARKET_SYMBOLS,
   { symbol: 'BTC/USD', name: 'Bitcoin / US Dollar', exchange: 'CRYPTO', type: 'Cryptocurrency' },
@@ -103,6 +123,11 @@ const TRADER_ORDER_TYPE_OPTIONS = [
 const NEWS_PANEL_DEFAULT_HEIGHT = 280;
 const NEWS_PANEL_MIN_HEIGHT = 80;
 const NEWS_PANEL_MIN_CHART_SPACE = 60;
+const WATCHLIST_PANEL_OPEN_WIDTH = 240;
+const WATCHLIST_PANEL_COLLAPSED_WIDTH = 60;
+const CRYPTO_PORTFOLIO_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LINK', 'ADA', 'AVAX', 'DOT']);
+const GAME_PILL_SLOTS = [2, 3, 4, 5];
+const ESPN_WORDMARK_URL = 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ESPN_wordmark.svg';
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -149,6 +174,46 @@ const DRAG_PREVIEW_SCALE_BY_DISTANCE = [
   { distance: 0, scale: 0.4 },
 ];
 const TICKER_DRAG_STATE_EVENT = 'stratify:ticker-drag-state';
+
+const hasGameTransferData = (transfer) => {
+  const types = Array.from(transfer?.types || []);
+  return types.includes('text/stratify-game')
+    || types.includes('application/json')
+    || types.includes('text/plain');
+};
+
+const parseGameDropPayload = (event) => {
+  if (typeof window !== 'undefined') {
+    const globalPayload = window.__stratifyDragPayload;
+    if (globalPayload?.type === 'game' && globalPayload?.data) {
+      return globalPayload;
+    }
+  }
+
+  const transfer = event?.dataTransfer;
+  if (!transfer) return null;
+
+  const rawPayload = transfer.getData('text/stratify-game')
+    || transfer.getData('application/json')
+    || transfer.getData('text/plain');
+  if (!rawPayload) return null;
+
+  try {
+    const parsed = JSON.parse(rawPayload);
+    if (parsed?.type === 'game' && parsed?.data) return parsed;
+    if (parsed?.id && parsed?.homeTeam && parsed?.awayTeam) {
+      return { type: 'game', data: parsed };
+    }
+  } catch {}
+
+  return null;
+};
+
+const clearGlobalDragPayload = () => {
+  if (typeof window !== 'undefined') {
+    delete window.__stratifyDragPayload;
+  }
+};
 
 const interpolate = (value, inputStart, inputEnd, outputStart, outputEnd) => {
   if (inputStart === inputEnd) return outputEnd;
@@ -278,6 +343,24 @@ const normalizeSymbol = (value) =>
     .replace(/\s+/g, '')
     .split(':')
     .pop();
+
+const isCryptoPortfolioSymbol = (value) => {
+  const normalized = normalizeSymbol(value);
+  if (!normalized) return false;
+
+  const compact = normalized.replace(/[^A-Z0-9]/g, '');
+  if (CRYPTO_PORTFOLIO_SYMBOLS.has(compact)) return true;
+  if (compact.endsWith('USD') && compact.length > 3) {
+    return CRYPTO_PORTFOLIO_SYMBOLS.has(compact.slice(0, -3));
+  }
+
+  if (normalized.includes('/')) {
+    const base = normalized.split('/')[0];
+    return CRYPTO_PORTFOLIO_SYMBOLS.has(base);
+  }
+
+  return false;
+};
 
 
 const MARKET_NAME_BY_SYMBOL = MARKET_SYMBOLS.reduce((accumulator, entry) => {
@@ -1402,6 +1485,11 @@ export default function TraderPage({
   onPinToTop,
   tradingMode: tradingModeOverride,
   canUseLiveTrading: canUseLiveTradingOverride,
+  isLiveScoresOpen = false,
+  onOpenLiveScores = () => {},
+  pinnedGames = [],
+  onGameDrop = () => {},
+  onRemovePinnedGame = () => {},
 }) {
   const tradingModeState = useTradingMode();
   const resolvedTradingMode = tradingModeOverride || tradingModeState.tradingMode;
@@ -1451,6 +1539,8 @@ export default function TraderPage({
   const [activeDragTicker, setActiveDragTicker] = useState('');
   const [dragPreviewScale, setDragPreviewScale] = useState(1);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [activeGameDropSlot, setActiveGameDropSlot] = useState(null);
+  const [espnLogoErrored, setEspnLogoErrored] = useState(false);
   const [watchlistNamesBySymbol, setWatchlistNamesBySymbol] = useState(() =>
     initialWatchlist.reduce((accumulator, symbol) => {
       const normalized = normalizeSymbol(symbol);
@@ -1495,6 +1585,9 @@ export default function TraderPage({
     () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))],
     [watchlist]
   );
+  const watchlistPanelWidth = isWatchlistCollapsed
+    ? WATCHLIST_PANEL_COLLAPSED_WIDTH
+    : WATCHLIST_PANEL_OPEN_WIDTH;
   const searchResultSymbols = useMemo(
     () => [...new Set(searchResults.map((result) => normalizeSymbol(result?.symbol)).filter(Boolean))],
     [searchResults]
@@ -3013,6 +3106,36 @@ export default function TraderPage({
     addSymbolToWatchlist(symbolInput);
   };
 
+  const handleMarketSelect = useCallback((marketId) => {
+    const normalizedMarketId = String(marketId || '').trim().toLowerCase();
+    if (!MARKET_FILTER_BY_ID[normalizedMarketId]) return;
+
+    setActiveMarket(normalizedMarketId);
+
+    const presetSymbols = (MARKET_WATCHLIST_PRESETS[normalizedMarketId] || [])
+      .map(normalizeSymbol)
+      .filter(Boolean);
+    if (presetSymbols.length === 0) return;
+
+    const uniquePresetSymbols = [...new Set(presetSymbols)];
+    setWatchlist(uniquePresetSymbols);
+    setSelectedSymbol(uniquePresetSymbols[0]);
+    setWatchlistNamesBySymbol((previous) => {
+      const next = { ...previous };
+      uniquePresetSymbols.forEach((symbol) => {
+        if (!next[symbol] && MARKET_NAME_BY_SYMBOL[symbol]) {
+          next[symbol] = MARKET_NAME_BY_SYMBOL[symbol];
+        }
+      });
+      return next;
+    });
+
+    setSymbolInput('');
+    setSearchResults([]);
+    setIsSearchLoading(false);
+    setIsSearchDropdownOpen(false);
+  }, []);
+
   const removeSymbolFromWatchlist = useCallback((symbolToRemove) => {
     const normalized = normalizeSymbol(symbolToRemove);
     if (!normalized) return;
@@ -3203,13 +3326,101 @@ export default function TraderPage({
 
   return (
     <motion.div {...PAGE_TRANSITION} className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
-      <div className="flex h-[68px] shrink-0 items-center justify-end border-b border-[#1f1f1f] px-4 py-3">
-        <div className="ml-auto flex items-center gap-4">
-          <div className="text-right">
+      <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenLiveScores}
+            className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
+              isLiveScoresOpen
+                ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
+                : 'border border-white/20 bg-black/90 hover:border-white/40'
+            }`}
+            aria-label="Open live ESPN scores"
+            title="Open live ESPN scores"
+          >
+            <div className="h-4 min-w-0 flex items-center justify-center">
+              {espnLogoErrored ? (
+                <span className="text-[11px] font-black italic tracking-tight text-[#E5252A]">ESPN</span>
+              ) : (
+                <img
+                  src={ESPN_WORDMARK_URL}
+                  alt="ESPN"
+                  className="h-3 w-auto object-contain"
+                  loading="lazy"
+                  onError={() => setEspnLogoErrored(true)}
+                />
+              )}
+            </div>
+            <span className="text-white font-medium text-xs">Live</span>
+          </button>
+          <div className="flex items-center gap-1.5">
+            {GAME_PILL_SLOTS.map((slot) => {
+              const game = pinnedGames?.[slot] || null;
+              const isDropActive = activeGameDropSlot === slot;
+              return (
+                <div
+                  key={`trader-game-slot-${slot}`}
+                  className={`relative h-8 rounded-full transition-all ${
+                    game
+                      ? 'border border-transparent'
+                      : 'min-w-[72px] border border-dashed border-white/15 bg-white/[0.03]'
+                  } ${
+                    isDropActive ? 'ring-1 ring-emerald-400/75 border-emerald-400/60 bg-emerald-500/10' : ''
+                  }`}
+                  onDragEnter={(event) => {
+                    if (!hasGameTransferData(event.dataTransfer)) return;
+                    event.preventDefault();
+                    setActiveGameDropSlot(slot);
+                  }}
+                  onDragOver={(event) => {
+                    if (!hasGameTransferData(event.dataTransfer)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (event.dataTransfer) {
+                      event.dataTransfer.dropEffect = 'copy';
+                    }
+                    if (activeGameDropSlot !== slot) {
+                      setActiveGameDropSlot(slot);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (activeGameDropSlot === slot) {
+                      setActiveGameDropSlot(null);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const payload = parseGameDropPayload(event);
+                    setActiveGameDropSlot(null);
+                    if (payload?.type === 'game' && payload?.data) {
+                      onGameDrop(payload.data, slot);
+                    }
+                    clearGlobalDragPayload();
+                  }}
+                >
+                  {game ? (
+                    <MiniGamePill
+                      game={game}
+                      onRemove={() => onRemovePinnedGame(slot)}
+                    />
+                  ) : (
+                    <div className="h-full w-full px-2.5 flex items-center justify-center text-white/30 pointer-events-none">
+                      <Plus className="h-3 w-3" strokeWidth={2} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-right">
+          <div>
             <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
             <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
           </div>
-          <div className="text-right">
+          <div>
             <div className="flex items-center justify-end gap-1">
               <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
                 {formatPrice(selectedQuote?.price)}
@@ -3241,9 +3452,8 @@ export default function TraderPage({
         className="flex flex-1 min-h-0 gap-2 overflow-hidden p-2"
       >
         <aside
-          className={`${
-            isWatchlistCollapsed ? 'w-[60px]' : 'w-[300px]'
-          } flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0b] transition-[width] duration-200 ease-in-out`}
+          className="flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0b] transition-[width] duration-200 ease-in-out"
+          style={{ width: `${watchlistPanelWidth}px` }}
         >
           {isWatchlistCollapsed && (
             <div className="flex h-10 shrink-0 items-center justify-center border-b border-[#1f1f1f] px-1">
@@ -3300,7 +3510,7 @@ export default function TraderPage({
                           <div key={market.id} className="flex items-center gap-1">
                             <motion.button
                               type="button"
-                              onClick={() => setActiveMarket(market.id)}
+                              onClick={() => handleMarketSelect(market.id)}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
                               transition={interactiveTransition}
@@ -3338,10 +3548,28 @@ export default function TraderPage({
                         onFocus={() => {
                           if (symbolInput.trim()) setIsSearchDropdownOpen(true);
                         }}
-                        placeholder="Search stocks, crypto, indices..."
+                        placeholder="Search here"
                         autoComplete="off"
-                        className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
+                        className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-10 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
                       />
+                      <motion.button
+                        type="button"
+                        aria-label={`Pin ${selectedSymbol || 'selected symbol'} to top mini pill`}
+                        title="Double-click to pin selected ticker to top mini pills"
+                        className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center text-emerald-300/45 transition-colors hover:text-emerald-300"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
+                        onDoubleClick={(event) => {
+                          event.stopPropagation();
+                          pinSymbolToTopPills(selectedSymbol || watchlist[0]);
+                        }}
+                      >
+                        <Pin className="h-3 w-3" />
+                      </motion.button>
                       {isSearchDropdownOpen && symbolInput.trim() && (
                         <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
                           {isSearchLoading ? (
@@ -3522,7 +3750,7 @@ export default function TraderPage({
                                       {...provided.draggableProps}
                                       className={`group relative flex items-center justify-between cursor-pointer transition-colors duration-150 border-b border-[#1f1f1f]/30 ${
                                         isSelected ? 'bg-emerald-500/5 border-l border-l-emerald-500/30' : 'hover:bg-white/5'
-                                      } px-4 py-3 ${
+                                      } px-3 py-2.5 ${
                                         snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
                                       } ${
                                         isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
@@ -3539,9 +3767,9 @@ export default function TraderPage({
                                         <GripVertical className="w-4 h-4" />
                                       </div>
 
-                                      <div className="flex-1 min-w-0 pr-4">
+                                      <div className="flex-1 min-w-0 pr-2">
                                         <div className="flex items-center">
-                                          <div className="text-white font-bold text-[13px]">${symbol}</div>
+                                          <div className="text-[13px] font-semibold text-white">${symbol}</div>
                                           {(() => {
                                             if (!extendedHoursStatus) return null;
                                             return (
@@ -3557,9 +3785,9 @@ export default function TraderPage({
                                         <div className="text-white/50 text-sm truncate">{companyName}</div>
                                       </div>
 
-                                      <div className="ml-auto pr-3 text-right flex-shrink-0">
+                                      <div className="ml-auto pr-1 text-right flex-shrink-0">
                                         <div className="flex items-center justify-end gap-1">
-                                          <div className={`font-semibold text-base font-mono ${isPlaceholder ? 'text-white/80' : 'text-white'}`}>
+                                          <div className={`text-[12px] font-mono font-semibold ${isPlaceholder ? 'text-white/80' : 'text-white'}`}>
                                             {Number.isFinite(price) ? formatPrice(price) : '--'}
                                           </div>
                                           {isPriceLoading && (
@@ -3594,7 +3822,7 @@ export default function TraderPage({
                                           </div>
                                         )}
                                       </div>
-                                      <div className="mr-2 flex-shrink-0">
+                                      <div className="mr-1 flex-shrink-0">
                                         <SentimentBadge
                                           score={sentimentMap[symbol]?.sentiment}
                                           totalDocs={sentimentMap[symbol]?.totalDocs}
@@ -3602,32 +3830,13 @@ export default function TraderPage({
                                         />
                                       </div>
 
-                                      <div className="pointer-events-none ml-1 inline-flex items-center opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
-                                        <motion.button
-                                          type="button"
-                                          aria-label={`Pin ${symbol} to top mini pill`}
-                                          title="Double-click to pin in top mini pills"
-                                          className="inline-flex h-8 w-8 items-center justify-center text-emerald-300/45 transition-colors hover:text-emerald-300"
-                                          whileHover={{ scale: 1.02 }}
-                                          whileTap={{ scale: 0.98 }}
-                                          transition={interactiveTransition}
-                                          onPointerDown={(event) => {
-                                            event.stopPropagation();
-                                          }}
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                          }}
-                                          onDoubleClick={(event) => {
-                                            event.stopPropagation();
-                                            pinSymbolToTopPills(symbol);
-                                          }}
-                                        >
-                                          <Pin className="h-4 w-4" />
-                                        </motion.button>
+                                      <div
+                                        className="pointer-events-none ml-0.5 inline-flex items-center gap-0.5 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
+                                      >
                                         <motion.button
                                           type="button"
                                           aria-label={`Remove ${symbol} from watchlist`}
-                                          className="inline-flex h-8 w-8 items-center justify-center text-gray-400 transition-colors hover:text-red-400"
+                                          className="inline-flex h-6 w-6 items-center justify-center text-gray-400 transition-colors hover:text-red-400"
                                           whileHover={{ scale: 1.02 }}
                                           whileTap={{ scale: 0.98 }}
                                           transition={interactiveTransition}
@@ -3639,7 +3848,7 @@ export default function TraderPage({
                                             removeSymbolFromWatchlist(symbol);
                                           }}
                                         >
-                                          <Trash2 className="h-4 w-4" />
+                                          <Trash2 className="h-3 w-3" />
                                         </motion.button>
                                       </div>
                                     </div>
@@ -3663,6 +3872,7 @@ export default function TraderPage({
                         portfolioPositions.map((position) => {
                           const isSelected = selectedSymbol === position.symbol;
                           const pnlIsPositive = position.pnlPercent >= 0;
+                          const isCryptoPosition = isCryptoPortfolioSymbol(position.symbol);
 
                           return (
                             <motion.button
@@ -3694,9 +3904,11 @@ export default function TraderPage({
                                   <div className="text-[12px] font-mono font-semibold text-white">
                                     {formatPaperCurrency(position.marketValue)}
                                   </div>
-                                  <div className={`text-[11px] font-semibold ${pnlIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {formatSignedPercent(position.pnlPercent)}
-                                  </div>
+                                  {!isCryptoPosition ? (
+                                    <div className={`text-[11px] font-semibold ${pnlIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                      {formatSignedPercent(position.pnlPercent)}
+                                    </div>
+                                  ) : null}
                                 </div>
                               </div>
                             </motion.button>

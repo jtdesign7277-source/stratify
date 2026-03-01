@@ -106,7 +106,6 @@ import FloatingGrokChat from './FloatingGrokChat';
 import CryptoPage from './CryptoPage';
 // Sophia strategy state managed here
 import TickerPill from './TickerPill';
-import MiniGamePill from '../shared/MiniGamePill';
 import FredPage from './FredPage';
 import EconomicsCalendarPage from './EconomicsCalendarPage';
 import XRayPage from '../xray/XRayPage';
@@ -135,13 +134,13 @@ const SIDEBAR_EXPANDED_KEY = 'stratify-sidebar-expanded';
 const getInitialSidebarExpanded = (savedState) => {
   try {
     const hasSeenSidebar = localStorage.getItem(SIDEBAR_SEEN_KEY);
-    if (!hasSeenSidebar) return true;
+    if (!hasSeenSidebar) return false;
 
     const savedExpanded = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
     if (savedExpanded === 'true') return true;
     if (savedExpanded === 'false') return false;
   } catch {
-    return true;
+    return false;
   }
 
   if (typeof savedState?.sidebarExpanded === 'boolean') {
@@ -232,11 +231,11 @@ const ensureRealTradeAnalysisSection = (content) => {
   return `${normalized}\n\n${REAL_TRADE_ANALYSIS_TEMPLATE}`;
 };
 
-const sanitizeActiveTab = (tab, fallback = 'war-room') => {
+const sanitizeActiveTab = (tab, fallback = 'trader') => {
   const normalized = String(tab || '').trim();
   if (normalized === 'builder') return 'terminal';
   if (normalized === 'strategies') return 'terminal';
-  if (normalized === 'home') return 'war-room';
+  if (normalized === 'home') return 'trader';
   if (normalized === 'markets') return 'global-markets';
   if (normalized === 'history') return 'portfolio';
   if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
@@ -508,6 +507,7 @@ const TOPBAR_LOGO_DOMAIN_BY_TICKER = {
   XRP: 'ripple.com',
   DOGE: 'dogecoin.com',
 };
+const TOPBAR_NO_LOGO_TICKERS = new Set(['SPY', 'QQQ']);
 
 const getTopBarLogoCandidates = (ticker) => {
   const normalized = normalizeTickerTapeSymbolInput(ticker);
@@ -532,10 +532,13 @@ const TopBarTickerLogo = ({ ticker }) => {
   }, [normalized]);
 
   const activeLogoUrl = logoUrls[logoIndex] || '';
+  if (TOPBAR_NO_LOGO_TICKERS.has(normalized)) {
+    return null;
+  }
 
   if (failed || !activeLogoUrl) {
     return (
-      <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-white/10 text-[8px] font-semibold text-white/70">
+      <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-sm bg-white/10 text-[9px] font-semibold text-white/70">
         {normalized.slice(0, 1) || '?'}
       </span>
     );
@@ -545,7 +548,7 @@ const TopBarTickerLogo = ({ ticker }) => {
     <img
       src={activeLogoUrl}
       alt={`${normalized} logo`}
-      className="h-4 w-4 flex-shrink-0 object-contain"
+      className="h-[18px] w-[18px] flex-shrink-0 object-contain"
       loading="lazy"
       onError={() => {
         setLogoIndex((current) => {
@@ -645,11 +648,11 @@ const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false 
             return (
               <span key={`${row.ticker}-${idx}`} className="flex items-center gap-2 px-2">
                 <TopBarTickerLogo ticker={row.ticker} />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/85">
+                <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/85 leading-none">
                   {row.ticker}
                 </span>
-                <span className="text-[11px] font-mono text-white/70">{priceText}</span>
-                <span className={`text-[11px] font-mono ${pctClass}`}>{pct}</span>
+                <span className="text-[12px] font-mono text-white/70 leading-none">{priceText}</span>
+                <span className={`text-[12px] font-mono ${pctClass} leading-none`}>{pct}</span>
                 <span className="text-white/30">•</span>
               </span>
             );
@@ -963,7 +966,7 @@ export default function Dashboard({
     setDeployedStrategies,
   } = useStrategySync(user);
   
-  // Mini pills (slot 1 = live scores, slots 2-5 = ticker pills)
+  // Mini pills (slots 2-5 = ticker pills)
   const [miniTickers, setMiniTickers] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-mini-tickers');
@@ -1081,11 +1084,6 @@ export default function Dashboard({
     const tickerIndex = getMiniTickerIndexFromSlot(slotIndex);
     if (tickerIndex < 0) return;
 
-    setPinnedGames(prev => {
-      const next = [...prev];
-      next[slotIndex] = null;
-      return next;
-    });
     setMiniTickers(prev => {
       const newTickers = normalizeMiniTickers(prev);
       const existingIndex = newTickers.indexOf(normalizedSymbol);
@@ -1107,11 +1105,11 @@ export default function Dashboard({
     const tickerState = normalizeMiniTickers(miniTickers);
     const firstEmptySlot = MINI_TICKER_SLOTS.find((slot) => {
       const index = getMiniTickerIndexFromSlot(slot);
-      return index >= 0 && !tickerState[index] && !pinnedGames?.[slot];
+      return index >= 0 && !tickerState[index];
     });
 
     return firstEmptySlot || MINI_TICKER_SLOTS[0];
-  }, [miniTickers, pinnedGames]);
+  }, [miniTickers]);
 
   const handleTraderTickerPin = useCallback((symbol, preferredSlot) => {
     const slot = resolveMiniTickerSlot(preferredSlot);
@@ -1119,18 +1117,12 @@ export default function Dashboard({
   }, [handleTickerDrop, resolveMiniTickerSlot]);
 
   const handleGameDrop = (game, slotIndex) => {
-    if (slotIndex < 1) return;
+    if (slotIndex < 2 || slotIndex > 5) return;
     setPinnedGames(prev => {
       const next = [...prev];
       const existingIndex = next.findIndex(g => g?.id === game?.id);
       if (existingIndex !== -1) next[existingIndex] = null;
       next[slotIndex] = game;
-      return next;
-    });
-    setMiniTickers(prev => {
-      const next = normalizeMiniTickers(prev);
-      const tickerIndex = getMiniTickerIndexFromSlot(slotIndex);
-      if (tickerIndex >= 0) next[tickerIndex] = null;
       return next;
     });
   };
@@ -2270,35 +2262,7 @@ export default function Dashboard({
 
   const miniPillSlots = Array(6).fill(null);
 
-  const liveScoresPill = (
-    <div
-      key="scores-pill"
-      onClick={onToggleLiveScores}
-      className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
-        isLiveScoresOpen
-          ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
-          : 'border border-white/20 bg-black/90 hover:border-white/40'
-      }`}
-    >
-      <div className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-        <span className="text-xs">🏀</span>
-      </div>
-      <span className="text-white font-medium text-xs">Live</span>
-    </div>
-  );
-
-  [1, 2, 3, 4, 5].forEach((slot) => {
-    if (pinnedGames[slot]) {
-      miniPillSlots[slot] = (
-        <MiniGamePill
-          key={`pinned-game-${slot}-${pinnedGames[slot].id}`}
-          game={pinnedGames[slot]}
-          onRemove={() => handleRemovePinnedGame(slot)}
-        />
-      );
-      return;
-    }
-
+  [2, 3, 4, 5].forEach((slot) => {
     const tickerIndex = getMiniTickerIndexFromSlot(slot);
     const tickerSymbol = tickerIndex >= 0 ? miniTickers[tickerIndex] : null;
     if (tickerSymbol) {
@@ -2312,10 +2276,6 @@ export default function Dashboard({
         />
       );
       return;
-    }
-
-    if (slot === 1) {
-      miniPillSlots[slot] = liveScoresPill;
     }
   });
 
@@ -2348,7 +2308,6 @@ export default function Dashboard({
             connectedBrokers={connectedBrokers}
             miniPills={miniPillSlots}
             onTickerDrop={handleTickerDrop}
-            onGameDrop={handleGameDrop}
             deployedStrategies={deployedStrategies}
             hasConnectedBroker={hasConnectedBroker}
             isPaperTradingMode={shouldUsePaperTopBarMetrics}
@@ -2381,10 +2340,6 @@ export default function Dashboard({
                   />
                 </div>
 
-                <div className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-[#2a2a3d] bg-[#151c29]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.55)]" />
-                  <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-white/85">Live</span>
-                </div>
               </div>
             </motion.div>
           )}
@@ -2445,7 +2400,14 @@ export default function Dashboard({
               >
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
-              <TradePage onPinToTop={handleTraderTickerPin} />
+              <TradePage
+                onPinToTop={handleTraderTickerPin}
+                isLiveScoresOpen={isLiveScoresOpen}
+                onToggleLiveScores={onToggleLiveScores}
+                pinnedGames={pinnedGames}
+                onGameDrop={handleGameDrop}
+                onRemovePinnedGame={handleRemovePinnedGame}
+              />
             </Suspense>
           )}
           {activeTab === 'trade' && (

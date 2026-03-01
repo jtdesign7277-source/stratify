@@ -417,15 +417,21 @@ export default function StatusBar({
               onClick={() => setCopilotOpen((prev) => !prev)}
               className={`relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 ${
                 copilotOpen
-                  ? 'text-amber-300'
+                  ? 'text-violet-300'
                   : hasNewInsight
-                    ? 'text-amber-400/80'
+                    ? 'text-violet-400/90'
                     : 'text-gray-400 hover:text-gray-300'
               }`}
             >
+              <img
+                src="https://assets.coingecko.com/coins/images/4128/small/solana.png"
+                alt="Solana logo"
+                className="w-3 h-3 object-contain"
+                loading="lazy"
+              />
               Sophia
               {hasNewInsight && (
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 pointer-events-none" />
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-400 pointer-events-none" />
               )}
             </button>
             {copilotOpen && (

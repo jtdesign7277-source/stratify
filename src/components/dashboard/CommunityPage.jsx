@@ -8,7 +8,7 @@ import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
 import {
-  Heart, MessageCircle, Send, X, TrendingUp, BarChart3, Bell, BellOff, Brain,
+  Heart, MessageCircle, Send, X, TrendingUp, BarChart3, Bell, BellOff,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,

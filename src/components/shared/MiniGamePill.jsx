@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
 
@@ -80,18 +80,19 @@ const MiniGamePill = ({ game, onRemove }) => {
     <div className="group h-8 px-2.5 rounded-full bg-[#1a1a1f] border border-white/10 flex items-center gap-2 text-white text-[11px] leading-none whitespace-nowrap">
       <div className="flex items-center gap-1.5">
         {currentGame.awayLogo && <img src={currentGame.awayLogo} alt="" className="w-4 h-4" />}
-        <span className="font-mono">{currentGame.awayScore}</span>
-        <span className="text-white/40">|</span>
-        <span className="font-mono">{currentGame.homeScore}</span>
+        <span className="font-mono text-white">{currentGame.awayScore}</span>
+        <span className="text-white/70">|</span>
+        <span className="font-mono text-white">{currentGame.homeScore}</span>
         {currentGame.homeLogo && <img src={currentGame.homeLogo} alt="" className="w-4 h-4" />}
       </div>
-      <span className="text-[10px] text-white/70">{statusLabel}</span>
+      <span className="text-[10px] text-white">{statusLabel}</span>
       <button
         onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
         className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded-full transition-opacity"
         aria-label="Remove game"
+        title="Remove mini pill"
       >
-        <X className="w-3 h-3 text-white/70 hover:text-white" />
+        <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-300" />
       </button>
     </div>
   );

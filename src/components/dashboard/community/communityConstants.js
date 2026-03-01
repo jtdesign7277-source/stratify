@@ -1,7 +1,8 @@
 import {
-  MessageCircle, TrendingUp, Brain, ArrowLeftRight, Bell, BarChart3, Globe,
+  MessageCircle, TrendingUp, ArrowLeftRight, Bell, BarChart3, Globe,
   Clock3, Newspaper, Hash,
 } from 'lucide-react';
+import SophiaMark from '../SophiaMark';
 
 // ─── Theme ────────────────────────────────────────────────
 export const T = {
@@ -104,7 +105,7 @@ export const POST_TYPE_CONFIG = {
   },
   strategy: {
     label: 'Strategy',
-    icon: Brain,
+    icon: SophiaMark,
     placeholder: 'Drop a strategy or setup...',
     badge: {
       backgroundColor: 'rgba(163,113,247,0.16)',

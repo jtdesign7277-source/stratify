@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
+import SophiaMark from './SophiaMark';
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -119,14 +120,10 @@ const GradientOrb = ({ className }) => (
   <div className={`absolute rounded-full blur-3xl opacity-20 animate-pulse ${className}`} />
 );
 
-// Grok Brain Icon for avatar
+// Sophia/Solana mark for avatar
 const GrokBrainIcon = ({ className = "w-full h-full" }) => (
   <div className={`${className} flex items-center justify-center bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 animate-pulse`}>
-    <svg viewBox="0 0 24 24" className="w-3/5 h-3/5" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 4.5C10 4.5 9 5.5 9 7c0-2-1.5-3-3-3s-2.5 1.5-2.5 3c0 1 .5 2 1 2.5-.5.5-1.5 1.5-1.5 3 0 2 1.5 3 3 3 .5 0 1-.1 1.5-.3 0 1.8 1.5 3.3 3.5 3.3" />
-      <path d="M12 4.5c2 0 3 1 3 2.5 0-2 1.5-3 3-3s2.5 1.5 2.5 3c0 1-.5 2-1 2.5.5.5 1.5 1.5 1.5 3 0 2-1.5 3-3 3-.5 0-1-.1-1.5-.3 0 1.8-1.5 3.3-3.5 3.3" />
-      <path d="M12 4.5v15" />
-    </svg>
+    <SophiaMark className="w-3/5 h-3/5" />
   </div>
 );
 

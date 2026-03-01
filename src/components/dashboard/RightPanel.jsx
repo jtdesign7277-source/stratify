@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
+import SophiaMark from './SophiaMark';
 import {
   INDICATOR_OPTIONS,
   STRATEGY_INDICATOR_MAP,
@@ -8,14 +9,7 @@ import {
   useStrategyIndicators,
 } from '../../hooks/useIndicators';
 
-// Brain Icon (thin line, matches left sidebar)
-const BrainIcon = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 4.5C10 4.5 9 5.5 9 7c0-2-1.5-3-3-3s-2.5 1.5-2.5 3c0 1 .5 2 1 2.5-.5.5-1.5 1.5-1.5 3 0 2 1.5 3 3 3 .5 0 1-.1 1.5-.3 0 1.8 1.5 3.3 3.5 3.3" />
-    <path d="M12 4.5c2 0 3 1 3 2.5 0-2 1.5-3 3-3s2.5 1.5 2.5 3c0 1-.5 2-1 2.5.5.5 1.5 1.5 1.5 3 0 2-1.5 3-3 3-.5 0-1-.1-1.5-.3 0 1.8-1.5 3.3-3.5 3.3" />
-    <path d="M12 4.5v15" />
-  </svg>
-);
+const BrainIcon = ({ className, size }) => <SophiaMark className={className} size={size} />;
 
 // Refresh Icon
 const RefreshIcon = ({ className }) => (
@@ -69,7 +63,7 @@ const INDICATOR_LABELS = INDICATOR_OPTIONS.reduce((acc, option) => {
 }, {});
 
 const PANEL_STATE_STORAGE_KEY = 'stratify-sophia-panel-state';
-const PANEL_STATE_CYCLE = { closed: 'small', small: 'large', large: 'closed' };
+const PANEL_STATE_CYCLE = { closed: 'small', small: 'closed', large: 'closed' };
 const SMALL_PANEL_WIDTH = 320;
 const MIN_LARGE_PANEL_WIDTH = 430;
 const normalizePanelState = (value) => {

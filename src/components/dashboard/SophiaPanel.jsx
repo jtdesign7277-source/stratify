@@ -4,7 +4,6 @@ import {
   Loader2,
   Volume2,
   Trash2,
-  Brain,
   Rocket,
   ChevronsRight,
   ChevronsLeft,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useSophiaChat } from '../../hooks/useSophiaChat';
 import BacktestWizard from './BacktestWizard';
+import SophiaMark from './SophiaMark';
 import { tokenizeTickerText } from '../../lib/tickerStyling';
 import { saveWarRoomIntel } from '../../lib/warRoomIntel';
 
@@ -50,7 +50,7 @@ const STRATEGY_PRESETS = [
 
 const PANEL_STATE_STORAGE_KEY = 'stratify-sophia-panel-state';
 const PANEL_WIDTHS = { large: 430, small: 320, closed: 40 };
-const PANEL_STATE_CYCLE = { closed: 'small', small: 'large', large: 'closed' };
+const PANEL_STATE_CYCLE = { closed: 'small', small: 'closed', large: 'closed' };
 const normalizePanelState = (value) => {
   if (['closed', 'small', 'large'].includes(value)) return value;
   if (value === 'collapsed') return 'closed';
@@ -209,7 +209,7 @@ const SophiaPanel = ({
   useEffect(() => {
     if (wizardPrompt && !isLoading) {
       // Expand the panel and switch to sophia tab so the user sees the response
-      setPanelState((prev) => (prev === 'closed' ? 'large' : prev));
+      setPanelState((prev) => (prev === 'closed' ? 'small' : prev));
       setActiveTab('sophia');
       sendMessage(wizardPrompt);
       onWizardPromptConsumed && onWizardPromptConsumed();
@@ -384,7 +384,7 @@ const SophiaPanel = ({
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#1f1f1f]">
         <div className="flex items-center gap-2">
-          <Brain className="w-4 h-4 text-emerald-400" />
+          <SophiaMark className="w-4 h-4" />
           <span className="text-white font-semibold text-sm">Sophia</span>
           <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
         </div>
@@ -500,7 +500,7 @@ const SophiaPanel = ({
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3 min-h-0">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <Brain className="w-10 h-10 text-emerald-400/30 mb-3" />
+                <SophiaMark className="w-10 h-10 mb-3 opacity-40" />
                 <p className="text-gray-500 text-sm">
                   Ask Sophia to build a trading strategy, analyze a stock, or run a backtest.
                 </p>

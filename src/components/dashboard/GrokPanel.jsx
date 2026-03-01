@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Send, Loader2, Copy, Check, Search, X, Plus, Brain,
+  Send, Loader2, Copy, Check, Search, X, Plus,
   TrendingUp, BarChart3, RefreshCcw, Rocket, Activity, Target,
   ChevronsLeft, ChevronsRight, RotateCcw, Save, Play, ArrowLeft
 } from 'lucide-react';
+import SophiaMark from './SophiaMark';
 import { useAuth } from '../../context/AuthContext';
 
 const GROK_LOADING_STEPS = ['Analyzing', 'Building', 'Testing'];
@@ -101,7 +102,7 @@ const GrokLoadingOverlay = ({ isVisible }) => {
               className="mb-3 flex items-center justify-center"
             >
               <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shadow-[0_0_18px_rgba(16,185,129,0.25)]">
-                <Brain className="w-5 h-5 text-emerald-300" strokeWidth={1.6} />
+                <SophiaMark className="w-5 h-5" />
               </div>
             </motion.div>
 

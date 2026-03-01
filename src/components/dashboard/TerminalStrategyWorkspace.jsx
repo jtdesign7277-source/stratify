@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Brain,
   ChevronsLeft,
   ChevronsRight,
   ChevronRight,
@@ -12,6 +11,7 @@ import {
   Zap,
 } from 'lucide-react';
 import StrategyOutput from './StrategyOutput';
+import SophiaMark from './SophiaMark';
 import { supabase } from '../../lib/supabaseClient';
 import { normalizeTickerSymbol, tokenizeTickerText } from '../../lib/tickerStyling';
 import { useAuth } from '../../context/AuthContext';
@@ -499,7 +499,7 @@ const SophiaThinkingState = ({ onOpenBuilder }) => (
     <div className="relative z-10 flex h-full items-center justify-center px-8">
       <div className="max-w-2xl text-center">
       <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/35 px-3 py-1 text-xs uppercase tracking-[0.2em] text-violet-200/90">
-        <Brain className="h-3.5 w-3.5 text-violet-300" strokeWidth={1.7} />
+        <SophiaMark className="h-3.5 w-3.5" />
         Sophia is thinking
       </div>
       <h2 className="mt-4 text-2xl font-semibold text-white">Building your strategy...</h2>

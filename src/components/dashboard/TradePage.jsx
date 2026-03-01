@@ -14,7 +14,14 @@ const sectionMotion = (index) => ({
   transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
 });
 
-export default function TradePage({ onPinToTop }) {
+export default function TradePage({
+  onPinToTop,
+  isLiveScoresOpen = false,
+  onToggleLiveScores = () => {},
+  pinnedGames = [],
+  onGameDrop = () => {},
+  onRemovePinnedGame = () => {},
+}) {
   const { tradingMode, isLive, canUseLiveTrading } = useTradingMode();
 
   return (
@@ -38,6 +45,11 @@ export default function TradePage({ onPinToTop }) {
           onPinToTop={onPinToTop}
           tradingMode={tradingMode}
           canUseLiveTrading={canUseLiveTrading}
+          isLiveScoresOpen={isLiveScoresOpen}
+          onOpenLiveScores={onToggleLiveScores}
+          pinnedGames={pinnedGames}
+          onGameDrop={onGameDrop}
+          onRemovePinnedGame={onRemovePinnedGame}
         />
       </motion.div>
     </motion.div>
