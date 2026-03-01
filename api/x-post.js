@@ -23,6 +23,18 @@ function getRedis() {
   return new Redis({ url, token })
 }
 
+const isTruthy = (value) => ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase())
+const X_POST_ENABLED = isTruthy(process.env.ENABLE_X_POST)
+const X_POST_KILL_SWITCH = isTruthy(process.env.X_POST_KILL_SWITCH)
+const X_POST_DISABLED = X_POST_KILL_SWITCH || !X_POST_ENABLED
+
+const getXPostAnthropicKey = () => String(
+  process.env.ANTHROPIC_API_KEY_XPOST
+  || process.env.ANTHROPIC_API_KEY_CONTENT
+  || process.env.ANTHROPIC_API_KEY
+  || ''
+).trim()
+
 // Post to X via API v2
 async function postToX(text, mediaIds = []) {
   const body = { text }
@@ -226,11 +238,16 @@ Each under 280 chars. JSON array only, no markdown.`,
   const systemPrompt = prompts[type]
   if (!systemPrompt) throw new Error(`Unknown content type: ${type}`)
 
+  const anthropicApiKey = getXPostAnthropicKey()
+  if (!anthropicApiKey) {
+    throw new Error('ANTHROPIC_API_KEY_XPOST is missing')
+  }
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'x-api-key': anthropicApiKey,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
@@ -260,7 +277,20 @@ export default async function handler(req, res) {
 
   // List available content types
   if (action === 'list') {
-    return res.status(200).json({ contentTypes: CONTENT_TYPES })
+    return res.status(200).json({
+      contentTypes: CONTENT_TYPES,
+      enabled: !X_POST_DISABLED,
+      killSwitch: X_POST_KILL_SWITCH,
+    })
+  }
+
+  if (X_POST_DISABLED) {
+    return res.status(503).json({
+      error: 'X post generation is disabled by kill switch',
+      code: 'X_POST_DISABLED',
+      enabled: false,
+      killSwitch: X_POST_KILL_SWITCH,
+    })
   }
 
   // Validate type

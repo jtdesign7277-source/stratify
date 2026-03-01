@@ -566,19 +566,19 @@ export default function PortfolioDashboard() {
   }
 
   return (
-    <div className="relative h-full overflow-y-auto bg-[#060d18] text-white" style={starfieldBaseStyle}>
+    <div className="relative h-full overflow-y-auto bg-[#060d18] text-[#f8fbff]" style={starfieldBaseStyle}>
       <div className="pointer-events-none absolute inset-0 opacity-70" style={starfieldDotsStyle} />
       <div className="relative z-10 p-4">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Portfolio</h2>
+          <h2 className="text-lg font-semibold text-[#f8fbff]">Portfolio</h2>
           <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300">
             Paper Mode
           </span>
         </div>
         <button
           onClick={fetchPortfolio}
-          className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-gray-300 hover:text-white"
+          className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff]"
         >
           <RefreshCw size={12} /> Refresh
         </button>
@@ -646,7 +646,7 @@ export default function PortfolioDashboard() {
                     <td className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400" colSpan={4}>
                       {section.label} Totals
                     </td>
-                    <td className="px-2 py-2 text-right font-mono text-white">{fmtMoney(section.summary.value)}</td>
+                    <td className="px-2 py-2 text-right font-mono text-[#f8fbff]">{fmtMoney(section.summary.value)}</td>
                     <td className={`px-2 py-2 text-right font-mono ${section.summary.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {section.summary.pnl >= 0 ? '+' : ''}{fmtMoney(section.summary.pnl)}
                     </td>
@@ -683,7 +683,7 @@ export default function PortfolioDashboard() {
                       {strategyId ? <span className="font-mono text-[10px] text-gray-400">{strategyId}</span> : null}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-mono text-gray-300">@ {fmtMoney(price)}</span>
+                      <span className="font-mono text-[#f8fbff]">@ {fmtMoney(price)}</span>
                       <span className="text-gray-500">{formatTradeTime(trade?.timestamp)}</span>
                     </div>
                   </div>
@@ -700,11 +700,11 @@ export default function PortfolioDashboard() {
         <div className="mt-3 border-t-2 border-[#334155] pt-3">
           <div className="flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Portfolio Value</span>
-            <span className="font-mono text-white">{fmtMoney(totalValue)}</span>
+            <span className="font-mono text-[#f8fbff]">{fmtMoney(totalValue)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Buying Power</span>
-            <span className="font-mono text-white">{fmtMoney(cashBalance)}</span>
+            <span className="font-mono text-[#f8fbff]">{fmtMoney(cashBalance)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L</span>
@@ -754,8 +754,8 @@ export default function PortfolioDashboard() {
                     <span className="text-gray-500">x{fmtQty(trade?.quantity)}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-gray-300">@ {fmtMoney(trade?.price)}</span>
-                    <span className="font-mono text-gray-400">{fmtMoney(value)}</span>
+                    <span className="font-mono text-[#f8fbff]">@ {fmtMoney(trade?.price)}</span>
+                    <span className="font-mono text-[#f8fbff]">{fmtMoney(value)}</span>
                   </div>
                 </div>
               );

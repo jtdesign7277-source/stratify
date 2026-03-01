@@ -2,19 +2,19 @@
 // News feed panel for TradePage — shows sentiment-tagged articles for selected ticker
 // Sits below the chart or as a toggleable panel
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ExternalLink, X } from 'lucide-react';
 import { useNews, useTrending, getSentimentColor, getSentimentLabel } from '../../hooks/useMarketAux';
 
 // ─── Single Article Row ─────────────────────────────────────
-function ArticleRow({ article }) {
+function ArticleRow({ article, onOpen }) {
   const colors = getSentimentColor(article.sentiment);
   const timeAgo = getTimeAgo(article.publishedAt);
 
   return (
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <button
+      type="button"
+      onClick={() => onOpen?.(article)}
       className="group flex gap-3 p-3 rounded-lg hover:bg-white/[0.03] transition-all duration-200
                  border border-transparent hover:border-white/[0.06] cursor-pointer"
     >
@@ -80,13 +80,9 @@ function ArticleRow({ article }) {
       {/* External link icon */}
       <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity
                        self-center">
-        <svg className="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor"
-             viewBox="0 0 24 24" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round"
-                d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-        </svg>
+        <ExternalLink className="w-3.5 h-3.5 text-gray-600" strokeWidth={1.5} />
       </div>
-    </a>
+    </button>
   );
 }
 
@@ -143,6 +139,7 @@ export default function NewsFeedPanel({
 }) {
   const [filter, setFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('news'); // 'news' | 'trending'
+  const [activeArticle, setActiveArticle] = useState(null);
   const { articles, loading, error, refetch } = useNews(selectedSymbol, { limit: 15 });
   const { trending, loading: trendingLoading } = useTrending();
 
@@ -153,6 +150,10 @@ export default function NewsFeedPanel({
     if (filter === 'bearish') return articles.filter((a) => a.sentiment <= -0.2);
     return articles;
   }, [articles, filter]);
+
+  useEffect(() => {
+    setActiveArticle(null);
+  }, [selectedSymbol, activeTab]);
 
   return (
     <div className={`soft-glass-surface flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] ${className}`}>
@@ -226,7 +227,61 @@ export default function NewsFeedPanel({
       <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: '400px' }}>
         {activeTab === 'news' ? (
           <>
-            {loading && !articles.length ? (
+            {activeArticle ? (
+              <div className="h-full p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-gray-500">
+                      {formatSource(activeArticle.source)} · {getTimeAgo(activeArticle.publishedAt)}
+                    </p>
+                    <h3 className="mt-1 text-[14px] font-semibold leading-snug text-white">
+                      {activeArticle.title}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveArticle(null)}
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
+                    title="Close article"
+                    aria-label="Close article"
+                  >
+                    <X className="h-4 w-4" strokeWidth={1.8} />
+                  </button>
+                </div>
+
+                {activeArticle.imageUrl ? (
+                  <img
+                    src={activeArticle.imageUrl}
+                    alt={activeArticle.title}
+                    className="mb-3 h-32 w-full rounded-lg object-cover"
+                  />
+                ) : null}
+
+                <div className="space-y-2 text-[12px] leading-relaxed text-gray-300">
+                  {activeArticle.description ? <p>{activeArticle.description}</p> : null}
+                  {activeArticle.snippet ? <p>{activeArticle.snippet}</p> : null}
+                  {activeArticle.highlight ? (
+                    <p
+                      className="text-gray-400"
+                      dangerouslySetInnerHTML={{ __html: cleanHighlight(activeArticle.highlight) }}
+                    />
+                  ) : null}
+                </div>
+
+                {activeArticle.url ? (
+                  <a
+                    href={activeArticle.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-400 hover:text-blue-300"
+                  >
+                    Open source article
+                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  </a>
+                ) : null}
+              </div>
+            ) : (
+              loading && !articles.length ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2">
                 <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500
                                 rounded-full animate-spin" />
@@ -249,9 +304,10 @@ export default function NewsFeedPanel({
             ) : (
               <div className="divide-y divide-white/[0.03]">
                 {filteredArticles.map((article) => (
-                  <ArticleRow key={article.uuid} article={article} />
+                  <ArticleRow key={article.uuid} article={article} onOpen={setActiveArticle} />
                 ))}
               </div>
+            )
             )}
           </>
         ) : (

@@ -1,5 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { fetchTwelveData } from './lib/twelvedata.js';
+import {
+  SOPHIA_USAGE_LIMIT_USD,
+  buildProPlusRequiredPayload,
+  estimateSophiaCostUsd,
+  getRedisClient,
+  getSophiaUsageUsd,
+  getSubscriptionStatus,
+  incrementSophiaUsageUsd,
+  isPaidStatus,
+  resolveSophiaActorKey,
+} from './lib/pro-plus.js';
 
 const SOPHIA_STRATEGY_SYSTEM_PROMPT = `
 You are Sophia, Stratify's AI trading strategist.
@@ -346,12 +357,18 @@ async function fetchQuote(symbol) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const anthropicApiKey = String(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '').trim();
+  const anthropicApiKey = String(
+    process.env.ANTHROPIC_API_KEY_SOPHIA
+    || process.env.ANTHROPIC_API_KEY
+    || process.env.CLAUDE_API_KEY
+    || ''
+  ).trim();
   if (!anthropicApiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY is missing. Please add Claude Sonnet API key in environment variables.' });
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY_SOPHIA is missing. Please add a Claude Sonnet Sophia API key.' });
   }
 
   const { messages: incomingMessages, userId, strategyMode: strategyModeRaw } = req.body;
+  const normalizedUserId = String(userId || '').trim();
   const strategyMode = Boolean(strategyModeRaw);
   if (!Array.isArray(incomingMessages)) return res.status(400).json({ error: 'messages must be an array' });
 
@@ -364,14 +381,14 @@ export default async function handler(req, res) {
   if (supabaseUrl && supabaseServiceKey) {
     supabase = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
 
-    if (userId) {
+    if (normalizedUserId) {
       try {
         const { data } = await supabase
           .from('sophia_conversations')
           .select('role, content')
-          .eq('user_id', userId)
+          .eq('user_id', normalizedUserId)
           .order('created_at', { ascending: true })
-          .limit(20);
+          .limit(10);
         if (data) conversationContext = data.map(m => ({ role: m.role, content: m.content }));
       } catch (e) { console.error('Failed to load conversation history:', e); }
     }
@@ -443,6 +460,28 @@ export default async function handler(req, res) {
     });
   }
 
+  const redis = getRedisClient();
+  const sophiaActorKey = resolveSophiaActorKey({ userId: normalizedUserId, req });
+  const subscriptionStatus = await getSubscriptionStatus(supabase, normalizedUserId);
+  const isPaidUser = isPaidStatus(subscriptionStatus);
+
+  if (!isPaidUser && redis) {
+    const usedUsd = await getSophiaUsageUsd(redis, sophiaActorKey);
+    if (usedUsd >= SOPHIA_USAGE_LIMIT_USD) {
+      return res.status(402).json(
+        buildProPlusRequiredPayload({
+          reason: 'sophia_limit_reached',
+          message: `Sophia free usage limit reached (${SOPHIA_USAGE_LIMIT_USD.toFixed(2)} USD). Upgrade to PRO PLUS PLAN.`,
+          usage: {
+            used_usd: usedUsd,
+            limit_usd: SOPHIA_USAGE_LIMIT_USD,
+            remaining_usd: 0,
+          },
+        })
+      );
+    }
+  }
+
   // Set up SSE streaming
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -465,7 +504,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1800,
+        max_tokens: 900,
         temperature: strategyMode ? 0.45 : 0.35,
         system: strategyMode ? SOPHIA_STRATEGY_SYSTEM_PROMPT : SOPHIA_GENERAL_SYSTEM_PROMPT,
         messages: anthropicMessages,
@@ -487,14 +526,23 @@ export default async function handler(req, res) {
       res.write(fullResponse);
     }
 
+    if (!isPaidUser && redis) {
+      const estimatedCostUsd = estimateSophiaCostUsd({
+        messages: anthropicMessages,
+        responseText: fullResponse,
+        strategyMode,
+      });
+      await incrementSophiaUsageUsd(redis, sophiaActorKey, estimatedCostUsd);
+    }
+
     res.end();
 
     // Save messages to Supabase (fire and forget)
-    if (supabase && userId) {
+    if (supabase && normalizedUserId) {
       const lastUserMsg = incomingMessages[incomingMessages.length - 1];
       const inserts = [];
-      if (lastUserMsg) inserts.push({ user_id: userId, role: 'user', content: lastUserMsg.content });
-      if (fullResponse) inserts.push({ user_id: userId, role: 'assistant', content: fullResponse });
+      if (lastUserMsg) inserts.push({ user_id: normalizedUserId, role: 'user', content: lastUserMsg.content });
+      if (fullResponse) inserts.push({ user_id: normalizedUserId, role: 'assistant', content: fullResponse });
       if (inserts.length > 0) {
         supabase.from('sophia_conversations').insert(inserts).then(() => {}).catch(() => {});
       }

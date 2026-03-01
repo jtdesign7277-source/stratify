@@ -247,7 +247,33 @@ export function useSophiaChat() {
         });
 
         if (!res.ok) {
-          const errorText = await res.text().catch(() => 'Unknown error');
+          let payload = null;
+          let errorText = 'Unknown error';
+          const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+
+          if (contentType.includes('application/json')) {
+            payload = await res.json().catch(() => null);
+          } else {
+            const rawText = await res.text().catch(() => '');
+            try {
+              payload = JSON.parse(rawText);
+            } catch {
+              payload = null;
+            }
+            if (!payload && rawText) errorText = rawText;
+          }
+
+          if (payload && typeof payload === 'object') {
+            errorText = String(payload.message || payload.error || `Request failed (${res.status})`);
+            if (payload.code === 'PRO_PLUS_PLAN_REQUIRED' && typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('stratify:pro-plus-required', {
+                  detail: payload,
+                })
+              );
+            }
+          }
+
           setMessages((prev) =>
             prev.map((message) =>
               message.id === assistantMessageId

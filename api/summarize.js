@@ -14,9 +14,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = String(
+    process.env.ANTHROPIC_API_KEY_SUMMARIZE
+    || process.env.ANTHROPIC_API_KEY
+    || ''
+  ).trim();
   if (!apiKey) {
-    return res.status(500).json({ error: 'Anthropic API key not configured' });
+    return res.status(500).json({ error: 'Anthropic summarize API key not configured' });
   }
 
   const { title = '', content = '', source = '', url = '' } = req.body || {};

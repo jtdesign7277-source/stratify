@@ -88,11 +88,18 @@ const normalizeTrades = (payload) => {
 };
 
 const parseApiError = async (response) => {
+  let payload = null;
   try {
-    const payload = await response.json();
+    payload = await response.json();
     if (payload && typeof payload === 'object') {
       const message = String(payload.error || payload.message || '').trim();
-      if (message) return message;
+      if (message) {
+        return {
+          message,
+          code: String(payload.code || '').trim(),
+          payload,
+        };
+      }
     }
   } catch {
     // ignore json parse errors
@@ -100,12 +107,22 @@ const parseApiError = async (response) => {
 
   try {
     const text = String(await response.text()).trim();
-    if (text) return text;
+    if (text) {
+      return {
+        message: text,
+        code: '',
+        payload: payload || null,
+      };
+    }
   } catch {
     // ignore text parse errors
   }
 
-  return `Request failed (${response.status})`;
+  return {
+    message: `Request failed (${response.status})`,
+    code: '',
+    payload: payload || null,
+  };
 };
 
 const getAuthHeaders = async () => {
@@ -137,7 +154,8 @@ const fetchPortfolioInternal = async ({ silent = false } = {}) => {
         cache: 'no-store',
       });
       if (!response.ok) {
-        throw new Error(await parseApiError(response));
+        const parsedError = await parseApiError(response);
+        throw new Error(parsedError.message);
       }
       const payload = await response.json().catch(() => ({}));
       const portfolio = normalizePortfolio(payload);
@@ -184,7 +202,8 @@ const fetchTradesInternal = async ({ limit = 50, offset = 0, silent = false } = 
         cache: 'no-store',
       });
       if (!response.ok) {
-        throw new Error(await parseApiError(response));
+        const parsedError = await parseApiError(response);
+        throw new Error(parsedError.message);
       }
       const payload = await response.json().catch(() => ({}));
       const trades = normalizeTrades(payload);
@@ -451,7 +470,15 @@ const executeTradeInternal = async (input, sideArg, quantityArg, priceArg) => {
     });
 
     if (!response.ok) {
-      throw new Error(await parseApiError(response));
+      const parsedError = await parseApiError(response);
+      if (parsedError.code === 'PRO_PLUS_PLAN_REQUIRED' && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('stratify:pro-plus-required', {
+            detail: parsedError.payload || { code: parsedError.code, message: parsedError.message },
+          })
+        );
+      }
+      throw new Error(parsedError.message);
     }
 
     const result = await response.json().catch(() => ({}));

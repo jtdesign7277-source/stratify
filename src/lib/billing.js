@@ -1,4 +1,5 @@
 export const PRO_MONTHLY_PRICE = 19.99;
+export const PRO_PLUS_MONTHLY_PRICE = 39.99;
 export const INSTITUTIONAL_MONTHLY_PRICE = 199.99;
 export const PRO_YEARLY_DISCOUNT = 0.2;
 export const PRO_YEARLY_PRICE = PRO_MONTHLY_PRICE * 12 * (1 - PRO_YEARLY_DISCOUNT);
@@ -9,6 +10,7 @@ export const PRO_BILLING_INTERVAL_STORAGE_KEY = 'stratify_preferred_billing_inte
 
 export const PRO_MONTHLY_PRICE_LABEL = `$${PRO_MONTHLY_PRICE.toFixed(2)}/mo`;
 export const PRO_MONTHLY_PRICE_LABEL_LONG = `$${PRO_MONTHLY_PRICE.toFixed(2)}/month`;
+export const PRO_PLUS_MONTHLY_PRICE_LABEL = `$${PRO_PLUS_MONTHLY_PRICE.toFixed(2)}/month`;
 export const PRO_YEARLY_PRICE_LABEL = `$${PRO_YEARLY_PRICE.toFixed(2)}/year`;
 export const PRO_YEARLY_DISCOUNT_LABEL = `${Math.round(PRO_YEARLY_DISCOUNT * 100)}% off`;
 export const INSTITUTIONAL_MONTHLY_PRICE_LABEL = `$${INSTITUTIONAL_MONTHLY_PRICE.toFixed(2)}/mo`;
@@ -16,6 +18,7 @@ export const INSTITUTIONAL_MONTHLY_PRICE_LABEL = `$${INSTITUTIONAL_MONTHLY_PRICE
 export const PRO_STRIPE_PRICE_ID =
   import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'price_1T0jBTRdPxQfs9UeRln3Uj68';
 export const PRO_YEARLY_STRIPE_PRICE_ID = import.meta.env.VITE_STRIPE_PRO_YEARLY_PRICE_ID || '';
+export const PRO_PLUS_STRIPE_PRICE_ID = import.meta.env.VITE_STRIPE_PRO_PLUS_PRICE_ID || '';
 
 export const getPreferredProBillingInterval = () => {
   if (typeof window === 'undefined') return PRO_BILLING_INTERVAL_MONTHLY;
@@ -51,3 +54,5 @@ export const resolveProCheckoutPriceId = (preferredInterval = getPreferredProBil
   }
   return PRO_STRIPE_PRICE_ID;
 };
+
+export const resolveProPlusCheckoutPriceId = () => PRO_PLUS_STRIPE_PRICE_ID;

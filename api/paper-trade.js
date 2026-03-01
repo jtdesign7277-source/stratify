@@ -2,17 +2,23 @@
 // Grabs live price from Redis cache, validates, executes via Supabase RPC
 
 import { createClient } from '@supabase/supabase-js';
-import { Redis } from '@upstash/redis';
+import {
+  PAPER_BUY_NOTIONAL_LIMIT_USD,
+  buildPaperUsageSnapshot,
+  buildProPlusRequiredPayload,
+  getPaperBuyNotionalUsageUsd,
+  getRedisClient,
+  getSubscriptionStatus,
+  incrementPaperBuyNotionalUsageUsd,
+  isPaidStatus,
+} from './lib/pro-plus.js';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-});
+const redis = getRedisClient();
 
 export default async function handler(req, res) {
   // CORS
@@ -31,21 +37,39 @@ export default async function handler(req, res) {
     if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
 
     const { symbol, side, quantity } = req.body;
+    const normalizedSide = String(side || '').toLowerCase();
+    const normalizedQuantity = Number(quantity);
+    const subscriptionStatus = await getSubscriptionStatus(supabase, user.id);
+    const isPaidUser = isPaidStatus(subscriptionStatus);
 
     // Validate inputs
     if (!symbol || !side || !quantity) {
       return res.status(400).json({ error: 'Missing required fields: symbol, side, quantity' });
     }
-    if (!['buy', 'sell'].includes(side)) {
+    if (!['buy', 'sell'].includes(normalizedSide)) {
       return res.status(400).json({ error: 'Side must be "buy" or "sell"' });
     }
-    if (quantity <= 0) {
+    if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       return res.status(400).json({ error: 'Quantity must be greater than 0' });
+    }
+
+    if (normalizedSide === 'buy' && !isPaidUser && redis) {
+      const usage = await getPaperBuyNotionalUsageUsd(redis, user.id);
+      if (usage >= PAPER_BUY_NOTIONAL_LIMIT_USD) {
+        const usageSnapshot = buildPaperUsageSnapshot(usage);
+        return res.status(402).json(
+          buildProPlusRequiredPayload({
+            reason: 'paper_trading_limit_reached',
+            message: 'Paper trading limit reached (3 x $100,000 cycles). Upgrade to PRO PLUS PLAN for unlimited paper trades.',
+            usage: usageSnapshot,
+          })
+        );
+      }
     }
 
     // Get current price from Redis cache (your existing price cache)
     const cacheKey = `quote:${symbol.toUpperCase()}`;
-    let cached = await redis.get(cacheKey);
+    let cached = redis ? await redis.get(cacheKey) : null;
     let price;
 
     if (cached) {
@@ -66,7 +90,9 @@ export default async function handler(req, res) {
       price = parseFloat(tdData.close);
 
       // Cache it for next time
-      await redis.set(cacheKey, JSON.stringify(tdData), { ex: 60 });
+      if (redis) {
+        await redis.set(cacheKey, JSON.stringify(tdData), { ex: 60 });
+      }
     }
 
     if (!price || isNaN(price)) {
@@ -90,6 +116,13 @@ export default async function handler(req, res) {
     // The RPC returns a JSON object with success/error
     if (!data.success) {
       return res.status(400).json(data);
+    }
+
+    if (normalizedSide === 'buy' && !isPaidUser && redis) {
+      const buyCost = normalizedQuantity * Number(price || 0);
+      if (Number.isFinite(buyCost) && buyCost > 0) {
+        await incrementPaperBuyNotionalUsageUsd(redis, user.id, buyCost);
+      }
     }
 
     return res.status(200).json(data);

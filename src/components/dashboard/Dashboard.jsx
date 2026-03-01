@@ -114,6 +114,9 @@ import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyPro
 import UpgradePrompt from '../UpgradePrompt';
 import AppErrorBoundary from '../shared/AppErrorBoundary';
 import { getMarketStatus, getNextMarketOpen, isMarketOpen } from '../../lib/marketHours';
+import ProPlusPlanModal from './ProPlusPlanModal';
+import { resolveProPlusCheckoutPriceId } from '../../lib/billing';
+import { persistPendingCheckoutSession } from '../../lib/checkoutSession';
 
 const loadDashboardState = () => {
   try {
@@ -1147,6 +1150,9 @@ export default function Dashboard({
   
   const [selectedStock, setSelectedStock] = useState(null);
   const [showStrategyLimitModal, setShowStrategyLimitModal] = useState(false);
+  const [proPlusModalState, setProPlusModalState] = useState({ open: false, payload: null });
+  const [isProPlusCheckoutLoading, setIsProPlusCheckoutLoading] = useState(false);
+  const [proPlusCheckoutError, setProPlusCheckoutError] = useState('');
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
@@ -1169,6 +1175,87 @@ export default function Dashboard({
   const [allocationPrompt, setAllocationPrompt] = useState(null);
   const deployedStrategiesRef = useRef(deployedStrategies);
   const allocationResolverRef = useRef(null);
+
+  const openProPlusModal = useCallback((payload = null) => {
+    setProPlusCheckoutError('');
+    setProPlusModalState({ open: true, payload });
+  }, []);
+
+  const closeProPlusModal = useCallback(() => {
+    if (isProPlusCheckoutLoading) return;
+    setProPlusCheckoutError('');
+    setProPlusModalState((prev) => ({ ...prev, open: false }));
+  }, [isProPlusCheckoutLoading]);
+
+  const handleOpenProPlusUpgrade = useCallback(async () => {
+    if (isProPlusCheckoutLoading) return;
+
+    const priceId = resolveProPlusCheckoutPriceId();
+    if (!priceId) {
+      setProPlusCheckoutError('Pro Plus checkout is not configured yet. Add VITE_STRIPE_PRO_PLUS_PRICE_ID and redeploy.');
+      return;
+    }
+
+    setProPlusCheckoutError('');
+    setIsProPlusCheckoutLoading(true);
+
+    try {
+      const auth = await supabase.auth.getUser();
+      const currentUser = auth?.data?.user || null;
+
+      if (!currentUser?.id || !currentUser?.email) {
+        setProPlusCheckoutError('Please sign in again to continue with Stripe checkout.');
+        return;
+      }
+
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceId,
+          userId: currentUser.id,
+          userEmail: currentUser.email,
+        }),
+      });
+
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to start Stripe checkout.');
+      }
+
+      if (data?.sessionId) {
+        persistPendingCheckoutSession(data.sessionId);
+      }
+
+      if (!data?.url) {
+        throw new Error('Stripe checkout URL missing.');
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to redirect to Stripe checkout.');
+      setProPlusCheckoutError(message);
+    } finally {
+      setIsProPlusCheckoutLoading(false);
+    }
+  }, [isProPlusCheckoutLoading]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleProPlusRequired = (event) => {
+      openProPlusModal(event?.detail || null);
+    };
+    window.addEventListener('stratify:pro-plus-required', handleProPlusRequired);
+    return () => {
+      window.removeEventListener('stratify:pro-plus-required', handleProPlusRequired);
+    };
+  }, [openProPlusModal]);
 
   const isPaidTier = isProUser;
   const hasConnectedBroker = useMemo(
@@ -2694,6 +2781,15 @@ export default function Dashboard({
           setActiveSection('market-intel');
           setShowMarketIntel(true);
         }}
+      />
+
+      <ProPlusPlanModal
+        open={Boolean(proPlusModalState.open)}
+        payload={proPlusModalState.payload}
+        onClose={closeProPlusModal}
+        onOpenUpgrade={handleOpenProPlusUpgrade}
+        upgrading={isProPlusCheckoutLoading}
+        upgradeError={proPlusCheckoutError}
       />
 
       {showStrategyLimitModal && (
