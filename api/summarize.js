@@ -16,7 +16,6 @@ export default async function handler(req, res) {
 
   const apiKey = String(
     process.env.ANTHROPIC_API_KEY_SUMMARIZE
-    || process.env.ANTHROPIC_API_KEY
     || ''
   ).trim();
   if (!apiKey) {

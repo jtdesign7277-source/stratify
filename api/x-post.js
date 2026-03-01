@@ -30,8 +30,6 @@ const X_POST_DISABLED = X_POST_KILL_SWITCH || !X_POST_ENABLED
 
 const getXPostAnthropicKey = () => String(
   process.env.ANTHROPIC_API_KEY_XPOST
-  || process.env.ANTHROPIC_API_KEY_CONTENT
-  || process.env.ANTHROPIC_API_KEY
   || ''
 ).trim()
 

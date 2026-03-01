@@ -359,8 +359,6 @@ export default async function handler(req, res) {
 
   const anthropicApiKey = String(
     process.env.ANTHROPIC_API_KEY_SOPHIA
-    || process.env.ANTHROPIC_API_KEY
-    || process.env.CLAUDE_API_KEY
     || ''
   ).trim();
   if (!anthropicApiKey) {
