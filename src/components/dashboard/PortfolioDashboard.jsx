@@ -700,21 +700,21 @@ export default function PortfolioDashboard() {
         <div className="mt-3 border-t-2 border-[#334155] pt-3">
           <div className="flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Portfolio Value</span>
-            <span className="font-mono text-[#f8fbff]">{fmtMoney(totalValue)}</span>
+            <span className="font-mono text-sm text-[#f8fbff]">{fmtMoney(totalValue)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Buying Power</span>
-            <span className="font-mono text-[#f8fbff]">{fmtMoney(cashBalance)}</span>
+            <span className="font-mono text-sm text-[#f8fbff]">{fmtMoney(cashBalance)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L</span>
-            <span className={`font-mono ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`font-mono text-sm ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {totalPnl >= 0 ? '+' : ''}{fmtMoney(totalPnl)}
             </span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L %</span>
-            <span className={`font-mono ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`font-mono text-sm ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {fmtPct(totalPnlPct)}
             </span>
           </div>
