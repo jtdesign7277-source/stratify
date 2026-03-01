@@ -4,7 +4,6 @@ import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { subscribeCryptoPrices, getTwelveDataConnectionStatus } from '../../services/twelveDataStream';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import { usePaperTrading } from '../../hooks/usePaperTrading';
-import TickerLogo from '../common/TickerLogo';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT (uses existing app client)
@@ -734,9 +733,8 @@ function OrderEntry({
             <div className="mt-0.5 space-y-0.5">
               {holdings.map((position) => (
                 <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 text-slate-300">
-                    <TickerLogo symbol={position.symbol} size={16} />
-                    <span>{formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}</span>
+                  <span className="text-slate-300">
+                    {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
                   </span>
                   <span className={Number(position.pnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                     {formatPaperCurrency(position.pnl)}
@@ -755,9 +753,8 @@ function OrderEntry({
             <div className="mt-0.5 space-y-0.5">
               {recentTrades.map((trade) => (
                 <div key={`paper-trade-${trade.id}`} className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 text-slate-300">
-                    <TickerLogo symbol={trade.symbol} size={16} />
-                    <span>{trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}</span>
+                  <span className="text-slate-300">
+                    {trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}
                   </span>
                   <span className="text-slate-500">{formatPaperTimestamp(trade.created_at)}</span>
                 </div>
@@ -892,14 +889,14 @@ function CoinSelector({ coins, selected, onSelect }) {
           whileTap={{ scale: 0.98 }}
           transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
           onClick={() => onSelect(coin)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200"
           style={{
             background: selected.symbol === coin.symbol ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
             border: selected.symbol === coin.symbol ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.04)',
             color: selected.symbol === coin.symbol ? '#60a5fa' : 'rgba(148, 163, 184, 0.5)',
           }}
         >
-          <TickerLogo symbol={coin.symbol} size={16} />
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: coin.color }} />
           ${coin.symbol}
         </motion.button>
       ))}
@@ -1052,15 +1049,12 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
           ) : (
             <>
               <div className="flex items-center justify-between border-b border-white/[0.06] px-2.5 py-1.5 shrink-0">
-                <div className="flex min-w-0 items-center gap-2">
-                  <TickerLogo symbol={selectedCoin.symbol} size={20} />
-                  <span
-                    className="truncate text-[10px] font-bold tracking-[0.16em] uppercase"
-                    style={{ color: 'rgba(34, 197, 94, 0.85)' }}
-                  >
-                    ${selectedCoin.symbol}
-                  </span>
-                </div>
+                <span
+                  className="text-[10px] font-bold tracking-[0.16em] uppercase"
+                  style={{ color: 'rgba(34, 197, 94, 0.85)' }}
+                >
+                  Order Entry
+                </span>
                 <motion.button
                   onClick={() => {
                     console.log('Crypto collapse button clicked, current state:', isRightPanelCollapsed);

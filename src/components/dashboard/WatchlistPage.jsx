@@ -17,7 +17,6 @@ import LightweightChart from './LightweightChart';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import useTradingMode from '../../hooks/useTradingMode';
 import TickerHoverCard from '../shared/TickerHoverCard';
-import TickerLogo from '../common/TickerLogo';
 
 const MAX_SYMBOLS = 120;
 
@@ -1288,10 +1287,7 @@ const WatchlistPage = ({
                           className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left hover:bg-blue-500/10"
                         >
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2 text-xs font-semibold text-white">
-                              <TickerLogo symbol={result.symbol} size={16} />
-                              <span>${result.symbol}</span>
-                            </div>
+                            <div className="text-xs font-semibold text-white">${result.symbol}</div>
                             <div className="truncate text-[11px] text-gray-400">{result.name || result.symbol}</div>
                           </div>
                           <Plus className="h-3.5 w-3.5 text-blue-300" strokeWidth={1.5} />
@@ -1405,10 +1401,7 @@ const WatchlistPage = ({
                     </span>
                     <div className="min-w-0 flex-1 pr-1">
                       <TickerHoverCard symbol={item.symbol}>
-                        <div className={`flex items-center gap-2 ${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>
-                          <TickerLogo symbol={item.symbol} size={18} />
-                          <span>${item.symbol}</span>
-                        </div>
+                        <div className={`${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>${item.symbol}</div>
                       </TickerHoverCard>
                       <div className="truncate text-[11px] text-gray-500">{item.name || labelMap[item.symbol] || item.symbol}</div>
                     </div>
@@ -1491,10 +1484,7 @@ const WatchlistPage = ({
             <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
               <div className="flex items-center gap-3">
                 <div>
-                  <div className="flex items-center gap-2 text-lg font-semibold text-white">
-                    <TickerLogo symbol={selectedTicker} size={20} />
-                    <span>${selectedTicker}</span>
-                  </div>
+                  <div className="text-lg font-semibold text-white">${selectedTicker}</div>
                   <div className="text-xs text-gray-400">{selectedName || selectedTicker}</div>
                 </div>
                 {Number.isFinite(Number(selectedQuote?.price)) ? (
@@ -1577,12 +1567,7 @@ const WatchlistPage = ({
                 style={{ width: isOrderPanelClosed ? 0 : ORDER_PANEL_WIDTHS.small }}
               >
                   <div className="border-b border-white/10 px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      {selectedTicker ? <TickerLogo symbol={selectedTicker} size={20} /> : null}
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-400">
-                        {selectedTicker ? `$${selectedTicker}` : 'Order Entry'}
-                      </span>
-                    </div>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-400">Order Entry</span>
                   </div>
 
                   <div className="flex-1 overflow-hidden px-2 py-2">

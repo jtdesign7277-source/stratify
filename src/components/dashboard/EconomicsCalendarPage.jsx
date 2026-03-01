@@ -83,21 +83,46 @@ const EconomicsCalendarPage = () => {
   }, []);
 
   const fetchData = useCallback(async () => {
+    const hasExistingData = events.length > 0;
     try {
-      setLoading(true);
+      if (!hasExistingData) setLoading(true);
       setError(null);
+
       const res = await fetch(ECON_CALENDAR_URL);
-      if (!res.ok) throw new Error(`Failed to load calendar (${res.status})`);
-      const json = await res.json();
-      if (!Array.isArray(json)) throw new Error('Invalid data format');
-      setEvents(json);
-      setLastUpdated(new Date());
+      let json = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
+      }
+
+      if (Array.isArray(json)) {
+        setEvents(json);
+        setLastUpdated(new Date());
+        return;
+      }
+
+      if (!res.ok) {
+        if ((res.status === 429 || res.status >= 500)) {
+          if (!hasExistingData) setEvents([]);
+          return;
+        }
+        throw new Error(`Failed to load calendar (${res.status})`);
+      }
+
+      if (Array.isArray(json?.data)) {
+        setEvents(json.data);
+        setLastUpdated(new Date());
+        return;
+      }
+
+      if (!hasExistingData) setEvents([]);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [events.length]);
 
   useEffect(() => {
     fetchData();

@@ -179,8 +179,8 @@ const ChatInputBar = ({
     const text = String(item?.text || '').trim();
     const isSearchSuggestion = Boolean(text);
 
-    // Search suggestion (in search mode OR plain text typed without $ prefix)
-    if (isSearchSuggestion && (searchMode || !item?.symbol)) {
+    // Search suggestions are only active in web search mode.
+    if (isSearchSuggestion && searchMode) {
       if (!text) return;
       if (triggerSearch) {
         // Clear input, close dropdown, fire search immediately
@@ -261,9 +261,7 @@ const ChatInputBar = ({
     const trimmed = searchMode ? normalizeAiSearchQuery(message) : String(message || '').trim();
     if (!trimmed) return;
 
-    // Plain text (no $ ticker) while not in post mode → treat as search
-    const isPlainSearch = !searchMode && hasPlainText;
-    const ok = (searchMode || isPlainSearch)
+    const ok = searchMode
       ? await onSearch?.(trimmed)
       : await onSend?.(trimmed, 'general');
     if (ok !== false) {
@@ -332,8 +330,8 @@ const ChatInputBar = ({
 
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      // If showing search suggestions (plain text mode) and dropdown open, use highlighted suggestion
-      const isShowingSearchSuggestions = suggestionOpen && (searchMode || hasPlainText);
+      // Search suggestions are selectable only in web search mode.
+      const isShowingSearchSuggestions = suggestionOpen && searchMode;
       if (isShowingSearchSuggestions && currentSuggestions.length > 0) {
         const picked = currentSuggestions[activeSuggestion] || currentSuggestions[0];
         if (picked?.text) {
@@ -356,12 +354,11 @@ const ChatInputBar = ({
   const hasMessage = Boolean(String(message || '').trim());
   const canUseAiRewriteTransfer = !searchMode && canUseInput && hasMessage;
 
-  // Show search suggestions when: search mode active OR user typed non-$ text
-  const hasPlainText = hasMessage && !tickerQuery;
+  // Search suggestions render only in web search mode.
   const suggestionOpen = searchMode
     ? searchSuggestions.length > 0
-    : Boolean(tickerQuery) || (hasPlainText && searchSuggestions.length > 0);
-  const suggestionRows = (searchMode || hasPlainText) ? searchSuggestions : suggestions;
+    : Boolean(tickerQuery);
+  const suggestionRows = searchMode ? searchSuggestions : suggestions;
 
   const hintText = searchMode
     ? 'Enter to search, Shift+Enter for newline'
@@ -377,8 +374,8 @@ const ChatInputBar = ({
         <div className="relative">
           <SuggestionPopover
             open={suggestionOpen}
-            mode={(searchMode || hasPlainText) ? 'search' : 'post'}
-            loading={(searchMode || hasPlainText) ? false : suggestionsLoading}
+            mode={searchMode ? 'search' : 'post'}
+            loading={searchMode ? false : suggestionsLoading}
             suggestions={suggestionRows}
             activeIndex={activeSuggestion}
             onPick={(item) => applySuggestion(item, { triggerSearch: true })}
@@ -399,16 +396,24 @@ const ChatInputBar = ({
                     setShowFeedHashtags(false);
                     switchToPostMode();
                   }}
-                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5' : 'text-[#58a6ff] bg-[#58a6ff]/10'} ${showFeedHashtags ? 'opacity-40' : ''}`}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5' : 'text-[#58a6ff] bg-[#58a6ff]/10'}`}
                   title="Post mode"
                 >
                   <XLogoIcon className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowFeedHashtags(prev => !prev)}
-                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${showFeedHashtags ? 'text-[#58a6ff] bg-[#58a6ff]/10' : 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5 opacity-40'}`}
-                  title="Feed channels"
+                  onClick={() => {
+                    if (searchMode) {
+                      switchToPostMode();
+                      return;
+                    }
+                    setShowFeedHashtags(false);
+                    onModeChange?.(true, { source: 'web-toggle' });
+                    window.requestAnimationFrame(() => inputRef.current?.focus());
+                  }}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#58a6ff] bg-[#58a6ff]/10' : 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5 opacity-40'}`}
+                  title="Web search mode"
                 >
                   <Globe className="w-4 h-4" strokeWidth={1.5} />
                 </button>

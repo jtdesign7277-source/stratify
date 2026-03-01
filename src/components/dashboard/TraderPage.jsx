@@ -12,7 +12,6 @@ import { usePaperTrading } from '../../hooks/usePaperTrading';
 import SentimentBadge from './SentimentBadge';
 import NewsFeedPanel from './NewsFeedPanel';
 import ErrorBoundary from '../shared/AppErrorBoundary';
-import TickerLogo from '../common/TickerLogo';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
@@ -1213,9 +1212,8 @@ function TraderOrderEntry({
             <div className="mt-0.5 space-y-0.5">
               {holdings.map((position) => (
                 <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 text-slate-300">
-                    <TickerLogo symbol={position.symbol} size={16} />
-                    <span>{formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}</span>
+                  <span className="text-slate-300">
+                    {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
                   </span>
                   <span className={Number(position.pnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                     {formatPaperCurrency(position.pnl)}
@@ -1234,9 +1232,8 @@ function TraderOrderEntry({
             <div className="mt-0.5 space-y-0.5">
               {recentTrades.map((trade) => (
                 <div key={`paper-trade-${trade.id}`} className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 text-slate-300">
-                    <TickerLogo symbol={trade.symbol} size={16} />
-                    <span>{trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}</span>
+                  <span className="text-slate-300">
+                    {trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}
                   </span>
                   <span className="text-slate-500">{formatPaperTimestamp(trade.created_at)}</span>
                 </div>
@@ -3077,10 +3074,7 @@ export default function TraderPage({
     <motion.div {...PAGE_TRANSITION} className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
       <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
         <div>
-          <h2 className="flex items-center gap-2 text-sm font-medium text-white">
-            {selectedSymbol ? <TickerLogo symbol={selectedSymbol} size={20} /> : null}
-            <span>{selectedSymbol || 'Select a symbol'}</span>
-          </h2>
+          <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
           <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
         </div>
         <div className="text-right">
@@ -3210,13 +3204,10 @@ export default function TraderPage({
                               onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
                               className="flex h-10 w-full items-center justify-between gap-2 border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
                             >
-                              <span className="flex min-w-0 items-center gap-2 truncate text-sm text-white">
-                                <TickerLogo symbol={result.symbol} size={16} />
-                                <span className="truncate">
-                                  <span className="font-medium">${result.symbol}</span>
-                                  <span className="ml-1 text-[#7c8087]">
+                              <span className="truncate text-sm text-white">
+                                <span className="font-medium">${result.symbol}</span>
+                                <span className="ml-1 text-[#7c8087]">
                                   {'\u2014'} {result.name || result.symbol} ({result.exchange || 'Market'}{result.type ? ` · ${result.type}` : ''})
-                                  </span>
                                 </span>
                               </span>
                               <div className="ml-2 flex shrink-0 items-center gap-2">
@@ -3356,8 +3347,7 @@ export default function TraderPage({
                                       </div>
 
                                       <div className="flex-1 min-w-0 pr-4">
-                                        <div className="flex items-center gap-2">
-                                          <TickerLogo symbol={symbol} size={18} />
+                                        <div className="flex items-center">
                                           <div className="text-white font-bold text-[13px]">${symbol}</div>
                                           {(() => {
                                             if (!extendedHoursStatus) return null;
@@ -3473,10 +3463,7 @@ export default function TraderPage({
                       isSelected ? 'bg-emerald-500/10 border border-emerald-500/30' : 'hover:bg-white/5'
                     }`}
                   >
-                    <div className="flex items-center justify-center gap-2">
-                      <TickerLogo symbol={symbol} size={18} />
-                      <div className="text-white font-semibold text-[13px]">{symbol}</div>
-                    </div>
+                    <div className="text-white font-semibold text-[13px]">{symbol}</div>
                     <div className="mt-0.5 flex items-center justify-center gap-1">
                       <div
                         className={`text-[10px] font-mono font-semibold ${
@@ -3649,15 +3636,12 @@ export default function TraderPage({
               <>
                 <div className="shrink-0 border-b border-white/[0.06] px-2.5 py-1.5">
                   <div className="flex items-center justify-between">
-                    <div className="flex min-w-0 items-center gap-2">
-                      {selectedSymbol ? <TickerLogo symbol={selectedSymbol} size={20} /> : null}
-                      <span
-                        className="truncate text-[10px] font-bold uppercase tracking-[0.16em]"
-                        style={{ color: 'rgba(96, 165, 250, 0.85)' }}
-                      >
-                        {selectedSymbol ? `$${selectedSymbol}` : 'Order Entry'}
-                      </span>
-                    </div>
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-[0.16em]"
+                      style={{ color: 'rgba(96, 165, 250, 0.85)' }}
+                    >
+                      Order Entry
+                    </span>
                     <motion.button
                       type="button"
                       onClick={() => {

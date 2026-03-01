@@ -1,86 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import usePaperTrading from '../../hooks/usePaperTrading';
+import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import { subscribeCryptoPrices } from '../../services/twelveDataStream';
 import { getMarketStatus } from '../../lib/marketHours';
-import TickerLogo from '../common/TickerLogo';
-import {
-  Wallet, TrendingUp, TrendingDown, DollarSign, PieChart,
-  BarChart3, Clock, RefreshCw, ChevronDown, ChevronUp, X,
-  AlertTriangle, Briefcase, Activity
-} from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
-// ─── Highcharts Dark Theme (Stratify Terminal-Pro) ─────────
-const STRATIFY_COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#f97316', '#ec4899', '#6366f1', '#14b8a6'
-];
-
-const darkTheme = {
-  chart: {
-    backgroundColor: '#060d18',
-    style: { fontFamily: "'Inter', 'SF Mono', monospace" },
-    borderRadius: 12,
-    spacing: [20, 20, 20, 20],
-  },
-  title: { style: { color: '#e2e8f0', fontSize: '14px', fontWeight: '600' } },
-  subtitle: { style: { color: '#64748b', fontSize: '11px' } },
-  xAxis: {
-    gridLineColor: '#1a2538',
-    lineColor: '#1a2538',
-    tickColor: '#1a2538',
-    labels: { style: { color: '#64748b', fontSize: '10px' } },
-    title: { style: { color: '#94a3b8' } },
-  },
-  yAxis: {
-    gridLineColor: '#1a253833',
-    lineColor: '#1a2538',
-    labels: { style: { color: '#64748b', fontSize: '10px' } },
-    title: { style: { color: '#94a3b8' } },
-  },
-  legend: {
-    itemStyle: { color: '#94a3b8', fontSize: '11px' },
-    itemHoverStyle: { color: '#e2e8f0' },
-  },
-  tooltip: {
-    backgroundColor: '#0a1628',
-    borderColor: '#1a2538',
-    style: { color: '#e2e8f0', fontSize: '11px' },
-    borderRadius: 8,
-    shadow: false,
-  },
-  plotOptions: {
-    series: { animation: { duration: 800 } },
-  },
-  credits: { enabled: false },
-  colors: STRATIFY_COLORS,
-};
-
-// Apply theme globally
-Highcharts.setOptions(darkTheme);
-
-// ─── Formatters ────────────────────────────────────────────
-const fmt = (v, decimals = 2) =>
-  '$' + Number(v || 0).toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-
-const fmtSigned = (v, decimals = 2) => {
-  const n = Number(v || 0);
-  return `${n >= 0 ? '+' : '-'}${fmt(Math.abs(n), decimals)}`;
-};
-
-const fmtPct = (v) => {
-  const n = Number(v || 0);
-  return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-};
-
-const fmtQty = (v) => {
-  const n = Number(v || 0);
-  return n >= 1 ? n.toFixed(2) : n.toFixed(6);
-};
+const STARTING_BALANCE = 100000;
+const GOAL_TARGET = 150000;
 
 const CRYPTO_BASE_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LINK', 'ADA', 'AVAX', 'DOT']);
 
@@ -90,6 +18,7 @@ const toSymbolKey = (value = '') => normalizeSymbol(value).replace(/[^A-Z0-9]/g,
 const isCryptoSymbol = (value = '') => {
   const normalized = normalizeSymbol(value);
   if (!normalized) return false;
+
   if (normalized.includes('/')) {
     const [base = ''] = normalized.split('/');
     return CRYPTO_BASE_SYMBOLS.has(base.replace(/[^A-Z0-9]/g, ''));
@@ -118,9 +47,7 @@ const toStreamSymbol = (value = '') => {
   const compact = normalized.replace(/[^A-Z0-9]/g, '');
   if (!compact) return '';
 
-  if (CRYPTO_BASE_SYMBOLS.has(compact)) {
-    return `${compact}/USD`;
-  }
+  if (CRYPTO_BASE_SYMBOLS.has(compact)) return `${compact}/USD`;
   if (compact.endsWith('USD') && compact.length > 3 && CRYPTO_BASE_SYMBOLS.has(compact.slice(0, -3))) {
     return `${compact.slice(0, -3)}/USD`;
   }
@@ -128,360 +55,203 @@ const toStreamSymbol = (value = '') => {
   return compact;
 };
 
-const enrichTradesWithRealizedPnl = (rows = []) => {
-  const source = Array.isArray(rows) ? rows : [];
-  const keyedTrades = source.map((trade, index) => ({
-    ...trade,
-    _tradeKey: String(trade?.id || `${trade?.symbol || 'trade'}-${trade?.created_at || 'na'}-${index}`),
-    _tradeIndex: index,
-  }));
-
-  const chronological = [...keyedTrades].sort((a, b) => {
-    const aTime = Date.parse(a?.created_at || '');
-    const bTime = Date.parse(b?.created_at || '');
-    const aHas = Number.isFinite(aTime);
-    const bHas = Number.isFinite(bTime);
-    if (aHas && bHas && aTime !== bTime) return aTime - bTime;
-    if (aHas && !bHas) return -1;
-    if (!aHas && bHas) return 1;
-    return Number(a?._tradeIndex || 0) - Number(b?._tradeIndex || 0);
-  });
-
-  const positionState = new Map();
-  const realizedByTrade = new Map();
-
-  chronological.forEach((trade) => {
-    const symbol = String(trade?.symbol || '').toUpperCase();
-    const side = String(trade?.side || '').toLowerCase();
-    const quantity = Number(trade?.quantity || 0);
-    const price = Number(trade?.price || 0);
-    const totalCost = Number(trade?.total_cost);
-    const tradeValue = Number.isFinite(totalCost) && totalCost > 0
-      ? totalCost
-      : quantity * price;
-
-    if (!symbol || quantity <= 0 || !Number.isFinite(price) || price <= 0) {
-      realizedByTrade.set(trade._tradeKey, {
-        tradeValue,
-        realizedPnl: null,
-        realizedPnlPercent: null,
-      });
-      return;
-    }
-
-    const state = positionState.get(symbol) || { qty: 0, avgCost: 0 };
-
-    if (side === 'buy') {
-      const nextQty = state.qty + quantity;
-      const nextAvgCost = nextQty > 0
-        ? ((state.qty * state.avgCost) + (quantity * price)) / nextQty
-        : 0;
-      positionState.set(symbol, { qty: nextQty, avgCost: nextAvgCost });
-      realizedByTrade.set(trade._tradeKey, {
-        tradeValue,
-        realizedPnl: null,
-        realizedPnlPercent: null,
-      });
-      return;
-    }
-
-    const sellQty = Math.min(quantity, Math.max(state.qty, 0));
-    const costBasis = sellQty * state.avgCost;
-    const proceeds = sellQty * price;
-    const realizedPnl = sellQty > 0 ? proceeds - costBasis : 0;
-    const realizedPnlPercent = costBasis > 0 ? (realizedPnl / costBasis) * 100 : 0;
-
-    const remainingQty = Math.max(state.qty - sellQty, 0);
-    positionState.set(symbol, {
-      qty: remainingQty,
-      avgCost: remainingQty > 0 ? state.avgCost : 0,
-    });
-
-    realizedByTrade.set(trade._tradeKey, {
-      tradeValue,
-      realizedPnl: sellQty > 0 ? realizedPnl : 0,
-      realizedPnlPercent: sellQty > 0 ? realizedPnlPercent : 0,
-    });
-  });
-
-  return keyedTrades.map((trade) => {
-    const computed = realizedByTrade.get(trade._tradeKey) || {};
-    const apiRealizedPnl = trade?.realized_pnl;
-    const apiRealizedPnlPercent = trade?.realized_pnl_percent;
-    const hasApiRealizedPnl = apiRealizedPnl !== null
-      && apiRealizedPnl !== undefined
-      && Number.isFinite(Number(apiRealizedPnl));
-    const hasApiRealizedPnlPercent = apiRealizedPnlPercent !== null
-      && apiRealizedPnlPercent !== undefined
-      && Number.isFinite(Number(apiRealizedPnlPercent));
-
-    return {
-      ...trade,
-      tradeValue: Number.isFinite(Number(computed.tradeValue))
-        ? Number(computed.tradeValue)
-        : Number(trade?.total_cost || 0),
-      realizedPnl: hasApiRealizedPnl ? Number(apiRealizedPnl) : computed.realizedPnl,
-      realizedPnlPercent: hasApiRealizedPnlPercent
-        ? Number(apiRealizedPnlPercent)
-        : computed.realizedPnlPercent,
-    };
+const fmtMoney = (value, decimals = 2) => {
+  const parsed = Number(value || 0);
+  return '$' + parsed.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   });
 };
 
-// ─── KPI Card ──────────────────────────────────────────────
-function KPICard({ label, value, subValue, icon: Icon, trend, color }) {
-  const isPositive = trend === 'up';
-  const isNegative = trend === 'down';
+const fmtQty = (value) => {
+  const parsed = Number(value || 0);
+  return parsed >= 1 ? parsed.toFixed(2) : parsed.toFixed(6);
+};
 
-  return (
-    <div className="bg-[#0a1628] border border-[#1a2538] rounded-xl p-4 flex flex-col gap-1 hover:border-[#2a3548] transition-colors">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">{label}</span>
-        {Icon && (
-          <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ backgroundColor: `${color || '#3b82f6'}15` }}>
-            <Icon size={12} strokeWidth={1.5} style={{ color: color || '#3b82f6' }} />
-          </div>
-        )}
-      </div>
-      <span className={`text-xl font-bold font-mono tracking-tight ${
-        isPositive ? 'text-emerald-400' : isNegative ? 'text-red-400' : 'text-white'
-      }`}>
-        {value}
-      </span>
-      {subValue && (
-        <span className={`text-[11px] font-mono ${
-          isPositive ? 'text-emerald-400/70' : isNegative ? 'text-red-400/70' : 'text-gray-500'
-        }`}>
-          {subValue}
-        </span>
-      )}
-    </div>
-  );
-}
+const fmtPct = (value) => {
+  const parsed = Number(value || 0);
+  return `${parsed >= 0 ? '+' : ''}${parsed.toFixed(2)}%`;
+};
 
-// ─── Holdings Row ──────────────────────────────────────────
-function HoldingRow({ position, onClose }) {
-  const pnl = Number(position.pnl || 0);
-  const pnlPct = Number(position.pnl_percent || 0);
-  const isProfit = pnl >= 0;
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-  return (
-    <tr className="border-b border-[#1a2538]/50 hover:bg-[#0f1d32]/50 transition-colors group">
-      <td className="py-3 px-4">
-        <div className="flex items-center gap-2">
-          <TickerLogo symbol={position.symbol} size={16} />
-          <span className="text-white font-mono font-medium text-sm">${position.symbol}</span>
-        </div>
-      </td>
-      <td className="py-3 px-3 text-right">
-        <span className="text-gray-300 font-mono text-sm">{fmtQty(position.quantity)}</span>
-      </td>
-      <td className="py-3 px-3 text-right">
-        <span className="text-gray-400 font-mono text-sm">{fmt(position.avg_cost_basis)}</span>
-      </td>
-      <td className="py-3 px-3 text-right">
-        <span className="text-white font-mono text-sm">{fmt(position.current_price)}</span>
-      </td>
-      <td className="py-3 px-3 text-right">
-        <span className="text-gray-300 font-mono text-sm">{fmt(position.market_value)}</span>
-      </td>
-      <td className="py-3 px-3 text-right">
-        <span className={`font-mono text-sm font-medium ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-          {isProfit ? '+' : ''}{fmt(pnl)}
-        </span>
-      </td>
-      <td className="py-3 px-3 text-right">
-        <span className={`font-mono text-xs px-2 py-0.5 rounded-md ${
-          isProfit ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-400'
-        }`}>
-          {fmtPct(pnlPct)}
-        </span>
-      </td>
-      <td className="py-3 px-3 text-right">
-        <button
-          onClick={() => onClose(position.symbol)}
-          className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded hover:bg-red-400/10"
-        >
-          Close
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-// ─── Generate Mock Portfolio History ───────────────────────
-function generatePortfolioHistory(currentValue, days = 90) {
-  const data = [];
+const generateWalletSeries = (holdingValue, investedValue, points = 120) => {
   const now = Date.now();
-  let value = currentValue * 0.85;
+  const holding = [];
+  const invested = [];
 
-  for (let i = days; i >= 0; i--) {
-    const timestamp = now - (i * 24 * 60 * 60 * 1000);
-    const change = (Math.random() - 0.45) * (currentValue * 0.015);
-    value = Math.max(value + change, currentValue * 0.7);
-    if (i === 0) value = currentValue;
-    data.push([timestamp, Math.round(value * 100) / 100]);
+  for (let i = 0; i <= points; i += 1) {
+    const ratio = i / points;
+    const t = now - (points - i) * 24 * 60 * 60 * 1000;
+    const wave = Math.sin(i * 0.33) * 0.008 * investedValue;
+    const holdingPoint = investedValue + (holdingValue - investedValue) * ratio + wave;
+
+    holding.push([t, i === points ? holdingValue : holdingPoint]);
+    invested.push([t, investedValue]);
   }
-  return data;
-}
 
-// ─── Main Portfolio Dashboard ──────────────────────────────
+  return { holding, invested };
+};
+
+const asTradeValue = (trade) => {
+  const explicit = Number(trade?.total_cost);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const qty = Number(trade?.quantity || 0);
+  const price = Number(trade?.price || 0);
+  return qty > 0 && price > 0 ? qty * price : 0;
+};
+
+const toTimestamp = (value) => {
+  if (Number.isFinite(value)) return Number(value);
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatTradeTime = (value) => {
+  const timestamp = toTimestamp(value);
+  if (!timestamp) return '—';
+  return new Date(timestamp).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
+const panelClass = 'rounded-xl border border-[#1f1f1f] bg-[#0b0b0b]';
+const starfieldBaseStyle = {
+  backgroundImage:
+    'radial-gradient(circle at 50% 50%, rgba(6,13,24,0.96) 0%, rgba(4,9,18,0.98) 55%, rgba(2,6,14,1) 100%), radial-gradient(circle at 14% 18%, rgba(16,185,129,0.08), transparent 34%), radial-gradient(circle at 82% 72%, rgba(148,163,184,0.08), transparent 36%)',
+};
+const starfieldDotsStyle = {
+  backgroundImage:
+    'radial-gradient(rgba(255,255,255,0.28) 0.7px, transparent 1px), radial-gradient(rgba(167,243,208,0.22) 0.65px, transparent 0.95px), radial-gradient(rgba(148,163,184,0.18) 0.7px, transparent 1px)',
+  backgroundSize: '150px 150px, 210px 210px, 260px 260px',
+  backgroundPosition: '0 0, 42px 86px, 118px 30px',
+};
+
 export default function PortfolioDashboard() {
-  const { portfolio, trades, loading, error, closePosition, fetchPortfolio, updatePositionPrice } = usePaperTrading();
-  const [sortField, setSortField] = useState('market_value');
-  const [sortDir, setSortDir] = useState('desc');
+  const { portfolio, trades, loading, error, fetchPortfolio, updatePositionPrice } = usePaperTrading();
+  const { trades: syncedTrades = [] } = useTradeHistoryStore();
   const [marketStatus, setMarketStatus] = useState(() => getMarketStatus());
 
-  const positions = portfolio?.positions || [];
+  const positions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
   const cashBalance = Number(portfolio?.cash_balance || 0);
-  const totalValue = Number(portfolio?.total_account_value || 0);
+  const totalValue = Number(portfolio?.total_account_value || STARTING_BALANCE);
   const totalPnl = Number(portfolio?.total_pnl || 0);
   const totalPnlPct = Number(portfolio?.total_pnl_percent || 0);
-  const startingBalance = 100000;
-  const investedValue = totalValue - cashBalance;
 
-  const sortedPositions = useMemo(() => {
-    return [...positions].sort((a, b) => {
-      const aVal = Number(a[sortField] || 0);
-      const bVal = Number(b[sortField] || 0);
-      return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
-    });
-  }, [positions, sortField, sortDir]);
+  const investedNow = Math.max(0, totalValue - cashBalance);
+  const holdingNow = totalValue;
 
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDir(d => d === 'desc' ? 'asc' : 'desc');
-    } else {
-      setSortField(field);
-      setSortDir('desc');
+  const strategyTrades = useMemo(() => {
+    const rows = Array.isArray(syncedTrades) ? syncedTrades : [];
+
+    return rows
+      .filter((trade) => {
+        const strategyId = String(
+          trade?.strategyId
+          ?? trade?.strategy
+          ?? trade?.strategy_id
+          ?? '',
+        ).trim();
+
+        const source = String(trade?.source ?? trade?.origin ?? '').toLowerCase();
+        const note = String(trade?.note ?? trade?.reason ?? '').toLowerCase();
+
+        return Boolean(strategyId)
+          || source.includes('strategy')
+          || source.includes('ai')
+          || note.includes('strategy')
+          || note.includes('ai');
+      })
+      .sort((a, b) => toTimestamp(b?.timestamp) - toTimestamp(a?.timestamp))
+      .slice(0, 30);
+  }, [syncedTrades]);
+
+  const strategySummary = useMemo(() => {
+    if (!strategyTrades.length || !positions.length) {
+      return { value: 0, pnl: 0 };
     }
-  };
 
-  const SortIcon = ({ field }) => {
-    if (sortField !== field) return null;
-    return sortDir === 'desc'
-      ? <ChevronDown size={10} className="inline ml-0.5" />
-      : <ChevronUp size={10} className="inline ml-0.5" />;
-  };
+    const strategySymbols = new Set(
+      strategyTrades
+        .map((trade) => normalizeSymbol(trade?.symbol))
+        .filter(Boolean)
+    );
 
-  // ─── Portfolio Performance Chart ───────────────────────
-  const performanceOptions = useMemo(() => ({
-    chart: {
-      type: 'areaspline',
-      backgroundColor: 'transparent',
-      height: 260,
-      spacing: [10, 10, 10, 10],
-    },
-    title: { text: null },
-    xAxis: {
-      type: 'datetime',
-      gridLineWidth: 0,
-      lineColor: '#1a2538',
-      tickLength: 0,
-      labels: {
-        format: '{value:%b %d}',
-        style: { color: '#4a5568', fontSize: '9px' },
-      },
-    },
-    yAxis: {
-      title: { text: null },
-      gridLineColor: '#1a253822',
-      labels: {
-        formatter: function () { return '$' + (this.value / 1000).toFixed(0) + 'k'; },
-        style: { color: '#4a5568', fontSize: '9px' },
-      },
-    },
-    tooltip: {
-      pointFormat: 'Portfolio: <b>${point.y:,.2f}</b>',
-      xDateFormat: '%b %d, %Y',
-    },
-    legend: { enabled: false },
-    plotOptions: {
-      areaspline: {
-        fillColor: {
-          linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
-          stops: [
-            [0, totalPnl >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'],
-            [1, 'rgba(6, 13, 24, 0)'],
-          ],
-        },
-        lineColor: totalPnl >= 0 ? '#10b981' : '#ef4444',
-        lineWidth: 2,
-        marker: { enabled: false },
-        threshold: null,
-      },
-    },
-    series: [{
-      name: 'Portfolio Value',
-      data: generatePortfolioHistory(totalValue || startingBalance),
-    }],
-  }), [totalValue, totalPnl]);
+    const linkedPositions = positions.filter((position) => strategySymbols.has(normalizeSymbol(position?.symbol)));
 
-  // ─── Allocation Donut Chart ────────────────────────────
-  const allocationOptions = useMemo(() => {
-    const slices = positions.map((p, i) => ({
-      name: `$${p.symbol}`,
-      y: Number(p.market_value || 0),
-      color: STRATIFY_COLORS[i % STRATIFY_COLORS.length],
-    }));
+    return {
+      value: linkedPositions.reduce((sum, position) => sum + Number(position?.market_value || 0), 0),
+      pnl: linkedPositions.reduce((sum, position) => sum + Number(position?.pnl || 0), 0),
+    };
+  }, [positions, strategyTrades]);
+
+  const { holding, invested } = useMemo(
+    () => generateWalletSeries(holdingNow, STARTING_BALANCE),
+    [holdingNow]
+  );
+
+  const riskScore = useMemo(() => {
+    if (!positions.length) return 8;
+
+    const maxWeight = positions.reduce((max, position) => {
+      const weight = totalValue > 0 ? (Number(position?.market_value || 0) / totalValue) * 100 : 0;
+      return Math.max(max, weight);
+    }, 0);
+
+    const cryptoWeight = positions.reduce((sum, position) => {
+      if (!isCryptoSymbol(position?.symbol)) return sum;
+      const weight = totalValue > 0 ? (Number(position?.market_value || 0) / totalValue) * 100 : 0;
+      return sum + weight;
+    }, 0);
+
+    const pnlVolProxy = Math.min(25, Math.abs(totalPnlPct) * 0.8);
+    return clamp(15 + maxWeight * 0.45 + cryptoWeight * 0.25 + pnlVolProxy, 1, 99);
+  }, [positions, totalValue, totalPnlPct]);
+
+  const goalProbability = useMemo(() => {
+    const progress = clamp((totalValue / GOAL_TARGET) * 100, 0, 100);
+    const momentum = clamp(totalPnlPct, -40, 40);
+    return Math.round(clamp(progress * 0.75 + (momentum + 40) * 0.3, 0, 100));
+  }, [totalValue, totalPnlPct]);
+
+  const allocationSlices = useMemo(() => {
+    const palette = ['#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#6366f1', '#0ea5e9'];
+    const rows = [];
+
+    positions
+      .slice()
+      .sort((a, b) => Number(b?.market_value || 0) - Number(a?.market_value || 0))
+      .forEach((position, index) => {
+        const value = Number(position?.market_value || 0);
+        if (value <= 0) return;
+        rows.push({
+          name: `$${normalizeSymbol(position?.symbol || '--')}`,
+          y: value,
+          color: palette[index % palette.length],
+        });
+      });
 
     if (cashBalance > 0) {
-      slices.push({
+      rows.push({
         name: 'Cash',
         y: cashBalance,
         color: '#1e293b',
       });
     }
 
-    return {
-      chart: {
-        type: 'pie',
-        backgroundColor: 'transparent',
-        height: 260,
-        spacing: [0, 0, 0, 0],
-      },
-      title: { text: null },
-      tooltip: {
-        pointFormat: '<b>{point.percentage:.1f}%</b><br/>{point.y:$,.2f}',
-      },
-      plotOptions: {
-        pie: {
-          innerSize: '65%',
-          borderWidth: 0,
-          borderColor: '#060d18',
-          dataLabels: {
-            enabled: true,
-            format: '{point.name}',
-            distance: 15,
-            style: { color: '#94a3b8', fontSize: '10px', fontWeight: '400', textOutline: 'none' },
-          },
-          states: {
-            hover: { brightness: 0.15 },
-          },
-        },
-      },
-      series: [{
-        name: 'Allocation',
-        data: slices.length > 0 ? slices : [{ name: 'Cash', y: startingBalance, color: '#1e293b' }],
-      }],
-    };
+    if (!rows.length) {
+      rows.push({ name: 'Cash', y: STARTING_BALANCE, color: '#1e293b' });
+    }
+
+    return rows;
   }, [positions, cashBalance]);
-
-  const recentTrades = useMemo(
-    () => enrichTradesWithRealizedPnl(trades).slice(0, 5),
-    [trades]
-  );
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setMarketStatus(getMarketStatus());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
 
   const heldSymbolsKey = useMemo(() => {
     const unique = new Set();
-    (Array.isArray(positions) ? positions : []).forEach((position) => {
+    positions.forEach((position) => {
       const symbol = normalizeSymbol(position?.symbol);
       if (symbol) unique.add(symbol);
     });
@@ -517,6 +287,13 @@ export default function PortfolioDashboard() {
   }, [heldSymbolsKey, marketStatus]);
 
   useEffect(() => {
+    const timer = setInterval(() => {
+      setMarketStatus(getMarketStatus());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!streamConfig.streamSymbols.length) return undefined;
 
     const unsubscribe = subscribeCryptoPrices(streamConfig.streamSymbols, (update) => {
@@ -540,210 +317,399 @@ export default function PortfolioDashboard() {
     return () => unsubscribe?.();
   }, [streamConfig, updatePositionPrice]);
 
+  useEffect(() => {
+    const onTradeExecuted = () => {
+      fetchPortfolio({ silent: true });
+    };
+
+    window.addEventListener('paper-trade-executed', onTradeExecuted);
+    return () => window.removeEventListener('paper-trade-executed', onTradeExecuted);
+  }, [fetchPortfolio]);
+
+  const walletChartOptions = useMemo(() => ({
+    chart: {
+      type: 'areaspline',
+      backgroundColor: 'transparent',
+      height: 280,
+      spacing: [12, 12, 12, 12],
+    },
+    title: { text: null },
+    credits: { enabled: false },
+    legend: {
+      itemStyle: { color: '#94a3b8' },
+      itemHoverStyle: { color: '#e5e7eb' },
+    },
+    xAxis: {
+      type: 'datetime',
+      lineColor: '#1f1f1f',
+      tickColor: '#1f1f1f',
+      labels: { style: { color: '#6b7280', fontSize: '10px' } },
+    },
+    yAxis: {
+      title: { text: null },
+      gridLineColor: '#1f1f1f',
+      labels: {
+        style: { color: '#6b7280', fontSize: '10px' },
+        formatter() { return fmtMoney(this.value, 0); },
+      },
+    },
+    tooltip: {
+      backgroundColor: '#0b0b0b',
+      borderColor: '#1f1f1f',
+      style: { color: '#e5e7eb' },
+      xDateFormat: '%b %e, %Y',
+      pointFormat: '<span style="color:{series.color}">●</span> {series.name}: <b>${point.y:,.2f}</b><br/>',
+      shared: true,
+    },
+    plotOptions: {
+      series: {
+        marker: { enabled: false },
+        animation: false,
+      },
+      areaspline: {
+        fillOpacity: 0.2,
+      },
+    },
+    series: [
+      {
+        type: 'areaspline',
+        name: 'Holding',
+        data: holding,
+        color: '#10b981',
+        lineWidth: 2,
+      },
+      {
+        type: 'line',
+        name: 'Invested',
+        data: invested,
+        color: '#737373',
+        dashStyle: 'ShortDot',
+        lineWidth: 2,
+      },
+    ],
+  }), [holding, invested]);
+
+  const riskColor = riskScore >= 75 ? '#ef4444' : '#3b82f6';
+  const goalColor = goalProbability >= 60 ? '#10b981' : '#ef4444';
+
+  const allocationPieOptions = useMemo(() => ({
+    chart: {
+      type: 'pie',
+      backgroundColor: 'transparent',
+      height: 280,
+      spacing: [6, 6, 6, 6],
+      animation: true,
+    },
+    title: { text: null },
+    credits: { enabled: false },
+    legend: {
+      enabled: true,
+      itemStyle: { color: '#94a3b8', fontSize: '10px' },
+      itemHoverStyle: { color: '#e5e7eb' },
+    },
+    tooltip: {
+      backgroundColor: '#0b0b0b',
+      borderColor: '#1f1f1f',
+      style: { color: '#e5e7eb' },
+      pointFormat: '<b>{point.name}</b><br/>Value: <b>{point.y:$,.2f}</b><br/>Weight: <b>{point.percentage:.2f}%</b>',
+    },
+    plotOptions: {
+      series: {
+        animation: { duration: 900 },
+      },
+      pie: {
+        innerSize: '56%',
+        borderWidth: 2,
+        borderColor: '#0b0b0b',
+        shadow: {
+          color: 'rgba(0, 0, 0, 0.45)',
+          offsetX: 0,
+          offsetY: 4,
+          opacity: 0.35,
+          width: 6,
+        },
+        dataLabels: {
+          enabled: true,
+          distance: 12,
+          style: { color: '#cbd5e1', textOutline: 'none', fontSize: '10px' },
+          formatter() {
+            return this.percentage >= 4 ? `${this.point.name} ${this.percentage.toFixed(1)}%` : '';
+          },
+        },
+      },
+    },
+    series: [{
+      type: 'pie',
+      data: allocationSlices,
+    }],
+  }), [allocationSlices]);
+
+  const metricsBarOptions = useMemo(() => ({
+    chart: {
+      type: 'column',
+      backgroundColor: 'transparent',
+      height: 280,
+      spacing: [6, 6, 6, 6],
+      animation: true,
+    },
+    title: { text: null },
+    credits: { enabled: false },
+    legend: {
+      enabled: true,
+      itemStyle: { color: '#94a3b8', fontSize: '10px' },
+      itemHoverStyle: { color: '#e5e7eb' },
+    },
+    xAxis: {
+      categories: ['Goal', 'Risk', 'Cash', 'Invested'],
+      lineColor: '#1f1f1f',
+      tickColor: '#1f1f1f',
+      labels: { style: { color: '#94a3b8', fontSize: '10px' } },
+    },
+    yAxis: {
+      min: 0,
+      max: 100,
+      title: { text: 'Score / Allocation %', style: { color: '#6b7280', fontSize: '10px' } },
+      gridLineColor: '#1f1f1f',
+      labels: {
+        style: { color: '#6b7280', fontSize: '10px' },
+        formatter() { return `${this.value}%`; },
+      },
+    },
+    tooltip: {
+      backgroundColor: '#0b0b0b',
+      borderColor: '#1f1f1f',
+      style: { color: '#e5e7eb' },
+      pointFormat: '<b>{series.name}: {point.y:.1f}%</b>',
+    },
+    plotOptions: {
+      series: {
+        animation: { duration: 900 },
+      },
+      column: {
+        borderWidth: 0,
+        borderRadius: 6,
+        dataLabels: {
+          enabled: true,
+          style: { color: '#e5e7eb', textOutline: 'none', fontSize: '10px' },
+          formatter() { return `${this.y.toFixed(1)}%`; },
+        },
+      },
+    },
+    series: [
+      {
+        type: 'column',
+        name: 'Current',
+        data: [
+          { y: goalProbability, color: goalColor },
+          { y: riskScore, color: riskColor },
+          { y: totalValue > 0 ? (cashBalance / totalValue) * 100 : 0, color: '#06b6d4' },
+          { y: totalValue > 0 ? (investedNow / totalValue) * 100 : 0, color: '#6366f1' },
+        ],
+      },
+      {
+        type: 'line',
+        name: 'Target',
+        color: '#3b82f6',
+        lineWidth: 1.5,
+        marker: { enabled: true, radius: 3 },
+        data: [70, 40, 30, 70],
+      },
+    ],
+  }), [cashBalance, goalColor, goalProbability, investedNow, riskColor, riskScore, totalValue]);
+
   if (loading && !portfolio) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#060d18]">
-        <div className="flex items-center gap-3 text-gray-500">
-          <RefreshCw size={16} className="animate-spin" />
-          <span className="text-sm">Loading portfolio...</span>
+      <div className="relative h-full overflow-hidden bg-[#060d18] text-gray-400" style={starfieldBaseStyle}>
+        <div className="pointer-events-none absolute inset-0 opacity-70" style={starfieldDotsStyle} />
+        <div className="relative z-10 flex h-full items-center justify-center">
+          <RefreshCw size={16} className="mr-2 animate-spin" /> Loading portfolio...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[#060d18] p-4 space-y-4">
-
-      {/* ── Header */}
-      <div className="flex items-center justify-between">
+    <div className="relative h-full overflow-y-auto bg-[#060d18] text-white" style={starfieldBaseStyle}>
+      <div className="pointer-events-none absolute inset-0 opacity-70" style={starfieldDotsStyle} />
+      <div className="relative z-10 p-4">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-white text-lg font-semibold">Portfolio</h2>
-          <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <h2 className="text-lg font-semibold">Portfolio</h2>
+          <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300">
             Paper Mode
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchPortfolio}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-[#0f1d32] border border-[#1a2538] transition-all"
-          >
-            <RefreshCw size={11} strokeWidth={1.5} />
-            Refresh
-          </button>
-        </div>
+        <button
+          onClick={fetchPortfolio}
+          className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-gray-300 hover:text-white"
+        >
+          <RefreshCw size={12} /> Refresh
+        </button>
       </div>
 
-      {/* ── KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KPICard label="Total Value" value={fmt(totalValue)} icon={Wallet} color="#3b82f6" />
-        <KPICard label="Cash Available" value={fmt(cashBalance)} icon={DollarSign} color="#06b6d4" />
-        <KPICard label="Invested" value={fmt(investedValue)} icon={Briefcase} color="#8b5cf6" />
-        <KPICard
-          label="Total P&L"
-          value={(totalPnl >= 0 ? '+' : '') + fmt(totalPnl)}
-          subValue={fmtPct(totalPnlPct)}
-          icon={totalPnl >= 0 ? TrendingUp : TrendingDown}
-          trend={totalPnl >= 0 ? 'up' : 'down'}
-          color={totalPnl >= 0 ? '#10b981' : '#ef4444'}
-        />
-        <KPICard label="Positions" value={String(positions.length)} icon={PieChart} color="#f59e0b" />
-        <KPICard label="Trades" value={String((trades || []).length)} icon={Activity} color="#f97316" />
-      </div>
-
-      {/* ── Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-        <div className="lg:col-span-3 bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#1a2538] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={13} strokeWidth={1.5} className="text-blue-400" />
-              <span className="text-white text-xs font-medium">Portfolio Performance</span>
-              <span className="text-gray-600 text-[10px]">90 days</span>
-            </div>
-            <span className={`text-xs font-mono font-medium ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {fmtPct(totalPnlPct)}
-            </span>
-          </div>
-          <div className="p-2">
-            <HighchartsReact highcharts={Highcharts} options={performanceOptions} />
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#1a2538] flex items-center gap-2">
-            <PieChart size={13} strokeWidth={1.5} className="text-purple-400" />
-            <span className="text-white text-xs font-medium">Allocation</span>
-          </div>
-          <div className="p-2">
-            <HighchartsReact highcharts={Highcharts} options={allocationOptions} />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Holdings Table */}
-      <div className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#1a2538] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Briefcase size={13} strokeWidth={1.5} className="text-blue-400" />
-            <span className="text-white text-xs font-medium">Holdings</span>
-            <span className="text-gray-600 text-[10px]">{positions.length} position{positions.length !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-
+      <div className={`mt-3 ${panelClass} p-3`}>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Holdings</div>
         {positions.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#1a2538]">
-                  {[
-                    { key: 'symbol', label: 'Symbol', align: 'left' },
-                    { key: 'quantity', label: 'Qty', align: 'right' },
-                    { key: 'avg_cost_basis', label: 'Avg Cost', align: 'right' },
-                    { key: 'current_price', label: 'Price', align: 'right' },
-                    { key: 'market_value', label: 'Mkt Value', align: 'right' },
-                    { key: 'pnl', label: 'P&L', align: 'right' },
-                    { key: 'pnl_percent', label: 'P&L %', align: 'right' },
-                    { key: null, label: '', align: 'right' },
-                  ].map(col => (
-                    <th
-                      key={col.label || 'actions'}
-                      onClick={() => col.key && handleSort(col.key)}
-                      className={`py-2.5 px-${col.align === 'left' ? '4' : '3'} text-${col.align} text-[10px] uppercase tracking-wider text-gray-500 font-medium ${col.key ? 'cursor-pointer hover:text-gray-300 transition-colors' : ''}`}
-                    >
-                      {col.label}<SortIcon field={col.key} />
-                    </th>
-                  ))}
+                <tr className="border-b border-[#1f1f1f] text-[10px] uppercase tracking-[0.14em] text-gray-500">
+                  <th className="px-2 py-2 text-left">Symbol</th>
+                  <th className="px-2 py-2 text-right">Qty</th>
+                  <th className="px-2 py-2 text-right">Avg</th>
+                  <th className="px-2 py-2 text-right">Price</th>
+                  <th className="px-2 py-2 text-right">Value</th>
+                  <th className="px-2 py-2 text-right">P&L</th>
+                  <th className="px-2 py-2 text-right">P&L %</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedPositions.map(pos => (
-                  <HoldingRow key={pos.symbol} position={pos} onClose={closePosition} />
-                ))}
+                {positions.map((position) => {
+                  const pnl = Number(position?.pnl || 0);
+                  const isProfit = pnl >= 0;
+                  return (
+                    <tr key={position.symbol} className="border-b border-[#1f1f1f]/60 last:border-0">
+                      <td className="px-2 py-2 font-mono">${position.symbol}</td>
+                      <td className="px-2 py-2 text-right font-mono">{fmtQty(position.quantity)}</td>
+                      <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.avg_cost_basis)}</td>
+                      <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.current_price)}</td>
+                      <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.market_value)}</td>
+                      <td className={`px-2 py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {isProfit ? '+' : ''}{fmtMoney(pnl)}
+                      </td>
+                      <td className={`px-2 py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {fmtPct(position.pnl_percent)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
-              <tfoot>
-                <tr className="border-t border-[#1a2538] bg-[#060d18]/50">
-                  <td className="py-3 px-4 text-white text-xs font-semibold" colSpan={4}>Total</td>
-                  <td className="py-3 px-3 text-right text-white font-mono text-sm font-semibold">
-                    {fmt(investedValue)}
-                  </td>
-                  <td className="py-3 px-3 text-right">
-                    <span className={`font-mono text-sm font-semibold ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-3 text-right">
-                    <span className={`font-mono text-xs px-2 py-0.5 rounded-md font-semibold ${
-                      totalPnl >= 0 ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-400'
-                    }`}>
-                      {fmtPct(totalPnlPct)}
-                    </span>
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
             </table>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-600">
-            <Wallet size={24} strokeWidth={1.5} className="mb-2 text-gray-700" />
-            <span className="text-xs">No open positions</span>
-            <span className="text-[10px] text-gray-700 mt-1">Execute a trade to see holdings here</span>
-          </div>
+          <div className="py-8 text-center text-sm text-gray-500">No positions open.</div>
         )}
+
+        <div className="mt-3 border-t border-[#1f1f1f] pt-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+            Strategy
+          </div>
+          <div className="mb-2 rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="uppercase tracking-[0.12em] text-gray-500">Total Value</span>
+              <span className="font-mono text-white">{fmtMoney(strategySummary.value)}</span>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between text-xs">
+              <span className="uppercase tracking-[0.12em] text-gray-500">P&L</span>
+              <span className={`font-mono ${strategySummary.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {strategySummary.pnl >= 0 ? '+' : ''}{fmtMoney(strategySummary.pnl)}
+              </span>
+            </div>
+          </div>
+          {strategyTrades.length > 0 ? (
+            <div className="space-y-1">
+              {strategyTrades.map((trade, index) => {
+                const side = String(trade?.side || '').toLowerCase();
+                const qty = Number(trade?.shares ?? trade?.quantity ?? trade?.qty ?? 0);
+                const price = Number(trade?.price || 0);
+                const strategyId = String(trade?.strategyId || trade?.strategy || '').trim();
+                return (
+                  <div
+                    key={trade?.id || `strategy-trade-${index}`}
+                    className="flex items-center justify-between rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1.5 text-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold uppercase tracking-[0.12em] ${side === 'buy' ? 'text-emerald-300' : 'text-red-300'}`}>
+                        {side || 'trade'}
+                      </span>
+                      <span className="font-mono">${normalizeSymbol(trade?.symbol)}</span>
+                      <span className="text-gray-500">x{fmtQty(qty)}</span>
+                      {strategyId ? (
+                        <span className="font-mono text-[10px] text-blue-300">{strategyId}</span>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-gray-300">@ {fmtMoney(price)}</span>
+                      <span className="text-gray-500">{formatTradeTime(trade?.timestamp)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-2 text-xs text-gray-500">
+              No AI strategy trades logged yet.
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3 border-t border-[#1f1f1f] pt-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500">Portfolio Value</span>
+            <span className="font-mono text-white">{fmtMoney(totalValue)}</span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500">Buying Power</span>
+            <span className="font-mono text-white">{fmtMoney(cashBalance)}</span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L</span>
+            <span className={`font-mono ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {totalPnl >= 0 ? '+' : ''}{fmtMoney(totalPnl)}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* ── Recent Trades */}
-      {recentTrades.length > 0 && (
-        <div className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#1a2538] flex items-center gap-2">
-            <Clock size={13} strokeWidth={1.5} className="text-amber-400" />
-            <span className="text-white text-xs font-medium">Recent Trades</span>
-          </div>
-          <div className="divide-y divide-[#1a2538]/50">
-            {recentTrades.map((trade, i) => {
-              const isBuy = trade.side === 'buy';
-              const hasRealizedPnl = trade.side === 'sell' && Number.isFinite(Number(trade.realizedPnl));
-              const realizedPnl = Number(trade.realizedPnl || 0);
-              const tradeValue = Number.isFinite(Number(trade.tradeValue))
-                ? Number(trade.tradeValue)
-                : Number(trade.total_cost || 0);
+      <div className={`mt-3 ${panelClass} p-3`}>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Performance</div>
+        <HighchartsReact highcharts={Highcharts} options={walletChartOptions} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className={`${panelClass} p-3`}>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Allocation View</div>
+          <HighchartsReact highcharts={Highcharts} options={allocationPieOptions} />
+        </div>
+        <div className={`${panelClass} p-3`}>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Metrics</div>
+          <HighchartsReact highcharts={Highcharts} options={metricsBarOptions} />
+        </div>
+      </div>
+
+      {Array.isArray(trades) && trades.length > 0 ? (
+        <div className={`mt-3 ${panelClass} p-3`}>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Recent Trades</div>
+          <div className="space-y-1">
+            {trades.slice(0, 8).map((trade, index) => {
+              const side = String(trade?.side || '').toLowerCase();
+              const value = asTradeValue(trade);
               return (
-                <div key={trade._tradeKey || trade.id || i} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#0f1d32]/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                      isBuy ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-400'
-                    }`}>
-                      {trade.side}
+                <div key={trade?.id || `${trade?.symbol || 'trade'}-${index}`} className="flex items-center justify-between rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold uppercase tracking-[0.12em] ${side === 'buy' ? 'text-emerald-300' : 'text-red-300'}`}>
+                      {side || 'trade'}
                     </span>
-                    <TickerLogo symbol={trade.symbol} size={14} />
-                    <span className="text-white font-mono text-sm">${trade.symbol}</span>
-                    <span className="text-gray-500 text-xs">×{fmtQty(trade.quantity)}</span>
+                    <span className="font-mono">${normalizeSymbol(trade?.symbol)}</span>
+                    <span className="text-gray-500">x{fmtQty(trade?.quantity)}</span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-gray-300 font-mono text-xs">@ {fmt(trade.price)}</span>
-                    <span className="text-gray-500 font-mono text-xs">{fmt(tradeValue)}</span>
-                    <span className={`font-mono text-xs ${hasRealizedPnl ? (realizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-gray-600'}`}>
-                      P&L {hasRealizedPnl ? fmtSigned(realizedPnl) : '—'}
-                    </span>
-                    <span className="text-gray-600 text-[10px]">
-                      {new Date(trade.created_at).toLocaleString('en-US', {
-                        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                      })}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-gray-300">@ {fmtMoney(trade?.price)}</span>
+                    <span className="font-mono text-gray-400">{fmtMoney(value)}</span>
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* ── Error Banner */}
-      {error && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-          <AlertTriangle size={14} />
-          {error}
+      {error ? (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <AlertTriangle size={14} /> {error}
         </div>
-      )}
+      ) : null}
+      </div>
     </div>
   );
 }

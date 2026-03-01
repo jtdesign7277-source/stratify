@@ -34,7 +34,6 @@ import StratifyChat from './StratifyChat';
 import WatchlistPage from './WatchlistPage';
 import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioDashboard';
-import HistoryPage from './HistoryPage';
 import MarketMoversPage from './MarketMoversPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
@@ -114,7 +113,6 @@ import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
 import AppErrorBoundary from '../shared/AppErrorBoundary';
-import { preloadLogos } from '../common/TickerLogo';
 import { getMarketStatus, getNextMarketOpen, isMarketOpen } from '../../lib/marketHours';
 
 const loadDashboardState = () => {
@@ -215,6 +213,7 @@ const sanitizeActiveTab = (tab, fallback = 'war-room') => {
   if (normalized === 'strategies') return 'terminal';
   if (normalized === 'home') return 'war-room';
   if (normalized === 'markets') return 'global-markets';
+  if (normalized === 'history') return 'portfolio';
   if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
   return normalized;
 };
@@ -708,10 +707,6 @@ export default function Dashboard({
       setHasMountedCryptoTab(true);
     }
   }, [activeTab]);
-
-  useEffect(() => {
-    preloadLogos(['AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','SPY','QQQ','DIA','BTC','ETH','SOL','XRP','DOGE','LINK','ADA','AVAX','DOT']);
-  }, []);
   
   // Terminal backtest state
   const [terminalBacktestResults, setTerminalBacktestResults] = useState(null);
@@ -748,7 +743,7 @@ export default function Dashboard({
   
   const { user } = useAuth();
   const { isProUser, loading: subscriptionLoading } = useSubscription(user);
-  const { trades, addTrade, removeTrade, clearTrades } = useTradeHistoryStore();
+  const { trades } = useTradeHistoryStore();
   const { watchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop } = useWatchlistSync(user);
   const {
     strategies,
@@ -2378,17 +2373,6 @@ export default function Dashboard({
               tradeHistory={trades}
               savedStrategies={savedStrategies}
               deployedStrategies={deployedStrategies}
-            />
-          )}
-          {activeTab === 'history' && (
-            <HistoryPage
-              themeClasses={themeClasses}
-              tradeHistory={trades}
-              savedStrategies={savedStrategies}
-              deployedStrategies={deployedStrategies}
-              alpacaData={alpacaData}
-              onDeleteTrade={removeTrade}
-              onClearTradeHistory={clearTrades}
             />
           )}
           {/* strategy workspace lives in Terminal */}

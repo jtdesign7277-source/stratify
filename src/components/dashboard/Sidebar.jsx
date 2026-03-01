@@ -9,7 +9,6 @@ import {
   Microscope,
   BarChart3,
   Wallet,
-  History,
   Landmark,
   Calendar,
   Zap,
@@ -81,7 +80,6 @@ const Sidebar = ({
     { id: 'analytics', label: 'Watchlist', icon: LineChart },
     { id: 'radar', label: 'Radar', icon: Radar, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
-    { id: 'history', label: 'History', icon: History },
   ];
 
   const handleTabClick = (id) => {
