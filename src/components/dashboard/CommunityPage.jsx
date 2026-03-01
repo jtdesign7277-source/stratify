@@ -930,6 +930,25 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     }
   }, []);
 
+  const openArticleInCenter = useCallback((article) => {
+    if (!article?.url) return;
+    const normalizedArticle = {
+      title: article.title || 'Untitled',
+      source: article.source || article.domain || 'News',
+      url: article.url,
+      time: article.time || article.timeAgo || '',
+      sentiment: article.sentiment || 'neutral',
+      summary: article.summary || article.description || article.snippet || '',
+      image: article.image || article.imageUrl || article.thumbnailUrl || null,
+      tickers: Array.isArray(article.tickers) ? article.tickers : [],
+      category: article.category || 'NEWS',
+    };
+    setSidebarArticle(normalizedArticle);
+    setSelectedTicker(null);
+    setFilter(null);
+    setActiveExploreTab(null);
+  }, []);
+
   const runAiSearch = useCallback(async (queryText) => {
     const trimmedQuery = normalizeAiSearchQuery(queryText);
     if (!trimmedQuery) return false;
@@ -1401,11 +1420,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                       </AnimatePresence>
                     ) : activeExploreTab === 'discover' ? (
                       <div className="flex-1 min-h-0 overflow-y-auto">
-                        <DiscoverView data={discoverData} loading={discoverLoading} />
+                        <DiscoverView
+                          data={discoverData}
+                          loading={discoverLoading}
+                          onArticleClick={openArticleInCenter}
+                        />
                       </div>
                     ) : activeExploreTab === 'finance' ? (
                       <div className="flex-1 min-h-0 overflow-y-auto">
-                        <FinanceView />
+                        <FinanceView onArticleClick={openArticleInCenter} />
                       </div>
                     ) : filter ? (
                       <div className="flex-1 min-h-0 overflow-y-auto">
@@ -1477,6 +1500,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                             {!marketauxLoading && marketauxResults.map((article) => (
                               <div
                                 key={article.id}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => openArticleInCenter(article)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    openArticleInCenter(article);
+                                  }
+                                }}
                                 className="rounded-xl border p-3 mb-2 cursor-pointer transition-colors hover:bg-white/[0.03]"
                                 style={{ borderColor: T.border, backgroundColor: T.card }}
                               >
@@ -1504,16 +1536,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                         {article.description}
                                       </div>
                                     )}
-                                    <a
-                                      href={article.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[10px] mt-1 inline-block transition-colors hover:text-[#58a6ff]"
-                                      style={{ color: T.muted }}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      Read original ↗
-                                    </a>
                                   </div>
                                 </div>
                               </div>
@@ -1650,12 +1672,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                 </div>
 
                 <RightSidebar
-                  onArticleClick={(article) => {
-                    setSidebarArticle(article);
-                    setSelectedTicker(null);
-                    setFilter(null);
-                    setActiveExploreTab(null);
-                  }}
+                  onArticleClick={openArticleInCenter}
                   onTickerClick={(ticker) => {
                     setSelectedTicker(ticker);
                     setSidebarArticle(null);

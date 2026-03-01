@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Clock3, Newspaper, ChevronDown, BarChart3, RefreshCw, ExternalLink } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Clock3, Newspaper, ChevronDown, BarChart3, RefreshCw } from 'lucide-react';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import WatchlistPanel from './WatchlistPanel';
 import IndexCards from './IndexCards';
 
 // ─── History View ─────────────────────────────────────────
-export const HistoryView = ({ history, loading, onClear }) => {
+export const HistoryView = ({ history, loading, onClear, onArticleClick }) => {
   const relTime = (iso) => {
     if (!iso) return '';
     const ms = Date.now() - new Date(iso).getTime();
@@ -54,12 +54,18 @@ export const HistoryView = ({ history, loading, onClear }) => {
         <button type="button" onClick={onClear} className="text-xs text-[#f85149] hover:text-[#ff7b72] transition">Clear All</button>
       </div>
       {history.map((item, idx) => (
-        <a
+        <button
+          type="button"
           key={`${item.content_type}-${item.content_id}-${idx}`}
-          href={item.url || '#'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex gap-3 rounded-xl border border-white/6 bg-white/2 p-3 hover:bg-white/4 transition-colors group"
+          onClick={() => onArticleClick?.({
+            title: item.title || 'Untitled',
+            source: item.source || 'History',
+            url: item.url,
+            summary: item.description || '',
+            image: item.thumbnail_url || null,
+            category: 'NEWS',
+          })}
+          className="w-full text-left flex gap-3 rounded-xl border border-white/6 bg-white/2 p-3 hover:bg-white/4 transition-colors group"
         >
           {item.thumbnail_url ? (
             <img src={item.thumbnail_url} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0 bg-white/4" />
@@ -75,29 +81,17 @@ export const HistoryView = ({ history, loading, onClear }) => {
               <span className="text-xs text-[#7d8590]">{relTime(item.clicked_at)}</span>
             </div>
           </div>
-        </a>
+        </button>
       ))}
     </div>
   );
 };
 
 // ─── Discover View ────────────────────────────────────────
-export const DiscoverView = ({ data, loading }) => {
+export const DiscoverView = ({ data, loading, onArticleClick }) => {
   if (loading || !data) {
     return (
       <div className="p-4 space-y-4">
-        <div className="rounded-xl border border-white/6 bg-white/2 p-4 animate-pulse">
-          <div className="h-4 bg-white/6 rounded w-1/3 mb-3" />
-          <div className="h-16 bg-white/4 rounded" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={`disc-sk-${i}`} className="rounded-xl border border-white/6 bg-white/2 p-3 animate-pulse">
-              <div className="h-3 bg-white/6 rounded w-1/2 mb-2" />
-              <div className="h-5 bg-white/4 rounded w-2/3" />
-            </div>
-          ))}
-        </div>
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={`disc-story-sk-${i}`} className="rounded-xl border border-white/6 bg-white/2 p-3 animate-pulse">
             <div className="h-3 bg-white/6 rounded w-3/4 mb-2" />
@@ -108,64 +102,27 @@ export const DiscoverView = ({ data, loading }) => {
     );
   }
 
-  const weather = data.weather;
-  const outlook = data.marketOutlook || [];
   const stories = data.topStories || [];
 
   return (
     <div className="p-3 space-y-4">
-      {weather && weather.temp != null && (
-        <div className="rounded-xl border border-white/6 bg-white/2 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-[#7d8590] uppercase tracking-wider mb-1">{weather.location}</div>
-              <div className="text-3xl font-bold text-[#e6edf3]">{weather.temp}°F</div>
-              <div className="text-sm text-[#7d8590] mt-0.5">{weather.condition}</div>
-            </div>
-            <div className="text-right text-xs text-[#7d8590] space-y-0.5">
-              {weather.high != null && <div>H: {weather.high}°</div>}
-              {weather.low != null && <div>L: {weather.low}°</div>}
-              {weather.humidity != null && <div>{weather.humidity}% humidity</div>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {outlook.length > 0 && (
-        <div>
-          <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Market Outlook</div>
-          <div className="grid grid-cols-2 gap-2">
-            {outlook.map((item) => {
-              const isPositive = (item.changePercent || 0) >= 0;
-              return (
-                <div key={item.symbol} className="rounded-xl border border-white/6 bg-white/2 p-3">
-                  <div className="text-xs text-[#7d8590] mb-1">{item.name}</div>
-                  <div className="text-base font-semibold text-[#e6edf3]">
-                    {item.value != null ? item.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                  </div>
-                  {item.changePercent != null && (
-                    <div className={`text-xs font-medium mt-0.5 ${isPositive ? 'text-emerald-400' : 'text-[#f85149]'}`}>
-                      {isPositive ? '+' : ''}{item.changePercent.toFixed(2)}%
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {stories.length > 0 && (
         <div>
           <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Top Stories</div>
           <div className="space-y-2">
             {stories.map((story, idx) => (
-              <a
+              <button
+                type="button"
                 key={`story-${idx}`}
-                href={story.url || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex gap-3 rounded-xl border border-white/6 bg-white/2 p-3 hover:bg-white/4 transition-colors group"
+                onClick={() => onArticleClick?.({
+                  title: story.title || 'Untitled',
+                  source: story.source || 'News',
+                  url: story.url,
+                  summary: story.description || '',
+                  image: story.thumbnailUrl || null,
+                  category: 'NEWS',
+                })}
+                className="w-full text-left flex gap-3 rounded-xl border border-white/6 bg-white/2 p-3 hover:bg-white/4 transition-colors group"
               >
                 {story.thumbnailUrl ? (
                   <img src={story.thumbnailUrl} alt="" className="w-16 h-12 rounded-lg object-cover flex-shrink-0 bg-white/4" />
@@ -178,7 +135,7 @@ export const DiscoverView = ({ data, loading }) => {
                   <div className="text-sm font-medium text-[#e6edf3] line-clamp-2 group-hover:text-[#58a6ff] transition-colors">{story.title}</div>
                   <div className="text-xs text-[#7d8590] mt-1">{story.source}{story.sourcesCount > 1 ? ` +${story.sourcesCount - 1} sources` : ''}</div>
                 </div>
-              </a>
+              </button>
             ))}
           </div>
         </div>
@@ -206,7 +163,7 @@ export const SpacesView = () => (
 );
 
 // ─── Finance View ─────────────────────────────────────────
-export const FinanceView = () => {
+export const FinanceView = ({ onArticleClick }) => {
   const [articles, setArticles] = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState(false);
@@ -279,9 +236,19 @@ export const FinanceView = () => {
         )}
 
         {!newsLoading && articles.map((article) => (
-          <div
+          <button
+            type="button"
             key={article.id || article.url}
-            className="rounded-xl border border-white/6 bg-white/2 p-3 mb-2 hover:bg-white/4 transition-colors"
+            onClick={() => onArticleClick?.({
+              title: article.title || 'Untitled',
+              source: article.source || 'Marketaux',
+              url: article.url,
+              summary: article.description || '',
+              image: article.image || null,
+              tickers: Array.isArray(article.tickers) ? article.tickers : [],
+              category: 'NEWS',
+            })}
+            className="w-full text-left rounded-xl border border-white/6 bg-white/2 p-3 mb-2 hover:bg-white/4 transition-colors"
           >
             <div className="flex gap-3">
               {article.image && (
@@ -306,20 +273,9 @@ export const FinanceView = () => {
                 {article.description && (
                   <div className="text-xs text-[#7d8590] mt-1 line-clamp-1">{article.description}</div>
                 )}
-                {article.url && (
-                  <a
-                    href={article.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-0.5 text-[10px] text-[#7d8590] hover:text-[#58a6ff] transition-colors mt-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Read original <ExternalLink className="w-2.5 h-2.5" strokeWidth={1.5} />
-                  </a>
-                )}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
