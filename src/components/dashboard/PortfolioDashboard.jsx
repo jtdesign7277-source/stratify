@@ -2,6 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import usePaperTrading from '../../hooks/usePaperTrading';
+import { subscribeCryptoPrices } from '../../services/twelveDataStream';
+import { getMarketStatus } from '../../lib/marketHours';
+import TickerLogo from '../common/TickerLogo';
 import {
   Wallet, TrendingUp, TrendingDown, DollarSign, PieChart,
   BarChart3, Clock, RefreshCw, ChevronDown, ChevronUp, X,
@@ -64,6 +67,11 @@ const fmt = (v, decimals = 2) =>
     maximumFractionDigits: decimals,
   });
 
+const fmtSigned = (v, decimals = 2) => {
+  const n = Number(v || 0);
+  return `${n >= 0 ? '+' : '-'}${fmt(Math.abs(n), decimals)}`;
+};
+
 const fmtPct = (v) => {
   const n = Number(v || 0);
   return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -72,6 +80,152 @@ const fmtPct = (v) => {
 const fmtQty = (v) => {
   const n = Number(v || 0);
   return n >= 1 ? n.toFixed(2) : n.toFixed(6);
+};
+
+const CRYPTO_BASE_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LINK', 'ADA', 'AVAX', 'DOT']);
+
+const normalizeSymbol = (value = '') => String(value || '').trim().toUpperCase().replace(/^\$/, '');
+const toSymbolKey = (value = '') => normalizeSymbol(value).replace(/[^A-Z0-9]/g, '');
+
+const isCryptoSymbol = (value = '') => {
+  const normalized = normalizeSymbol(value);
+  if (!normalized) return false;
+  if (normalized.includes('/')) {
+    const [base = ''] = normalized.split('/');
+    return CRYPTO_BASE_SYMBOLS.has(base.replace(/[^A-Z0-9]/g, ''));
+  }
+
+  const compact = normalized.replace(/[^A-Z0-9]/g, '');
+  if (CRYPTO_BASE_SYMBOLS.has(compact)) return true;
+  if (compact.endsWith('USD') && compact.length > 3) {
+    return CRYPTO_BASE_SYMBOLS.has(compact.slice(0, -3));
+  }
+  return false;
+};
+
+const toStreamSymbol = (value = '') => {
+  const normalized = normalizeSymbol(value);
+  if (!normalized) return '';
+
+  if (normalized.includes('/')) {
+    const [baseRaw = '', quoteRaw = 'USD'] = normalized.split('/');
+    const base = baseRaw.replace(/[^A-Z0-9]/g, '');
+    const quote = (quoteRaw || 'USD').replace(/[^A-Z0-9]/g, '') || 'USD';
+    if (!base) return '';
+    return `${base}/${quote}`;
+  }
+
+  const compact = normalized.replace(/[^A-Z0-9]/g, '');
+  if (!compact) return '';
+
+  if (CRYPTO_BASE_SYMBOLS.has(compact)) {
+    return `${compact}/USD`;
+  }
+  if (compact.endsWith('USD') && compact.length > 3 && CRYPTO_BASE_SYMBOLS.has(compact.slice(0, -3))) {
+    return `${compact.slice(0, -3)}/USD`;
+  }
+
+  return compact;
+};
+
+const enrichTradesWithRealizedPnl = (rows = []) => {
+  const source = Array.isArray(rows) ? rows : [];
+  const keyedTrades = source.map((trade, index) => ({
+    ...trade,
+    _tradeKey: String(trade?.id || `${trade?.symbol || 'trade'}-${trade?.created_at || 'na'}-${index}`),
+    _tradeIndex: index,
+  }));
+
+  const chronological = [...keyedTrades].sort((a, b) => {
+    const aTime = Date.parse(a?.created_at || '');
+    const bTime = Date.parse(b?.created_at || '');
+    const aHas = Number.isFinite(aTime);
+    const bHas = Number.isFinite(bTime);
+    if (aHas && bHas && aTime !== bTime) return aTime - bTime;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    return Number(a?._tradeIndex || 0) - Number(b?._tradeIndex || 0);
+  });
+
+  const positionState = new Map();
+  const realizedByTrade = new Map();
+
+  chronological.forEach((trade) => {
+    const symbol = String(trade?.symbol || '').toUpperCase();
+    const side = String(trade?.side || '').toLowerCase();
+    const quantity = Number(trade?.quantity || 0);
+    const price = Number(trade?.price || 0);
+    const totalCost = Number(trade?.total_cost);
+    const tradeValue = Number.isFinite(totalCost) && totalCost > 0
+      ? totalCost
+      : quantity * price;
+
+    if (!symbol || quantity <= 0 || !Number.isFinite(price) || price <= 0) {
+      realizedByTrade.set(trade._tradeKey, {
+        tradeValue,
+        realizedPnl: null,
+        realizedPnlPercent: null,
+      });
+      return;
+    }
+
+    const state = positionState.get(symbol) || { qty: 0, avgCost: 0 };
+
+    if (side === 'buy') {
+      const nextQty = state.qty + quantity;
+      const nextAvgCost = nextQty > 0
+        ? ((state.qty * state.avgCost) + (quantity * price)) / nextQty
+        : 0;
+      positionState.set(symbol, { qty: nextQty, avgCost: nextAvgCost });
+      realizedByTrade.set(trade._tradeKey, {
+        tradeValue,
+        realizedPnl: null,
+        realizedPnlPercent: null,
+      });
+      return;
+    }
+
+    const sellQty = Math.min(quantity, Math.max(state.qty, 0));
+    const costBasis = sellQty * state.avgCost;
+    const proceeds = sellQty * price;
+    const realizedPnl = sellQty > 0 ? proceeds - costBasis : 0;
+    const realizedPnlPercent = costBasis > 0 ? (realizedPnl / costBasis) * 100 : 0;
+
+    const remainingQty = Math.max(state.qty - sellQty, 0);
+    positionState.set(symbol, {
+      qty: remainingQty,
+      avgCost: remainingQty > 0 ? state.avgCost : 0,
+    });
+
+    realizedByTrade.set(trade._tradeKey, {
+      tradeValue,
+      realizedPnl: sellQty > 0 ? realizedPnl : 0,
+      realizedPnlPercent: sellQty > 0 ? realizedPnlPercent : 0,
+    });
+  });
+
+  return keyedTrades.map((trade) => {
+    const computed = realizedByTrade.get(trade._tradeKey) || {};
+    const apiRealizedPnl = trade?.realized_pnl;
+    const apiRealizedPnlPercent = trade?.realized_pnl_percent;
+    const hasApiRealizedPnl = apiRealizedPnl !== null
+      && apiRealizedPnl !== undefined
+      && Number.isFinite(Number(apiRealizedPnl));
+    const hasApiRealizedPnlPercent = apiRealizedPnlPercent !== null
+      && apiRealizedPnlPercent !== undefined
+      && Number.isFinite(Number(apiRealizedPnlPercent));
+
+    return {
+      ...trade,
+      tradeValue: Number.isFinite(Number(computed.tradeValue))
+        ? Number(computed.tradeValue)
+        : Number(trade?.total_cost || 0),
+      realizedPnl: hasApiRealizedPnl ? Number(apiRealizedPnl) : computed.realizedPnl,
+      realizedPnlPercent: hasApiRealizedPnlPercent
+        ? Number(apiRealizedPnlPercent)
+        : computed.realizedPnlPercent,
+    };
+  });
 };
 
 // ─── KPI Card ──────────────────────────────────────────────
@@ -115,7 +269,7 @@ function HoldingRow({ position, onClose }) {
     <tr className="border-b border-[#1a2538]/50 hover:bg-[#0f1d32]/50 transition-colors group">
       <td className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isProfit ? 'bg-emerald-400' : 'bg-red-400'}`} />
+          <TickerLogo symbol={position.symbol} size={16} />
           <span className="text-white font-mono font-medium text-sm">${position.symbol}</span>
         </div>
       </td>
@@ -173,9 +327,10 @@ function generatePortfolioHistory(currentValue, days = 90) {
 
 // ─── Main Portfolio Dashboard ──────────────────────────────
 export default function PortfolioDashboard() {
-  const { portfolio, trades, loading, error, closePosition, fetchPortfolio } = usePaperTrading();
+  const { portfolio, trades, loading, error, closePosition, fetchPortfolio, updatePositionPrice } = usePaperTrading();
   const [sortField, setSortField] = useState('market_value');
   const [sortDir, setSortDir] = useState('desc');
+  const [marketStatus, setMarketStatus] = useState(() => getMarketStatus());
 
   const positions = portfolio?.positions || [];
   const cashBalance = Number(portfolio?.cash_balance || 0);
@@ -312,7 +467,78 @@ export default function PortfolioDashboard() {
     };
   }, [positions, cashBalance]);
 
-  const recentTrades = (trades || []).slice(0, 5);
+  const recentTrades = useMemo(
+    () => enrichTradesWithRealizedPnl(trades).slice(0, 5),
+    [trades]
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMarketStatus(getMarketStatus());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const heldSymbolsKey = useMemo(() => {
+    const unique = new Set();
+    (Array.isArray(positions) ? positions : []).forEach((position) => {
+      const symbol = normalizeSymbol(position?.symbol);
+      if (symbol) unique.add(symbol);
+    });
+    return [...unique].sort().join(',');
+  }, [positions]);
+
+  const streamConfig = useMemo(() => {
+    const equitiesEnabled = marketStatus !== 'Weekend' && marketStatus !== 'Holiday';
+    const streamSymbols = [];
+    const streamToPositionSymbols = new Map();
+
+    if (!heldSymbolsKey) {
+      return { streamSymbols, streamToPositionSymbols };
+    }
+
+    heldSymbolsKey.split(',').forEach((positionSymbol) => {
+      if (!positionSymbol) return;
+      const crypto = isCryptoSymbol(positionSymbol);
+      if (!crypto && !equitiesEnabled) return;
+
+      const streamSymbol = toStreamSymbol(positionSymbol);
+      const streamKey = toSymbolKey(streamSymbol);
+      if (!streamSymbol || !streamKey) return;
+
+      if (!streamToPositionSymbols.has(streamKey)) {
+        streamToPositionSymbols.set(streamKey, new Set());
+        streamSymbols.push(streamSymbol);
+      }
+      streamToPositionSymbols.get(streamKey).add(positionSymbol);
+    });
+
+    return { streamSymbols, streamToPositionSymbols };
+  }, [heldSymbolsKey, marketStatus]);
+
+  useEffect(() => {
+    if (!streamConfig.streamSymbols.length) return undefined;
+
+    const unsubscribe = subscribeCryptoPrices(streamConfig.streamSymbols, (update) => {
+      const price = Number(update?.price);
+      if (!Number.isFinite(price) || price <= 0) return;
+
+      const incomingKey = toSymbolKey(update?.symbol);
+      if (!incomingKey) return;
+
+      const linkedSymbols = streamConfig.streamToPositionSymbols.get(incomingKey);
+      if (linkedSymbols && linkedSymbols.size > 0) {
+        linkedSymbols.forEach((positionSymbol) => {
+          updatePositionPrice(positionSymbol, price);
+        });
+        return;
+      }
+
+      updatePositionPrice(update?.symbol, price);
+    });
+
+    return () => unsubscribe?.();
+  }, [streamConfig, updatePositionPrice]);
 
   if (loading && !portfolio) {
     return (
@@ -475,20 +701,29 @@ export default function PortfolioDashboard() {
           <div className="divide-y divide-[#1a2538]/50">
             {recentTrades.map((trade, i) => {
               const isBuy = trade.side === 'buy';
+              const hasRealizedPnl = trade.side === 'sell' && Number.isFinite(Number(trade.realizedPnl));
+              const realizedPnl = Number(trade.realizedPnl || 0);
+              const tradeValue = Number.isFinite(Number(trade.tradeValue))
+                ? Number(trade.tradeValue)
+                : Number(trade.total_cost || 0);
               return (
-                <div key={trade.id || i} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#0f1d32]/30 transition-colors">
+                <div key={trade._tradeKey || trade.id || i} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#0f1d32]/30 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
                       isBuy ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-400'
                     }`}>
                       {trade.side}
                     </span>
+                    <TickerLogo symbol={trade.symbol} size={14} />
                     <span className="text-white font-mono text-sm">${trade.symbol}</span>
                     <span className="text-gray-500 text-xs">×{fmtQty(trade.quantity)}</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-gray-300 font-mono text-xs">@ {fmt(trade.price)}</span>
-                    <span className="text-gray-500 font-mono text-xs">{fmt(trade.total_value)}</span>
+                    <span className="text-gray-500 font-mono text-xs">{fmt(tradeValue)}</span>
+                    <span className={`font-mono text-xs ${hasRealizedPnl ? (realizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-gray-600'}`}>
+                      P&L {hasRealizedPnl ? fmtSigned(realizedPnl) : '—'}
+                    </span>
                     <span className="text-gray-600 text-[10px]">
                       {new Date(trade.created_at).toLocaleString('en-US', {
                         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',

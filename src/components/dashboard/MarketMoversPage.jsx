@@ -1,250 +1,785 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from "framer-motion";
-import { TrendingUp, TrendingDown, RefreshCw, Volume2, BarChart3 } from 'lucide-react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import Highcharts from 'highcharts';
+import HighchartsReact from 'highcharts-react-official';
+import TreemapModule from 'highcharts/modules/treemap';
+import { subscribeTwelveDataQuotes } from '../../services/twelveDataWebSocket';
 
-const CATEGORIES = [
-  { id: 'gainers', label: 'Top Gainers', icon: TrendingUp, color: 'emerald' },
-  { id: 'losers', label: 'Top Losers', icon: TrendingDown, color: 'red' },
-  { id: 'volume', label: 'Most Active', icon: Volume2, color: 'blue' },
+try {
+  TreemapModule(Highcharts);
+} catch (error) {
+  console.warn('[MarketMoversPage] Highcharts module init warning:', error);
+}
+
+const POSITIVE_COLOR = '#2ecc59';
+const NEGATIVE_COLOR = '#f73539';
+const QUOTE_CHUNK_SIZE = 80;
+
+const INDUSTRIES = [
+  'Technology',
+  'Financial',
+  'Consumer Cyclical',
+  'Communication Services',
+  'Healthcare',
+  'Consumer Defensive',
+  'Industrials',
+  'Real Estate',
+  'Energy',
+  'Utilities',
+  'Basic Materials',
 ];
 
-const PAGE_TRANSITION = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+const FALLBACK_HEATMAP = [
+  { id: 'Technology', name: 'Technology', custom: { fullName: 'Technology' } },
+  { id: 'Financial', name: 'Financial', custom: { fullName: 'Financial' } },
+  { id: 'Communication Services', name: 'Communication Services', custom: { fullName: 'Communication Services' } },
+  { id: 'AAPL', name: 'AAPL', value: 2900000000000, parent: 'Technology', colorValue: 1.2, color: POSITIVE_COLOR, custom: { fullName: 'Apple Inc.', performance: '+1.20%' } },
+  { id: 'MSFT', name: 'MSFT', value: 3200000000000, parent: 'Technology', colorValue: -0.8, color: NEGATIVE_COLOR, custom: { fullName: 'Microsoft Corp.', performance: '-0.80%' } },
+  { id: 'NVDA', name: 'NVDA', value: 2800000000000, parent: 'Technology', colorValue: 0.7, color: POSITIVE_COLOR, custom: { fullName: 'NVIDIA Corp.', performance: '+0.70%' } },
+  { id: 'META', name: 'META', value: 1500000000000, parent: 'Communication Services', colorValue: -1.1, color: NEGATIVE_COLOR, custom: { fullName: 'Meta Platforms Inc.', performance: '-1.10%' } },
+  { id: 'GOOGL', name: 'GOOGL', value: 2200000000000, parent: 'Communication Services', colorValue: 0.5, color: POSITIVE_COLOR, custom: { fullName: 'Alphabet Inc.', performance: '+0.50%' } },
+  { id: 'JPM', name: 'JPM', value: 550000000000, parent: 'Financial', colorValue: -0.3, color: NEGATIVE_COLOR, custom: { fullName: 'JPMorgan Chase & Co.', performance: '-0.30%' } },
+];
+
+const sectorToIndustry = {
+  'Industrial Conglomerates': 'Industrials',
+  'Building Products': 'Industrials',
+  'Health Care Equipment': 'Healthcare',
+  Biotechnology: 'Healthcare',
+  'IT Consulting & Other Services': 'Technology',
+  'Application Software': 'Technology',
+  Semiconductors: 'Technology',
+  'Independent Power Producers & Energy Traders': 'Energy',
+  'Life & Health Insurance': 'Financial',
+  'Life Sciences Tools & Services': 'Healthcare',
+  'Industrial Gases': 'Basic Materials',
+  'Hotels, Resorts & Cruise Lines': 'Consumer Cyclical',
+  'Internet Services & Infrastructure': 'Technology',
+  'Specialty Chemicals': 'Basic Materials',
+  'Office REITs': 'Real Estate',
+  'Health Care Supplies': 'Healthcare',
+  'Electric Utilities': 'Utilities',
+  'Property & Casualty Insurance': 'Financial',
+  'Interactive Media & Services': 'Communication Services',
+  Tobacco: 'Consumer Defensive',
+  'Broadline Retail': 'Consumer Cyclical',
+  'Paper & Plastic Packaging Products & Materials': 'Basic Materials',
+  'Diversified Support Services': 'Industrials',
+  'Multi-Utilities': 'Utilities',
+  'Consumer Finance': 'Financial',
+  'Multi-line Insurance': 'Financial',
+  'Telecom Tower REITs': 'Real Estate',
+  'Water Utilities': 'Utilities',
+  'Asset Management & Custody Banks': 'Financial',
+  'Electrical Components & Equipment': 'Industrials',
+  'Electronic Components': 'Technology',
+  'Insurance Brokers': 'Financial',
+  'Oil & Gas Exploration & Production': 'Energy',
+  'Technology Hardware, Storage & Peripherals': 'Technology',
+  'Semiconductor Materials & Equipment': 'Technology',
+  'Automotive Parts & Equipment': 'Consumer Cyclical',
+  'Agricultural Products & Services': 'Consumer Defensive',
+  'Communications Equipment': 'Technology',
+  'Integrated Telecommunication Services': 'Communication Services',
+  'Gas Utilities': 'Utilities',
+  'Human Resource & Employment Services': 'Industrials',
+  'Automotive Retail': 'Consumer Cyclical',
+  'Multi-Family Residential REITs': 'Real Estate',
+  'Aerospace & Defense': 'Industrials',
+  'Oil & Gas Equipment & Services': 'Energy',
+  'Metal, Glass & Plastic Containers': 'Basic Materials',
+  'Diversified Banks': 'Financial',
+  'Multi-Sector Holdings': 'Financial',
+  'Computer & Electronics Retail': 'Consumer Cyclical',
+  Pharmaceuticals: 'Healthcare',
+  'Data Processing & Outsourced Services': 'Technology',
+  'Distillers & Vintners': 'Consumer Defensive',
+  'Air Freight & Logistics': 'Industrials',
+  'Casinos & Gaming': 'Consumer Cyclical',
+  'Packaged Foods & Meats': 'Consumer Defensive',
+  'Health Care Distributors': 'Healthcare',
+  'Construction Machinery & Heavy Transportation Equipment': 'Industrials',
+  'Financial Exchanges & Data': 'Financial',
+  'Real Estate Services': 'Real Estate',
+  'Technology Distributors': 'Technology',
+  'Managed Health Care': 'Healthcare',
+  'Fertilizers & Agricultural Chemicals': 'Basic Materials',
+  'Investment Banking & Brokerage': 'Financial',
+  'Cable & Satellite': 'Communication Services',
+  'Integrated Oil & Gas': 'Energy',
+  Restaurants: 'Consumer Cyclical',
+  'Household Products': 'Consumer Defensive',
+  'Health Care Services': 'Healthcare',
+  'Regional Banks': 'Financial',
+  'Soft Drinks & Non-alcoholic Beverages': 'Consumer Defensive',
+  'Transaction & Payment Processing Services': 'Technology',
+  'Consumer Staples Merchandise Retail': 'Consumer Defensive',
+  'Systems Software': 'Technology',
+  'Rail Transportation': 'Industrials',
+  Homebuilding: 'Consumer Cyclical',
+  Footwear: 'Consumer Cyclical',
+  'Agricultural & Farm Machinery': 'Consumer Cyclical',
+  'Passenger Airlines': 'Industrials',
+  'Data Center REITs': 'Real Estate',
+  'Industrial Machinery & Supplies & Components': 'Industrials',
+  'Commodity Chemicals': 'Basic Materials',
+  'Interactive Home Entertainment': 'Communication Services',
+  'Research & Consulting Services': 'Industrials',
+  'Personal Care Products': 'Consumer Defensive',
+  Reinsurance: 'Financial',
+  'Self-Storage REITs': 'Real Estate',
+  'Trading Companies & Distributors': 'Industrials',
+  'Retail REITs': 'Real Estate',
+  'Automobile Manufacturers': 'Consumer Cyclical',
+  Broadcasting: 'Communication Services',
+  Copper: 'Basic Materials',
+  'Consumer Electronics': 'Technology',
+  'Heavy Electrical Equipment': 'Industrials',
+  Distributors: 'Industrials',
+  'Leisure Products': 'Consumer Cyclical',
+  'Health Care Facilities': 'Healthcare',
+  'Health Care REITs': 'Real Estate',
+  'Home Improvement Retail': 'Consumer Cyclical',
+  'Hotel & Resort REITs': 'Real Estate',
+  Advertising: 'Communication Services',
+  'Single-Family Residential REITs': 'Real Estate',
+  'Other Specialized REITs': 'Real Estate',
+  'Cargo Ground Transportation': 'Industrials',
+  'Electronic Manufacturing Services': 'Technology',
+  'Construction & Engineering': 'Industrials',
+  'Electronic Equipment & Instruments': 'Technology',
+  'Oil & Gas Storage & Transportation': 'Energy',
+  'Food Retail': 'Consumer Defensive',
+  'Movies & Entertainment': 'Communication Services',
+  'Apparel, Accessories & Luxury Goods': 'Consumer Cyclical',
+  'Oil & Gas Refining & Marketing': 'Energy',
+  'Construction Materials': 'Basic Materials',
+  'Home Furnishings': 'Consumer Cyclical',
+  Brewers: 'Consumer Defensive',
+  Gold: 'Basic Materials',
+  Publishing: 'Communication Services',
+  Steel: 'Basic Materials',
+  'Industrial REITs': 'Real Estate',
+  'Environmental & Facilities Services': 'Industrials',
+  'Apparel Retail': 'Consumer Cyclical',
+  'Health Care Technology': 'Healthcare',
+  'Food Distributors': 'Consumer Defensive',
+  'Wireless Telecommunication Services': 'Communication Services',
+  'Other Specialty Retail': 'Consumer Cyclical',
+  'Passenger Ground Transportation': 'Industrials',
+  'Drug Retail': 'Consumer Cyclical',
+  'Timber REITs': 'Real Estate'
 };
 
-const sectionMotion = (index) => ({
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
-});
+const normalizeSymbol = (value = '') => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9/]/g, '');
 
-const listItemMotion = (index) => ({
-  initial: { opacity: 0, x: -8 },
-  animate: { opacity: 1, x: 0 },
-  transition: { delay: index * 0.03, duration: 0.25 },
-});
+const parseCsvLine = (line = '') => {
+  const result = [];
+  let current = '';
+  let insideQuotes = false;
 
-const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      const nextChar = line[i + 1];
+      if (insideQuotes && nextChar === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        insideQuotes = !insideQuotes;
+      }
+      continue;
+    }
 
-function formatPrice(price) {
-  if (!price) return '$0.00';
-  return `$${Number(price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+    if (char === ',' && !insideQuotes) {
+      result.push(current);
+      current = '';
+      continue;
+    }
 
-function formatPercent(percent) {
-  if (!percent) return '0.00%';
-  const num = Number(percent);
-  const sign = num >= 0 ? '+' : '';
-  return `${sign}${num.toFixed(2)}%`;
-}
+    current += char;
+  }
 
-function formatVolume(volume) {
-  if (!volume) return '0';
-  if (volume >= 1000000000) return `${(volume / 1000000000).toFixed(1)}B`;
-  if (volume >= 1000000) return `${(volume / 1000000).toFixed(1)}M`;
-  if (volume >= 1000) return `${(volume / 1000).toFixed(1)}K`;
-  return volume.toString();
-}
+  result.push(current);
+  return result.map((item) => item.trim());
+};
 
-function StockCard({ stock, rank, isLast }) {
-  const changePercent = Number(stock.percent_change || 0);
-  const isPositive = changePercent >= 0;
-  const colorClass = isPositive ? 'text-emerald-400' : 'text-red-400';
+const parseCsv = (csvText = '') => {
+  const lines = String(csvText || '').split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (!lines.length) return [];
 
-  return (
-    <motion.div
-      {...listItemMotion(Math.max(0, rank - 1))}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ ...listItemMotion(Math.max(0, rank - 1)).transition, ...interactiveTransition }}
-      className={`group px-3 py-2.5 hover:bg-white/[0.02] transition-all ${isLast ? '' : 'border-b border-[#1f1f1f]/40'}`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-white text-sm">{stock.symbol}</div>
-          <div className="text-[11px] text-white/40 truncate mt-0.5">{stock.name || 'N/A'}</div>
-        </div>
-        <div className="text-right ml-3">
-          <div className="text-sm font-semibold text-white">{formatPrice(stock.price)}</div>
-          <div className={`text-[11px] font-medium ${colorClass}`}>
-            {formatPercent(changePercent)}
-          </div>
-        </div>
-      </div>
-    </motion.div>
+  const headers = parseCsvLine(lines[0]);
+  return lines.slice(1).map((line) => {
+    const cells = parseCsvLine(line);
+    return headers.reduce((row, header, index) => {
+      row[header] = cells[index] ?? '';
+      return row;
+    }, {});
+  });
+};
+
+const toNumber = (value, fallback = null) => {
+  if (value === null || value === undefined) return fallback;
+  const normalized = typeof value === 'string'
+    ? value.replace(/[^0-9.,-]/g, '').replace(/,/g, '')
+    : value;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const performanceText = (perf) => {
+  const numeric = toNumber(perf, 0);
+  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(2)}%`;
+};
+
+const buildTreemapData = (csvData = [], oldData = []) => {
+  const data = INDUSTRIES.map((id) => ({ id, color: '#252931' }));
+
+  const oldBySymbol = new Map();
+  oldData.forEach((row) => {
+    const symbol = normalizeSymbol(row?.Symbol);
+    if (!symbol) return;
+    oldBySymbol.set(symbol, row);
+  });
+
+  csvData.forEach((row) => {
+    const sector = String(row?.Sector || '').trim();
+    if (!sector) return;
+    if (!data.find((point) => point.id === sector)) {
+      data.push({
+        id: sector,
+        parent: sectorToIndustry[sector] || 'Industrials',
+        color: '#252931'
+      });
+    }
+  });
+
+  data.forEach((point) => {
+    point.name = point.id;
+    point.custom = {
+      fullName: point.id
+    };
+  });
+
+  csvData
+    .filter((row) => row.Symbol !== 'GOOG' && row.Price && row['Market Cap'])
+    .forEach((row) => {
+      const symbol = normalizeSymbol(row.Symbol);
+      if (!symbol) return;
+
+      const old = oldBySymbol.get(symbol);
+      let perf = 0;
+
+      if (old?.Price) {
+        const oldPrice = toNumber(old.Price, 0);
+        const newPrice = toNumber(row.Price, 0);
+        if (oldPrice > 0 && newPrice > 0) {
+          perf = (100 * (newPrice - oldPrice)) / oldPrice;
+        }
+      }
+
+      data.push({
+        name: symbol,
+        id: symbol,
+        value: toNumber(row['Market Cap'], 0),
+        parent: row.Sector,
+        colorValue: perf,
+        color: perf >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR,
+        custom: {
+          fullName: row.Name,
+          performance: performanceText(perf)
+        }
+      });
+    });
+
+  return data;
+};
+
+const chartBaseOptions = {
+  chart: {
+    backgroundColor: 'transparent',
+    reflow: true,
+    spacing: [0, 0, 0, 0]
+  },
+  title: {
+    text: null
+  },
+  subtitle: {
+    text: null
+  },
+  tooltip: {
+    followPointer: true,
+    outside: true,
+    headerFormat: '<span style="font-size: 0.9em">{point.custom.fullName}</span><br/>',
+    pointFormat: '<b>Market Cap:</b> USD {(divide point.value 1000000000):.1f} bln<br/>{#if point.custom.performance}<b>1 month performance:</b> {point.custom.performance}{/if}'
+  },
+  colorAxis: {
+    dataClasses: [
+      {
+        to: 0,
+        color: NEGATIVE_COLOR,
+        name: 'Negative'
+      },
+      {
+        from: 0,
+        color: POSITIVE_COLOR,
+        name: 'Positive'
+      }
+    ],
+    gridLineWidth: 0,
+    visible: false,
+    labels: {
+      enabled: false,
+      overflow: 'allow',
+      format: '{#gt value 0}+{value}{else}{value}{/gt}%',
+      style: {
+        color: 'white'
+      }
+    }
+  },
+  legend: {
+    enabled: false,
+    itemStyle: {
+      color: 'white'
+    }
+  },
+  exporting: {
+    enabled: false
+  }
+};
+
+// TradingViewWidget.jsx
+function TradingViewWidget() {
+  const container = useRef();
+
+  useEffect(
+    () => {
+      if (!container.current) return undefined;
+      container.current.innerHTML = '';
+      const script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/external-embedding/embed-widget-crypto-coins-heatmap.js";
+      script.type = "text/javascript";
+      script.async = true;
+      script.innerHTML = `
+        {
+          "dataSource": "Crypto",
+          "blockSize": "market_cap_calc",
+          "blockColor": "24h_close_change|5",
+          "locale": "en",
+          "symbolUrl": "",
+          "colorTheme": "dark",
+          "hasTopBar": false,
+          "isDataSetEnabled": false,
+          "isZoomEnabled": true,
+          "hasSymbolTooltip": true,
+          "isMonoSize": false,
+          "width": "100%",
+          "height": "100%"
+        }`;
+      container.current.appendChild(script);
+      return () => {
+        if (container.current) {
+          container.current.innerHTML = '';
+        }
+      };
+    },
+    []
   );
-}
-
-function CategoryColumn({ category, data, loading, error }) {
-  const Icon = category.icon;
-  const colorMap = {
-    emerald: 'text-emerald-400',
-    red: 'text-red-400',
-    blue: 'text-blue-400',
-  };
-  const iconColor = colorMap[category.color];
 
   return (
-    <div className="flex flex-col min-h-0">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1f1f1f]">
-        <Icon className={`w-4 h-4 ${iconColor}`} strokeWidth={1.5} />
-        <h3 className="text-xs font-semibold text-white">{category.label}</h3>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <RefreshCw className="w-5 h-5 text-white/30 animate-spin" strokeWidth={1.5} />
-          </div>
-        )}
-
-        {error && (
-          <div className="px-3 py-4">
-            <p className="text-xs text-red-400">{error}</p>
-          </div>
-        )}
-
-        {!loading && !error && data.length === 0 && (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-xs text-white/30">No data</p>
-          </div>
-        )}
-
-        {!loading && !error && data.length > 0 && (
-          <>
-            {data.slice(0, 15).map((stock, index, array) => (
-              <StockCard
-                key={stock.symbol}
-                stock={stock}
-                rank={index + 1}
-                isLast={index === array.length - 1}
-              />
-            ))}
-          </>
-        )}
-      </div>
+    <div className="tradingview-widget-container h-full w-full overflow-hidden" ref={container}>
+      <div className="tradingview-widget-container__widget h-full w-full"></div>
     </div>
   );
 }
 
+const MemoizedTradingViewWidget = memo(TradingViewWidget);
+
 export default function MarketMoversPage() {
-  const [gainers, setGainers] = useState([]);
-  const [losers, setLosers] = useState([]);
-  const [actives, setActives] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({ gainers: null, losers: null, volume: null });
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [activeHeatmapTab, setActiveHeatmapTab] = useState('stocks');
+  const [heatmapData, setHeatmapData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [stockChartHeight, setStockChartHeight] = useState(null);
+  const stocksPanelRef = useRef(null);
+  const stockChartRef = useRef(null);
 
-  const fetchAllMovers = async () => {
-    setLoading(true);
-    setErrors({ gainers: null, losers: null, volume: null });
+  useEffect(() => {
+    const removeEvent = Highcharts.addEvent(Highcharts.Series, 'drawDataLabels', function () {
+      if (this.type !== 'treemap') return;
 
-    const fetchCategory = async (type) => {
+      this.points.forEach((point) => {
+        if (point.node?.level === 2 && Number.isFinite(point.value)) {
+          const previousValue = point.node.children.reduce(
+            (acc, child) => acc + (child.point?.value || 0) - (child.point?.value || 0) * (child.point?.colorValue || 0) / 100,
+            0
+          );
+
+          const perf = 100 * (point.value - previousValue) / (previousValue || 1);
+
+          point.custom = {
+            ...(point.custom || {}),
+            performance: performanceText(perf)
+          };
+
+          if (point.dlOptions) {
+            point.dlOptions.backgroundColor = perf >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR;
+          }
+        }
+
+        if (point.node?.level === 3 && point.shapeArgs && point.dlOptions) {
+          const area = point.shapeArgs.width * point.shapeArgs.height;
+          point.dlOptions.style = {
+            ...(point.dlOptions.style || {}),
+            fontSize: `${Math.min(32, 7 + Math.round(area * 0.0008))}px`
+          };
+        }
+      });
+    });
+
+    return () => {
+      if (typeof removeEvent === 'function') {
+        removeEvent();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError('');
+
       try {
-        const response = await fetch(`/api/market-movers?type=${type}`);
-        if (!response.ok) throw new Error(`Failed to fetch ${type}`);
-        const data = await response.json();
-        return { type, data: data.values || [], error: null };
-      } catch (err) {
-        console.error(`[MarketMovers] ${type} error:`, err);
-        return { type, data: [], error: err.message };
+        const [csvText, oldCsvText] = await Promise.all([
+          fetch('https://cdn.jsdelivr.net/gh/datasets/s-and-p-500-companies-financials@67dd99e/data/constituents-financials.csv').then((r) => r.text()),
+          fetch('https://cdn.jsdelivr.net/gh/datasets/s-and-p-500-companies-financials@9f63bc5/data/constituents-financials.csv').then((r) => r.text())
+        ]);
+
+        if (cancelled) return;
+
+        const csvData = parseCsv(csvText);
+        const oldData = parseCsv(oldCsvText);
+        const nextData = buildTreemapData(csvData, oldData);
+
+        if (!nextData.length) {
+          throw new Error('No heatmap data available.');
+        }
+
+        setHeatmapData(nextData);
+      } catch (loadError) {
+        if (cancelled) return;
+        console.error('[MarketMoversPage] Heatmap load failed:', loadError);
+        setError('Live dataset unavailable. Showing fallback heatmap.');
+        setHeatmapData(FALLBACK_HEATMAP);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    const results = await Promise.all([
-      fetchCategory('gainers'),
-      fetchCategory('losers'),
-      fetchCategory('volume'),
-    ]);
+    load();
 
-    results.forEach(result => {
-      if (result.type === 'gainers') {
-        setGainers(result.data);
-        if (result.error) setErrors(prev => ({ ...prev, gainers: result.error }));
-      } else if (result.type === 'losers') {
-        setLosers(result.data);
-        if (result.error) setErrors(prev => ({ ...prev, losers: result.error }));
-      } else if (result.type === 'volume') {
-        setActives(result.data);
-        if (result.error) setErrors(prev => ({ ...prev, volume: result.error }));
-      }
-    });
-
-    setLastUpdated(Date.now());
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchAllMovers();
-    const interval = setInterval(fetchAllMovers, 300000); // Refresh every 5 minutes
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const streamSymbolsKey = useMemo(() => {
+    const symbols = heatmapData
+      .filter((point) => point?.parent && Number.isFinite(Number(point?.value)) && point?.id)
+      .map((point) => normalizeSymbol(point.id))
+      .filter(Boolean);
+
+    return [...new Set(symbols)].join(',');
+  }, [heatmapData]);
+
+  useEffect(() => {
+    if (!streamSymbolsKey) return undefined;
+
+    const symbols = streamSymbolsKey.split(',').filter(Boolean);
+    if (!symbols.length) return undefined;
+
+    const unsubscribe = subscribeTwelveDataQuotes(symbols, (update) => {
+      const symbol = normalizeSymbol(update?.symbol);
+      const pct = Number(update?.percentChange ?? update?.dayChangePercent ?? update?.percent_change);
+      if (!symbol || !Number.isFinite(pct)) return;
+
+      setHeatmapData((prev) => {
+        let changed = false;
+        const next = prev.map((point) => {
+          if (normalizeSymbol(point?.id) !== symbol) return point;
+          changed = true;
+          return {
+            ...point,
+            colorValue: pct,
+            color: pct >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR,
+            custom: {
+              ...(point.custom || {}),
+              performance: performanceText(pct)
+            }
+          };
+        });
+        return changed ? next : prev;
+      });
+    });
+
+    return () => unsubscribe?.();
+  }, [streamSymbolsKey]);
+
+  useEffect(() => {
+    if (!streamSymbolsKey) return undefined;
+
+    let cancelled = false;
+    const symbols = streamSymbolsKey.split(',').filter(Boolean);
+    if (symbols.length === 0) return undefined;
+
+    const chunks = [];
+    for (let i = 0; i < symbols.length; i += QUOTE_CHUNK_SIZE) {
+      chunks.push(symbols.slice(i, i + QUOTE_CHUNK_SIZE));
+    }
+
+    const loadLiveCaps = async () => {
+      try {
+        const responses = await Promise.all(
+          chunks.map(async (chunk) => {
+            const params = new URLSearchParams({ symbols: chunk.join(',') });
+            const response = await fetch(`/api/community/market-data?${params.toString()}`, {
+              cache: 'no-store'
+            });
+
+            if (!response.ok) return [];
+            const payload = await response.json().catch(() => ({}));
+            return Array.isArray(payload?.data) ? payload.data : [];
+          })
+        );
+
+        if (cancelled) return;
+
+        const bySymbol = new Map();
+        responses.flat().forEach((row) => {
+          const symbol = normalizeSymbol(row?.symbol);
+          if (!symbol) return;
+
+          bySymbol.set(symbol, {
+            marketCap: toNumber(row?.marketCap ?? row?.market_cap),
+            pct: toNumber(row?.percentChange ?? row?.percent_change)
+          });
+        });
+
+        if (bySymbol.size === 0) return;
+
+        setHeatmapData((prev) => prev.map((point) => {
+          if (!point?.parent || !point?.id) return point;
+
+          const live = bySymbol.get(normalizeSymbol(point.id));
+          if (!live) return point;
+
+          const hasMarketCap = Number.isFinite(live.marketCap) && live.marketCap > 0;
+          const hasPct = Number.isFinite(live.pct);
+          if (!hasMarketCap && !hasPct) return point;
+
+          const nextPct = hasPct ? live.pct : toNumber(point.colorValue, 0);
+
+          return {
+            ...point,
+            value: hasMarketCap ? live.marketCap : point.value,
+            colorValue: nextPct,
+            color: nextPct >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR,
+            custom: {
+              ...(point.custom || {}),
+              performance: performanceText(nextPct)
+            }
+          };
+        }));
+      } catch (loadError) {
+        console.warn('[MarketMoversPage] Live market-cap hydrate failed:', loadError);
+      }
+    };
+
+    loadLiveCaps();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [streamSymbolsKey]);
+
+  useEffect(() => {
+    const panel = stocksPanelRef.current;
+    if (!panel || typeof ResizeObserver === 'undefined') return undefined;
+
+    const resize = () => {
+      // Keep a small safety gap so the treemap never clips at the bottom edge.
+      const nextHeight = Math.max(280, Math.floor(panel.clientHeight - 24));
+      setStockChartHeight((previous) => (previous === nextHeight ? previous : nextHeight));
+    };
+
+    resize();
+
+    const observer = new ResizeObserver(() => {
+      resize();
+    });
+
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (activeHeatmapTab !== 'stocks') return;
+    if (!stockChartRef.current?.chart || !stockChartHeight) return;
+    stockChartRef.current.chart.setSize(null, stockChartHeight, false);
+  }, [activeHeatmapTab, stockChartHeight]);
+
+  const chartOptions = useMemo(() => ({
+    ...chartBaseOptions,
+    chart: {
+      ...chartBaseOptions.chart,
+      height: stockChartHeight || undefined
+    },
+    series: [{
+      name: 'All',
+      type: 'treemap',
+      colorKey: 'colorValue',
+      colorByPoint: false,
+      layoutAlgorithm: 'squarified',
+      allowDrillToNode: true,
+      animationLimit: 1000,
+      borderColor: '#252931',
+      nodeSizeBy: 'leaf',
+      dataLabels: {
+        enabled: false,
+        allowOverlap: true,
+        style: {
+          fontSize: '0.9em',
+          textOutline: 'none'
+        }
+      },
+      levels: [{
+        level: 1,
+        dataLabels: {
+          enabled: true,
+          headers: true,
+          align: 'left',
+          style: {
+            fontWeight: 'bold',
+            fontSize: '0.7em',
+            lineClamp: 1,
+            textTransform: 'uppercase'
+          },
+          padding: 3
+        },
+        borderWidth: 3,
+        levelIsConstant: false
+      }, {
+        level: 2,
+        dataLabels: {
+          enabled: true,
+          headers: true,
+          align: 'center',
+          shape: 'callout',
+          backgroundColor: 'gray',
+          borderWidth: 1,
+          borderColor: '#252931',
+          padding: 0,
+          style: {
+            color: 'white',
+            fontWeight: 'normal',
+            fontSize: '0.6em',
+            lineClamp: 1,
+            textOutline: 'none',
+            textTransform: 'uppercase'
+          }
+        },
+        groupPadding: 1
+      }, {
+        level: 3,
+        dataLabels: {
+          enabled: true,
+          align: 'center',
+          format: '{point.name}<br><span style="font-size: 0.7em">{point.custom.performance}</span>',
+          style: {
+            color: 'white'
+          }
+        }
+      }],
+      accessibility: {
+        exposeAsGroupOnly: true
+      },
+      breadcrumbs: {
+        buttonTheme: {
+          style: {
+            color: 'silver'
+          },
+          states: {
+            hover: {
+              fill: '#333'
+            },
+            select: {
+              style: {
+                color: 'white'
+              }
+            }
+          }
+        }
+      },
+      data: heatmapData
+    }]
+  }), [heatmapData, stockChartHeight]);
+
   return (
-    <motion.div {...PAGE_TRANSITION} className="flex-1 flex flex-col bg-transparent overflow-hidden">
-      {/* Header */}
-      <motion.div {...sectionMotion(0)} className="flex-shrink-0 border-b border-white/10 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
-              <h1 className="text-lg font-semibold text-white">Market Movers</h1>
-            </div>
-            <p className="text-xs text-white/50 mt-1">Real-time market activity across all exchanges</p>
+    <div className="h-full min-h-0 w-full bg-transparent p-3 flex flex-col">
+      <div className="mb-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveHeatmapTab('stocks')}
+          className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+            activeHeatmapTab === 'stocks'
+              ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-300'
+              : 'border-white/10 bg-black/35 text-slate-300 hover:border-white/20 hover:text-white'
+          }`}
+        >
+          Stocks
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveHeatmapTab('crypto')}
+          className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+            activeHeatmapTab === 'crypto'
+              ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-300'
+              : 'border-white/10 bg-black/35 text-slate-300 hover:border-white/20 hover:text-white'
+          }`}
+        >
+          Crypto
+        </button>
+      </div>
+      <div className="flex-1 min-h-0">
+        {activeHeatmapTab === 'stocks' ? (
+          <div ref={stocksPanelRef} className="h-full w-full min-h-0 overflow-hidden">
+            {heatmapData.length > 0 ? (
+              <HighchartsReact
+                ref={stockChartRef}
+                highcharts={Highcharts}
+                options={chartOptions}
+                containerProps={{ style: { width: '100%', height: '100%' } }}
+              />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center text-sm text-slate-300">
+                {loading ? 'Loading market heatmap...' : 'No heatmap data available.'}
+              </div>
+            )}
           </div>
-          <motion.button
-            onClick={fetchAllMovers}
-            disabled={loading}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            transition={interactiveTransition}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/8 bg-white/5 hover:bg-white/10 text-white text-xs shadow-lg shadow-black/30 transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-            {loading ? 'Updating...' : 'Refresh'}
-          </motion.button>
+        ) : (
+          <div className="h-full w-full overflow-hidden rounded-xl border border-white/10 bg-black/35 p-1">
+            <MemoizedTradingViewWidget />
+          </div>
+        )}
+      </div>
+      {error ? (
+        <div className="mt-2 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          {error}
         </div>
-
-        <AnimatePresence initial={false}>
-          {lastUpdated && !loading && (
-            <motion.div {...sectionMotion(1)} className="mt-2 text-[10px] text-white/30">
-              Last updated: {new Date(lastUpdated).toLocaleTimeString()}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Three Column Layout */}
-      <motion.div {...sectionMotion(1)} className="flex-1 overflow-hidden px-6 py-4">
-        <div className="grid grid-cols-3 gap-4 h-full">
-          <motion.div {...sectionMotion(2)} className="border border-white/8 rounded-2xl shadow-lg shadow-black/30 overflow-hidden flex flex-col">
-            <CategoryColumn
-              category={CATEGORIES[0]}
-              data={gainers}
-              loading={loading}
-              error={errors.gainers}
-            />
-          </motion.div>
-          <motion.div {...sectionMotion(3)} className="border border-white/8 rounded-2xl shadow-lg shadow-black/30 overflow-hidden flex flex-col">
-            <CategoryColumn
-              category={CATEGORIES[1]}
-              data={losers}
-              loading={loading}
-              error={errors.losers}
-            />
-          </motion.div>
-          <motion.div {...sectionMotion(4)} className="border border-white/8 rounded-2xl shadow-lg shadow-black/30 overflow-hidden flex flex-col">
-            <CategoryColumn
-              category={CATEGORIES[2]}
-              data={actives}
-              loading={loading}
-              error={errors.volume}
-            />
-          </motion.div>
-        </div>
-      </motion.div>
-    </motion.div>
+      ) : null}
+    </div>
   );
 }

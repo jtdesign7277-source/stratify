@@ -114,6 +114,7 @@ import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
 import AppErrorBoundary from '../shared/AppErrorBoundary';
+import { preloadLogos } from '../common/TickerLogo';
 import { getMarketStatus, getNextMarketOpen, isMarketOpen } from '../../lib/marketHours';
 
 const loadDashboardState = () => {
@@ -707,6 +708,10 @@ export default function Dashboard({
       setHasMountedCryptoTab(true);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    preloadLogos(['AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','SPY','QQQ','DIA','BTC','ETH','SOL','XRP','DOGE','LINK','ADA','AVAX','DOT']);
+  }, []);
   
   // Terminal backtest state
   const [terminalBacktestResults, setTerminalBacktestResults] = useState(null);

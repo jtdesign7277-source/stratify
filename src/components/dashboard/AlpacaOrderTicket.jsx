@@ -146,9 +146,14 @@ export default function OrderTicketPanel({
   const reviewFooterClass = isCompactCryptoSticky
     ? 'mt-0.5 shrink-0 border-t border-white/10 pt-0.5'
     : 'mt-2 shrink-0 border-t border-white/10 pt-2';
+  const isSellSide = side === 'sell';
   const reviewButtonStateClass = reviewDisabled
-    ? 'cursor-not-allowed border-emerald-500/25 bg-transparent text-emerald-400/45'
-    : 'border-emerald-500/40 bg-transparent text-emerald-400 hover:bg-emerald-500/10';
+    ? (isSellSide
+      ? 'cursor-not-allowed border-red-500/25 bg-transparent text-red-400/45'
+      : 'cursor-not-allowed border-emerald-500/25 bg-transparent text-emerald-400/45')
+    : (isSellSide
+      ? 'border-red-500/40 bg-transparent text-red-400 hover:bg-red-500/10'
+      : 'border-emerald-500/40 bg-transparent text-emerald-400 hover:bg-emerald-500/10');
   const reviewButtonText = typeof reviewLabel === 'string' && reviewLabel.trim() ? reviewLabel : 'Review Order';
   const rootLayoutClass = stickyReviewFooter ? 'flex min-h-0 flex-col overflow-hidden' : '';
   const contentLayoutClass = stickyReviewFooter

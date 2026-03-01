@@ -41,7 +41,12 @@ function getApiKey() {
 
 const toNumber = (value) => {
   if (value === null || value === undefined) return null;
-  if (typeof value === 'string' && value.trim() === '') return null;
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!normalized) return null;
+    const parsed = Number(normalized.replace(/,/g, ''));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
@@ -70,6 +75,8 @@ const emptyQuoteRow = (symbol) => ({
   percent_change: null,
   percentChange: null,
   changePercent: null,
+  market_cap: null,
+  marketCap: null,
   volume: null,
   timestamp: null,
 });
@@ -86,6 +93,12 @@ const toQuoteRow = (symbol, quote = {}) => {
     ?? quote?.day_change_percent
     ?? quote?.dayChangePercent
   );
+  const marketCap = toNumber(
+    quote?.market_cap
+    ?? quote?.marketCap
+    ?? quote?.market_capitalization
+    ?? quote?.marketCapitalization
+  );
 
   return {
     symbol: normalizedSymbol,
@@ -96,6 +109,8 @@ const toQuoteRow = (symbol, quote = {}) => {
     percent_change: percentChange,
     percentChange,
     changePercent: percentChange,
+    market_cap: marketCap,
+    marketCap,
     volume: toNumber(quote?.volume),
     timestamp: quote?.timestamp ?? quote?.datetime ?? null,
   };

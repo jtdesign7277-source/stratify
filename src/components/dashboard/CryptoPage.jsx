@@ -4,6 +4,7 @@ import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { subscribeCryptoPrices, getTwelveDataConnectionStatus } from '../../services/twelveDataStream';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import { usePaperTrading } from '../../hooks/usePaperTrading';
+import TickerLogo from '../common/TickerLogo';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT (uses existing app client)
@@ -319,6 +320,7 @@ function OrderEntry({
   const [trailType, setTrailType] = useState('dollars');
   const [timeInForce, setTimeInForce] = useState('day');
   const [confirmModal, setConfirmModal] = useState(false);
+  const [confirmCloseModal, setConfirmCloseModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
   const [inlineError, setInlineError] = useState('');
   const [successToast, setSuccessToast] = useState('');
@@ -474,21 +476,30 @@ function OrderEntry({
     }
   };
 
+  const requestClosePosition = () => {
+    if (!hasSelectedPosition || trading) return;
+    setInlineError('');
+    setConfirmCloseModal(true);
+  };
+
   const handleClosePosition = async () => {
     if (!hasSelectedPosition || trading) return;
+    const closingSymbol = selectedPosition?.symbol || symbolForTrade;
+    const closingQuantity = Number(selectedPosition?.quantity || 0);
+    setConfirmCloseModal(false);
     try {
-      await closePosition(selectedPosition?.symbol || symbolForTrade);
+      await closePosition(closingSymbol);
       await fetchPortfolio({ silent: true });
       setLastResult('filled');
       setTimeout(() => setLastResult(null), 3000);
       setInlineError('');
       setSuccessToast(
-        `Sold ${formatPaperQuantity(selectedPosition?.quantity || 0)} ${formatPaperSymbol(symbolForTrade)} @ MARKET`
+        `Sold ${formatPaperQuantity(closingQuantity)} ${formatPaperSymbol(closingSymbol)} @ MARKET`
       );
       onOrderPlaced?.({
-        symbol: selectedPosition?.symbol || symbolForTrade,
+        symbol: closingSymbol,
         side: 'sell',
-        quantity: selectedPosition?.quantity || 0,
+        quantity: closingQuantity,
       });
     } catch (closeError) {
       console.error('Close position failed:', closeError);
@@ -522,29 +533,31 @@ function OrderEntry({
     ? (selectedPositionPnl / selectedPositionCostBasis) * 100
     : Number(selectedPosition?.pnl_percent || 0);
   const selectedPositionPnlClass = selectedPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+  const showSellAllButton = hasSelectedPosition && side === 'sell';
   const selectedPositionSummary = hasSelectedPosition ? (
     <div className="rounded-md border border-white/10 bg-transparent px-2 py-1 text-[11px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 space-y-0.5">
           <div className="truncate text-slate-300">
-            Position: {formatPaperQuantity(selectedPosition.quantity)} {selectedPositionSymbol} · Avg {formatPaperCurrency(selectedPosition.avg_cost_basis)} · P&L{' '}
-            <span className={selectedPositionPnlClass}>{formatSignedPaperCurrency(selectedPositionPnl)}</span>
+            Position: {formatPaperQuantity(selectedPosition.quantity)} {selectedPositionSymbol} · Avg {formatPaperCurrency(selectedPosition.avg_cost_basis)}
           </div>
           <div className="truncate text-slate-400">
             Value: {formatPaperCurrency(selectedPositionValue)}
           </div>
           <div className={`truncate font-semibold ${selectedPositionPnlClass}`}>
-            {formatSignedPaperCurrency(selectedPositionPnl)} ({selectedPositionPnlPercent > 0 ? '+' : ''}{selectedPositionPnlPercent.toFixed(2)}%)
+            P&L: {formatSignedPaperCurrency(selectedPositionPnl)} ({selectedPositionPnlPercent > 0 ? '+' : ''}{selectedPositionPnlPercent.toFixed(2)}%)
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleClosePosition}
-          disabled={trading}
-          className="shrink-0 rounded border border-red-500/30 px-2 py-0.5 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {trading ? 'Executing...' : 'Sell All'}
-        </button>
+        {showSellAllButton ? (
+          <button
+            type="button"
+            onClick={requestClosePosition}
+            disabled={trading}
+            className="shrink-0 rounded border border-red-500/30 px-2 py-0.5 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {trading ? 'Executing...' : 'Sell All'}
+          </button>
+        ) : null}
       </div>
     </div>
   ) : null;
@@ -721,8 +734,9 @@ function OrderEntry({
             <div className="mt-0.5 space-y-0.5">
               {holdings.map((position) => (
                 <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-300">
-                    {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
+                  <span className="flex items-center gap-2 text-slate-300">
+                    <TickerLogo symbol={position.symbol} size={16} />
+                    <span>{formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}</span>
                   </span>
                   <span className={Number(position.pnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                     {formatPaperCurrency(position.pnl)}
@@ -741,8 +755,9 @@ function OrderEntry({
             <div className="mt-0.5 space-y-0.5">
               {recentTrades.map((trade) => (
                 <div key={`paper-trade-${trade.id}`} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-300">
-                    {trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}
+                  <span className="flex items-center gap-2 text-slate-300">
+                    <TickerLogo symbol={trade.symbol} size={16} />
+                    <span>{trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}</span>
                   </span>
                   <span className="text-slate-500">{formatPaperTimestamp(trade.created_at)}</span>
                 </div>
@@ -812,6 +827,52 @@ function OrderEntry({
             </motion.div>
           </motion.div>
         )}
+        {confirmCloseModal && (
+          <motion.div
+            {...modalBackdropMotion}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              {...modalPanelMotion}
+              className="w-[280px] space-y-4 rounded-2xl border border-white/8 bg-[rgba(10,22,40,0.98)] p-5 shadow-2xl shadow-black/30"
+            >
+              <div className="text-center">
+                <div className="mb-1 text-sm font-bold text-red-300">
+                  Close Position?
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Sell all {formatPaperQuantity(selectedPosition?.quantity || 0)} {formatPaperSymbol(selectedPosition?.symbol || symbolForTrade)} at market?
+                </div>
+              </div>
+              <div className="text-center font-mono text-lg font-black text-red-400">
+                {formatPaperCurrency(selectedPositionValue)}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <motion.button
+                  type="button"
+                  onClick={() => setConfirmCloseModal(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
+                  className="rounded-lg border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={handleClosePosition}
+                  disabled={trading}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
+                  className="rounded-lg border border-red-500/40 bg-red-500/25 py-2.5 text-xs font-bold text-red-300 transition-colors"
+                >
+                  {trading ? 'Executing...' : 'Confirm Sell All'}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
@@ -831,14 +892,14 @@ function CoinSelector({ coins, selected, onSelect }) {
           whileTap={{ scale: 0.98 }}
           transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
           onClick={() => onSelect(coin)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200"
           style={{
             background: selected.symbol === coin.symbol ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
             border: selected.symbol === coin.symbol ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.04)',
             color: selected.symbol === coin.symbol ? '#60a5fa' : 'rgba(148, 163, 184, 0.5)',
           }}
         >
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: coin.color }} />
+          <TickerLogo symbol={coin.symbol} size={16} />
           ${coin.symbol}
         </motion.button>
       ))}
@@ -991,12 +1052,15 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
           ) : (
             <>
               <div className="flex items-center justify-between border-b border-white/[0.06] px-2.5 py-1.5 shrink-0">
-                <span
-                  className="text-[10px] font-bold tracking-[0.16em] uppercase"
-                  style={{ color: 'rgba(34, 197, 94, 0.85)' }}
-                >
-                  Order Entry
-                </span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <TickerLogo symbol={selectedCoin.symbol} size={20} />
+                  <span
+                    className="truncate text-[10px] font-bold tracking-[0.16em] uppercase"
+                    style={{ color: 'rgba(34, 197, 94, 0.85)' }}
+                  >
+                    ${selectedCoin.symbol}
+                  </span>
+                </div>
                 <motion.button
                   onClick={() => {
                     console.log('Crypto collapse button clicked, current state:', isRightPanelCollapsed);
