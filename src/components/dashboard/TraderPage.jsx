@@ -190,6 +190,40 @@ const getPinnedPillsDropZoneBounds = () => {
   }, null);
 };
 
+const getPinnedTickerDropSlot = (centerX, centerY) => {
+  if (typeof document === 'undefined') return null;
+  if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return null;
+
+  const tickerSlots = Array.from(document.querySelectorAll('[data-pill-slot]'))
+    .map((element) => {
+      const slot = Number(element?.getAttribute('data-pill-slot'));
+      if (!Number.isInteger(slot) || slot < 2 || slot > 5) return null;
+      return { slot, rect: element.getBoundingClientRect() };
+    })
+    .filter(Boolean);
+
+  if (tickerSlots.length === 0) return null;
+
+  const directMatch = tickerSlots.find(({ rect }) => (
+    centerX >= rect.left
+    && centerX <= rect.right
+    && centerY >= rect.top
+    && centerY <= rect.bottom
+  ));
+  if (directMatch) return directMatch.slot;
+
+  const closest = tickerSlots.reduce((best, current) => {
+    const currentCenterX = current.rect.left + (current.rect.width / 2);
+    const currentDistance = Math.abs(centerX - currentCenterX);
+    if (!best || currentDistance < best.distance) {
+      return { slot: current.slot, distance: currentDistance };
+    }
+    return best;
+  }, null);
+
+  return closest?.slot ?? null;
+};
+
 const getDraggedTickerCenterY = (draggableId) => {
   if (typeof document === 'undefined' || !draggableId) return null;
 
@@ -1470,9 +1504,35 @@ export default function TraderPage({
     () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))].sort().join(','),
     [watchlist]
   );
+  const { portfolio: paperPortfolio } = usePaperTrading();
   const selectedTicker = selectedSymbol;
   const setSelectedTicker = setSelectedSymbol;
   const { sentimentMap } = useSentiment(watchlistSymbols);
+  const [watchlistView, setWatchlistView] = useState('watchlist');
+  const portfolioPositions = useMemo(() => {
+    const positions = Array.isArray(paperPortfolio?.positions) ? paperPortfolio.positions : [];
+    return positions
+      .map((position) => {
+        const symbol = normalizeSymbol(position?.symbol);
+        const quantity = toNumber(position?.quantity) ?? 0;
+        const marketValue = toNumber(position?.market_value)
+          ?? ((toNumber(position?.current_price) ?? 0) * quantity);
+        const pnlPercent = toNumber(position?.pnl_percent) ?? 0;
+        const companyName = String(
+          watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
+        ).trim();
+
+        return {
+          symbol,
+          quantity,
+          marketValue,
+          pnlPercent,
+          companyName,
+        };
+      })
+      .filter((position) => position.symbol && position.quantity > 0)
+      .sort((a, b) => (b.marketValue - a.marketValue));
+  }, [paperPortfolio?.positions, watchlistNamesBySymbol]);
   const clampNewsPanelHeight = useCallback((nextHeight, containerHeight) => {
     const safeContainerHeight = Number.isFinite(containerHeight) ? containerHeight : 0;
     const maxPanelHeight = Math.max(
@@ -2922,6 +2982,13 @@ export default function TraderPage({
     void fetchQuoteSnapshot([normalized]);
   }, [applyCachedClosePlaceholder, fetchQuoteSnapshot, markQuoteValuesPending]);
 
+  const openPortfolioPositionForTrade = useCallback((symbolValue, companyName = '') => {
+    const normalized = normalizeSymbol(symbolValue);
+    if (!normalized) return;
+    addSymbolToWatchlist(normalized, companyName);
+    setIsRightPanelCollapsed(false);
+  }, [addSymbolToWatchlist]);
+
   const addSymbol = (event) => {
     event.preventDefault();
     const topResult = searchResults[0];
@@ -3025,12 +3092,14 @@ export default function TraderPage({
       if (draggedElement) {
         const rect = draggedElement.getBoundingClientRect();
         const centerY = rect.top + rect.height / 2;
+        const centerX = rect.left + rect.width / 2;
         const pillZone = getPinnedPillsDropZoneBounds();
 
         if (pillZone && centerY >= pillZone.top && centerY <= pillZone.bottom) {
-          // Dropped in pill zone - pin it
+          // Dropped in pill zone: map horizontal position to one of the 4 ticker slots.
+          const dropSlot = getPinnedTickerDropSlot(centerX, centerY);
           if (typeof onPinToTop === 'function') {
-            onPinToTop(draggedSymbol);
+            onPinToTop(draggedSymbol, dropSlot);
           }
           return;
         }
@@ -3145,116 +3214,162 @@ export default function TraderPage({
           {!isWatchlistCollapsed && (
             <>
               <form onSubmit={addSymbol} className="shrink-0 border-b border-[#1f1f1f] px-4 py-3">
-                <div className="mb-3 flex items-center justify-center gap-1">
-                  {MARKET_FILTERS.map((market, index) => (
-                    <div key={market.id} className="flex items-center gap-1">
-                      <motion.button
-                        type="button"
-                        onClick={() => setActiveMarket(market.id)}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={interactiveTransition}
-                        className={`text-[11px] font-medium whitespace-nowrap transition-colors ${
-                          activeMarket === market.id
-                            ? 'text-emerald-300'
-                            : 'text-[#d1d5db] hover:text-white'
-                        }`}
-                      >
-                        {market.label}
-                      </motion.button>
-                      {index < MARKET_FILTERS.length - 1 && (
-                        <span className="text-white/50 px-2">|</span>
-                      )}
-                    </div>
-                  ))}
+                <div className="mb-3 flex items-center justify-center gap-2">
+                  <motion.button
+                    type="button"
+                    onClick={() => setWatchlistView('watchlist')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    className={`text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
+                      watchlistView === 'watchlist' ? 'text-emerald-300' : 'text-[#9ca3af] hover:text-white'
+                    }`}
+                  >
+                    Watchlist
+                  </motion.button>
+                  <span className="text-white/40">|</span>
+                  <motion.button
+                    type="button"
+                    onClick={() => setWatchlistView('portfolio')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    className={`text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
+                      watchlistView === 'portfolio' ? 'text-emerald-300' : 'text-[#9ca3af] hover:text-white'
+                    }`}
+                  >
+                    Portfolio ({portfolioPositions.length})
+                  </motion.button>
                 </div>
-                <div ref={searchContainerRef} className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]" strokeWidth={1.5} />
-                  <input
-                    value={symbolInput}
-                    onChange={(event) => setSymbolInput(event.target.value)}
-                    onFocus={() => {
-                      if (symbolInput.trim()) setIsSearchDropdownOpen(true);
-                    }}
-                    placeholder="Search stocks, crypto, indices..."
-                    autoComplete="off"
-                    className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
-                  />
-                  {isSearchDropdownOpen && symbolInput.trim() && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
-                      {isSearchLoading ? (
-                        <div className="px-3 py-2 text-xs text-[#7c8087]">Searching...</div>
-                      ) : searchResults.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-[#7c8087]">No matching symbols.</div>
-                      ) : (
-                        searchResults.map((result, index) => {
-                          const normalized = normalizeSymbol(result?.symbol);
-                          const liveQuote = normalized ? quotesBySymbol[normalized] : null;
-                          const livePrice = toNumber(liveQuote?.price);
-                          const liveChangePercent = toNumber(liveQuote?.changePercent);
 
-                          return (
-                            <motion.button
-                              key={`${result.symbol}-${result.exchange}`}
-                              type="button"
-                              {...listItemMotion(index)}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                              transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
-                              onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
-                              className="flex h-10 w-full items-center justify-between gap-2 border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
-                            >
-                              <span className="truncate text-sm text-white">
-                                <span className="font-medium">${result.symbol}</span>
-                                <span className="ml-1 text-[#7c8087]">
-                                  {'\u2014'} {result.name || result.symbol} ({result.exchange || 'Market'}{result.type ? ` · ${result.type}` : ''})
-                                </span>
-                              </span>
-                              <div className="ml-2 flex shrink-0 items-center gap-2">
-                                {Number.isFinite(livePrice) && (
-                                  <span className="text-[11px] font-mono text-white/85">{formatPrice(livePrice)}</span>
-                                )}
-                                {Number.isFinite(liveChangePercent) && (
-                                  <span
-                                    className={`text-[10px] font-semibold ${
-                                      liveChangePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                    }`}
-                                  >
-                                    {formatSignedPercent(liveChangePercent)}
+                {watchlistView === 'watchlist' ? (
+                  <>
+                    <div className="mb-3 flex items-center justify-center gap-1">
+                      {MARKET_FILTERS.map((market, index) => (
+                        <div key={market.id} className="flex items-center gap-1">
+                          <motion.button
+                            type="button"
+                            onClick={() => setActiveMarket(market.id)}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={interactiveTransition}
+                            className={`text-[11px] font-medium whitespace-nowrap transition-colors ${
+                              activeMarket === market.id
+                                ? 'text-emerald-300'
+                                : 'text-[#d1d5db] hover:text-white'
+                            }`}
+                          >
+                            {market.label}
+                          </motion.button>
+                          {index < MARKET_FILTERS.length - 1 && (
+                            <span className="text-white/50 px-2">|</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div ref={searchContainerRef} className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]" strokeWidth={1.5} />
+                      <input
+                        value={symbolInput}
+                        onChange={(event) => setSymbolInput(event.target.value)}
+                        onFocus={() => {
+                          if (symbolInput.trim()) setIsSearchDropdownOpen(true);
+                        }}
+                        placeholder="Search stocks, crypto, indices..."
+                        autoComplete="off"
+                        className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
+                      />
+                      {isSearchDropdownOpen && symbolInput.trim() && (
+                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
+                          {isSearchLoading ? (
+                            <div className="px-3 py-2 text-xs text-[#7c8087]">Searching...</div>
+                          ) : searchResults.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-[#7c8087]">No matching symbols.</div>
+                          ) : (
+                            searchResults.map((result, index) => {
+                              const normalized = normalizeSymbol(result?.symbol);
+                              const liveQuote = normalized ? quotesBySymbol[normalized] : null;
+                              const livePrice = toNumber(liveQuote?.price);
+                              const liveChangePercent = toNumber(liveQuote?.changePercent);
+
+                              return (
+                                <motion.button
+                                  key={`${result.symbol}-${result.exchange}`}
+                                  type="button"
+                                  {...listItemMotion(index)}
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
+                                  onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
+                                  className="flex h-10 w-full items-center justify-between gap-2 border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
+                                >
+                                  <span className="truncate text-sm text-white">
+                                    <span className="font-medium">${result.symbol}</span>
+                                    <span className="ml-1 text-[#7c8087]">
+                                      {'\u2014'} {result.name || result.symbol} ({result.exchange || 'Market'}{result.type ? ` · ${result.type}` : ''})
+                                    </span>
                                   </span>
-                                )}
-                                <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
-                              </div>
-                            </motion.button>
-                          );
-                        })
+                                  <div className="ml-2 flex shrink-0 items-center gap-2">
+                                    {Number.isFinite(livePrice) && (
+                                      <span className="text-[11px] font-mono text-white/85">{formatPrice(livePrice)}</span>
+                                    )}
+                                    {Number.isFinite(liveChangePercent) && (
+                                      <span
+                                        className={`text-[10px] font-semibold ${
+                                          liveChangePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                        }`}
+                                      >
+                                        {formatSignedPercent(liveChangePercent)}
+                                      </span>
+                                    )}
+                                    <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
+                                  </div>
+                                </motion.button>
+                              );
+                            })
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <div className="rounded border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-2 text-[11px] text-emerald-300">
+                    Double-click any holding below to load it in Order Entry and open the ticket.
+                  </div>
+                )}
               </form>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-2 text-xs">
-                  <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
-                  {streamStatus.error ? (
-                    <span className="text-red-400">{streamStatus.error}</span>
+                  {watchlistView === 'watchlist' ? (
+                    <>
+                      <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
+                      {streamStatus.error ? (
+                        <span className="text-red-400">{streamStatus.error}</span>
+                      ) : (
+                        <span className="text-emerald-400">{activeStreamSymbolCount} symbols</span>
+                      )}
+                    </>
                   ) : (
-                    <span className="text-emerald-400">{activeStreamSymbolCount} symbols</span>
+                    <>
+                      <span className="text-[#9ca3af]">Paper Holdings</span>
+                      <span className="text-emerald-400">{portfolioPositions.length} positions</span>
+                    </>
                   )}
                 </div>
 
                 <div className="h-0 min-h-0 flex-1 overflow-y-auto watchlist-scrollable">
-                  <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
-                    <Droppable droppableId="watchlist">
-                      {(provided) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-full">
-                          {watchlist.length === 0 ? (
-                            <div className="px-4 py-6 text-center text-white/50 text-sm">
-                              Watchlist is empty. Search to add symbols.
-                            </div>
-                          ) : (
-                            watchlist.map((symbol, index) => {
+                  {watchlistView === 'watchlist' ? (
+                    <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
+                      <Droppable droppableId="watchlist">
+                        {(provided) => (
+                          <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-full">
+                            {watchlist.length === 0 ? (
+                              <div className="px-4 py-6 text-center text-white/50 text-sm">
+                                Watchlist is empty. Search to add symbols.
+                              </div>
+                            ) : (
+                              watchlist.map((symbol, index) => {
                               const quote = quotesBySymbol[symbol] || {};
                               const price = toNumber(quote?.price);
                               const dayChange = toNumber(quote?.change);
@@ -3430,13 +3545,65 @@ export default function TraderPage({
                                   )}
                                 </Draggable>
                               );
-                            })
-                          )}
-                          {provided.placeholder}
+                              })
+                            )}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </DragDropContext>
+                  ) : (
+                    <div className="min-h-full divide-y divide-[#1f1f1f]/60">
+                      {portfolioPositions.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-white/50 text-sm">
+                          No paper holdings yet. Execute a paper trade to populate this tab.
                         </div>
+                      ) : (
+                        portfolioPositions.map((position) => {
+                          const isSelected = selectedSymbol === position.symbol;
+                          const pnlIsPositive = position.pnlPercent >= 0;
+
+                          return (
+                            <motion.button
+                              key={`portfolio-position-${position.symbol}`}
+                              type="button"
+                              onClick={() => setSelectedSymbol(position.symbol)}
+                              onDoubleClick={() => openPortfolioPositionForTrade(position.symbol, position.companyName)}
+                              whileHover={{ scale: 1.01 }}
+                              whileTap={{ scale: 0.99 }}
+                              transition={interactiveTransition}
+                              className={`w-full px-4 py-3 text-left transition-colors ${
+                                isSelected ? 'bg-emerald-500/5 border-l border-l-emerald-500/30' : 'hover:bg-white/[0.03]'
+                              }`}
+                              title="Double-click to open order entry"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-[13px] font-semibold text-white">
+                                    {formatPaperSymbol(position.symbol)}
+                                  </div>
+                                  <div className="truncate text-[11px] text-[#7c8087]">
+                                    {position.companyName || position.symbol}
+                                  </div>
+                                  <div className="mt-1 text-[11px] text-[#c9ced6]">
+                                    {formatPaperQuantity(position.quantity)} shares
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[12px] font-mono font-semibold text-white">
+                                    {formatPaperCurrency(position.marketValue)}
+                                  </div>
+                                  <div className={`text-[11px] font-semibold ${pnlIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {formatSignedPercent(position.pnlPercent)}
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.button>
+                          );
+                        })
                       )}
-                    </Droppable>
-                  </DragDropContext>
+                    </div>
+                  )}
                 </div>
               </div>
             </>

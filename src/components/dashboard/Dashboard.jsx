@@ -6,6 +6,7 @@ import useWatchlistSync from '../../hooks/useWatchlistSync';
 import useStrategySync from '../../hooks/useStrategySync';
 import useDashboardStateSync from '../../hooks/useDashboardStateSync';
 import useSubscription from '../../hooks/useSubscription';
+import { usePaperTrading } from '../../hooks/usePaperTrading';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
@@ -181,6 +182,29 @@ const TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS = [
   { proName: 'COINBASE:SOLUSD', title: 'Solana' },
   { proName: 'NASDAQ:COIN', title: 'Coinbase' },
 ];
+const MINI_TICKER_SLOTS = [2, 3, 4, 5];
+const MINI_TICKER_MAX_COUNT = MINI_TICKER_SLOTS.length;
+const MINI_TICKER_SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,14}$/;
+
+const normalizeMiniTickers = (value) => {
+  const raw = Array.isArray(value) ? value : [];
+  const next = Array(MINI_TICKER_MAX_COUNT).fill(null);
+
+  for (let index = 0; index < MINI_TICKER_MAX_COUNT; index += 1) {
+    const symbol = String(raw[index] || '').trim().toUpperCase();
+    next[index] = MINI_TICKER_SYMBOL_PATTERN.test(symbol) ? symbol : null;
+  }
+
+  return next;
+};
+
+const getMiniTickerIndexFromSlot = (slot) => {
+  const parsed = Number(slot);
+  if (!Number.isInteger(parsed)) return -1;
+  if (!MINI_TICKER_SLOTS.includes(parsed)) return -1;
+  return parsed - 2;
+};
+
 const KNOWN_CRYPTO_BASE_SYMBOLS = new Set([
   'BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'DOT', 'LINK', 'LTC', 'BCH', 'MATIC',
 ]);
@@ -743,8 +767,9 @@ export default function Dashboard({
   
   const { user } = useAuth();
   const { isProUser, loading: subscriptionLoading } = useSubscription(user);
+  const { portfolio: paperPortfolio } = usePaperTrading();
   const { trades } = useTradeHistoryStore();
-  const { watchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop } = useWatchlistSync(user);
+  const { watchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist } = useWatchlistSync(user);
   const {
     strategies,
     setStrategies,
@@ -754,12 +779,12 @@ export default function Dashboard({
     setDeployedStrategies,
   } = useStrategySync(user);
   
-  // Mini pills (slots 1-5)
+  // Mini pills (slot 1 = live scores, slots 2-5 = ticker pills)
   const [miniTickers, setMiniTickers] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-mini-tickers');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+      return saved ? normalizeMiniTickers(JSON.parse(saved)) : normalizeMiniTickers([]);
+    } catch { return normalizeMiniTickers([]); }
   });
   const [watchlistQuotesBySymbol, setWatchlistQuotesBySymbol] = useState({});
   const [watchlistQuotesLoading, setWatchlistQuotesLoading] = useState(false);
@@ -837,32 +862,50 @@ export default function Dashboard({
     };
   }, [watchlistSymbols]);
   
-  // Handle dropping a ticker onto a pill slot
-  const handleTickerDrop = (symbol, slotIndex) => {
+  // Handle dropping a ticker onto one of the 4 ticker pill slots (2-5).
+  const handleTickerDrop = useCallback((symbol, slotIndex) => {
     const normalizedSymbol = String(symbol || '').trim().toUpperCase();
-    if (slotIndex < 1) return;
-    if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(normalizedSymbol)) return;
+    if (!MINI_TICKER_SYMBOL_PATTERN.test(normalizedSymbol)) return;
 
-    const tickerIndex = slotIndex - 1; // Map to miniTickers array (slots 1-5 → indices 0-4)
+    const tickerIndex = getMiniTickerIndexFromSlot(slotIndex);
+    if (tickerIndex < 0) return;
+
     setPinnedGames(prev => {
       const next = [...prev];
       next[slotIndex] = null;
       return next;
     });
     setMiniTickers(prev => {
-      const newTickers = [...prev];
-      // Remove if already exists elsewhere
+      const newTickers = normalizeMiniTickers(prev);
       const existingIndex = newTickers.indexOf(normalizedSymbol);
-      if (existingIndex !== -1) newTickers.splice(existingIndex, 1);
-      // Add to new slot (max 5 tickers now)
-      while (newTickers.length < tickerIndex) newTickers.push(null);
+      if (existingIndex !== -1) newTickers[existingIndex] = null;
       newTickers[tickerIndex] = normalizedSymbol;
-      return newTickers.slice(0, 5);
+      return normalizeMiniTickers(newTickers);
     });
 
     // Ensure pinning to the mini pill also adds the ticker to watchlist.
     addToWatchlist(normalizedSymbol);
-  };
+  }, [addToWatchlist]);
+
+  const resolveMiniTickerSlot = useCallback((preferredSlot) => {
+    const preferredIndex = getMiniTickerIndexFromSlot(preferredSlot);
+    if (preferredIndex >= 0) {
+      return MINI_TICKER_SLOTS[preferredIndex];
+    }
+
+    const tickerState = normalizeMiniTickers(miniTickers);
+    const firstEmptySlot = MINI_TICKER_SLOTS.find((slot) => {
+      const index = getMiniTickerIndexFromSlot(slot);
+      return index >= 0 && !tickerState[index] && !pinnedGames?.[slot];
+    });
+
+    return firstEmptySlot || MINI_TICKER_SLOTS[0];
+  }, [miniTickers, pinnedGames]);
+
+  const handleTraderTickerPin = useCallback((symbol, preferredSlot) => {
+    const slot = resolveMiniTickerSlot(preferredSlot);
+    handleTickerDrop(symbol, slot);
+  }, [handleTickerDrop, resolveMiniTickerSlot]);
 
   const handleGameDrop = (game, slotIndex) => {
     if (slotIndex < 1) return;
@@ -874,8 +917,8 @@ export default function Dashboard({
       return next;
     });
     setMiniTickers(prev => {
-      const next = [...prev];
-      const tickerIndex = slotIndex - 2;
+      const next = normalizeMiniTickers(prev);
+      const tickerIndex = getMiniTickerIndexFromSlot(slotIndex);
       if (tickerIndex >= 0) next[tickerIndex] = null;
       return next;
     });
@@ -891,7 +934,11 @@ export default function Dashboard({
   
   // Remove ticker from pill
   const handleRemoveMiniTicker = (symbol) => {
-    setMiniTickers(prev => prev.filter(t => t !== symbol));
+    const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+    if (!normalizedSymbol) return;
+    setMiniTickers((prev) => normalizeMiniTickers(prev).map((ticker) => (
+      ticker === normalizedSymbol ? null : ticker
+    )));
   };
   
   const [selectedStock, setSelectedStock] = useState(null);
@@ -954,14 +1001,23 @@ export default function Dashboard({
     () => Math.max(0, normalizedPaperTradingBalance - totalAllocatedBalance),
     [normalizedPaperTradingBalance, totalAllocatedBalance],
   );
-  const totalTopBarUnrealizedPnL = useMemo(
-    () => calculateTotalUnrealizedPnL(topBarStrategies),
-    [topBarStrategies],
+  const paperPortfolioPositions = useMemo(
+    () => (Array.isArray(paperPortfolio?.positions) ? paperPortfolio.positions : []),
+    [paperPortfolio?.positions],
   );
-  const totalTopBarDailyPnL = useMemo(
-    () => calculateTotalDailyPnL(topBarStrategies),
-    [topBarStrategies],
+  const syncedPaperBuyingPower = useMemo(
+    () => Math.max(0, toNumberOrNull(paperPortfolio?.cash_balance) ?? 0),
+    [paperPortfolio?.cash_balance],
   );
+  const syncedPaperUnrealizedPnL = useMemo(
+    () => paperPortfolioPositions.reduce(
+      (sum, position) => sum + (toNumberOrNull(position?.pnl) ?? 0),
+      0,
+    ),
+    [paperPortfolioPositions],
+  );
+  const syncedPaperDailyPnL = syncedPaperUnrealizedPnL;
+  const shouldUsePaperTopBarMetrics = !hasConnectedBroker;
 
   // Sync broker connections from database on mount (fixes top-right badge vs Portfolio page mismatch)
   useEffect(() => {
@@ -2032,8 +2088,8 @@ export default function Dashboard({
       return;
     }
 
-    const tickerIndex = slot - 1; // Slots 1-5 map to ticker indices 0-4
-    const tickerSymbol = miniTickers[tickerIndex];
+    const tickerIndex = getMiniTickerIndexFromSlot(slot);
+    const tickerSymbol = tickerIndex >= 0 ? miniTickers[tickerIndex] : null;
     if (tickerSymbol) {
       miniPillSlots[slot] = (
         <TickerPill
@@ -2084,12 +2140,12 @@ export default function Dashboard({
             onGameDrop={handleGameDrop}
             deployedStrategies={deployedStrategies}
             hasConnectedBroker={hasConnectedBroker}
-            isPaperTradingMode={isPaperTradingMode}
-            paperTradingBalance={isPaperTradingMode ? normalizedPaperTradingBalance : null}
-            paperMetrics={isPaperTradingMode ? {
-              dailyPnl: totalTopBarDailyPnL,
-              buyingPower: availablePaperBalance,
-              unrealizedPnl: totalTopBarUnrealizedPnL,
+            isPaperTradingMode={shouldUsePaperTopBarMetrics}
+            paperTradingBalance={shouldUsePaperTopBarMetrics ? normalizedPaperTradingBalance : null}
+            paperMetrics={shouldUsePaperTopBarMetrics ? {
+              dailyPnl: syncedPaperDailyPnL,
+              buyingPower: syncedPaperBuyingPower,
+              unrealizedPnl: syncedPaperUnrealizedPnL,
             } : null}
           />
           <LiveAlertsTicker />
@@ -2174,7 +2230,7 @@ export default function Dashboard({
               >
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
-              <TradePage onPinToTop={pinToTop} />
+              <TradePage onPinToTop={handleTraderTickerPin} />
             </Suspense>
           )}
           {activeTab === 'trade' && (

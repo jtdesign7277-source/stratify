@@ -75,6 +75,28 @@ const normalizeTickerItems = (items) => {
     .filter((item) => item.text);
 };
 
+const mapNewsArticlesToTickerItems = (articles) => {
+  if (!Array.isArray(articles)) return [];
+
+  return articles
+    .map((article) => {
+      const text = cleanHeadlineText(article?.title || article?.summary || article?.description);
+      if (!text) return null;
+
+      const source = cleanSourceText(article?.source || 'Marketaux');
+      const tickerText = String(article?.ticker || '').trim().replace(/^\$/, '').toUpperCase();
+      const symbols = tickerText ? [tickerText] : [];
+
+      return {
+        text,
+        source,
+        symbols,
+        timestamp: article?.publishedAt || article?.published_at || null,
+      };
+    })
+    .filter(Boolean);
+};
+
 const readStoredHeadlines = () => {
   if (typeof window === 'undefined') return [];
   try {
@@ -136,6 +158,17 @@ const LiveAlertsTicker = () => {
   useEffect(() => {
     let isMounted = true;
 
+    const fetchLatestHeadlinesFallback = async () => {
+      try {
+        const response = await fetch('/api/news', { cache: 'no-store' });
+        if (!response.ok) return [];
+        const payload = await response.json().catch(() => ({}));
+        return mapNewsArticlesToTickerItems(payload?.articles);
+      } catch {
+        return [];
+      }
+    };
+
     const fetchTrending = async (showLoading = false) => {
       if (showLoading && isMounted) setIsLoading(true);
 
@@ -157,20 +190,34 @@ const LiveAlertsTicker = () => {
             writeStoredHeadlines(nextItems);
             setBadgeLabel(String(data?.mode || '').includes('breaking') ? 'BREAKING' : 'LATEST');
           } else {
-            const stored = readStoredHeadlines();
-            if (stored.length > 0) {
-              setItems(stored);
+            const latestItems = await fetchLatestHeadlinesFallback();
+            if (latestItems.length > 0) {
+              setItems(latestItems);
+              writeStoredHeadlines(latestItems);
               setBadgeLabel('LATEST');
+            } else {
+              const stored = readStoredHeadlines();
+              if (stored.length > 0) {
+                setItems(stored);
+                setBadgeLabel('LATEST');
+              }
             }
           }
         }
       } catch (error) {
         console.error('[LiveAlertsTicker] Trending fetch error:', error);
         if (isMounted) {
-          const stored = readStoredHeadlines();
-          if (stored.length > 0) {
-            setItems(stored);
+          const latestItems = await fetchLatestHeadlinesFallback();
+          if (latestItems.length > 0) {
+            setItems(latestItems);
+            writeStoredHeadlines(latestItems);
             setBadgeLabel('LATEST');
+          } else {
+            const stored = readStoredHeadlines();
+            if (stored.length > 0) {
+              setItems(stored);
+              setBadgeLabel('LATEST');
+            }
           }
         }
       } finally {

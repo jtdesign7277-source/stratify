@@ -573,8 +573,8 @@ export default function TopMetricsBar({
   }, [deployedStrategies, hasPaperTradingBalance, parsedPaperTradingBalance, shouldShowPaperMetrics]);
   const buyingPower = shouldShowPaperMetrics
     ? (
-      calculatedBuyingPower
-      ?? toMetricNumber(paperMetrics?.buyingPower)
+      toMetricNumber(paperMetrics?.buyingPower)
+      ?? calculatedBuyingPower
       ?? 0
     )
     : (shouldShowBrokerMetrics ? Number(account.buying_power ?? account.cash ?? 0) : 0);
@@ -709,7 +709,7 @@ export default function TopMetricsBar({
           )}
         </div>
 
-        {/* Mini Pills Bar - 5 slots for minimized widgets */}
+        {/* Mini Pills Bar - slot 1 + 4 ticker slots */}
         <div className="relative z-20 flex items-center gap-2 mx-6 flex-1 justify-center">
           {[1, 2, 3, 4, 5].map((slot) => (
             <div
@@ -725,7 +725,7 @@ export default function TopMetricsBar({
               }`}
               data-pill-slot={slot}
               onDragEnter={(e) => {
-                const hasTickerData = hasTickerTransferData(e.dataTransfer);
+                const hasTickerData = slot >= 2 && hasTickerTransferData(e.dataTransfer);
                 const hasGameData = hasGameTransferData(e.dataTransfer);
                 if (!hasTickerData && !(hasGameData && onGameDrop)) return;
 
@@ -737,7 +737,7 @@ export default function TopMetricsBar({
                 setActiveDropSlot(slot);
               }}
               onDragOver={(e) => {
-                const hasTickerData = hasTickerTransferData(e.dataTransfer);
+                const hasTickerData = slot >= 2 && hasTickerTransferData(e.dataTransfer);
                 const hasGameData = hasGameTransferData(e.dataTransfer);
                 if (!hasTickerData && !(hasGameData && onGameDrop)) return;
 
@@ -766,7 +766,7 @@ export default function TopMetricsBar({
                   clearGlobalDragPayload();
                   return;
                 }
-                const symbol = readDroppedTickerSymbol(e);
+                const symbol = slot >= 2 ? readDroppedTickerSymbol(e) : '';
                 if (symbol && onTickerDrop) {
                   onTickerDrop(symbol, slot);
                   logDndDebug('[TopMetricsBar] ticker drop', { slot, symbol });
