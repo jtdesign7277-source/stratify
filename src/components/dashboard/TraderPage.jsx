@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Pin, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Pin, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -2396,6 +2396,14 @@ export default function TraderPage({
     } catch {}
   }, [cachePreviousCloseQuotes, stopRestFallbackPolling]);
 
+  const handleWatchlistSymbolSelect = useCallback((symbolValue) => {
+    const normalized = normalizeSymbol(symbolValue);
+    if (!normalized) return;
+    selectedSymbolRef.current = normalized;
+    setSelectedSymbol(normalized);
+    void fetchQuoteSnapshot([normalized]);
+  }, [fetchQuoteSnapshot]);
+
   const startRestFallbackPolling = useCallback(() => {
     if (restFallbackActiveRef.current) return;
     restFallbackActiveRef.current = true;
@@ -2550,22 +2558,35 @@ export default function TraderPage({
     };
   }, []);
 
-  const loadCandles = useCallback(async (symbol, timeframeId = chartTimeframeRef.current) => {
+  const resetChartSeries = useCallback(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
+    candleSeriesRef.current.setData([]);
+    volumeSeriesRef.current.setData([]);
+    lastBarRef.current = null;
+  }, []);
+
+  const loadCandles = useCallback(async (
+    symbol,
+    timeframeId = chartTimeframeRef.current,
+    options = {},
+  ) => {
+    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
+    const { forceFitContent = false, clearBeforeLoad = true } = options;
 
     const requestId = chartRequestIdRef.current + 1;
     chartRequestIdRef.current = requestId;
     const normalized = normalizeSymbol(symbol);
     const timeframeConfig = CHART_TIMEFRAME_BY_ID[timeframeId] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
     if (!normalized) {
-      candleSeriesRef.current.setData([]);
-      volumeSeriesRef.current.setData([]);
-      lastBarRef.current = null;
+      resetChartSeries();
       setChartStatus({ loading: false, error: 'Add a ticker to load chart data.' });
       return;
     }
 
     setChartStatus({ loading: true, error: '' });
+    if (clearBeforeLoad) {
+      resetChartSeries();
+    }
 
     try {
       const params = new URLSearchParams({
@@ -2610,9 +2631,7 @@ export default function TraderPage({
       });
 
       if (deduped.length === 0) {
-        candleSeriesRef.current.setData([]);
-        volumeSeriesRef.current.setData([]);
-        lastBarRef.current = null;
+        resetChartSeries();
         setChartStatus({ loading: false, error: 'No candles returned for this symbol.' });
         return;
       }
@@ -2636,7 +2655,7 @@ export default function TraderPage({
       );
 
       // Restore saved viewport if available, otherwise fit content
-      const savedViewport = loadChartViewport(normalized, timeframeId);
+      const savedViewport = forceFitContent ? null : loadChartViewport(normalized, timeframeId);
       if (savedViewport && chartRef.current) {
         try {
           chartRef.current.timeScale().setVisibleRange({
@@ -2656,12 +2675,23 @@ export default function TraderPage({
         error: error?.message || 'Failed to load chart data.',
       });
     }
-  }, []);
+  }, [resetChartSeries]);
 
   useEffect(() => {
     if (!chartReady) return;
-    loadCandles(selectedSymbol, chartTimeframe);
+    void loadCandles(selectedSymbol, chartTimeframe, { clearBeforeLoad: true });
   }, [chartReady, chartTimeframe, selectedSymbol, loadCandles]);
+
+  const handleRefreshChart = useCallback(() => {
+    if (!chartReady) return;
+    const normalized = normalizeSymbol(selectedSymbolRef.current || selectedSymbol);
+    if (!normalized) return;
+    void loadCandles(normalized, chartTimeframeRef.current, {
+      forceFitContent: true,
+      clearBeforeLoad: true,
+    });
+    void fetchQuoteSnapshot([normalized]);
+  }, [chartReady, fetchQuoteSnapshot, loadCandles, selectedSymbol]);
 
   useEffect(() => {
     const symbols = streamSubscriptionSymbols;
@@ -3756,7 +3786,7 @@ export default function TraderPage({
                                         isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
                                       }`}
                                       style={getDragPreviewStyle(provided.draggableProps.style, snapshot.isDragging, symbol)}
-                                      onClick={() => setSelectedSymbol(symbol)}
+                                      onClick={() => handleWatchlistSymbolSelect(symbol)}
                                     >
                                       <div
                                         {...provided.dragHandleProps}
@@ -3878,7 +3908,7 @@ export default function TraderPage({
                             <motion.button
                               key={`portfolio-position-${position.symbol}`}
                               type="button"
-                              onClick={() => setSelectedSymbol(position.symbol)}
+                              onClick={() => handleWatchlistSymbolSelect(position.symbol)}
                               onDoubleClick={() => openPortfolioPositionForTrade(position.symbol, position.companyName)}
                               whileHover={{ scale: 1.01 }}
                               whileTap={{ scale: 0.99 }}
@@ -3934,7 +3964,7 @@ export default function TraderPage({
                 return (
                   <motion.button
                     key={symbol}
-                    onClick={() => setSelectedSymbol(symbol)}
+                    onClick={() => handleWatchlistSymbolSelect(symbol)}
                     {...listItemMotion(index)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -3974,28 +4004,48 @@ export default function TraderPage({
         <section className="flex flex-1 min-h-0 gap-2 overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0b]">
             <div className="shrink-0 border-b border-[#1f1f1f] px-4 py-2">
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
-                  const isActive = chartTimeframe === timeframe.id;
-                  return (
-                    <motion.button
-                      key={timeframe.id}
-                      type="button"
-                      onClick={() => setChartTimeframe(timeframe.id)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={interactiveTransition}
-                      className={`h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
-                        isActive
-                          ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
-                          : 'border-[#1f1f1f] text-gray-400 hover:bg-white/5 hover:text-white'
-                      }`}
-                      aria-pressed={isActive}
-                    >
-                      {timeframe.label}
-                    </motion.button>
-                  );
-                })}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                  {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
+                    const isActive = chartTimeframe === timeframe.id;
+                    return (
+                      <motion.button
+                        key={timeframe.id}
+                        type="button"
+                        onClick={() => setChartTimeframe(timeframe.id)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
+                        className={`h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
+                          isActive
+                            ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
+                            : 'border-[#1f1f1f] text-gray-400 hover:bg-white/5 hover:text-white'
+                        }`}
+                        aria-pressed={isActive}
+                      >
+                        {timeframe.label}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+                <motion.button
+                  type="button"
+                  onClick={handleRefreshChart}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
+                  disabled={chartStatus.loading || !selectedSymbol}
+                  className={`inline-flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
+                    chartStatus.loading || !selectedSymbol
+                      ? 'cursor-not-allowed border-[#1f1f1f] text-gray-500'
+                      : 'border-[#1f1f1f] text-gray-300 hover:bg-white/5 hover:text-white'
+                  }`}
+                  title="Refresh chart and reset viewport"
+                  aria-label="Refresh chart"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${chartStatus.loading ? 'animate-spin' : ''}`} strokeWidth={1.8} />
+                  Refresh
+                </motion.button>
               </div>
             </div>
 
@@ -4152,7 +4202,7 @@ export default function TraderPage({
                       if (!normalized) return;
                       const nextSymbol = watchlist.find((symbol) => normalizeSymbol(symbol) === normalized);
                       if (nextSymbol) {
-                        setSelectedSymbol(nextSymbol);
+                        handleWatchlistSymbolSelect(nextSymbol);
                       }
                     }}
                     onOrderPlaced={() => {

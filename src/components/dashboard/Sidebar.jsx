@@ -6,7 +6,6 @@ import {
   Bitcoin,
   Globe,
   Microscope,
-  BarChart3,
   Wallet,
   Landmark,
   Calendar,
@@ -63,10 +62,12 @@ const Sidebar = ({
     : deployedStrategies.length;
 
   const navItems = [
+    { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true, labelClass: 'font-semibold text-red-500', iconClass: 'text-red-500' },
     { id: 'trader', label: 'Trader', icon: TrendingUp },
     { id: 'crypto', label: 'Crypto', icon: Bitcoin },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'xray', label: 'X-Ray', icon: Microscope },
     { id: 'market', label: 'Market', icon: TrendingUp, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'trade', label: 'Community', icon: SlidersHorizontal },
@@ -74,10 +75,7 @@ const Sidebar = ({
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'trends', label: 'Trends', icon: BarChart3, isNew: true },
     { id: 'radar', label: 'Radar', icon: Radar, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
-    { id: 'portfolio', label: 'Portfolio', icon: Wallet },
   ];
 
   const handleTabClick = (id) => {

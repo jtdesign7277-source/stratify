@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { fetchTwelveData } from './lib/twelvedata.js';
 
-const SOPHIA_MEGA_SYSTEM_PROMPT = `
+const SOPHIA_STRATEGY_SYSTEM_PROMPT = `
 You are Sophia, Stratify's AI trading strategist.
 Always write concise, trader-focused strategy responses in markdown, not JSON and not code.
 Always prefix stock tickers with $ (example: $SPY, $NVDA).
@@ -54,6 +54,21 @@ LENGTH RULES:
 - No extra sections, no long explanations, no fluff.
 - Be direct and readable.
 - USE THE REAL BACKTEST DATA PROVIDED. Do NOT make up trades or numbers.
+`.trim();
+
+const SOPHIA_GENERAL_SYSTEM_PROMPT = `
+You are Sophia, Stratify's senior financial AI analyst.
+Style: professional, sharp, high-signal, occasionally witty, never sloppy.
+
+Rules:
+- Prioritize factual accuracy over speed.
+- If market data is provided in context, use it directly and cite concrete numbers.
+- If data is missing or stale, say so clearly and state assumptions.
+- Keep answers concise, practical, and decision-useful.
+- Prefix tickers with $ (examples: $AAPL, $BTC).
+- Do NOT force strategy templates unless the user explicitly asks for a strategy/backtest.
+- Never invent trades, prices, or performance.
+- For financial questions, default to: key takeaway, supporting data points, risks, and what to watch next.
 `.trim();
 
 function extractTickers(text) {
@@ -331,10 +346,13 @@ async function fetchQuote(symbol) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const apiKey = String(process.env.XAI_API_KEY || '').trim();
-  if (!apiKey) return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
+  const anthropicApiKey = String(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '').trim();
+  if (!anthropicApiKey) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY is missing. Please add Claude Sonnet API key in environment variables.' });
+  }
 
-  const { messages: incomingMessages, userId } = req.body;
+  const { messages: incomingMessages, userId, strategyMode: strategyModeRaw } = req.body;
+  const strategyMode = Boolean(strategyModeRaw);
   if (!Array.isArray(incomingMessages)) return res.status(400).json({ error: 'messages must be an array' });
 
   // Load conversation history from Supabase
@@ -375,7 +393,7 @@ export default async function handler(req, res) {
     const primaryTicker = tickers[0];
     const latestUserMsg = allText;
 
-    if (isBacktestRequest(latestUserMsg)) {
+    if (strategyMode && isBacktestRequest(latestUserMsg)) {
       // Run real backtest with Twelve Data
       const strategy = detectStrategy(latestUserMsg);
       try {
@@ -431,30 +449,40 @@ export default async function handler(req, res) {
   res.setHeader('Transfer-Encoding', 'chunked');
 
   try {
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+    const anthropicMessages = requestMessages
+      .map((message) => ({
+        role: message.role === 'assistant' ? 'assistant' : 'user',
+        content: String(message.content || ''),
+      }))
+      .filter((message) => message.content.trim().length > 0);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'grok-3-mini-fast',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 1800,
-        temperature: 0.8,
-        messages: [
-          { role: 'system', content: SOPHIA_MEGA_SYSTEM_PROMPT },
-          ...requestMessages,
-        ],
+        temperature: strategyMode ? 0.45 : 0.35,
+        system: strategyMode ? SOPHIA_STRATEGY_SYSTEM_PROMPT : SOPHIA_GENERAL_SYSTEM_PROMPT,
+        messages: anthropicMessages,
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      return res.status(502).end(`xAI error: ${response.status} ${errText}`);
+      return res.status(502).end(`Claude error: ${response.status} ${errText}`);
     }
 
     const payload = await response.json();
-    const fullResponse = String(payload?.choices?.[0]?.message?.content || '').trim();
+    const fullResponse = (Array.isArray(payload?.content) ? payload.content : [])
+      .filter((block) => block?.type === 'text' && typeof block?.text === 'string')
+      .map((block) => block.text)
+      .join('\n')
+      .trim();
     if (fullResponse) {
       res.write(fullResponse);
     }

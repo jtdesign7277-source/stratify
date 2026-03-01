@@ -141,7 +141,8 @@ export function useSophiaChat() {
   };
 
   const sendMessage = useCallback(
-    async (text) => {
+    async (text, options = {}) => {
+      const strategyMode = Boolean(options?.strategyMode);
       const trimmedText = String(text || '').trim();
       if (!trimmedText || isLoading) return;
 
@@ -241,6 +242,7 @@ export function useSophiaChat() {
           body: JSON.stringify({
             messages: [userMessage],
             userId: user?.id || null,
+            strategyMode,
           }),
         });
 
@@ -283,18 +285,20 @@ export function useSophiaChat() {
           }
         }
 
-        const normalizedResponse = ensureKeyTradeSetupsInContent(fullContent);
-        const finalContent = normalizedResponse.content;
-        if (finalContent && finalContent !== fullContent) {
-          setMessages((prev) =>
-            prev.map((message) =>
-              message.id === assistantMessageId ? { ...message, content: finalContent } : message
-            )
-          );
-        }
+        if (strategyMode) {
+          const normalizedResponse = ensureKeyTradeSetupsInContent(fullContent);
+          const finalContent = normalizedResponse.content;
+          if (finalContent && finalContent !== fullContent) {
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantMessageId ? { ...message, content: finalContent } : message
+              )
+            );
+          }
 
-        const strategy = parseStrategy(finalContent || fullContent);
-        if (strategy) setCurrentStrategy(strategy);
+          const strategy = parseStrategy(finalContent || fullContent);
+          if (strategy) setCurrentStrategy(strategy);
+        }
       } catch (err) {
         setMessages((prev) =>
           prev.map((message) =>

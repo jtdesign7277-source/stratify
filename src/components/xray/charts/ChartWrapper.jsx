@@ -3,7 +3,7 @@ import HighchartsReact from 'highcharts-react-official';
 
 export default function ChartWrapper({ title, subtitle, options, loading = false, error = null, empty = false }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0a1628] p-3">
+    <div className="rounded-2xl border border-white/10 bg-[#0b0b0b] p-3">
       {(title || subtitle) && (
         <div className="mb-2">
           {title ? <h3 className="text-sm font-semibold text-[#e5e7eb]">{title}</h3> : null}

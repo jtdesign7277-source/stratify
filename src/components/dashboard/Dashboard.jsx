@@ -238,6 +238,7 @@ const sanitizeActiveTab = (tab, fallback = 'trader') => {
   if (normalized === 'home') return 'trader';
   if (normalized === 'markets') return 'global-markets';
   if (normalized === 'history') return 'portfolio';
+  if (normalized === 'trends') return 'trader';
   if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
   return normalized;
 };

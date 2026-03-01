@@ -73,6 +73,19 @@ const fmtPct = (value) => {
   return `${parsed >= 0 ? '+' : ''}${parsed.toFixed(2)}%`;
 };
 
+const summarizePositions = (rows = []) => {
+  const value = rows.reduce((sum, row) => sum + Number(row?.market_value || 0), 0);
+  const pnl = rows.reduce((sum, row) => sum + Number(row?.pnl || 0), 0);
+  const costBasis = rows.reduce((sum, row) => {
+    const marketValue = Number(row?.market_value || 0);
+    const rowPnl = Number(row?.pnl || 0);
+    const derivedCost = marketValue - rowPnl;
+    return sum + Math.max(0, Number.isFinite(derivedCost) ? derivedCost : 0);
+  }, 0);
+  const pnlPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+  return { value, pnl, pnlPct };
+};
+
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 const generateWalletSeries = (holdingValue, investedValue, points = 120) => {
@@ -169,24 +182,48 @@ export default function PortfolioDashboard() {
       .slice(0, 30);
   }, [syncedTrades]);
 
-  const strategySummary = useMemo(() => {
-    if (!strategyTrades.length || !positions.length) {
-      return { value: 0, pnl: 0 };
-    }
+  const strategySymbols = useMemo(() => new Set(
+    strategyTrades
+      .map((trade) => normalizeSymbol(trade?.symbol))
+      .filter(Boolean)
+  ), [strategyTrades]);
 
-    const strategySymbols = new Set(
-      strategyTrades
-        .map((trade) => normalizeSymbol(trade?.symbol))
-        .filter(Boolean)
-    );
+  const strategyPositions = useMemo(
+    () => positions.filter((position) => strategySymbols.has(normalizeSymbol(position?.symbol))),
+    [positions, strategySymbols]
+  );
 
-    const linkedPositions = positions.filter((position) => strategySymbols.has(normalizeSymbol(position?.symbol)));
+  const nonStrategyPositions = useMemo(
+    () => positions.filter((position) => !strategySymbols.has(normalizeSymbol(position?.symbol))),
+    [positions, strategySymbols]
+  );
 
-    return {
-      value: linkedPositions.reduce((sum, position) => sum + Number(position?.market_value || 0), 0),
-      pnl: linkedPositions.reduce((sum, position) => sum + Number(position?.pnl || 0), 0),
-    };
-  }, [positions, strategyTrades]);
+  const equityPositions = useMemo(
+    () => nonStrategyPositions.filter((position) => !isCryptoSymbol(position?.symbol)),
+    [nonStrategyPositions]
+  );
+
+  const cryptoPositions = useMemo(
+    () => nonStrategyPositions.filter((position) => isCryptoSymbol(position?.symbol)),
+    [nonStrategyPositions]
+  );
+
+  const equitySummary = useMemo(() => summarizePositions(equityPositions), [equityPositions]);
+  const cryptoSummary = useMemo(() => summarizePositions(cryptoPositions), [cryptoPositions]);
+  const strategySummary = useMemo(() => summarizePositions(strategyPositions), [strategyPositions]);
+
+  const holdingsSections = useMemo(() => ([
+    { id: 'equity', label: 'Equity Holdings', rows: equityPositions, summary: equitySummary },
+    { id: 'crypto', label: 'Crypto Holdings', rows: cryptoPositions, summary: cryptoSummary },
+    { id: 'strategy', label: 'Strategy Holdings', rows: strategyPositions, summary: strategySummary },
+  ]), [
+    cryptoPositions,
+    cryptoSummary,
+    equityPositions,
+    equitySummary,
+    strategyPositions,
+    strategySummary,
+  ]);
 
   const { holding, invested } = useMemo(
     () => generateWalletSeries(holdingNow, STARTING_BALANCE),
@@ -549,66 +586,85 @@ export default function PortfolioDashboard() {
 
       <div className={`mt-3 ${panelClass} p-3`}>
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Holdings</div>
-        {positions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#1f1f1f] text-[10px] uppercase tracking-[0.14em] text-gray-500">
-                  <th className="px-2 py-2 text-left">Symbol</th>
-                  <th className="px-2 py-2 text-right">Qty</th>
-                  <th className="px-2 py-2 text-right">Avg</th>
-                  <th className="px-2 py-2 text-right">Price</th>
-                  <th className="px-2 py-2 text-right">Value</th>
-                  <th className="px-2 py-2 text-right">P&L</th>
-                  <th className="px-2 py-2 text-right">P&L %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {positions.map((position) => {
-                  const pnl = Number(position?.pnl || 0);
-                  const isProfit = pnl >= 0;
-                  return (
-                    <tr key={position.symbol} className="border-b border-[#1f1f1f]/60 last:border-0">
-                      <td className="px-2 py-2 font-mono">${position.symbol}</td>
-                      <td className="px-2 py-2 text-right font-mono">{fmtQty(position.quantity)}</td>
-                      <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.avg_cost_basis)}</td>
-                      <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.current_price)}</td>
-                      <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.market_value)}</td>
-                      <td className={`px-2 py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {isProfit ? '+' : ''}{fmtMoney(pnl)}
-                      </td>
-                      <td className={`px-2 py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {fmtPct(position.pnl_percent)}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[#1f1f1f] text-[10px] uppercase tracking-[0.14em] text-gray-500">
+                <th className="px-2 py-2 text-left">Symbol</th>
+                <th className="px-2 py-2 text-right">Qty</th>
+                <th className="px-2 py-2 text-right">Avg</th>
+                <th className="px-2 py-2 text-right">Price</th>
+                <th className="px-2 py-2 text-right">Value</th>
+                <th className="px-2 py-2 text-right">P&L</th>
+                <th className="px-2 py-2 text-right">P&L %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {holdingsSections.map((section, sectionIndex) => (
+                <React.Fragment key={section.id}>
+                  {sectionIndex > 0 ? (
+                    <tr>
+                      <td colSpan={7} className="border-t-2 border-[#334155] px-0 py-0" />
+                    </tr>
+                  ) : null}
+
+                  <tr className="border-b border-[#1f1f1f] bg-[#0a0a0a]/35">
+                    <td colSpan={7} className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                      {section.label}
+                    </td>
+                  </tr>
+
+                  {section.rows.length > 0 ? (
+                    section.rows.map((position) => {
+                      const pnl = Number(position?.pnl || 0);
+                      const isProfit = pnl >= 0;
+                      return (
+                        <tr key={`${section.id}-${position.symbol}`} className="border-b border-[#1f1f1f]/60">
+                          <td className="px-2 py-2 font-mono">${position.symbol}</td>
+                          <td className="px-2 py-2 text-right font-mono">{fmtQty(position.quantity)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.avg_cost_basis)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.current_price)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.market_value)}</td>
+                          <td className={`px-2 py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {isProfit ? '+' : ''}{fmtMoney(pnl)}
+                          </td>
+                          <td className={`px-2 py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {fmtPct(position.pnl_percent)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr className="border-b border-[#1f1f1f]/60">
+                      <td colSpan={7} className="px-2 py-2 text-xs text-gray-500">
+                        No {section.label.toLowerCase()}.
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="py-8 text-center text-sm text-gray-500">No positions open.</div>
-        )}
+                  )}
 
-        <div className="mt-3 border-t border-[#1f1f1f] pt-3">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
-            Strategy
-          </div>
-          <div className="mb-2 rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="uppercase tracking-[0.12em] text-gray-500">Total Value</span>
-              <span className="font-mono text-white">{fmtMoney(strategySummary.value)}</span>
-            </div>
-            <div className="mt-1.5 flex items-center justify-between text-xs">
-              <span className="uppercase tracking-[0.12em] text-gray-500">P&L</span>
-              <span className={`font-mono ${strategySummary.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {strategySummary.pnl >= 0 ? '+' : ''}{fmtMoney(strategySummary.pnl)}
-              </span>
-            </div>
-          </div>
+                  <tr className="border-b border-[#1f1f1f]/80 bg-[#0a0a0a]/30">
+                    <td className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400" colSpan={4}>
+                      {section.label} Totals
+                    </td>
+                    <td className="px-2 py-2 text-right font-mono text-white">{fmtMoney(section.summary.value)}</td>
+                    <td className={`px-2 py-2 text-right font-mono ${section.summary.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {section.summary.pnl >= 0 ? '+' : ''}{fmtMoney(section.summary.pnl)}
+                    </td>
+                    <td className={`px-2 py-2 text-right font-mono ${section.summary.pnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {fmtPct(section.summary.pnlPct)}
+                    </td>
+                  </tr>
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-3 border-t-2 border-[#334155] pt-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Strategy Trade Log</div>
           {strategyTrades.length > 0 ? (
-            <div className="space-y-1">
-              {strategyTrades.map((trade, index) => {
+            <div className="divide-y divide-[#1f1f1f]/60">
+              {strategyTrades.slice(0, 12).map((trade, index) => {
                 const side = String(trade?.side || '').toLowerCase();
                 const qty = Number(trade?.shares ?? trade?.quantity ?? trade?.qty ?? 0);
                 const price = Number(trade?.price || 0);
@@ -616,7 +672,7 @@ export default function PortfolioDashboard() {
                 return (
                   <div
                     key={trade?.id || `strategy-trade-${index}`}
-                    className="flex items-center justify-between rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1.5 text-xs"
+                    className="flex items-center justify-between px-2 py-1.5 text-xs"
                   >
                     <div className="flex items-center gap-2">
                       <span className={`font-semibold uppercase tracking-[0.12em] ${side === 'buy' ? 'text-emerald-300' : 'text-red-300'}`}>
@@ -624,9 +680,7 @@ export default function PortfolioDashboard() {
                       </span>
                       <span className="font-mono">${normalizeSymbol(trade?.symbol)}</span>
                       <span className="text-gray-500">x{fmtQty(qty)}</span>
-                      {strategyId ? (
-                        <span className="font-mono text-[10px] text-blue-300">{strategyId}</span>
-                      ) : null}
+                      {strategyId ? <span className="font-mono text-[10px] text-gray-400">{strategyId}</span> : null}
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-gray-300">@ {fmtMoney(price)}</span>
@@ -637,13 +691,13 @@ export default function PortfolioDashboard() {
               })}
             </div>
           ) : (
-            <div className="rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-2 text-xs text-gray-500">
+            <div className="px-2 py-1.5 text-xs text-gray-500">
               No AI strategy trades logged yet.
             </div>
           )}
         </div>
 
-        <div className="mt-3 border-t border-[#1f1f1f] pt-3">
+        <div className="mt-3 border-t-2 border-[#334155] pt-3">
           <div className="flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Portfolio Value</span>
             <span className="font-mono text-white">{fmtMoney(totalValue)}</span>
@@ -656,6 +710,12 @@ export default function PortfolioDashboard() {
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L</span>
             <span className={`font-mono ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {totalPnl >= 0 ? '+' : ''}{fmtMoney(totalPnl)}
+            </span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L %</span>
+            <span className={`font-mono ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {fmtPct(totalPnlPct)}
             </span>
           </div>
         </div>

@@ -1178,7 +1178,13 @@ export default function WarRoom({ onClose }) {
                   <button
                     key={viewTab.key}
                     type="button"
-                    onClick={() => setActiveView(viewTab.key)}
+                    onClick={() => {
+                      setActiveView(viewTab.key);
+                      if (viewTab.key === 'transcripts') {
+                        setTranscriptSymbol('AAPL');
+                        fetchTranscript('AAPL');
+                      }
+                    }}
                     className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors flex items-center gap-1.5 ${
                       isActive
                         ? 'bg-blue-500/12 border-blue-500/35 text-blue-300'

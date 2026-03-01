@@ -24,7 +24,7 @@ export default function StatCard({
         : value;
 
   return (
-    <div className={`rounded-xl border border-white/10 bg-[#0a1628] ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}>
+    <div className={`rounded-xl border border-white/10 bg-[#0b0b0b] ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}>
       <p className={`${compact ? 'text-[9px]' : 'text-[10px]'} uppercase tracking-[0.12em] text-[#6b7280]`}>{label}</p>
       <p className={`font-mono font-semibold ${compact ? 'mt-1 text-base' : 'mt-2 text-lg'} ${valueColor}`}>{formattedValue}</p>
       {subvalue ? <p className={`${compact ? 'mt-0.5 text-[10px]' : 'mt-1 text-[11px]'} text-[#9ca3af]`}>{subvalue}</p> : null}

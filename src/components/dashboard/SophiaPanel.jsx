@@ -49,6 +49,7 @@ const STRATEGY_PRESETS = [
 ];
 
 const PANEL_STATE_STORAGE_KEY = 'stratify-sophia-panel-state';
+const STRATEGY_MODE_STORAGE_KEY = 'stratify-sophia-strategy-mode';
 const PANEL_WIDTHS = { large: 430, small: 320, closed: 40 };
 const PANEL_STATE_CYCLE = { closed: 'small', small: 'closed', large: 'closed' };
 const normalizePanelState = (value) => {
@@ -165,6 +166,13 @@ const SophiaPanel = ({
       return 'large';
     }
   });
+  const [strategyMode, setStrategyMode] = useState(() => {
+    try {
+      return localStorage.getItem(STRATEGY_MODE_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -182,6 +190,12 @@ const SophiaPanel = ({
       localStorage.setItem(PANEL_STATE_STORAGE_KEY, panelState);
     } catch {}
   }, [panelState]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STRATEGY_MODE_STORAGE_KEY, strategyMode ? 'true' : 'false');
+    } catch {}
+  }, [strategyMode]);
 
   useEffect(() => {
     onCollapsedChange && onCollapsedChange(panelState === 'closed', panelState);
@@ -211,7 +225,7 @@ const SophiaPanel = ({
       // Expand the panel and switch to sophia tab so the user sees the response
       setPanelState((prev) => (prev === 'closed' ? 'small' : prev));
       setActiveTab('sophia');
-      sendMessage(wizardPrompt);
+      sendMessage(wizardPrompt, { strategyMode: true });
       onWizardPromptConsumed && onWizardPromptConsumed();
     }
   }, [wizardPrompt]);
@@ -227,7 +241,7 @@ const SophiaPanel = ({
 
   const handleSend = () => {
     if (!input.trim()) return;
-    sendMessage(input.trim());
+    sendMessage(input.trim(), { strategyMode });
     setInput('');
     setPresetValue('');
   };
@@ -407,18 +421,31 @@ const SophiaPanel = ({
       </div>
 
       {/* Tab pills */}
-      <div className="flex gap-1 px-3 py-1.5 border-b border-[#1f1f1f]">
-        <button onClick={() => handleTabSelect('sophia')}
-          className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${activeTab === 'sophia' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-          💬 Sophia
-        </button>
-        <button onClick={() => handleTabSelect('trump')}
-          className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all relative ${activeTab === 'trump' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : hasUnreadTrumpAlerts ? 'text-orange-400 animate-pulse ring-2 ring-orange-500/50 bg-orange-500/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-          🇺🇸 Trump Intel
-          {hasUnreadTrumpAlerts && activeTab !== 'trump' && (
-            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{unreadTrumpAlerts > 99 ? '99+' : unreadTrumpAlerts}</span>
-          )}
-        </button>
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-[#1f1f1f]">
+        <div className="flex gap-1">
+          <button onClick={() => handleTabSelect('sophia')}
+            className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${activeTab === 'sophia' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+            💬 Sophia
+          </button>
+          <button onClick={() => handleTabSelect('trump')}
+            className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all relative ${activeTab === 'trump' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : hasUnreadTrumpAlerts ? 'text-orange-400 animate-pulse ring-2 ring-orange-500/50 bg-orange-500/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+            🇺🇸 Trump Intel
+            {hasUnreadTrumpAlerts && activeTab !== 'trump' && (
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{unreadTrumpAlerts > 99 ? '99+' : unreadTrumpAlerts}</span>
+            )}
+          </button>
+        </div>
+        {activeTab === 'sophia' && (
+          <label className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+            <input
+              type="checkbox"
+              checked={strategyMode}
+              onChange={(event) => setStrategyMode(event.target.checked)}
+              className="h-3.5 w-3.5 rounded border border-zinc-600 bg-[#0b0b0b] accent-emerald-400"
+            />
+            Strategy
+          </label>
+        )}
       </div>
 
       {/* Trump Intel Feed */}
@@ -489,7 +516,7 @@ const SophiaPanel = ({
           <BacktestWizard
             onSubmit={(prompt) => {
               setShowBuilder(false);
-              sendMessage(prompt);
+              sendMessage(prompt, { strategyMode: true });
             }}
             onClose={() => setShowBuilder(false)}
             inline
@@ -498,11 +525,20 @@ const SophiaPanel = ({
       ) : activeTab === 'sophia' ? (
         <>
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3 min-h-0">
+            {strategyMode && (
+              <div className="sticky top-0 z-10 -mt-1 pb-1">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Strategy Mode On
+                </div>
+              </div>
+            )}
+
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <SophiaMark className="w-10 h-10 mb-3 opacity-40" />
                 <p className="text-gray-500 text-sm">
-                  Ask Sophia to build a trading strategy, analyze a stock, or run a backtest.
+                  Ask Sophia any market question. Enable Strategy checkbox for structured strategy responses.
                 </p>
               </div>
             )}

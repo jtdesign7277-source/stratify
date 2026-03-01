@@ -14,7 +14,7 @@ export default function KeyStatsTab({ symbol }) {
 
   if (statsLoading) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-[#0a1628] p-4 text-sm text-[#9ca3af]">
+      <div className="rounded-2xl border border-white/10 bg-[#0b0b0b] p-4 text-sm text-[#9ca3af]">
         Loading statistics...
       </div>
     );
@@ -22,7 +22,7 @@ export default function KeyStatsTab({ symbol }) {
 
   if (statsError) {
     return (
-      <div className="rounded-2xl border border-red-500/30 bg-[#0a1628] p-4 text-sm text-red-300">
+      <div className="rounded-2xl border border-red-500/30 bg-[#0b0b0b] p-4 text-sm text-red-300">
         {statsError}
       </div>
     );
@@ -51,7 +51,7 @@ export default function KeyStatsTab({ symbol }) {
         <StatCard label="Earnings Growth" value={metric(stats?.earnings_growth, (v) => formatPercent(Number(v) * 100))} tone={(Number(stats?.earnings_growth) || 0) >= 0 ? 'positive' : 'negative'} />
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#0a1628] p-3">
+      <div className="rounded-2xl border border-white/10 bg-[#0b0b0b] p-3">
         <h3 className="text-sm font-semibold text-[#e5e7eb]">Company Profile</h3>
         <div className="mt-2 grid grid-cols-1 gap-1.5 text-[11px] text-[#9ca3af] md:grid-cols-2">
           <div>
