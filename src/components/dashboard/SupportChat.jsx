@@ -15,7 +15,7 @@ const getSessionId = () => {
 
 export default function SupportChat({ compact = false }) {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: "Hi! I'm Stratify Support powered by Grok. Ask me anything about the platform! 🚀" }
+    { role: 'assistant', content: "Hi! I'm Stratify Support. Ask me anything about the platform! 🚀" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -78,7 +78,7 @@ export default function SupportChat({ compact = false }) {
         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-blue-500 flex items-center justify-center">
           <Bot className="w-3 h-3 text-white" />
         </div>
-        <span className="text-white text-sm font-medium">Grok Support</span>
+        <span className="text-white text-sm font-medium">Support</span>
         <div className="ml-auto flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-[10px] text-gray-500">Online</span>

@@ -5,6 +5,21 @@ import TodaysNews from 'components/dashboard/TodaysNews';
 import WatchlistPanel from './WatchlistPanel';
 import IndexCards from './IndexCards';
 
+const dedupeArticles = (rows = []) => {
+  const seen = new Set();
+
+  return (Array.isArray(rows) ? rows : []).filter((row) => {
+    const title = String(row?.title || '').trim().toLowerCase();
+    const source = String(row?.source || '').trim().toLowerCase();
+    const url = String(row?.url || '').trim().toLowerCase().replace(/[?#].*$/, '');
+    const key = `${title}|${source}|${url}`;
+    if (!title && !url) return false;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 // ─── History View ─────────────────────────────────────────
 export const HistoryView = ({ history, loading, onClear, onArticleClick }) => {
   const relTime = (iso) => {
@@ -102,7 +117,7 @@ export const DiscoverView = ({ data, loading, onArticleClick }) => {
     );
   }
 
-  const stories = data.topStories || [];
+  const stories = dedupeArticles(data.topStories || []);
 
   return (
     <div className="p-3 space-y-4">
@@ -175,7 +190,7 @@ export const FinanceView = ({ onArticleClick }) => {
       const res = await fetch('/api/search?q=financial+market+news');
       if (!res.ok) throw new Error('failed');
       const data = await res.json();
-      setArticles(Array.isArray(data.articles) ? data.articles : []);
+      setArticles(dedupeArticles(Array.isArray(data.articles) ? data.articles : []));
     } catch {
       setNewsError(true);
     } finally {

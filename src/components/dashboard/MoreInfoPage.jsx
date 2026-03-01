@@ -187,13 +187,11 @@ export default function MoreInfoPage() {
   const accountBadge = isProUser
     ? {
         label: 'Pro Account',
-        badgeClass: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
-        iconClass: 'text-sky-300',
+        textClass: 'text-sky-300',
       }
     : {
         label: 'Free Account',
-        badgeClass: 'border-amber-500/30 bg-white/5 text-amber-300',
-        iconClass: 'text-amber-300',
+        textClass: 'text-amber-300',
       };
   const canUpgrade = isAuthenticated && !subscriptionLoading && !isProUser;
   const visibleAvatarOptions =
@@ -488,8 +486,7 @@ export default function MoreInfoPage() {
                 User Profile
               </h3>
               {isAuthenticated && (
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${accountBadge.badgeClass}`}>
-                  <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
+                <span className={`text-sm font-medium ${accountBadge.textClass}`}>
                   {accountBadge.label}
                 </span>
               )}
@@ -544,8 +541,7 @@ export default function MoreInfoPage() {
                         <Shield className="w-4 h-4" strokeWidth={1.5} />
                         Account Type
                       </div>
-                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${accountBadge.badgeClass}`}>
-                        <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
+                      <span className={`text-sm font-medium ${accountBadge.textClass}`}>
                         {accountBadge.label}
                       </span>
                       <p className="text-sm text-emerald-400/70 mt-1.5 group-hover:text-emerald-400 transition-colors">
@@ -558,8 +554,7 @@ export default function MoreInfoPage() {
                         <Shield className="w-4 h-4" strokeWidth={1.5} />
                         Account Type
                       </div>
-                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${accountBadge.badgeClass}`}>
-                        <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
+                      <span className={`text-sm font-medium ${accountBadge.textClass}`}>
                         {accountBadge.label}
                       </span>
                     </div>

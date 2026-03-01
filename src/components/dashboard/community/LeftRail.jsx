@@ -314,15 +314,17 @@ const LeftRail = ({
                           </span>
                           {isTriggered && <span className="text-[#3fb950] text-[9px] font-bold ml-auto">HIT</span>}
                           <div className="ml-auto flex items-center gap-1">
-                            <button
+                            <motion.button
                               type="button"
                               onClick={() => onTogglePriceAlert?.(alert.id)}
-                              className="opacity-60 hover:opacity-100 transition-opacity"
+                              className="opacity-60 hover:opacity-100 transition-opacity origin-center"
                               style={{ color: isActive ? T.blue : T.muted }}
                               title={isActive ? 'Disable alert' : 'Enable alert'}
+                              whileHover={{ scale: 2, rotate: [0, -10, 10, -8, 8, -4, 4, 0] }}
+                              transition={{ duration: 0.45, ease: 'easeInOut' }}
                             >
                               {isActive ? <Bell size={10} strokeWidth={1.5} /> : <BellOff size={10} strokeWidth={1.5} />}
-                            </button>
+                            </motion.button>
                             <button
                               type="button"
                               onClick={() => onDeletePriceAlert?.(alert.id)}

@@ -1,7 +1,7 @@
 // FeedView.jsx — Perplexity Discover-style news feed with article reader
 // Full-width card feed + slide-in article reader overlay (Marketaux API)
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Hash, RefreshCw, ExternalLink, Newspaper, BarChart3,
@@ -63,6 +63,35 @@ function getHostname(url) {
   } catch (_) {
     return ''
   }
+}
+
+function normalizeImageKey(url) {
+  return String(url || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[?#].*$/, '')
+}
+
+function preventConsecutiveImageRepeats(rows = []) {
+  let previousImageKey = ''
+
+  return (Array.isArray(rows) ? rows : []).map((row) => {
+    const imageKey = normalizeImageKey(row?.image)
+    if (!imageKey) {
+      previousImageKey = ''
+      return row
+    }
+
+    if (imageKey === previousImageKey) {
+      return {
+        ...row,
+        image: null,
+      }
+    }
+
+    previousImageKey = imageKey
+    return row
+  })
 }
 
 // ─── Loading skeleton ────────────────────────────────────────────────
@@ -648,6 +677,10 @@ function NewsCard({ item, index, onClick }) {
 export default function FeedView({ feedName, onClose }) {
   const { items, loading, error, source, refresh } = useFeed(feedName)
   const [activeArticle, setActiveArticle] = useState(null)
+  const displayItems = useMemo(
+    () => preventConsecutiveImageRepeats(items || []),
+    [items],
+  )
 
   const handleCardClick = useCallback((item) => {
     if (item.url) {
@@ -737,7 +770,7 @@ export default function FeedView({ feedName, onClose }) {
             )}
 
             <div className="max-w-3xl mx-auto space-y-4">
-              {(items || []).map((item, i) =>
+              {displayItems.map((item, i) =>
                 i === 0 ? (
                   <HeroCard key={item.url || item.title || i} item={item} onClick={handleCardClick} />
                 ) : (

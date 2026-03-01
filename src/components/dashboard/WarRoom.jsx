@@ -1187,8 +1187,8 @@ export default function WarRoom({ onClose }) {
                     }}
                     className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors flex items-center gap-1.5 ${
                       isActive
-                        ? 'bg-blue-500/12 border-blue-500/35 text-blue-300'
-                        : 'border-[#1f1f1f] text-gray-400 hover:text-white hover:border-[#2a3548]'
+                        ? 'bg-blue-500/12 border-blue-500/35 text-[#f8fbff]'
+                        : 'border-[#1f1f1f] text-[#f8fbff] hover:text-white hover:border-[#2a3548]'
                     }`}
                   >
                     {viewTab.key === 'folders' ? (
@@ -1223,8 +1223,8 @@ export default function WarRoom({ onClose }) {
                       disabled={isLoading || isRefreshing}
                       className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-all ${
                         isActiveScan
-                          ? 'bg-blue-500/12 border-blue-500/35 text-blue-300'
-                          : 'bg-black/30 border-[#1f1f1f] text-gray-400 hover:text-blue-200 hover:border-blue-500/30'
+                          ? 'bg-blue-500/12 border-blue-500/35 text-[#f8fbff]'
+                          : 'bg-black/30 border-[#1f1f1f] text-[#f8fbff] hover:text-white hover:border-blue-500/30'
                       } disabled:opacity-40`}
                     >
                       {scan.label}

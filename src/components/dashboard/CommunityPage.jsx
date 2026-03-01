@@ -125,7 +125,6 @@ import {
   ComposerTypePill,
 } from './community/CommunityShared';
 import SuggestionPopover from './community/SuggestionPopover';
-import ChatInputBar from './community/ChatInputBar';
 import { AiSearchLoadingCard, AiSearchResultCard } from './community/AiSearchCards';
 import PostComposerModal from './community/PostComposerModal';
 import ReactionBar from './community/ReactionBar';
@@ -190,7 +189,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       return next;
     });
   }, []);
-  const [activeExploreTab, setActiveExploreTab] = useState(null);
+  const [activeExploreTab, setActiveExploreTab] = useState('finance');
   const [discoverData, setDiscoverData] = useState(null);
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [displayName, setDisplayName] = useState(() => {
@@ -946,7 +945,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setSidebarArticle(normalizedArticle);
     setSelectedTicker(null);
     setFilter(null);
-    setActiveExploreTab(null);
   }, []);
 
   const runAiSearch = useCallback(async (queryText) => {
@@ -1651,23 +1649,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     </div>
                     )}
 
-                    <div className="px-3 pb-3 pt-3">
-                      <ChatInputBar
-                        currentUser={currentUser}
-                        currentUserAvatarUrl={activeAvatarUrl}
-                        trackedSymbols={trackedSymbols}
-                        quoteMap={quoteMap}
-                        streamStatus={streamStatus}
-                        searchMode={searchMode}
-                        onModeChange={handleSearchModeChange}
-                        onOpenComposer={openComposer}
-                        onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
-                        onSearch={runAiSearch}
-                        onFeedSelect={handleFeedFilterChange}
-                        activeFeed={filter}
-                        enabledFeeds={enabledFeeds}
-                      />
-                    </div>
                   </div>
                 </div>
 
@@ -1677,7 +1658,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     setSelectedTicker(ticker);
                     setSidebarArticle(null);
                     setFilter(null);
-                    setActiveExploreTab(null);
                   }}
                 />
               </div>
