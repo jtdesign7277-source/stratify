@@ -155,7 +155,7 @@ export default function NewsFeedPanel({
   }, [articles, filter]);
 
   return (
-    <div className={`flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] ${className}`}>
+    <div className={`soft-glass-surface flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">

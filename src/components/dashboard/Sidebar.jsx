@@ -5,7 +5,6 @@ import {
   SlidersHorizontal,
   Bitcoin,
   Globe,
-  LineChart,
   Microscope,
   BarChart3,
   Wallet,
@@ -77,7 +76,6 @@ const Sidebar = ({
     { id: 'fred', label: 'FRED', icon: Landmark },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'trends', label: 'Trends', icon: BarChart3, isNew: true },
-    { id: 'analytics', label: 'Watchlist', icon: LineChart },
     { id: 'radar', label: 'Radar', icon: Radar, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
   ];
@@ -97,7 +95,7 @@ const Sidebar = ({
       initial={false}
       animate={{ width: collapsed ? 60 : 220 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="h-full bg-[#0b0b0b] border-r border-[#1f1f1f] flex flex-col flex-shrink-0"
+      className="soft-glass-surface h-full bg-[#0b0b0b] border-r border-[#1f1f1f] flex flex-col flex-shrink-0"
     >
       {/* Main Navigation */}
       <nav className="flex-1 px-2 overflow-y-auto min-h-0 flex flex-col" style={{ scrollbarWidth: 'none' }}>

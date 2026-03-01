@@ -368,28 +368,11 @@ export default function StatusBar({
           <div className={`w-2 h-2 rounded-full ${status.color} ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} />
           <button
             onClick={handleOpenNewsletter}
-            className={`relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 ${
-              hasUnreadNewsletter
-                ? 'text-emerald-400/80'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
+            className="relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 text-gray-400 hover:text-gray-300"
           >
             Newsletter
             {hasUnreadNewsletter && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pointer-events-none" />
-            )}
-          </button>
-          <button
-            onClick={handleOpenMarketIntel}
-            className={`relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 ${
-              hasUnreadIntel
-                ? 'text-blue-400/80'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            Market Intel
-            {hasUnreadIntel && (
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 pointer-events-none" />
             )}
           </button>
           <div className="relative flex items-center gap-2">

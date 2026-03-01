@@ -276,7 +276,7 @@ const LiveAlertsTicker = () => {
   }, [allItems.length]);
 
   return (
-    <div className="relative h-8 overflow-hidden bg-[#151518] border-b border-[#1f1f1f]">
+    <div className="soft-glass-surface relative h-8 overflow-hidden bg-[#151518] border-b border-[#1f1f1f]">
       <style>{`
         @keyframes ticker-scroll {
           from { transform: translateX(-50%); }
@@ -304,7 +304,7 @@ const LiveAlertsTicker = () => {
 
       {/* LIVE Badge */}
       <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-3 bg-gradient-to-r from-[#151518] via-[#151518] to-transparent">
-        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#1e1e2d] border border-[#2a2a3d] rounded">
+        <div className="soft-glass-panel flex items-center gap-1.5 px-2 py-0.5 bg-[#1e1e2d] border border-[#2a2a3d] rounded">
           <div className="w-1.5 h-1.5 rounded-full bg-[#00C853] animate-pulse shadow-[0_0_6px_rgba(0,200,83,0.6)]" />
           <span className="text-[10px] font-semibold text-[#E8EAED] uppercase tracking-wider">{badgeLabel}</span>
         </div>

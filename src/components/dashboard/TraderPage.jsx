@@ -3550,7 +3550,7 @@ export default function TraderPage({
                         }}
                         placeholder="Search here"
                         autoComplete="off"
-                        className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-10 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
+                        className="h-10 w-full rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-10 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
                       />
                       <motion.button
                         type="button"
@@ -3571,7 +3571,7 @@ export default function TraderPage({
                         <Pin className="h-3 w-3" />
                       </motion.button>
                       {isSearchDropdownOpen && symbolInput.trim() && (
-                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
+                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto rounded-xl border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
                           {isSearchLoading ? (
                             <div className="px-3 py-2 text-xs text-[#7c8087]">Searching...</div>
                           ) : searchResults.length === 0 ? (

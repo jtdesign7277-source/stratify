@@ -951,10 +951,10 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
   };
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
+    <div className="h-full w-full flex flex-col overflow-hidden" style={{ background: '#0b0b0b' }}>
       {/* ── Top Bar ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-white/[0.06] shrink-0"
-        style={{ background: 'rgba(6, 13, 24, 0.4)' }}
+        style={{ background: '#0b0b0b' }}
       >
         <CoinSelector coins={CRYPTO_COINS} selected={selectedCoin} onSelect={handleCoinSelect} />
         <div className="flex items-center gap-3 px-4">

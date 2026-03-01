@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
   Check,
@@ -268,8 +268,8 @@ const toSourceLinks = (sources) => {
 };
 
 const tokenClassName = (token) => {
-  if (/^\$[A-Z]{1,5}$/.test(token)) return 'text-emerald-400 font-semibold';
-  if (/^\+[\$]?\d/.test(token)) return 'text-emerald-400 font-semibold';
+  if (/^\$[A-Z]{1,5}$/.test(token)) return 'text-blue-400 font-semibold';
+  if (/^\+[\$]?\d/.test(token)) return 'text-blue-400 font-semibold';
   if (/^-[$]?\d/.test(token)) return 'text-red-400 font-semibold';
   if (/\d/.test(token)) return 'text-slate-200';
   return 'text-zinc-300';
@@ -309,7 +309,7 @@ const renderLine = (line, index, keyPrefix) => {
   if (/^#{3,6}\s+/.test(trimmed)) {
     const heading = trimmed.replace(/^#{3,6}\s+/, '');
     return (
-      <h4 key={`${keyPrefix}-heading-${index}`} className="text-emerald-300 font-semibold text-base leading-relaxed mt-3 mb-1">
+      <h4 key={`${keyPrefix}-heading-${index}`} className="text-blue-300 font-semibold text-base leading-relaxed mt-3 mb-1">
         {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
       </h4>
     );
@@ -319,7 +319,7 @@ const renderLine = (line, index, keyPrefix) => {
     const bulletText = trimmed.replace(/^[-*•]\s+/, '');
     return (
       <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-2.5 text-[15px] text-zinc-200 leading-7">
-        <span className="text-emerald-400/70 mt-0.5">•</span>
+        <span className="text-blue-400/70 mt-0.5">•</span>
         <span>{renderInlineText(bulletText, `${keyPrefix}-bullet-text-${index}`)}</span>
       </div>
     );
@@ -377,6 +377,7 @@ export default function WarRoom({ onClose }) {
 
   const toastTimerRef = useRef(null);
   const longPressRef = useRef({ timer: null, opened: false });
+  const liveFeedScrollRef = useRef(null);
 
   const folders = useMemo(() => (Array.isArray(savedState?.folders) ? savedState.folders : []), [savedState]);
 
@@ -400,6 +401,24 @@ export default function WarRoom({ onClose }) {
   const showToast = (message) => {
     setToast(String(message || '').trim());
   };
+
+  const scrollLiveFeedToTop = useCallback(() => {
+    const scrollNow = () => {
+      const node = liveFeedScrollRef.current;
+      if (!node) return false;
+      node.scrollTo({ top: 0, behavior: 'auto' });
+      return true;
+    };
+
+    if (scrollNow()) return;
+
+    requestAnimationFrame(() => {
+      if (scrollNow()) return;
+      setTimeout(() => {
+        scrollNow();
+      }, 0);
+    });
+  }, []);
 
   const [prefetching, setPrefetching] = useState(false);
 
@@ -970,12 +989,12 @@ export default function WarRoom({ onClose }) {
           </div>
           {/* Accent divider + save button */}
           <div className="relative flex items-center gap-2 my-3">
-            <div className="flex-1 h-px bg-emerald-500/20" />
+            <div className="flex-1 h-px bg-blue-500/20" />
             <div className="relative" data-section-save>
               <button
                 type="button"
                 onClick={() => setSectionSaveMenu(menuOpen ? null : sectionKey)}
-                className="text-[10px] uppercase tracking-wider text-emerald-300 hover:text-emerald-200 bg-emerald-500/10 border border-emerald-500/25 rounded px-2 py-0.5 transition-colors"
+                className="text-[10px] uppercase tracking-wider text-blue-300 hover:text-blue-200 bg-blue-500/10 border border-blue-500/25 rounded px-2 py-0.5 transition-colors"
               >
                 Save to Folder
               </button>
@@ -986,7 +1005,7 @@ export default function WarRoom({ onClose }) {
                       key={f.id}
                       type="button"
                       onClick={() => handleSaveSection(section.raw, f.id)}
-                      className="w-full text-left rounded px-2 py-1.5 text-xs text-gray-300 hover:bg-emerald-500/10 hover:text-white transition-colors"
+                      className="w-full text-left rounded px-2 py-1.5 text-xs text-gray-300 hover:bg-blue-500/10 hover:text-white transition-colors"
                     >
                       {f.name}
                     </button>
@@ -994,7 +1013,7 @@ export default function WarRoom({ onClose }) {
                 </div>
               )}
             </div>
-            <div className="flex-1 h-px bg-emerald-500/20" />
+            <div className="flex-1 h-px bg-blue-500/20" />
           </div>
         </div>
       );
@@ -1126,7 +1145,7 @@ export default function WarRoom({ onClose }) {
               type="button"
               onClick={handleManualRefresh}
               disabled={isRefreshing || isLoading || transcriptLoading}
-              className="rounded-lg border border-[#1f1f1f] bg-black/40 px-3 py-1.5 text-xs text-[#7d8590] hover:text-emerald-300 hover:border-emerald-500/40 flex items-center gap-1.5 transition-colors disabled:opacity-45"
+              className="rounded-lg border border-[#1f1f1f] bg-black/40 px-3 py-1.5 text-xs text-[#7d8590] hover:text-blue-300 hover:border-blue-500/40 flex items-center gap-1.5 transition-colors disabled:opacity-45"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} strokeWidth={1.75} />
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -1162,7 +1181,7 @@ export default function WarRoom({ onClose }) {
                     onClick={() => setActiveView(viewTab.key)}
                     className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors flex items-center gap-1.5 ${
                       isActive
-                        ? 'bg-emerald-500/12 border-emerald-500/35 text-emerald-300'
+                        ? 'bg-blue-500/12 border-blue-500/35 text-blue-300'
                         : 'border-[#1f1f1f] text-gray-400 hover:text-white hover:border-[#2a3548]'
                     }`}
                   >
@@ -1192,13 +1211,14 @@ export default function WarRoom({ onClose }) {
                       onClick={() => {
                         setActiveView('live');
                         setActiveScanLabel(scan.label);
+                        scrollLiveFeedToTop();
                         runScan(scan.query, scan.label);
                       }}
                       disabled={isLoading || isRefreshing}
                       className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-all ${
                         isActiveScan
-                          ? 'bg-emerald-500/12 border-emerald-500/35 text-emerald-300'
-                          : 'bg-black/30 border-[#1f1f1f] text-gray-400 hover:text-emerald-200 hover:border-emerald-500/30'
+                          ? 'bg-blue-500/12 border-blue-500/35 text-blue-300'
+                          : 'bg-black/30 border-[#1f1f1f] text-gray-400 hover:text-blue-200 hover:border-blue-500/30'
                       } disabled:opacity-40`}
                     >
                       {scan.label}
@@ -1280,8 +1300,8 @@ export default function WarRoom({ onClose }) {
                       <div className="flex-1 overflow-y-auto scrollbar-hide p-5 space-y-5">
                         {financialsLoading && (
                           <div className="flex items-center gap-3 py-3">
-                            <Loader2 className="h-4 w-4 text-emerald-400 animate-spin" strokeWidth={1.5} />
-                            <span className="text-emerald-300 text-base">Loading financials...</span>
+                            <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
+                            <span className="text-blue-300 text-base">Loading financials...</span>
                           </div>
                         )}
 
@@ -1292,7 +1312,7 @@ export default function WarRoom({ onClose }) {
                               <div className="space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <h3 className="text-base font-semibold text-white uppercase tracking-wider">Balance Sheet</h3>
-                                  <span className="text-xs text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
+                                  <span className="text-xs text-blue-400/60 uppercase tracking-wider">Quarterly</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                   <table className="w-full text-sm">
@@ -1334,7 +1354,7 @@ export default function WarRoom({ onClose }) {
                               <div className="space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <h3 className="text-base font-semibold text-white uppercase tracking-wider">Income Statement</h3>
-                                  <span className="text-xs text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
+                                  <span className="text-xs text-blue-400/60 uppercase tracking-wider">Quarterly</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                   <table className="w-full text-sm">
@@ -1376,7 +1396,7 @@ export default function WarRoom({ onClose }) {
                               <div className="space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <h3 className="text-base font-semibold text-white uppercase tracking-wider">Cash Flow</h3>
-                                  <span className="text-xs text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
+                                  <span className="text-xs text-blue-400/60 uppercase tracking-wider">Quarterly</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                   <table className="w-full text-sm">
@@ -1455,7 +1475,7 @@ export default function WarRoom({ onClose }) {
                               >
                                 <div className="flex items-center gap-3">
                                   <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
-                                    filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                                    filing.form === '10-K' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
                                     filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
                                     'bg-blue-500/15 text-blue-400 border border-blue-500/30'
                                   }`}>
@@ -1607,7 +1627,7 @@ export default function WarRoom({ onClose }) {
                           <div className="flex flex-col gap-2 shrink-0">
                             {isEditing ? (
                               <>
-                                <button type="button" onClick={saveEdit} className="p-1 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors" title="Save">
+                                <button type="button" onClick={saveEdit} className="p-1 rounded text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors" title="Save">
                                   <Check className="h-5 w-5" strokeWidth={2} />
                                 </button>
                                 <button type="button" onClick={cancelEdit} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Cancel">
@@ -1793,7 +1813,7 @@ export default function WarRoom({ onClose }) {
                                   <div className="flex flex-col gap-2 shrink-0">
                                     {isEditing ? (
                                       <>
-                                        <button type="button" onClick={saveEdit} className="p-1 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors" title="Save changes">
+                                        <button type="button" onClick={saveEdit} className="p-1 rounded text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors" title="Save changes">
                                           <Check className="h-5 w-5" strokeWidth={2} />
                                         </button>
                                         <button type="button" onClick={cancelEdit} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Cancel">
@@ -1830,7 +1850,7 @@ export default function WarRoom({ onClose }) {
               </div>
             </div>
           ) : (
-            <div className="h-full overflow-y-auto scrollbar-hide space-y-4 pr-1">
+            <div ref={liveFeedScrollRef} className="h-full overflow-y-auto scrollbar-hide space-y-4 pr-1">
               {error ? (
                 <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
               ) : null}
@@ -2143,7 +2163,7 @@ export default function WarRoom({ onClose }) {
                           <button
                             type="button"
                             onClick={confirmRewrite}
-                            className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 text-sm transition-colors flex items-center gap-1.5"
+                            className="rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 text-sm transition-colors flex items-center gap-1.5"
                           >
                             <Check className="h-4 w-4" strokeWidth={2} />
                             Confirm & Save

@@ -2285,7 +2285,7 @@ export default function Dashboard({
   );
 
   return (
-    <div className={`h-screen h-[100dvh] w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
+    <div className={`soft-glass-theme h-screen h-[100dvh] w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
       <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
       <motion.div
         className="relative z-20 overflow-visible"
@@ -2417,7 +2417,13 @@ export default function Dashboard({
               </Suspense>
             </AppErrorBoundary>
           )}
-          {activeTab === 'global-markets' && <GlobalMarketsPage />}
+          {activeTab === 'global-markets' && (
+            <GlobalMarketsPage
+              watchlist={watchlist}
+              onAddToWatchlist={addToWatchlist}
+              onRemoveFromWatchlist={removeFromWatchlist}
+            />
+          )}
           {activeTab === 'market' && <MarketMoversPage />}
           {activeTab === 'radar' && (
             <AppErrorBoundary>

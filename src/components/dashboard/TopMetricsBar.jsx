@@ -41,7 +41,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-[#0b0b0b] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
+    <div className="soft-glass-panel absolute right-0 top-full mt-2 w-80 bg-[#0b0b0b] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#2a2a3d] flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -692,13 +692,13 @@ export default function TopMetricsBar({
   }, [clockNow]);
 
   return (
-    <div className={`relative z-20 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
-      <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center bg-[#0b0b0b]">
+    <div className={`soft-glass-surface relative z-20 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
+      <div className="soft-glass-surface h-8 px-4 border-b border-[#1f1f1f] flex items-center bg-[#0b0b0b]">
         <div className="flex w-full items-center justify-between gap-2">
           {worldClockData.map((clock) => (
             <div
               key={clock.id}
-              className="h-6 min-w-0 rounded-md border border-[#1f1f1f] bg-[#0b0b0b] px-2.5 flex items-center gap-2"
+              className="soft-glass-panel h-6 min-w-0 rounded-md border border-[#1f1f1f] bg-[#0b0b0b] px-2.5 flex items-center gap-2"
               title={`${clock.city} (${clock.code}) market hours ${clock.hoursLabel}`}
             >
               <span className="text-[10px] uppercase tracking-wide text-white/55 font-semibold">{clock.city}</span>

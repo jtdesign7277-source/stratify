@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Globe,
   Loader2,
+  Maximize2,
+  Minimize2,
   Plus,
   Search,
   TrendingDown,
   TrendingUp,
-  Wifi,
   WifiOff,
   X,
 } from 'lucide-react';
@@ -15,7 +16,7 @@ import {
 const MARKETS = [
   {
     id: 'nyse',
-    title: 'New York Stock Exchange',
+    title: '🇺🇸 United States',
     shortTitle: '🇺🇸 NYSE',
     currency: 'USD',
     accent: 'text-emerald-400',
@@ -23,7 +24,7 @@ const MARKETS = [
   },
   {
     id: 'lse',
-    title: 'London Stock Exchange',
+    title: '🇬🇧 United Kingdom',
     shortTitle: '🇬🇧 LSE',
     currency: 'GBP',
     accent: 'text-blue-400',
@@ -31,15 +32,51 @@ const MARKETS = [
   },
   {
     id: 'sydney',
-    title: 'Australian Stock Exchange',
+    title: '🇦🇺 Australia',
     shortTitle: '🇦🇺 ASX',
     currency: 'AUD',
     accent: 'text-violet-400',
     defaultSymbols: ['BHP', 'CBA', 'WBC', 'NAB', 'ANZ', 'CSL'],
   },
+  {
+    id: 'crypto',
+    title: '₿ Crypto Watchlist',
+    shortTitle: '₿ Crypto',
+    currency: 'USD',
+    accent: 'text-fuchsia-300',
+    defaultSymbols: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOGE/USD', 'LINK/USD'],
+  },
+];
+
+const WATCHLIST_COLUMN = {
+  id: 'watchlist',
+  title: 'Watchlist',
+  shortTitle: 'Watchlist',
+  currency: 'USD',
+  accent: 'text-cyan-300',
+};
+
+const COLUMN_IDS = [WATCHLIST_COLUMN.id, ...MARKETS.map((market) => market.id)];
+
+const CRYPTO_SEARCH_UNIVERSE = [
+  { symbol: 'BTC/USD', instrumentName: 'Bitcoin' },
+  { symbol: 'ETH/USD', instrumentName: 'Ethereum' },
+  { symbol: 'SOL/USD', instrumentName: 'Solana' },
+  { symbol: 'XRP/USD', instrumentName: 'XRP' },
+  { symbol: 'DOGE/USD', instrumentName: 'Dogecoin' },
+  { symbol: 'LINK/USD', instrumentName: 'Chainlink' },
+  { symbol: 'ADA/USD', instrumentName: 'Cardano' },
+  { symbol: 'AVAX/USD', instrumentName: 'Avalanche' },
+  { symbol: 'DOT/USD', instrumentName: 'Polkadot' },
+  { symbol: 'MATIC/USD', instrumentName: 'Polygon' },
+  { symbol: 'LTC/USD', instrumentName: 'Litecoin' },
+  { symbol: 'BCH/USD', instrumentName: 'Bitcoin Cash' },
+  { symbol: 'SHIB/USD', instrumentName: 'Shiba Inu' },
 ];
 
 const WATCHLIST_STORAGE_PREFIX = 'stratify-global-market-watchlist';
+const CUSTOM_WATCHLISTS_STORAGE_KEY = 'stratify-global-market-custom-watchlists';
+const ACTIVE_WATCHLIST_TAB_STORAGE_KEY = 'stratify-global-market-active-watchlist-tab';
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -95,6 +132,47 @@ const loadStoredSymbols = (market, fallback) => {
   }
 };
 
+const sanitizeWatchlistName = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 24);
+
+const makeWatchlistId = (name) => {
+  const slug = sanitizeWatchlistName(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `wl-${slug || 'custom'}-${Date.now().toString(36)}`;
+};
+
+const loadStoredCustomWatchlists = () => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_WATCHLISTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((entry) => {
+        const id = String(entry?.id || '').trim();
+        const name = sanitizeWatchlistName(entry?.name);
+        const symbols = dedupeSymbols(Array.isArray(entry?.symbols) ? entry.symbols : []);
+        if (!id || !name) return null;
+        return { id, name, symbols };
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+const loadStoredActiveWatchlistTab = () => {
+  if (typeof window === 'undefined') return 'main';
+  const stored = localStorage.getItem(ACTIVE_WATCHLIST_TAB_STORAGE_KEY);
+  return stored || 'main';
+};
+
 const formatPrice = (value, currency) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '...';
@@ -117,7 +195,50 @@ const percentClass = (value) => {
   return numeric >= 0 ? 'text-emerald-400' : 'text-red-400';
 };
 
-const GlobalMarketsPage = () => {
+const formatSignedChange = (value, currency) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '--';
+  const sign = numeric >= 0 ? '+' : '-';
+  return `${sign}${formatPrice(Math.abs(numeric), currency)}`;
+};
+
+const formatVolume = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '--';
+  const absolute = Math.abs(numeric);
+  if (absolute >= 1e9) return `${(numeric / 1e9).toFixed(2)}B`;
+  if (absolute >= 1e6) return `${(numeric / 1e6).toFixed(2)}M`;
+  if (absolute >= 1e3) return `${(numeric / 1e3).toFixed(1)}K`;
+  return numeric.toLocaleString();
+};
+
+const GlobalMarketsPage = ({
+  watchlist = [],
+  onAddToWatchlist,
+  onRemoveFromWatchlist,
+}) => {
+  const normalizedWatchlist = useMemo(
+    () =>
+      dedupeSymbols(
+        (Array.isArray(watchlist) ? watchlist : []).map((entry) =>
+          normalizeSymbol(typeof entry === 'string' ? entry : entry?.symbol)
+        )
+      ),
+    [watchlist]
+  );
+
+  const watchlistNameBySymbol = useMemo(
+    () =>
+      (Array.isArray(watchlist) ? watchlist : []).reduce((accumulator, entry) => {
+        const symbol = normalizeSymbol(typeof entry === 'string' ? entry : entry?.symbol);
+        if (!symbol) return accumulator;
+        const name = typeof entry === 'string' ? symbol : String(entry?.name || symbol);
+        if (!accumulator[symbol]) accumulator[symbol] = name;
+        return accumulator;
+      }, {}),
+    [watchlist]
+  );
+
   const [watchlists, setWatchlists] = useState(() =>
     MARKETS.reduce((acc, market) => {
       acc[market.id] = loadStoredSymbols(market.id, market.defaultSymbols);
@@ -126,29 +247,29 @@ const GlobalMarketsPage = () => {
   );
 
   const [quotesByMarket, setQuotesByMarket] = useState(() =>
-    MARKETS.reduce((acc, market) => {
-      acc[market.id] = {};
+    COLUMN_IDS.reduce((acc, id) => {
+      acc[id] = {};
       return acc;
     }, {})
   );
 
   const [loadingByMarket, setLoadingByMarket] = useState(() =>
-    MARKETS.reduce((acc, market) => {
-      acc[market.id] = false;
+    COLUMN_IDS.reduce((acc, id) => {
+      acc[id] = false;
       return acc;
     }, {})
   );
 
   const [errorByMarket, setErrorByMarket] = useState(() =>
-    MARKETS.reduce((acc, market) => {
-      acc[market.id] = null;
+    COLUMN_IDS.reduce((acc, id) => {
+      acc[id] = null;
       return acc;
     }, {})
   );
 
   const [searchUiByMarket, setSearchUiByMarket] = useState(() =>
-    MARKETS.reduce((acc, market) => {
-      acc[market.id] = {
+    COLUMN_IDS.reduce((acc, id) => {
+      acc[id] = {
         open: false,
         query: '',
         loading: false,
@@ -160,18 +281,39 @@ const GlobalMarketsPage = () => {
   );
 
   const [updatedAtByMarket, setUpdatedAtByMarket] = useState(() =>
-    MARKETS.reduce((acc, market) => {
-      acc[market.id] = null;
+    COLUMN_IDS.reduce((acc, id) => {
+      acc[id] = null;
       return acc;
     }, {})
+  );
+  const [expandedMarketId, setExpandedMarketId] = useState(null);
+  const [customWatchlists, setCustomWatchlists] = useState(loadStoredCustomWatchlists);
+  const [activeWatchlistTabId, setActiveWatchlistTabId] = useState(loadStoredActiveWatchlistTab);
+  const [creatingWatchlist, setCreatingWatchlist] = useState(false);
+  const [newWatchlistName, setNewWatchlistName] = useState('');
+
+  const activeCustomWatchlist = useMemo(
+    () => customWatchlists.find((entry) => entry.id === activeWatchlistTabId) || null,
+    [customWatchlists, activeWatchlistTabId]
+  );
+
+  const activeWatchlistLabel = activeWatchlistTabId === 'main'
+    ? 'Main'
+    : (activeCustomWatchlist?.name || 'Main');
+
+  const activeWatchlistSymbols = useMemo(
+    () => (activeWatchlistTabId === 'main'
+      ? normalizedWatchlist
+      : dedupeSymbols(activeCustomWatchlist?.symbols || [])),
+    [activeWatchlistTabId, activeCustomWatchlist?.symbols, normalizedWatchlist]
   );
 
   const searchDebounceKey = useMemo(
     () =>
       JSON.stringify(
-        MARKETS.map((market) => {
-          const ui = searchUiByMarket[market.id] || {};
-          return [market.id, Boolean(ui.open), String(ui.query || '')];
+        COLUMN_IDS.map((id) => {
+          const ui = searchUiByMarket[id] || {};
+          return [id, Boolean(ui.open), String(ui.query || '')];
         })
       ),
     [searchUiByMarket]
@@ -184,9 +326,34 @@ const GlobalMarketsPage = () => {
     });
   }, [watchlists]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(CUSTOM_WATCHLISTS_STORAGE_KEY, JSON.stringify(customWatchlists));
+  }, [customWatchlists]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(ACTIVE_WATCHLIST_TAB_STORAGE_KEY, activeWatchlistTabId);
+  }, [activeWatchlistTabId]);
+
+  useEffect(() => {
+    if (activeWatchlistTabId === 'main') return;
+    const stillExists = customWatchlists.some((entry) => entry.id === activeWatchlistTabId);
+    if (!stillExists) {
+      setActiveWatchlistTabId('main');
+    }
+  }, [activeWatchlistTabId, customWatchlists]);
+
   const fetchQuotesForMarket = useCallback(async (marketId) => {
-    const symbols = watchlists[marketId] || [];
-    if (symbols.length === 0) return;
+    const symbols = marketId === WATCHLIST_COLUMN.id
+      ? activeWatchlistSymbols
+      : (watchlists[marketId] || []);
+    if (symbols.length === 0) {
+      setQuotesByMarket((prev) => ({ ...prev, [marketId]: {} }));
+      setLoadingByMarket((prev) => ({ ...prev, [marketId]: false }));
+      setErrorByMarket((prev) => ({ ...prev, [marketId]: null }));
+      return;
+    }
 
     setLoadingByMarket((prev) => ({ ...prev, [marketId]: true }));
     setErrorByMarket((prev) => ({ ...prev, [marketId]: null }));
@@ -206,13 +373,26 @@ const GlobalMarketsPage = () => {
       const quoteMap = rows.reduce((acc, row) => {
         const symbol = normalizeSymbol(row?.symbol);
         if (!symbol) return acc;
+        const parsedPercent = Number.isFinite(Number(row?.changePercent))
+          ? Number(row?.changePercent)
+          : Number.isFinite(Number(row?.percentChange))
+            ? Number(row?.percentChange)
+            : Number.isFinite(Number(row?.percent_change))
+              ? Number(row?.percent_change)
+              : Number.isFinite(Number(row?.day_change_percent))
+                ? Number(row?.day_change_percent)
+                : null;
+        const parsedChange = Number.isFinite(Number(row?.change))
+          ? Number(row?.change)
+          : Number.isFinite(Number(row?.day_change))
+            ? Number(row?.day_change)
+            : null;
         acc[symbol] = {
           ...row,
           requestedSymbol: symbol,
           streamSymbol: symbol,
-          percentChange: Number.isFinite(Number(row?.changePercent))
-            ? Number(row?.changePercent)
-            : Number(row?.percentChange),
+          percentChange: parsedPercent,
+          change: parsedChange,
         };
         return acc;
       }, {});
@@ -224,15 +404,17 @@ const GlobalMarketsPage = () => {
     } finally {
       setLoadingByMarket((prev) => ({ ...prev, [marketId]: false }));
     }
-  }, [watchlists]);
+  }, [activeWatchlistSymbols, watchlists]);
 
   useEffect(() => {
+    fetchQuotesForMarket(WATCHLIST_COLUMN.id);
     MARKETS.forEach((market) => {
       fetchQuotesForMarket(market.id);
     });
 
     // Refresh every 5 minutes instead of 10 seconds to avoid distracting updates
     const timer = setInterval(() => {
+      fetchQuotesForMarket(WATCHLIST_COLUMN.id);
       MARKETS.forEach((market) => {
         fetchQuotesForMarket(market.id);
       });
@@ -266,9 +448,31 @@ const GlobalMarketsPage = () => {
       },
     }));
 
+    if (marketId === 'crypto') {
+      const normalizedQuery = trimmedQuery.toUpperCase();
+      const normalizedQueryKey = normalizedQuery.replace(/[^A-Z0-9]/g, '');
+      const filtered = CRYPTO_SEARCH_UNIVERSE.filter((item) => {
+        const symbol = String(item.symbol || '').toUpperCase();
+        const symbolKey = symbol.replace(/[^A-Z0-9]/g, '');
+        const name = String(item.instrumentName || '').toUpperCase();
+        return symbol.includes(normalizedQuery) || symbolKey.includes(normalizedQueryKey) || name.includes(normalizedQuery);
+      });
+      setSearchUiByMarket((prev) => ({
+        ...prev,
+        [marketId]: {
+          ...prev[marketId],
+          loading: false,
+          error: null,
+          results: filtered.slice(0, 60),
+        },
+      }));
+      return;
+    }
+
     try {
+      const searchMarket = marketId === WATCHLIST_COLUMN.id ? 'nyse' : marketId;
       const params = new URLSearchParams({
-        market: marketId,
+        market: searchMarket,
         q: trimmedQuery,
         limit: '250',
       });
@@ -276,7 +480,7 @@ const GlobalMarketsPage = () => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload?.error || `Failed to search ${marketId.toUpperCase()} tickers`);
+        throw new Error(payload?.error || `Failed to search ${(searchMarket || marketId).toUpperCase()} tickers`);
       }
 
       setSearchUiByMarket((prev) => ({
@@ -303,12 +507,12 @@ const GlobalMarketsPage = () => {
 
   useEffect(() => {
     const timeouts = [];
-    MARKETS.forEach((market) => {
-      const marketUi = searchUiByMarket[market.id];
+    COLUMN_IDS.forEach((marketId) => {
+      const marketUi = searchUiByMarket[marketId];
       if (!marketUi?.open) return;
 
       const timer = setTimeout(() => {
-        searchSymbols(market.id, marketUi.query);
+        searchSymbols(marketId, marketUi.query);
       }, 220);
       timeouts.push(timer);
     });
@@ -338,9 +542,26 @@ const GlobalMarketsPage = () => {
     }));
   };
 
-  const addSymbol = (marketId, symbol) => {
+  const addSymbol = (marketId, symbol, name = '') => {
     const normalized = normalizeSymbol(symbol);
     if (!normalized) return;
+    if (marketId === WATCHLIST_COLUMN.id) {
+      if (activeWatchlistTabId === 'main') {
+        onAddToWatchlist?.({ symbol: normalized, name: String(name || normalized) });
+      } else {
+        setCustomWatchlists((previous) =>
+          previous.map((entry) => {
+            if (entry.id !== activeWatchlistTabId) return entry;
+            if (entry.symbols.includes(normalized)) return entry;
+            return {
+              ...entry,
+              symbols: [...entry.symbols, normalized],
+            };
+          })
+        );
+      }
+      return;
+    }
     setWatchlists((prev) => {
       const current = prev[marketId] || [];
       if (current.includes(normalized)) return prev;
@@ -354,6 +575,22 @@ const GlobalMarketsPage = () => {
   const removeSymbol = (marketId, symbol) => {
     const normalized = normalizeSymbol(symbol);
     if (!normalized) return;
+    if (marketId === WATCHLIST_COLUMN.id) {
+      if (activeWatchlistTabId === 'main') {
+        onRemoveFromWatchlist?.(normalized);
+      } else {
+        setCustomWatchlists((previous) =>
+          previous.map((entry) => {
+            if (entry.id !== activeWatchlistTabId) return entry;
+            return {
+              ...entry,
+              symbols: entry.symbols.filter((item) => item !== normalized),
+            };
+          })
+        );
+      }
+      return;
+    }
     setWatchlists((prev) => {
       const current = prev[marketId] || [];
       if (current.length <= 1) return prev;
@@ -364,97 +601,195 @@ const GlobalMarketsPage = () => {
     });
   };
 
-  const marketStatuses = useMemo(
-    () =>
-      MARKETS.map((market) => {
-        const hasData = Object.values(quotesByMarket[market.id] || {}).some((item) =>
-          Number.isFinite(Number(item?.price))
-        );
-        return {
-          id: market.id,
-          title: market.title,
-          connected: hasData && !loadingByMarket[market.id] && !errorByMarket[market.id],
-        };
-      }),
-    [quotesByMarket, loadingByMarket, errorByMarket]
-  );
+  const createWatchlistTab = useCallback(() => {
+    const nextName = sanitizeWatchlistName(newWatchlistName);
+    if (!nextName) return;
+
+    const duplicateCount = customWatchlists.filter(
+      (entry) => entry.name.toLowerCase() === nextName.toLowerCase()
+    ).length;
+    const finalName = duplicateCount > 0 ? `${nextName} ${duplicateCount + 1}` : nextName;
+    const id = makeWatchlistId(finalName);
+
+    setCustomWatchlists((previous) => [
+      ...previous,
+      { id, name: finalName, symbols: [] },
+    ]);
+    setActiveWatchlistTabId(id);
+    setNewWatchlistName('');
+    setCreatingWatchlist(false);
+  }, [customWatchlists, newWatchlistName]);
+
+  const visibleMarkets = useMemo(() => {
+    const allMarkets = [WATCHLIST_COLUMN, ...MARKETS];
+    if (!expandedMarketId) return allMarkets;
+    return allMarkets.filter((market) => market.id === expandedMarketId);
+  }, [expandedMarketId]);
 
   return (
     <motion.div {...PAGE_TRANSITION} className="relative flex h-full flex-1 flex-col overflow-hidden bg-transparent p-3">
-      <motion.div {...sectionMotion(0)} className="mb-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-white">Global Markets</h1>
-          <p className="text-xs text-gray-400">Twelve Data real-time market board</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          {MARKETS.map((market) => {
-            const status = marketStatuses.find(s => s.id === market.id);
-            const connected = status?.connected || false;
-            return (
-              <span key={market.id} className={`inline-flex items-center gap-1 ${connected ? 'text-emerald-400' : 'text-yellow-400'}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
-                {market.shortTitle}
-              </span>
-            );
-          })}
-        </div>
-      </motion.div>
-
-      <motion.div {...sectionMotion(1)} className="grid flex-1 min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
-        {MARKETS.map((market, marketIndex) => {
+      <motion.div
+        {...sectionMotion(0)}
+        className={`grid flex-1 min-h-0 gap-3 ${expandedMarketId ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5'}`}
+      >
+        {visibleMarkets.map((market, marketIndex) => {
           const marketQuotes = quotesByMarket[market.id] || {};
-          const symbols = watchlists[market.id] || market.defaultSymbols;
+          const symbols = market.id === WATCHLIST_COLUMN.id
+            ? activeWatchlistSymbols
+            : (watchlists[market.id] || market.defaultSymbols);
           const searchUi = searchUiByMarket[market.id];
           const loading = loadingByMarket[market.id];
           const error = errorByMarket[market.id];
           const updatedAt = updatedAtByMarket[market.id];
+          const isExpanded = expandedMarketId === market.id;
 
           return (
             <motion.div
               key={market.id}
               {...sectionMotion(marketIndex + 2)}
-              className="rounded-2xl border border-white/8 shadow-lg shadow-black/30 bg-black/45 p-3 backdrop-blur-sm min-h-0"
+              className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-[#1f1f1f] bg-[#0b0b0b]"
             >
-              <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center justify-between border-b border-[#1f1f1f] px-3 py-3">
                 <div className="flex items-center gap-2">
-                  <Globe className={`h-4.5 w-4.5 ${market.accent}`} strokeWidth={1.5} />
-                  <h3 className="text-white font-semibold">{market.title}</h3>
+                  <Globe className={`h-4 w-4 ${market.accent}`} strokeWidth={1.5} />
+                  <h3 className="text-sm font-semibold text-white">
+                    {market.id === WATCHLIST_COLUMN.id ? `${market.title} · ${activeWatchlistLabel}` : market.title}
+                  </h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  <motion.button
+                    type="button"
+                    onClick={() => setExpandedMarketId((previous) => (previous === market.id ? null : market.id))}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] p-1.5 text-white/75 hover:text-white"
+                    title={isExpanded ? 'Click to restore all columns' : 'Click to expand this column'}
+                    aria-label={isExpanded ? 'Restore all columns' : `Expand ${market.title}`}
+                  >
+                    {isExpanded
+                      ? <Minimize2 className="h-3.5 w-3.5" strokeWidth={1.6} />
+                      : <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.6} />}
+                  </motion.button>
                   <motion.button
                     type="button"
                     onClick={() => toggleSearch(market.id)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     transition={interactiveTransition}
-                    className="inline-flex items-center gap-1 rounded-xl border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-500/20"
+                    className="inline-flex items-center gap-1 rounded-lg border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-500/20"
                   >
                     <Plus className="h-3 w-3" strokeWidth={1.5} />
                     Add
                   </motion.button>
-                  {loading ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-yellow-400">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
-                      Syncing
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
-                      <Wifi className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      Live
-                    </span>
-                  )}
                 </div>
               </div>
 
+              {market.id === WATCHLIST_COLUMN.id && (
+                <div className="border-b border-[#1f1f1f] px-3 py-2">
+                  <div className="flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveWatchlistTabId('main')}
+                      className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-medium transition-colors ${
+                        activeWatchlistTabId === 'main'
+                          ? 'bg-blue-500/15 text-blue-300'
+                          : 'text-gray-400 hover:bg-white/[0.04] hover:text-white'
+                      }`}
+                    >
+                      Main
+                    </button>
+                    {customWatchlists.map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        onClick={() => setActiveWatchlistTabId(entry.id)}
+                        className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-medium transition-colors ${
+                          activeWatchlistTabId === entry.id
+                            ? 'bg-blue-500/15 text-blue-300'
+                            : 'text-gray-400 hover:bg-white/[0.04] hover:text-white'
+                        }`}
+                      >
+                        {entry.name}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setCreatingWatchlist((previous) => !previous)}
+                      className="shrink-0 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/20"
+                    >
+                      + New
+                    </button>
+                  </div>
+                  {creatingWatchlist && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        value={newWatchlistName}
+                        onChange={(event) => setNewWatchlistName(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            createWatchlistTab();
+                          } else if (event.key === 'Escape') {
+                            event.preventDefault();
+                            setCreatingWatchlist(false);
+                            setNewWatchlistName('');
+                          }
+                        }}
+                        placeholder="Name new watchlist"
+                        className="h-8 w-full rounded-lg border border-white/10 bg-black/30 px-2 text-xs text-white outline-none focus:border-emerald-500/60"
+                      />
+                      <button
+                        type="button"
+                        onClick={createWatchlistTab}
+                        className="shrink-0 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/20"
+                      >
+                        Create
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {searchUi?.open && (
-                <div className="mb-2 rounded-lg border border-blue-500/30 bg-[#060d18]/90 p-2">
-                  <div className="mb-2 flex items-center gap-2 rounded border border-white/10 bg-white/[0.02] px-2 py-1.5">
+                <div className="border-b border-[#1f1f1f] px-3 py-3">
+                  <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2">
                     <Search className="h-3.5 w-3.5 text-gray-400" strokeWidth={1.5} />
                     <input
                       value={searchUi.query}
                       onChange={(event) => setSearchQuery(market.id, event.target.value)}
-                      placeholder={`Search ${market.title} ticker...`}
-                      className="w-full bg-transparent text-xs text-white outline-none placeholder:text-gray-500"
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          const firstResult = searchUi.results?.[0];
+                          const symbol = normalizeSymbol(firstResult?.symbol);
+                          if (!symbol) return;
+                          addSymbol(market.id, symbol, firstResult?.instrumentName || firstResult?.name || symbol);
+                          setSearchUiByMarket((previous) => ({
+                            ...previous,
+                            [market.id]: {
+                              ...previous[market.id],
+                              query: '',
+                              results: [],
+                              open: false,
+                            },
+                          }));
+                        }
+                        if (event.key === 'Escape') {
+                          event.preventDefault();
+                          setSearchUiByMarket((previous) => ({
+                            ...previous,
+                            [market.id]: {
+                              ...previous[market.id],
+                              query: '',
+                              results: [],
+                              open: false,
+                            },
+                          }));
+                        }
+                      }}
+                      placeholder={market.id === WATCHLIST_COLUMN.id ? 'Search ticker for watchlist...' : `Search ${market.title} ticker...`}
+                      className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-500"
                     />
                   </div>
 
@@ -464,7 +799,7 @@ const GlobalMarketsPage = () => {
                     </div>
                   )}
 
-                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'none' }}>
+                  <div className="max-h-44 space-y-1 overflow-y-auto rounded-xl border border-white/8 bg-[#060d18]/95 p-1" style={{ scrollbarWidth: 'none' }}>
                     {searchUi.loading ? (
                       <div className="flex items-center gap-2 rounded border border-white/10 bg-white/[0.02] px-2 py-1.5 text-[11px] text-gray-300">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" strokeWidth={1.5} />
@@ -479,20 +814,34 @@ const GlobalMarketsPage = () => {
                           <motion.button
                             key={`${market.id}-${symbol}-${item?.instrumentName || ''}`}
                             type="button"
-                            onClick={() => addSymbol(market.id, symbol)}
+                            onClick={() => {
+                              addSymbol(market.id, symbol, item?.instrumentName || item?.name || symbol);
+                              setSearchUiByMarket((previous) => ({
+                                ...previous,
+                                [market.id]: {
+                                  ...previous[market.id],
+                                  query: '',
+                                  results: [],
+                                  open: false,
+                                },
+                              }));
+                            }}
                             disabled={alreadyAdded}
                             {...listItemMotion(index)}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
-                            className={`w-full rounded border px-2 py-1.5 text-left text-xs transition-colors ${
+                            className={`flex w-full items-center justify-between gap-2 rounded border px-2 py-1.5 text-left text-xs transition-colors ${
                               alreadyAdded
                                 ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
-                                : 'border-white/10 bg-white/[0.02] text-white/85 hover:border-blue-500/35 hover:bg-blue-500/10'
+                                : 'border-white/10 bg-white/[0.02] text-white/85 hover:bg-blue-500/10'
                             }`}
                           >
-                            <span className="font-semibold">${symbol}</span>
-                            <span className="ml-2 text-white/55">{item?.instrumentName || item?.name || symbol}</span>
+                            <span className="min-w-0">
+                              <span className="font-semibold">${symbol}</span>
+                              <span className="ml-2 truncate text-white/55">{item?.instrumentName || item?.name || symbol}</span>
+                            </span>
+                            <Plus className="h-3.5 w-3.5 shrink-0 text-blue-300" strokeWidth={1.7} />
                           </motion.button>
                         );
                       })
@@ -506,26 +855,65 @@ const GlobalMarketsPage = () => {
               )}
 
               {error && (
-                <div className="mb-2 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300">
+                <div className="mx-3 mt-2 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300">
                   {error}
                 </div>
               )}
 
-              <div className="space-y-2">
+              <div className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                {symbols.length === 0 && (
+                  <div className="px-3 py-4 text-xs text-gray-500">
+                    No tickers yet. Use Add to include symbols.
+                  </div>
+                )}
+                {isExpanded && symbols.length > 0 && (
+                  <div className="grid grid-cols-[minmax(180px,1.5fr)_minmax(90px,0.9fr)_minmax(90px,0.9fr)_minmax(90px,0.9fr)_minmax(90px,0.9fr)_34px] items-center gap-2 border-b border-[#1f1f1f] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500">
+                    <span>Symbol</span>
+                    <span className="text-right">Last</span>
+                    <span className="text-right">Change</span>
+                    <span className="text-right">Chg %</span>
+                    <span className="text-right">Volume</span>
+                    <span />
+                  </div>
+                )}
                 {symbols.map((symbol, index) => {
                   const quote = marketQuotes[symbol] || {};
                   const positive = Number(quote?.percentChange) >= 0;
+                  const changeValue = Number.isFinite(Number(quote?.change)) ? Number(quote?.change) : null;
+                  const percentValue = Number.isFinite(Number(quote?.percentChange))
+                    ? Number(quote?.percentChange)
+                    : null;
+                  const volumeValue = quote?.volume ?? quote?.avg_volume ?? quote?.average_volume ?? quote?.averageVolume;
                   return (
                     <motion.div
                       key={`${market.id}-${symbol}`}
                       {...listItemMotion(index)}
-                      className="flex items-start justify-between rounded-xl border border-white/8 bg-white/[0.015] px-2.5 py-2 shadow-lg shadow-black/20"
+                      className={
+                        isExpanded
+                          ? 'grid grid-cols-[minmax(180px,1.5fr)_minmax(90px,0.9fr)_minmax(90px,0.9fr)_minmax(90px,0.9fr)_minmax(90px,0.9fr)_34px] items-center gap-2 border-b border-[#1f1f1f]/40 px-3 py-2 transition-colors hover:bg-white/[0.03] last:border-b-0'
+                          : 'flex items-center justify-between gap-1 border-b border-[#1f1f1f]/40 px-3 py-2 transition-colors hover:bg-white/[0.03] last:border-b-0'
+                      }
                     >
                       <div className="min-w-0 pr-2">
                         <div className="text-sm font-semibold text-white">${symbol}</div>
-                        <div className="truncate text-[11px] text-gray-500">{quote?.name || symbol}</div>
+                        <div className="truncate text-[11px] text-gray-500">
+                          {quote?.name || watchlistNameBySymbol[symbol] || symbol}
+                        </div>
                       </div>
-                      <div className="flex items-start gap-2">
+                      {isExpanded ? (
+                        <>
+                          <div className="text-right text-sm font-mono text-white">{formatPrice(quote?.price, market.currency)}</div>
+                          <div className={`text-right text-xs font-mono font-medium ${percentClass(changeValue)}`}>
+                            {formatSignedChange(changeValue, market.currency)}
+                          </div>
+                          <div className={`text-right text-xs font-medium ${percentClass(percentValue)}`}>
+                            {formatPercent(percentValue)}
+                          </div>
+                          <div className="text-right text-xs font-mono text-gray-300">
+                            {formatVolume(volumeValue)}
+                          </div>
+                        </>
+                      ) : (
                         <div className="min-w-[96px] text-right">
                           <div className="text-sm font-mono text-white">{formatPrice(quote?.price, market.currency)}</div>
                           <div className={`inline-flex items-center gap-1 text-xs font-medium ${percentClass(quote?.percentChange)}`}>
@@ -533,13 +921,15 @@ const GlobalMarketsPage = () => {
                             {formatPercent(quote?.percentChange)}
                           </div>
                         </div>
+                      )}
+                      <div className="flex items-center justify-end">
                         <motion.button
                           type="button"
                           onClick={() => removeSymbol(market.id, symbol)}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           transition={interactiveTransition}
-                          className="rounded p-1 text-gray-500 transition-colors hover:bg-white/10 hover:text-white"
+                          className="rounded p-1 text-gray-500 transition-colors hover:bg-red-500/15 hover:text-red-400"
                           title="Remove ticker"
                         >
                           <X className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -550,7 +940,7 @@ const GlobalMarketsPage = () => {
                 })}
               </div>
 
-              <div className="mt-2 text-[10px] text-gray-600">
+              <div className="border-t border-[#1f1f1f] px-3 py-2 text-[11px] text-gray-500">
                 {updatedAt
                   ? `Last update ${new Date(updatedAt).toLocaleTimeString()}`
                   : 'Waiting for market data...'}
@@ -561,7 +951,7 @@ const GlobalMarketsPage = () => {
       </motion.div>
 
       <AnimatePresence initial={false}>
-        {MARKETS.some((market) => Boolean(errorByMarket[market.id])) && (
+        {COLUMN_IDS.some((marketId) => Boolean(errorByMarket[marketId])) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
