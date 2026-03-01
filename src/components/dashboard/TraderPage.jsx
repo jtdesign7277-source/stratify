@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Plus, Search, X } from 'lucide-react';
+import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Pin, Plus, Search, Trash2 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -148,6 +148,7 @@ const DRAG_PREVIEW_SCALE_BY_DISTANCE = [
   { distance: 50, scale: 0.5 },
   { distance: 0, scale: 0.4 },
 ];
+const TICKER_DRAG_STATE_EVENT = 'stratify:ticker-drag-state';
 
 const interpolate = (value, inputStart, inputEnd, outputStart, outputEnd) => {
   if (inputStart === inputEnd) return outputEnd;
@@ -190,7 +191,13 @@ const getPinnedPillsDropZoneBounds = () => {
   }, null);
 };
 
-const getPinnedTickerDropSlot = (centerX, centerY) => {
+const getPointDistanceToRect = (x, y, rect) => {
+  const dx = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0;
+  const dy = y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0;
+  return Math.hypot(dx, dy);
+};
+
+const getPinnedTickerDropTarget = (centerX, centerY, maxDistance = 130) => {
   if (typeof document === 'undefined') return null;
   if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return null;
 
@@ -210,21 +217,21 @@ const getPinnedTickerDropSlot = (centerX, centerY) => {
     && centerY >= rect.top
     && centerY <= rect.bottom
   ));
-  if (directMatch) return directMatch.slot;
+  if (directMatch) return { slot: directMatch.slot, distance: 0 };
 
   const closest = tickerSlots.reduce((best, current) => {
-    const currentCenterX = current.rect.left + (current.rect.width / 2);
-    const currentDistance = Math.abs(centerX - currentCenterX);
+    const currentDistance = getPointDistanceToRect(centerX, centerY, current.rect);
     if (!best || currentDistance < best.distance) {
       return { slot: current.slot, distance: currentDistance };
     }
     return best;
   }, null);
 
-  return closest?.slot ?? null;
+  if (!closest || !Number.isFinite(closest.distance) || closest.distance > maxDistance) return null;
+  return closest;
 };
 
-const getDraggedTickerCenterY = (draggableId) => {
+const getDraggedTickerCenter = (draggableId) => {
   if (typeof document === 'undefined' || !draggableId) return null;
 
   const draggableElements = Array.from(document.querySelectorAll('[data-rbd-draggable-id]')).filter(
@@ -236,8 +243,13 @@ const getDraggedTickerCenterY = (draggableId) => {
     draggableElements.find((element) => element.style?.position === 'fixed') ||
     draggableElements[draggableElements.length - 1];
   const rect = draggingElement.getBoundingClientRect();
-  if (!Number.isFinite(rect.top) || !Number.isFinite(rect.height)) return null;
-  return rect.top + rect.height / 2;
+  if (!Number.isFinite(rect.top) || !Number.isFinite(rect.height) || !Number.isFinite(rect.left) || !Number.isFinite(rect.width)) {
+    return null;
+  }
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
 };
 
 const saveChartViewport = (symbol, timeframeId, visibleRange) => {
@@ -266,6 +278,7 @@ const normalizeSymbol = (value) =>
     .replace(/\s+/g, '')
     .split(':')
     .pop();
+
 
 const MARKET_NAME_BY_SYMBOL = MARKET_SYMBOLS.reduce((accumulator, entry) => {
   const normalized = normalizeSymbol(entry?.symbol);
@@ -1471,6 +1484,7 @@ export default function TraderPage({
   const chartTimeframeRef = useRef(chartTimeframe);
   const chartRequestIdRef = useRef(0);
   const dragPositionYRef = useRef(null);
+  const dragPositionXRef = useRef(null);
   const chartAndNewsContainerRef = useRef(null);
   const newsPanelResizeStartYRef = useRef(0);
   const newsPanelResizeStartHeightRef = useRef(NEWS_PANEL_DEFAULT_HEIGHT);
@@ -3012,18 +3026,39 @@ export default function TraderPage({
     });
   }, []);
 
+  const pinSymbolToTopPills = useCallback((symbolToPin) => {
+    const normalized = normalizeSymbol(symbolToPin);
+    if (!normalized || typeof onPinToTop !== 'function') return;
+    onPinToTop(normalized);
+  }, [onPinToTop]);
+
+  const emitTickerDragState = useCallback((detail = {}) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.dispatchEvent(new CustomEvent(TICKER_DRAG_STATE_EVENT, { detail }));
+    } catch {}
+  }, []);
+
   const resetDragPreview = useCallback(() => {
+    dragPositionXRef.current = null;
     dragPositionYRef.current = null;
     setActiveDragTicker('');
     setDragPreviewScale(1);
     setDragOverIndex(null);
-  }, []);
+    emitTickerDragState({ active: false, symbol: '', slot: null });
+  }, [emitTickerDragState]);
 
   const updateDragPreviewScale = useCallback((draggableId) => {
-    const dragCenterY = getDraggedTickerCenterY(draggableId);
-    if (!Number.isFinite(dragCenterY)) return;
+    const dragCenter = getDraggedTickerCenter(draggableId);
+    const dragCenterY = Number(dragCenter?.y);
+    const dragCenterX = Number(dragCenter?.x);
+    if (!Number.isFinite(dragCenterY)) {
+      emitTickerDragState({ active: true, symbol: draggableId, slot: null });
+      return;
+    }
 
     dragPositionYRef.current = dragCenterY;
+    dragPositionXRef.current = Number.isFinite(dragCenterX) ? dragCenterX : null;
 
     const dropZoneBounds = getPinnedPillsDropZoneBounds();
     if (!dropZoneBounds) {
@@ -3040,7 +3075,15 @@ export default function TraderPage({
 
     const nextScale = getDragPreviewScaleByDistance(distanceToDropZone);
     setDragPreviewScale((previous) => (Math.abs(previous - nextScale) < 0.01 ? previous : nextScale));
-  }, []);
+    const dropTarget = getPinnedTickerDropTarget(dragCenterX, dragCenterY, 120);
+    emitTickerDragState({
+      active: true,
+      symbol: draggableId,
+      slot: dropTarget?.slot ?? null,
+      x: Number.isFinite(dragCenterX) ? dragCenterX : null,
+      y: Number.isFinite(dragCenterY) ? dragCenterY : null,
+    });
+  }, [emitTickerDragState]);
 
   const handleDragStart = useCallback((start) => {
     const draggableId = String(start?.draggableId || '').trim();
@@ -3049,7 +3092,9 @@ export default function TraderPage({
     setActiveDragTicker(draggableId);
     setDragPreviewScale(1);
     setDragOverIndex(null);
+    dragPositionXRef.current = null;
     dragPositionYRef.current = null;
+    emitTickerDragState({ active: true, symbol: draggableId, slot: null });
 
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
       window.requestAnimationFrame(() => {
@@ -3059,7 +3104,7 @@ export default function TraderPage({
     }
 
     updateDragPreviewScale(draggableId);
-  }, [updateDragPreviewScale]);
+  }, [emitTickerDragState, updateDragPreviewScale]);
 
   const handleDragUpdate = useCallback((update) => {
     const draggableId = String(update?.draggableId || '').trim();
@@ -3084,32 +3129,44 @@ export default function TraderPage({
   }, [activeDragTicker, dragPreviewScale]);
 
   const handleDragEnd = useCallback((result) => {
-    resetDragPreview();
+    const draggedSymbol = String(result?.draggableId || '').trim();
+    const lastDragCenterY = Number(dragPositionYRef.current);
+    const lastDragCenterX = Number(dragPositionXRef.current);
+
     // Check if dragged to pinned pills zone at top
     if (!result.destination) {
-      const draggedSymbol = result.draggableId;
-      const draggedElement = document.querySelector(`[data-rbd-draggable-id="${draggedSymbol}"]`);
-      if (draggedElement) {
-        const rect = draggedElement.getBoundingClientRect();
-        const centerY = rect.top + rect.height / 2;
-        const centerX = rect.left + rect.width / 2;
-        const pillZone = getPinnedPillsDropZoneBounds();
+      let centerY = Number.isFinite(lastDragCenterY) ? lastDragCenterY : null;
+      let centerX = Number.isFinite(lastDragCenterX) ? lastDragCenterX : null;
 
-        if (pillZone && centerY >= pillZone.top && centerY <= pillZone.bottom) {
-          // Dropped in pill zone: map horizontal position to one of the 4 ticker slots.
-          const dropSlot = getPinnedTickerDropSlot(centerX, centerY);
-          if (typeof onPinToTop === 'function') {
-            onPinToTop(draggedSymbol, dropSlot);
-          }
-          return;
+      if ((!Number.isFinite(centerY) || !Number.isFinite(centerX)) && draggedSymbol) {
+        const draggedElement = document.querySelector(`[data-rbd-draggable-id="${draggedSymbol}"]`);
+        if (draggedElement) {
+          const rect = draggedElement.getBoundingClientRect();
+          centerY = Number.isFinite(rect.top) && Number.isFinite(rect.height) ? rect.top + rect.height / 2 : centerY;
+          centerX = Number.isFinite(rect.left) && Number.isFinite(rect.width) ? rect.left + rect.width / 2 : centerX;
         }
       }
+
+      const dropTarget = getPinnedTickerDropTarget(centerX, centerY, 120);
+      if (dropTarget?.slot && draggedSymbol) {
+        // Dropped near mini-pill zone: map to one of slots 2-5.
+        const dropSlot = dropTarget.slot;
+        if (typeof onPinToTop === 'function') {
+          onPinToTop(draggedSymbol, dropSlot);
+        }
+        resetDragPreview();
+        return;
+      }
+      resetDragPreview();
       return;
     }
 
     const sourceIndex = result.source.index;
     const destIndex = result.destination.index;
-    if (sourceIndex === destIndex) return;
+    if (sourceIndex === destIndex) {
+      resetDragPreview();
+      return;
+    }
 
     setWatchlist((previous) => {
       const reordered = Array.from(previous);
@@ -3123,7 +3180,12 @@ export default function TraderPage({
       }
       return reordered;
     });
+    resetDragPreview();
   }, [onPinToTop, resetDragPreview]);
+
+  useEffect(() => () => {
+    emitTickerDragState({ active: false, symbol: '', slot: null });
+  }, [emitTickerDragState]);
 
   const streamLabel = streamStatus.connected
     ? 'Connected'
@@ -3141,33 +3203,35 @@ export default function TraderPage({
 
   return (
     <motion.div {...PAGE_TRANSITION} className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
-      <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
-        <div>
-          <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
-          <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
-        </div>
-        <div className="text-right">
-          <div className="flex items-center justify-end gap-1">
-            <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
-              {formatPrice(selectedQuote?.price)}
-            </div>
-            {selectedPriceLoading && (
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
-            )}
+      <div className="flex h-[68px] shrink-0 items-center justify-end border-b border-[#1f1f1f] px-4 py-3">
+        <div className="ml-auto flex items-center gap-4">
+          <div className="text-right">
+            <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
+            <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
           </div>
-          <div
-            className={`flex items-center justify-end gap-1 text-xs font-medium tabular-nums ${
-              Number.isFinite(Number(selectedQuote?.changePercent))
-                ? Number(selectedQuote?.changePercent) >= 0
-                  ? 'text-emerald-400'
-                  : 'text-red-400'
-                : 'text-[#6b7280]'
-            }`}
-          >
-            <span>{formatSignedPercent(selectedQuote?.changePercent)}</span>
-            {selectedDayLoading && (
-              <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
-            )}
+          <div className="text-right">
+            <div className="flex items-center justify-end gap-1">
+              <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
+                {formatPrice(selectedQuote?.price)}
+              </div>
+              {selectedPriceLoading && (
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
+              )}
+            </div>
+            <div
+              className={`flex items-center justify-end gap-1 text-xs font-medium tabular-nums ${
+                Number.isFinite(Number(selectedQuote?.changePercent))
+                  ? Number(selectedQuote?.changePercent) >= 0
+                    ? 'text-emerald-400'
+                    : 'text-red-400'
+                  : 'text-[#6b7280]'
+              }`}
+            >
+              <span>{formatSignedPercent(selectedQuote?.changePercent)}</span>
+              {selectedDayLoading && (
+                <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -3181,35 +3245,21 @@ export default function TraderPage({
             isWatchlistCollapsed ? 'w-[60px]' : 'w-[300px]'
           } flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0b] transition-[width] duration-200 ease-in-out`}
         >
-          <div className={`h-[68px] border-b border-[#1f1f1f] py-3 ${isWatchlistCollapsed ? 'px-2' : 'px-4'}`}>
-            <div className={`flex h-full items-center ${isWatchlistCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
-              {!isWatchlistCollapsed && (
-                <div className="min-w-0">
-                  <h2 className="text-sm font-medium text-white">Watchlist</h2>
-                  <p className="mt-1 text-xs text-[#7c8087]">Search, add, and stream symbols in real time.</p>
-                </div>
-              )}
+          {isWatchlistCollapsed && (
+            <div className="flex h-10 shrink-0 items-center justify-center border-b border-[#1f1f1f] px-1">
               <motion.button
                 type="button"
-                onClick={() => setIsWatchlistCollapsed((previous) => !previous)}
+                onClick={() => setIsWatchlistCollapsed(false)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 transition={interactiveTransition}
-                className={`inline-flex h-8 w-8 shrink-0 items-center justify-center border transition-colors ${
-                  isWatchlistCollapsed
-                    ? 'border-transparent bg-transparent text-emerald-300 hover:text-emerald-200'
-                    : 'border-transparent bg-transparent text-emerald-300/70 hover:text-emerald-300'
-                }`}
-                aria-label={isWatchlistCollapsed ? 'Expand watchlist' : 'Collapse watchlist'}
+                className="inline-flex h-8 w-8 items-center justify-center border border-transparent bg-transparent text-emerald-300 hover:text-emerald-200"
+                aria-label="Expand watchlist"
               >
-                {isWatchlistCollapsed ? (
-                  <ChevronsRight className="h-4 w-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" strokeWidth={1.8} />
-                ) : (
-                  <ChevronsLeft className="h-4 w-4 text-emerald-300/70" strokeWidth={1.8} />
-                )}
+                <ChevronsRight className="h-4 w-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" strokeWidth={1.8} />
               </motion.button>
             </div>
-          </div>
+          )}
 
           {!isWatchlistCollapsed && (
             <>
@@ -3244,28 +3294,41 @@ export default function TraderPage({
 
                 {watchlistView === 'watchlist' ? (
                   <>
-                    <div className="mb-3 flex items-center justify-center gap-1">
-                      {MARKET_FILTERS.map((market, index) => (
-                        <div key={market.id} className="flex items-center gap-1">
-                          <motion.button
-                            type="button"
-                            onClick={() => setActiveMarket(market.id)}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            transition={interactiveTransition}
-                            className={`text-[11px] font-medium whitespace-nowrap transition-colors ${
-                              activeMarket === market.id
-                                ? 'text-emerald-300'
-                                : 'text-[#d1d5db] hover:text-white'
-                            }`}
-                          >
-                            {market.label}
-                          </motion.button>
-                          {index < MARKET_FILTERS.length - 1 && (
-                            <span className="text-white/50 px-2">|</span>
-                          )}
-                        </div>
-                      ))}
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+                        {MARKET_FILTERS.map((market, index) => (
+                          <div key={market.id} className="flex items-center gap-1">
+                            <motion.button
+                              type="button"
+                              onClick={() => setActiveMarket(market.id)}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              transition={interactiveTransition}
+                              className={`text-[11px] font-medium whitespace-nowrap transition-colors ${
+                                activeMarket === market.id
+                                  ? 'text-emerald-300'
+                                  : 'text-[#d1d5db] hover:text-white'
+                              }`}
+                            >
+                              {market.label}
+                            </motion.button>
+                            {index < MARKET_FILTERS.length - 1 && (
+                              <span className="text-white/50 px-2">|</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <motion.button
+                        type="button"
+                        onClick={() => setIsWatchlistCollapsed(true)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center border border-transparent bg-transparent text-emerald-300/70 hover:text-emerald-300"
+                        aria-label="Collapse watchlist"
+                      >
+                        <ChevronsLeft className="h-4 w-4" strokeWidth={1.8} />
+                      </motion.button>
                     </div>
                     <div ref={searchContainerRef} className="relative">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]" strokeWidth={1.5} />
@@ -3333,8 +3396,23 @@ export default function TraderPage({
                     </div>
                   </>
                 ) : (
-                  <div className="rounded border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-2 text-[11px] text-emerald-300">
-                    Double-click any holding below to load it in Order Entry and open the ticket.
+                  <div>
+                    <div className="mb-2 flex justify-end">
+                      <motion.button
+                        type="button"
+                        onClick={() => setIsWatchlistCollapsed(true)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
+                        className="inline-flex h-7 w-7 items-center justify-center border border-transparent bg-transparent text-emerald-300/70 hover:text-emerald-300"
+                        aria-label="Collapse watchlist"
+                      >
+                        <ChevronsLeft className="h-4 w-4" strokeWidth={1.8} />
+                      </motion.button>
+                    </div>
+                    <div className="rounded border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-2 text-[11px] text-emerald-300">
+                      Double-click any holding below to load it in Order Entry and open the ticket.
+                    </div>
                   </div>
                 )}
               </form>
@@ -3449,7 +3527,7 @@ export default function TraderPage({
                                       } ${
                                         isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
                                       }`}
-                                      style={provided.draggableProps.style}
+                                      style={getDragPreviewStyle(provided.draggableProps.style, snapshot.isDragging, symbol)}
                                       onClick={() => setSelectedSymbol(symbol)}
                                     >
                                       <div
@@ -3524,23 +3602,46 @@ export default function TraderPage({
                                         />
                                       </div>
 
-                                      <motion.button
-                                        type="button"
-                                        aria-label={`Remove ${symbol} from watchlist`}
-                                        className="pointer-events-none ml-1 inline-flex h-8 w-8 items-center justify-center text-gray-400 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 hover:text-red-400"
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        transition={interactiveTransition}
-                                        onPointerDown={(event) => {
-                                          event.stopPropagation();
-                                        }}
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          removeSymbolFromWatchlist(symbol);
-                                        }}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </motion.button>
+                                      <div className="pointer-events-none ml-1 inline-flex items-center opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
+                                        <motion.button
+                                          type="button"
+                                          aria-label={`Pin ${symbol} to top mini pill`}
+                                          title="Double-click to pin in top mini pills"
+                                          className="inline-flex h-8 w-8 items-center justify-center text-emerald-300/45 transition-colors hover:text-emerald-300"
+                                          whileHover={{ scale: 1.02 }}
+                                          whileTap={{ scale: 0.98 }}
+                                          transition={interactiveTransition}
+                                          onPointerDown={(event) => {
+                                            event.stopPropagation();
+                                          }}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                          }}
+                                          onDoubleClick={(event) => {
+                                            event.stopPropagation();
+                                            pinSymbolToTopPills(symbol);
+                                          }}
+                                        >
+                                          <Pin className="h-4 w-4" />
+                                        </motion.button>
+                                        <motion.button
+                                          type="button"
+                                          aria-label={`Remove ${symbol} from watchlist`}
+                                          className="inline-flex h-8 w-8 items-center justify-center text-gray-400 transition-colors hover:text-red-400"
+                                          whileHover={{ scale: 1.02 }}
+                                          whileTap={{ scale: 0.98 }}
+                                          transition={interactiveTransition}
+                                          onPointerDown={(event) => {
+                                            event.stopPropagation();
+                                          }}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            removeSymbolFromWatchlist(symbol);
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </motion.button>
+                                      </div>
                                     </div>
                                   )}
                                 </Draggable>

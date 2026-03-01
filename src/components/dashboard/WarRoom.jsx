@@ -271,8 +271,8 @@ const tokenClassName = (token) => {
   if (/^\$[A-Z]{1,5}$/.test(token)) return 'text-emerald-400 font-semibold';
   if (/^\+[\$]?\d/.test(token)) return 'text-emerald-400 font-semibold';
   if (/^-[$]?\d/.test(token)) return 'text-red-400 font-semibold';
-  if (/\d/.test(token)) return 'text-blue-400';
-  return 'text-gray-300';
+  if (/\d/.test(token)) return 'text-slate-200';
+  return 'text-zinc-300';
 };
 
 const renderInlineText = (text, keyPrefix) => {
@@ -280,11 +280,11 @@ const renderInlineText = (text, keyPrefix) => {
   if (!source) return null;
 
   const parts = source.split(INLINE_TOKEN_REGEX).filter((part) => part !== '');
-  if (!parts.length) return <span className="text-gray-300">{source}</span>;
+  if (!parts.length) return <span className="text-zinc-300">{source}</span>;
 
   return parts.map((part, index) => {
     const isToken = /^\$[A-Z]{1,5}$/.test(part) || /^[-+]?[$]?\d/.test(part);
-    const className = isToken ? tokenClassName(part) : 'text-gray-300';
+    const className = isToken ? tokenClassName(part) : 'text-zinc-300';
     return (
       <span key={`${keyPrefix}-${index}`} className={className}>
         {part}
@@ -295,12 +295,12 @@ const renderInlineText = (text, keyPrefix) => {
 
 const renderLine = (line, index, keyPrefix) => {
   const trimmed = line.trim();
-  if (!trimmed) return <div key={`${keyPrefix}-space-${index}`} className="h-3" />;
+  if (!trimmed) return <div key={`${keyPrefix}-space-${index}`} className="h-2.5" />;
 
   if (/^#{1,2}\s+/.test(trimmed)) {
     const heading = trimmed.replace(/^#{1,2}\s+/, '');
     return (
-      <h3 key={`${keyPrefix}-heading-${index}`} className="text-white font-bold text-lg leading-relaxed mt-3 mb-1">
+      <h3 key={`${keyPrefix}-heading-${index}`} className="text-white font-bold text-xl tracking-tight leading-snug mt-4 mb-1.5">
         {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
       </h3>
     );
@@ -309,7 +309,7 @@ const renderLine = (line, index, keyPrefix) => {
   if (/^#{3,6}\s+/.test(trimmed)) {
     const heading = trimmed.replace(/^#{3,6}\s+/, '');
     return (
-      <h4 key={`${keyPrefix}-heading-${index}`} className="text-white font-semibold text-base leading-relaxed mt-2 mb-0.5">
+      <h4 key={`${keyPrefix}-heading-${index}`} className="text-emerald-300 font-semibold text-base leading-relaxed mt-3 mb-1">
         {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
       </h4>
     );
@@ -318,8 +318,8 @@ const renderLine = (line, index, keyPrefix) => {
   if (/^[-*•]\s+/.test(trimmed)) {
     const bulletText = trimmed.replace(/^[-*•]\s+/, '');
     return (
-      <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-2 text-[15px] text-gray-300 leading-relaxed">
-        <span className="text-gray-500 mt-0.5">•</span>
+      <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-2.5 text-[15px] text-zinc-200 leading-7">
+        <span className="text-emerald-400/70 mt-0.5">•</span>
         <span>{renderInlineText(bulletText, `${keyPrefix}-bullet-text-${index}`)}</span>
       </div>
     );
@@ -327,14 +327,14 @@ const renderLine = (line, index, keyPrefix) => {
 
   if (/^\d+\.\s+/.test(trimmed)) {
     return (
-      <div key={`${keyPrefix}-numbered-${index}`} className="text-[15px] text-gray-300 leading-relaxed">
+      <div key={`${keyPrefix}-numbered-${index}`} className="text-[15px] text-zinc-200 leading-7">
         {renderInlineText(trimmed, `${keyPrefix}-numbered-text-${index}`)}
       </div>
     );
   }
 
   return (
-    <p key={`${keyPrefix}-line-${index}`} className="text-[15px] text-gray-300 leading-relaxed">
+    <p key={`${keyPrefix}-line-${index}`} className="text-[15px] text-zinc-200 leading-7">
       {renderInlineText(trimmed, `${keyPrefix}-line-text-${index}`)}
     </p>
   );
@@ -965,17 +965,17 @@ export default function WarRoom({ onClose }) {
       const menuOpen = sectionSaveMenu === sectionKey;
       return (
         <div key={sectionKey}>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {section.lines.map((line, li) => renderLine(line, li, `${sectionKey}-l`))}
           </div>
           {/* Accent divider + save button */}
           <div className="relative flex items-center gap-2 my-3">
-            <div className="flex-1 h-px bg-[#58a6ff]/30" />
+            <div className="flex-1 h-px bg-emerald-500/20" />
             <div className="relative" data-section-save>
               <button
                 type="button"
                 onClick={() => setSectionSaveMenu(menuOpen ? null : sectionKey)}
-                className="text-[10px] uppercase tracking-wider text-[#58a6ff] hover:text-[#79b8ff] bg-[#58a6ff]/10 border border-[#58a6ff]/25 rounded px-2 py-0.5 transition-colors"
+                className="text-[10px] uppercase tracking-wider text-emerald-300 hover:text-emerald-200 bg-emerald-500/10 border border-emerald-500/25 rounded px-2 py-0.5 transition-colors"
               >
                 Save to Folder
               </button>
@@ -986,7 +986,7 @@ export default function WarRoom({ onClose }) {
                       key={f.id}
                       type="button"
                       onClick={() => handleSaveSection(section.raw, f.id)}
-                      className="w-full text-left rounded px-2 py-1.5 text-xs text-gray-300 hover:bg-[#58a6ff]/10 hover:text-white transition-colors"
+                      className="w-full text-left rounded px-2 py-1.5 text-xs text-gray-300 hover:bg-emerald-500/10 hover:text-white transition-colors"
                     >
                       {f.name}
                     </button>
@@ -994,7 +994,7 @@ export default function WarRoom({ onClose }) {
                 </div>
               )}
             </div>
-            <div className="flex-1 h-px bg-[#58a6ff]/30" />
+            <div className="flex-1 h-px bg-emerald-500/20" />
           </div>
         </div>
       );
@@ -1114,92 +1114,102 @@ export default function WarRoom({ onClose }) {
     <div className={`h-full w-full bg-transparent relative overflow-hidden ${isGlitching ? 'warroom-glitch' : ''}`}>
       <style>{warRoomStyles}</style>
 
-      <div className="relative z-10 h-full flex flex-col gap-2 px-5 py-3 overflow-hidden">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h1 className="text-white font-bold text-base tracking-[0.2em] uppercase">Deep Market Intelligence</h1>
-            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+      <div className="relative z-10 h-full flex flex-col gap-3 px-5 py-3 overflow-hidden">
+        <header className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-white font-bold text-base tracking-[0.2em] uppercase truncate">Deep Market Intelligence</h1>
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shrink-0" />
           </div>
 
-          {onClose ? (
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={onClose}
-              className="rounded-lg border border-gray-800 bg-black/40 px-2 py-1 text-gray-400 hover:text-white hover:border-gray-700 transition-colors"
-              aria-label="Close"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing || isLoading || transcriptLoading}
+              className="rounded-lg border border-[#1f1f1f] bg-black/40 px-3 py-1.5 text-xs text-[#7d8590] hover:text-emerald-300 hover:border-emerald-500/40 flex items-center gap-1.5 transition-colors disabled:opacity-45"
             >
-              <X className="h-4 w-4" strokeWidth={1.5} />
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </button>
-          ) : null}
+            {onClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-gray-800 bg-black/40 px-2 py-1 text-gray-400 hover:text-white hover:border-gray-700 transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" strokeWidth={1.5} />
+              </button>
+            ) : null}
+          </div>
         </header>
 
-        <div className="flex flex-wrap gap-1.5">
-          {QUICK_SCANS.map((scan) => (
-            <button
-              key={scan.label}
-              type="button"
-              onClick={() => {
-                setActiveView('live');
-                setActiveScanLabel(scan.label);
-                runScan(scan.query, scan.label);
-              }}
-              disabled={isLoading || isRefreshing}
-              className="bg-black/40 backdrop-blur border border-gray-800 hover:border-blue-500/50 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-blue-400 transition-all hover:shadow-[0_0_10px_rgba(59,130,246,0.15)] disabled:opacity-40"
-            >
-              {scan.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setActiveView('transcripts')}
-            className={`backdrop-blur rounded-lg px-3 py-1.5 text-sm transition-all ${
-              activeView === 'transcripts'
-                ? 'bg-blue-500/15 border border-blue-500/35 text-blue-300'
-                : 'bg-black/40 border border-gray-800 hover:border-blue-500/50 text-gray-400 hover:text-blue-400 hover:shadow-[0_0_10px_rgba(59,130,246,0.15)]'
-            }`}
-          >
-            Transcripts
-          </button>
-          <button
-            type="button"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing || isLoading || transcriptLoading}
-            className="text-xs text-[#7d8590] hover:text-[#58a6ff] flex items-center gap-1 transition-colors disabled:opacity-45"
-          >
-            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} strokeWidth={1.75} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-3 overflow-hidden">
+          <aside className="min-h-0 overflow-y-auto scrollbar-hide rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-2.5">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">War Room Tabs</p>
+            <div className="mt-2 space-y-1.5">
+              {[
+                { key: 'live', label: 'Live Feed' },
+                { key: 'transcripts', label: 'Transcripts' },
+                { key: 'saved', label: `Saved Intel (${allSavedCount})` },
+                { key: 'folders', label: 'Share & Connect' },
+              ].map((viewTab) => {
+                const isActive = activeView === viewTab.key;
+                return (
+                  <button
+                    key={viewTab.key}
+                    type="button"
+                    onClick={() => setActiveView(viewTab.key)}
+                    className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-emerald-500/12 border-emerald-500/35 text-emerald-300'
+                        : 'border-[#1f1f1f] text-gray-400 hover:text-white hover:border-[#2a3548]'
+                    }`}
+                  >
+                    {viewTab.key === 'folders' ? (
+                      <>
+                        <Folder className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        <span className="flex-1">{viewTab.label}</span>
+                        <XLogo className="h-3.5 w-3.5" />
+                      </>
+                    ) : (
+                      <span>{viewTab.label}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-        <div className="flex items-center gap-1.5">
-          {['live', 'folders'].map((view) => {
-            const isActive = activeView === view;
-            return (
-              <button
-                key={view}
-                type="button"
-                onClick={() => setActiveView(view)}
-                className={`rounded-lg px-2.5 py-1 text-xs transition-colors flex items-center gap-1.5 ${
-                  isActive
-                    ? 'bg-blue-500/15 border border-blue-500/35 text-blue-300'
-                    : 'border border-gray-800 text-gray-400 hover:text-white'
-                }`}
-              >
-                {view === 'live' && 'Live Feed'}
-                {view === 'saved' && 'Saved Intel'}
-                {view === 'folders' && (
-                  <>
-                    <Folder className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Share & Connect
-                    <XLogo className="h-3.5 w-3.5" />
-                  </>
-                )}
-              </button>
-            );
-          })}
-        </div>
+            <div className="mt-4 border-t border-[#1f1f1f] pt-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Quick Scans</p>
+              <div className="mt-2 space-y-1.5">
+                {QUICK_SCANS.map((scan) => {
+                  const isActiveScan = activeView === 'live' && activeScanLabel === scan.label;
+                  return (
+                    <button
+                      key={scan.label}
+                      type="button"
+                      onClick={() => {
+                        setActiveView('live');
+                        setActiveScanLabel(scan.label);
+                        runScan(scan.query, scan.label);
+                      }}
+                      disabled={isLoading || isRefreshing}
+                      className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-all ${
+                        isActiveScan
+                          ? 'bg-emerald-500/12 border-emerald-500/35 text-emerald-300'
+                          : 'bg-black/30 border-[#1f1f1f] text-gray-400 hover:text-emerald-200 hover:border-emerald-500/30'
+                      } disabled:opacity-40`}
+                    >
+                      {scan.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
 
-        <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="min-h-0 overflow-hidden rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
           {activeView === 'transcripts' ? (
             <div className="h-full flex flex-col gap-2">
               {/* Search bar + ticker buttons */}
@@ -2007,6 +2017,7 @@ export default function WarRoom({ onClose }) {
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {folderContextMenu ? (

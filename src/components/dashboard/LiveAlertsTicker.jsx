@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const REFRESH_MS = 5 * 60 * 1000;
 const STORED_HEADLINES_KEY = 'stratify-live-headline-tape-v2';
 const STORED_HEADLINES_MAX_AGE_MS = 1000 * 60 * 60 * 72;
-const MIN_SCROLL_DURATION_SECONDS = 80;
-const PER_ITEM_SCROLL_SECONDS = 6;
+const MIN_SCROLL_DURATION_SECONDS = 100;
+const TARGET_SCROLL_PIXELS_PER_SECOND = 18;
 
 const SOURCE_COLORS = [
   { match: /reuters/i, className: 'bg-amber-400' },
@@ -154,6 +154,8 @@ const LiveAlertsTicker = () => {
   const [items, setItems] = useState(() => readStoredHeadlines());
   const [isLoading, setIsLoading] = useState(true);
   const [badgeLabel, setBadgeLabel] = useState(() => (readStoredHeadlines().length > 0 ? 'LATEST' : 'BREAKING'));
+  const [scrollDurationSeconds, setScrollDurationSeconds] = useState(MIN_SCROLL_DURATION_SECONDS);
+  const contentRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -243,10 +245,35 @@ const LiveAlertsTicker = () => {
   }, [items, isLoading]);
 
   const allItems = baseItems.length > 0 ? [...baseItems, ...baseItems] : [];
-  const scrollDurationSeconds = useMemo(
-    () => Math.max(MIN_SCROLL_DURATION_SECONDS, Math.round(baseItems.length * PER_ITEM_SCROLL_SECONDS)),
-    [baseItems.length]
-  );
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return undefined;
+
+    const updateDuration = () => {
+      const totalWidth = content.scrollWidth;
+      if (!Number.isFinite(totalWidth) || totalWidth <= 0) return;
+      const oneCycleWidth = totalWidth / 2;
+      if (!Number.isFinite(oneCycleWidth) || oneCycleWidth <= 0) return;
+
+      const nextDuration = Math.max(
+        MIN_SCROLL_DURATION_SECONDS,
+        Math.round(oneCycleWidth / TARGET_SCROLL_PIXELS_PER_SECOND),
+      );
+      setScrollDurationSeconds((previous) => (previous === nextDuration ? previous : nextDuration));
+    };
+
+    const raf = window.requestAnimationFrame(updateDuration);
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateDuration)
+      : null;
+    resizeObserver?.observe(content);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      resizeObserver?.disconnect();
+    };
+  }, [allItems.length]);
 
   return (
     <div className="relative h-8 overflow-hidden bg-[#151518] border-b border-[#1f1f1f]">
@@ -285,7 +312,7 @@ const LiveAlertsTicker = () => {
 
       {/* Scrolling Content */}
       <div className="live-ticker-track pl-20">
-        <div className="live-ticker-content">
+        <div ref={contentRef} className="live-ticker-content">
           {allItems.map((item, idx) => {
             const dotClass = getDotClass(item.source);
 

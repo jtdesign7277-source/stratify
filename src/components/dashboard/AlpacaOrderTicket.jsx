@@ -167,6 +167,7 @@ export default function OrderTicketPanel({
     : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
   const accountBadgeSizeClass = isCompactCryptoSticky ? 'px-2 py-0.5 text-[9px]' : 'px-2.5 py-1 text-[10px]';
   const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
+  const sizeInputLabel = sizeMode === 'dollars' ? 'Dollars' : 'Quantity';
 
   return (
     <div
@@ -231,7 +232,7 @@ export default function OrderTicketPanel({
         {positionSummary}
 
         <div>
-          <label className={`${labelSpacingClass} block ${labelTextClass} font-semibold text-slate-200`}>Quantity</label>
+          <label className={`${labelSpacingClass} block ${labelTextClass} font-semibold text-slate-200`}>{sizeInputLabel}</label>
           <input
             type="number"
             step="any"

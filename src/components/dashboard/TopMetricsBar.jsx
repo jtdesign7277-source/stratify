@@ -292,6 +292,7 @@ const BrokerBadge = ({ broker }) => {
 };
 
 const DND_DEBUG_FLAG = '__STRATIFY_DEBUG_DND';
+const TICKER_DRAG_STATE_EVENT = 'stratify:ticker-drag-state';
 
 const logDndDebug = (...args) => {
   if (typeof window === 'undefined') return;
@@ -639,6 +640,27 @@ export default function TopMetricsBar({
     };
   }, [onGameDrop]);
 
+  useEffect(() => {
+    const handleTickerDragState = (event) => {
+      const detail = event?.detail || {};
+      const isActive = detail?.active === true;
+      if (!isActive) {
+        setActiveDropSlot(null);
+        setHasDropCandidate(false);
+        return;
+      }
+
+      const slot = Number(detail?.slot);
+      setHasDropCandidate(true);
+      setActiveDropSlot(Number.isInteger(slot) && slot >= 2 && slot <= 5 ? slot : null);
+    };
+
+    window.addEventListener(TICKER_DRAG_STATE_EVENT, handleTickerDragState);
+    return () => {
+      window.removeEventListener(TICKER_DRAG_STATE_EVENT, handleTickerDragState);
+    };
+  }, []);
+
   const worldClockData = useMemo(() => {
     const nowDate = new Date(clockNow);
 
@@ -671,10 +693,7 @@ export default function TopMetricsBar({
 
   return (
     <div className={`relative z-20 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
-      <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center justify-between bg-[#0a0f1a]/85">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-semibold">
-          Global Desk Clock
-        </div>
+      <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center justify-end bg-[#0a0f1a]/85">
         <div className="flex items-center gap-2">
           {worldClockData.map((clock) => (
             <div
@@ -716,12 +735,12 @@ export default function TopMetricsBar({
               key={slot}
               className={`relative z-10 pointer-events-auto h-8 rounded-full transition-all ${
                 miniPills[slot]
-                  ? ''
+                  ? 'border border-transparent'
                   : 'min-w-[80px] border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
               } ${
-                hasDropCandidate && !miniPills[slot] ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : ''
+                hasDropCandidate && activeDropSlot === slot && slot >= 2 ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : ''
               } ${
-                activeDropSlot === slot ? 'ring-2 ring-emerald-500/60 border-emerald-400/60 bg-emerald-500/10' : ''
+                activeDropSlot === slot && slot >= 2 ? 'ring-2 ring-emerald-500/60 border-emerald-400/60 bg-emerald-500/10' : ''
               }`}
               data-pill-slot={slot}
               onDragEnter={(e) => {
@@ -780,13 +799,23 @@ export default function TopMetricsBar({
                 clearGlobalDragPayload();
               }}
             >
-              {miniPills[slot] || (
-                <div className="w-full h-full flex items-center justify-center gap-1 text-white/20 pointer-events-none">
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {hasDropCandidate && activeDropSlot === slot && slot >= 2 && (
+                <div
+                  className={`pointer-events-none absolute -right-1 -top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full border ${
+                    activeDropSlot === slot
+                      ? 'border-emerald-300 bg-emerald-400 text-[#04120a] animate-pulse'
+                      : 'border-emerald-400/50 bg-emerald-500/20 text-emerald-300'
+                  }`}
+                >
+                  <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
                     <path d="M12 5v14M5 12h14" />
                   </svg>
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                </div>
+              )}
+              {miniPills[slot] || (
+                <div className="w-full h-full flex items-center justify-center text-white/25 pointer-events-none">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v14M5 12h14" />
                   </svg>
                 </div>
               )}

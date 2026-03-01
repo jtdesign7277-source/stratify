@@ -160,8 +160,9 @@ const TOPBAR_COLLAPSE_STORAGE_KEY = 'stratify-topbar-collapsed';
 const TOPBAR_COLLAPSED_HEIGHT = 56;
 const COMMUNITY_WATCHLIST_V3_STORAGE_KEY = 'stratify-community-watchlist-v3';
 const TOPBAR_TICKER_TAPE_CONTAINER_ID = 'dashboard-topbar-ticker-tape-widget';
-const TOPBAR_TICKER_TAPE_SCRIPT_SRC = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
 const TOPBAR_TICKER_TAPE_MAX_SYMBOLS = 24;
+const TOPBAR_TICKER_TAPE_MIN_SCROLL_SECONDS = 80;
+const TOPBAR_TICKER_TAPE_PER_ITEM_SECONDS = 6;
 const TOPBAR_ANIMATION = {
   duration: 0.3,
   ease: [0.4, 0, 0.2, 1],
@@ -433,48 +434,231 @@ const buildTopBarTickerTapeSymbols = () => {
   }
 };
 
-const TopBarTickerTapeWidget = ({ symbols }) => {
-  const containerRef = useRef(null);
-  const configJson = useMemo(() => JSON.stringify({
-    symbols,
-    showSymbolLogo: true,
-    isTransparent: true,
-    displayMode: 'adaptive',
-    colorTheme: 'dark',
-    locale: 'en',
-  }), [symbols]);
+const normalizeTopBarTapeTicker = (entry) => {
+  const rawProName = String(entry?.proName || '').trim().toUpperCase();
+  const rawTitle = String(entry?.title || '').trim().toUpperCase();
+  const fromProName = rawProName.includes(':') ? rawProName.split(':').pop() : rawProName;
+  const candidate = fromProName || rawTitle;
+  if (!candidate) return '';
+
+  const normalized = candidate.replace(/[^A-Z0-9./-]/g, '');
+  if (!normalized) return '';
+  if (normalized.includes('/')) return normalized.split('/')[0];
+  if (normalized.endsWith('USD') && KNOWN_CRYPTO_BASE_SYMBOLS.has(normalized.slice(0, -3))) {
+    return normalized.slice(0, -3);
+  }
+  return normalized;
+};
+
+const resolveTopBarTapeQuote = (symbol, quotesBySymbol = {}) => {
+  const normalized = normalizeTickerTapeSymbolInput(symbol);
+  if (!normalized) return null;
+  const candidates = [
+    normalized,
+    `${normalized}/USD`,
+    `${normalized}USD`,
+  ];
+  for (const key of candidates) {
+    const quote = quotesBySymbol[key];
+    if (quote && typeof quote === 'object') return quote;
+  }
+  return null;
+};
+
+const TOPBAR_LOGO_DOMAIN_BY_TICKER = {
+  AAPL: 'apple.com',
+  MSFT: 'microsoft.com',
+  GOOGL: 'google.com',
+  GOOG: 'google.com',
+  AMZN: 'amazon.com',
+  NVDA: 'nvidia.com',
+  META: 'meta.com',
+  TSLA: 'tesla.com',
+  NFLX: 'netflix.com',
+  AMD: 'amd.com',
+  INTC: 'intel.com',
+  JPM: 'jpmorganchase.com',
+  BAC: 'bankofamerica.com',
+  WFC: 'wellsfargo.com',
+  V: 'visa.com',
+  MA: 'mastercard.com',
+  DIS: 'disney.com',
+  KO: 'coca-cola.com',
+  PEP: 'pepsico.com',
+  XOM: 'exxonmobil.com',
+  CVX: 'chevron.com',
+  COST: 'costco.com',
+  WMT: 'walmart.com',
+  HD: 'homedepot.com',
+  NKE: 'nike.com',
+  ORCL: 'oracle.com',
+  CRM: 'salesforce.com',
+  ADBE: 'adobe.com',
+  PYPL: 'paypal.com',
+  COIN: 'coinbase.com',
+  UBER: 'uber.com',
+  ABNB: 'airbnb.com',
+  SPOT: 'spotify.com',
+  SHOP: 'shopify.com',
+  PLTR: 'palantir.com',
+  SOFI: 'sofi.com',
+  BTC: 'bitcoin.org',
+  ETH: 'ethereum.org',
+  SOL: 'solana.com',
+  XRP: 'ripple.com',
+  DOGE: 'dogecoin.com',
+};
+
+const getTopBarLogoCandidates = (ticker) => {
+  const normalized = normalizeTickerTapeSymbolInput(ticker);
+  if (!normalized) return [];
+  const domain = TOPBAR_LOGO_DOMAIN_BY_TICKER[normalized];
+  return [
+    domain ? `https://logo.clearbit.com/${domain}` : null,
+    domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : null,
+    `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${normalized}.png`,
+  ].filter(Boolean);
+};
+
+const TopBarTickerLogo = ({ ticker }) => {
+  const normalized = normalizeTickerTapeSymbolInput(ticker);
+  const logoUrls = useMemo(() => getTopBarLogoCandidates(normalized), [normalized]);
+  const [logoIndex, setLogoIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current) return undefined;
+    setLogoIndex(0);
+    setFailed(false);
+  }, [normalized]);
 
-    const container = containerRef.current;
-    container.innerHTML = '';
+  const activeLogoUrl = logoUrls[logoIndex] || '';
 
-    const widgetDiv = document.createElement('div');
-    widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetDiv.style.width = '100%';
-    widgetDiv.style.height = '100%';
+  if (failed || !activeLogoUrl) {
+    return (
+      <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-white/10 text-[8px] font-semibold text-white/70">
+        {normalized.slice(0, 1) || '?'}
+      </span>
+    );
+  }
 
-    const script = document.createElement('script');
-    script.src = TOPBAR_TICKER_TAPE_SCRIPT_SRC;
-    script.async = true;
-    script.type = 'text/javascript';
-    script.innerHTML = configJson;
+  return (
+    <img
+      src={activeLogoUrl}
+      alt={`${normalized} logo`}
+      className="h-4 w-4 flex-shrink-0 object-contain"
+      loading="lazy"
+      onError={() => {
+        setLogoIndex((current) => {
+          if (current + 1 >= logoUrls.length) {
+            setFailed(true);
+            return current;
+          }
+          return current + 1;
+        });
+      }}
+    />
+  );
+};
 
-    container.appendChild(widgetDiv);
-    container.appendChild(script);
+const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false }) => {
+  const tickerRows = useMemo(() => {
+    const sourceRows = Array.isArray(symbols) && symbols.length > 0 ? symbols : TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS;
+    const seen = new Set();
+    const next = [];
 
-    return () => {
-      container.innerHTML = '';
-    };
-  }, [configJson]);
+    sourceRows.forEach((entry) => {
+      const ticker = normalizeTopBarTapeTicker(entry);
+      if (!ticker || seen.has(ticker)) return;
+      seen.add(ticker);
+      const quote = resolveTopBarTapeQuote(ticker, quotesBySymbol);
+      const price = toNumberOrNull(
+        quote?.price
+        ?? quote?.latestPrice
+        ?? quote?.last
+        ?? quote?.close
+      );
+      const changePercent = toNumberOrNull(
+        quote?.changePercent
+        ?? quote?.percentChange
+        ?? quote?.percent_change
+      );
+
+      next.push({
+        ticker,
+        price,
+        changePercent,
+      });
+    });
+
+    return next;
+  }, [quotesBySymbol, symbols]);
+
+  const safeRows = tickerRows.length > 0
+    ? tickerRows
+    : [{ ticker: 'SPY', price: null, changePercent: null }];
+  const duplicatedRows = [...safeRows, ...safeRows];
+  const scrollDurationSeconds = Math.max(
+    TOPBAR_TICKER_TAPE_MIN_SCROLL_SECONDS,
+    Math.round(safeRows.length * TOPBAR_TICKER_TAPE_PER_ITEM_SECONDS),
+  );
 
   return (
     <div
       id={TOPBAR_TICKER_TAPE_CONTAINER_ID}
-      ref={containerRef}
-      className="tradingview-widget-container h-full w-full bg-transparent overflow-visible"
-    />
+      className="relative h-full w-full overflow-hidden border border-transparent bg-transparent"
+    >
+      <style>{`
+        @keyframes topbar-ticker-scroll {
+          from { transform: translateX(-50%); }
+          to { transform: translateX(0); }
+        }
+        .topbar-ticker-track {
+          display: flex;
+          align-items: center;
+          height: 100%;
+          overflow: hidden;
+          width: max-content;
+          min-width: 100%;
+        }
+        .topbar-ticker-content {
+          display: inline-flex;
+          align-items: center;
+          white-space: nowrap;
+          animation: topbar-ticker-scroll ${scrollDurationSeconds}s linear infinite;
+        }
+        .topbar-ticker-track:hover .topbar-ticker-content {
+          animation-play-state: paused;
+        }
+      `}</style>
+      <div className="topbar-ticker-track pl-2 pr-2">
+        <div className="topbar-ticker-content">
+          {duplicatedRows.map((row, idx) => {
+            const hasPct = row.changePercent !== null;
+            const pct = hasPct ? `${row.changePercent >= 0 ? '+' : ''}${row.changePercent.toFixed(2)}%` : '--';
+            const pctClass = row.changePercent === null
+              ? 'text-white/45'
+              : row.changePercent >= 0
+                ? 'text-emerald-400'
+                : 'text-red-400';
+            const priceText = row.price === null ? (loading ? '...' : '--') : formatCurrency(row.price);
+
+            return (
+              <span key={`${row.ticker}-${idx}`} className="flex items-center gap-2 px-2">
+                <TopBarTickerLogo ticker={row.ticker} />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/85">
+                  {row.ticker}
+                </span>
+                <span className="text-[11px] font-mono text-white/70">{priceText}</span>
+                <span className={`text-[11px] font-mono ${pctClass}`}>{pct}</span>
+                <span className="text-white/30">•</span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#0a0f1a] to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#0a0f1a] to-transparent" />
+    </div>
   );
 };
 
@@ -812,8 +996,35 @@ export default function Dashboard({
       const normalized = String(symbol || '').trim().toUpperCase();
       if (normalized) unique.add(normalized);
     });
+
+    normalizeMiniTickers(miniTickers).forEach((symbol) => {
+      const normalized = String(symbol || '').trim().toUpperCase();
+      if (normalized) unique.add(normalized);
+    });
+
+    buildTopBarTickerTapeSymbols().forEach((entry) => {
+      const rawProName = String(entry?.proName || '').trim().toUpperCase();
+      const rawTitle = String(entry?.title || '').trim().toUpperCase();
+      const fromProName = rawProName.includes(':') ? rawProName.split(':').pop() : rawProName;
+      const normalized = String(fromProName || rawTitle || '').replace(/[^A-Z0-9./-]/g, '');
+      if (!normalized) return;
+      if (normalized.includes('/')) {
+        unique.add(normalized);
+        unique.add(normalized.split('/')[0]);
+        return;
+      }
+      if (normalized.endsWith('USD') && KNOWN_CRYPTO_BASE_SYMBOLS.has(normalized.slice(0, -3))) {
+        const base = normalized.slice(0, -3);
+        unique.add(base);
+        unique.add(`${base}USD`);
+        unique.add(`${base}/USD`);
+        return;
+      }
+      unique.add(normalized);
+    });
+
     return [...unique];
-  }, [watchlist]);
+  }, [miniTickers, watchlist]);
 
   useEffect(() => {
     if (watchlistSymbols.length === 0) {
@@ -2163,7 +2374,11 @@ export default function Dashboard({
             >
               <div className="relative h-full w-full">
                 <div className="h-full pr-28 pb-4 box-border">
-                  <TopBarTickerTapeWidget symbols={topBarTickerTapeSymbols} />
+                  <TopBarTickerTapeWidget
+                    symbols={topBarTickerTapeSymbols}
+                    quotesBySymbol={watchlistQuotesBySymbol}
+                    loading={watchlistQuotesLoading}
+                  />
                 </div>
 
                 <div className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-[#2a2a3d] bg-[#151c29]">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, TrendingUp, TrendingDown } from 'lucide-react';
+import { Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -42,14 +42,14 @@ const TickerPill = ({ symbol, onRemove, quote = null, loading = false }) => {
     : `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
 
   return (
-    <div className={`h-8 px-3 rounded-full flex items-center gap-2 border ${bgClass} group cursor-default`}>
-      <span className="text-xs font-semibold text-white">{symbol}</span>
+    <div className={`h-7 px-2.5 rounded-full flex items-center gap-1.5 border ${bgClass} group cursor-default`}>
+      <span className="text-[11px] font-semibold text-white">{symbol}</span>
       {showLoading ? (
-        <span className="text-xs text-gray-400">...</span>
+        <span className="text-[10px] text-gray-400">...</span>
       ) : (
         <div className="flex items-center gap-1">
-          <span className="text-xs font-mono text-white">{price === null ? '--' : `$${price.toFixed(2)}`}</span>
-          <span className={`text-[10px] font-mono ${colorClass} flex items-center`}>
+          <span className="text-[10px] font-mono text-white">{price === null ? '--' : `$${price.toFixed(2)}`}</span>
+          <span className={`text-[9px] font-mono ${colorClass} flex items-center`}>
             {hasTrend ? (
               isPositive ? <TrendingUp className="w-2.5 h-2.5 mr-0.5" /> : <TrendingDown className="w-2.5 h-2.5 mr-0.5" />
             ) : null}
@@ -63,8 +63,10 @@ const TickerPill = ({ symbol, onRemove, quote = null, loading = false }) => {
           onRemove?.(symbol);
         }}
         className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded-full transition-opacity"
+        aria-label={`Remove ${symbol} mini pill`}
+        title="Remove mini pill"
       >
-        <X className="w-3 h-3 text-gray-400 hover:text-white" />
+        <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-300" />
       </button>
     </div>
   );
