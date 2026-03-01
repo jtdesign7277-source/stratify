@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
-const API_BASE = String(import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+// Keep paper trading on same-origin API routes by default.
+// This prevents accidental routing to stale external backends that can 404.
+const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 const withApiBase = (path) => `${API_BASE}${path}`;
 
 const DEFAULT_PORTFOLIO = {
