@@ -125,6 +125,7 @@ import {
   ComposerTypePill,
 } from './community/CommunityShared';
 import SuggestionPopover from './community/SuggestionPopover';
+import ChatInputBar from './community/ChatInputBar';
 import { AiSearchLoadingCard, AiSearchResultCard } from './community/AiSearchCards';
 import PostComposerModal from './community/PostComposerModal';
 import ReactionBar from './community/ReactionBar';
@@ -951,6 +952,11 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     const trimmedQuery = normalizeAiSearchQuery(queryText);
     if (!trimmedQuery) return false;
 
+    setActiveExploreTab(null);
+    setSelectedTicker(null);
+    setSidebarArticle(null);
+    setFilter(null);
+
     // Also fire Marketaux search in parallel for news article results
     void runMarketauxSearch(trimmedQuery);
 
@@ -1093,6 +1099,10 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
   const handleSearchModeChange = useCallback((nextMode) => {
     if (nextMode) {
+      setActiveExploreTab(null);
+      setSelectedTicker(null);
+      setSidebarArticle(null);
+      setFilter(null);
       setSearchMode(true);
       return;
     }
@@ -1649,6 +1659,23 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     </div>
                     )}
 
+                    <div className="px-3 pb-3 pt-2">
+                      <ChatInputBar
+                        currentUser={currentUser}
+                        currentUserAvatarUrl={activeAvatarUrl}
+                        trackedSymbols={trackedSymbols}
+                        quoteMap={quoteMap}
+                        streamStatus={streamStatus}
+                        searchMode={searchMode}
+                        onModeChange={handleSearchModeChange}
+                        onOpenComposer={openComposer}
+                        onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
+                        onSearch={runAiSearch}
+                        onFeedSelect={handleFeedFilterChange}
+                        activeFeed={filter}
+                        enabledFeeds={enabledFeeds}
+                      />
+                    </div>
                   </div>
                 </div>
 
