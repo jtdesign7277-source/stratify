@@ -1,0 +1,4 @@
+interface:
+  display_name: "Soft Glass UI"
+  short_description: "Apply premium soft-glass and neumorphic depth"
+  default_prompt: "Use $soft-glass-ui to style this interface with layered shadows, frosted transparency, soft gradients, and tactile depth while preserving the existing product language."
