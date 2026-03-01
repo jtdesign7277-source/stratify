@@ -1486,10 +1486,10 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     });
   }, [openComposer, setActiveTweetFolder]);
 
-  const handleQuickPostSend = useCallback(async (content, postType) => {
-    saveTweetDraft(content);
-    return createPost({ content, postType, metadata: {} });
-  }, [createPost, saveTweetDraft]);
+  const handleQuickPostSend = useCallback(async (content) => {
+    saveTweetDraft(content, DEFAULT_TWEET_FOLDER_ID);
+    return true;
+  }, [saveTweetDraft]);
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: T.bg, color: T.text }}>

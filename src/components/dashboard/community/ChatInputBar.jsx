@@ -363,7 +363,7 @@ const ChatInputBar = ({
 
   const hintText = searchMode
     ? 'Enter to search, Shift+Enter for newline'
-    : 'Enter to send, Shift+Enter for newline';
+    : 'Enter to save, Shift+Enter for newline';
   return (
     <div className="max-w-3xl mx-auto w-full">
       <motion.div
@@ -536,14 +536,14 @@ const ChatInputBar = ({
                   onClick={() => void send()}
                   disabled={!canUseInput || !hasMessage}
                   className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-200 hover:bg-[#79b8ff] hover:scale-[1.02]"
-                  title={searchMode ? 'Run AI search' : 'Publish quick post'}
+                  title={searchMode ? 'Run AI search' : 'Save quick post to Tweets folder'}
                 >
                   {searchMode ? (
                     <CornerDownLeft size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
                   ) : (
                     <Send size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
                   )}
-                  <span>{searchMode ? 'Enter' : 'Post'}</span>
+                  <span>{searchMode ? 'Enter' : 'Save'}</span>
                 </button>
               </div>
             </div>
