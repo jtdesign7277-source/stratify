@@ -20,6 +20,18 @@ const dedupeArticles = (rows = []) => {
   });
 };
 
+const formatPublishedDateTime = (value) => {
+  const timestamp = Date.parse(String(value || ''));
+  if (!Number.isFinite(timestamp)) return '';
+  return new Date(timestamp).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
 // ─── History View ─────────────────────────────────────────
 export const HistoryView = ({ history, loading, onClear, onArticleClick }) => {
   const relTime = (iso) => {
@@ -135,6 +147,8 @@ export const DiscoverView = ({ data, loading, onArticleClick }) => {
                   url: story.url,
                   summary: story.description || '',
                   image: story.thumbnailUrl || null,
+                  time: formatPublishedDateTime(story.publishedAt),
+                  publishedAt: story.publishedAt || null,
                   category: 'NEWS',
                 })}
                 className="w-full text-left flex gap-3 rounded-xl border border-white/6 bg-white/2 p-3 hover:bg-white/4 transition-colors group"
@@ -148,7 +162,12 @@ export const DiscoverView = ({ data, loading, onArticleClick }) => {
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-[#e6edf3] line-clamp-2 group-hover:text-[#58a6ff] transition-colors">{story.title}</div>
-                  <div className="text-xs text-[#7d8590] mt-1">{story.source}{story.sourcesCount > 1 ? ` +${story.sourcesCount - 1} sources` : ''}</div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[#7d8590] mt-1">
+                    <span>{story.source}{story.sourcesCount > 1 ? ` +${story.sourcesCount - 1} sources` : ''}</span>
+                    {formatPublishedDateTime(story.publishedAt) ? (
+                      <span>• {formatPublishedDateTime(story.publishedAt)}</span>
+                    ) : null}
+                  </div>
                 </div>
               </button>
             ))}

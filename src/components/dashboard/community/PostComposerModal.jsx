@@ -26,10 +26,11 @@ import {
   formatSignedPercent,
   formatSignedCurrency,
   buildCurrentUserAvatarUrl,
+  shareTextToX,
   escapeRegExp,
 } from './communityHelpers';
 import { modalSectionMotion } from './communityConstants';
-import { UserAvatar, ComposerTypePill } from './CommunityShared';
+import { UserAvatar, ComposerTypePill, XLogoIcon } from './CommunityShared';
 
 const PostComposerModal = ({
   open,
@@ -44,6 +45,7 @@ const PostComposerModal = ({
   openAiRewritePanelOnOpen = false,
   onConsumePrefilledText,
   onSubmit,
+  onSaveTweetDraft,
 }) => {
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState('general');
@@ -267,6 +269,19 @@ const PostComposerModal = ({
     const ok = await onSubmit?.({ content: finalContent, postType, metadata, imageFile });
     if (ok !== false) closeComposerModal();
   };
+
+  const saveDraftForLater = useCallback(() => {
+    const trimmed = String(content || '').trim();
+    if (!trimmed) return;
+    onSaveTweetDraft?.(trimmed);
+  }, [content, onSaveTweetDraft]);
+
+  const postDraftToX = useCallback(() => {
+    const trimmed = String(content || '').trim();
+    if (!trimmed) return;
+    onSaveTweetDraft?.(trimmed);
+    shareTextToX(trimmed);
+  }, [content, onSaveTweetDraft]);
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -631,15 +646,38 @@ const PostComposerModal = ({
                 <span>Posting as {composerDisplayName}</span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => void submit()}
-                disabled={isAiRewriteLoading || submitting || (!content.trim() && !imageFile && !(postType === 'pnl' && selectedTrade))}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#58a6ff] text-black text-sm font-semibold shadow-lg shadow-[#58a6ff]/20 transition-all duration-200 hover:bg-[#79b8ff] hover:scale-105 disabled:opacity-45 disabled:cursor-not-allowed"
-              >
-                {submitting ? <Loader2 className="w-4 h-4 text-black animate-spin" /> : <Send className="w-4 h-4 text-black" />}
-                Publish
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={saveDraftForLater}
+                  disabled={!content.trim()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 text-[#e6edf3] text-xs font-medium bg-white/5 hover:bg-white/10 transition disabled:opacity-45 disabled:cursor-not-allowed"
+                  title="Save draft for later"
+                >
+                  Save Draft
+                </button>
+
+                <button
+                  type="button"
+                  onClick={postDraftToX}
+                  disabled={!content.trim()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#58a6ff]/30 text-[#58a6ff] text-xs font-semibold bg-[#58a6ff]/10 hover:bg-[#58a6ff]/15 transition disabled:opacity-45 disabled:cursor-not-allowed"
+                  title="Post this draft to X"
+                >
+                  <XLogoIcon className="w-3.5 h-3.5" />
+                  Post to X
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void submit()}
+                  disabled={isAiRewriteLoading || submitting || (!content.trim() && !imageFile && !(postType === 'pnl' && selectedTrade))}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#58a6ff] text-black text-sm font-semibold shadow-lg shadow-[#58a6ff]/20 transition-all duration-200 hover:bg-[#79b8ff] hover:scale-105 disabled:opacity-45 disabled:cursor-not-allowed"
+                >
+                  {submitting ? <Loader2 className="w-4 h-4 text-black animate-spin" /> : <Send className="w-4 h-4 text-black" />}
+                  Publish
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         </div>

@@ -352,6 +352,7 @@ const ChatInputBar = ({
       : 'Live tape offline';
   const canUseInput = searchMode || Boolean(currentUser?.id);
   const hasMessage = Boolean(String(message || '').trim());
+  const hasTweetDraft = !searchMode && hasMessage;
   const canUseAiRewriteTransfer = !searchMode && canUseInput && hasMessage;
 
   // Search suggestions render only in web search mode.
@@ -480,11 +481,15 @@ const ChatInputBar = ({
                     type="button"
                     onClick={openAiRewriteComposer}
                     disabled={!canUseAiRewriteTransfer}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/20 text-white font-bold text-xs shadow-[0_0_12px_rgba(102,126,234,0.4)] transition-all duration-300 ${canUseAiRewriteTransfer ? 'hover:scale-105 hover:shadow-[0_0_20px_rgba(102,126,234,0.6)]' : 'opacity-40 pointer-events-none'}`}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/20 text-white font-bold text-xs shadow-[0_0_12px_rgba(102,126,234,0.4)] transition-all duration-300 ${
+                      canUseAiRewriteTransfer
+                        ? `hover:scale-105 hover:shadow-[0_0_20px_rgba(102,126,234,0.6)] ${hasTweetDraft ? 'scale-110 brightness-125 shadow-[0_0_26px_rgba(245,87,108,0.4),0_0_32px_rgba(79,172,254,0.45)]' : ''}`
+                        : 'opacity-40 pointer-events-none'
+                    }`}
                     style={{
                       background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #667eea)',
                       backgroundSize: '400% 400%',
-                      animation: 'premiumShimmer 6s ease infinite',
+                      animation: hasTweetDraft ? 'premiumShimmer 3.5s ease infinite' : 'premiumShimmer 6s ease infinite',
                     }}
                     title="Open AI rewrite in composer"
                   >

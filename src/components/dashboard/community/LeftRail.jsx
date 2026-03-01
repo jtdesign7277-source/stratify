@@ -36,11 +36,15 @@ const LeftRail = ({
   // feeds customizer
   enabledFeeds = [],
   onOpenFeedCustomizer,
+  tweetDrafts = [],
+  onOpenTweetDraft,
+  onDeleteTweetDraft,
   // explore tabs
   activeExploreTab,
   onExploreTabChange,
 }) => {
   const [priceAlertsOpen, setPriceAlertsOpen] = useState(false);
+  const [tweetsOpen, setTweetsOpen] = useState(true);
   const isPro = true; // hardcoded until Stripe subscription wired
 
   const profileName = String(displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader').trim() || 'Trader';
@@ -51,6 +55,7 @@ const LeftRail = ({
 
   const activeAlerts = (Array.isArray(priceAlerts) ? priceAlerts : []).filter((a) => a?.active && !a?.triggered);
   const feedChannels = ALL_FEED_HASHTAGS.filter((feed) => (Array.isArray(enabledFeeds) ? enabledFeeds : []).includes(feed.id));
+  const tweets = Array.isArray(tweetDrafts) ? tweetDrafts : [];
 
   if (collapsed) {
     return (
@@ -235,20 +240,91 @@ const LeftRail = ({
           {feedChannels.length > 0 ? (
             feedChannels.slice(0, MAX_VISIBLE_FEED_HASHTAGS).map((feed) => {
               const isActive = filter === feed.id;
+              const isPremarket = feed.id === 'premarket';
               return (
-                <button
-                  key={feed.id}
-                  type="button"
-                  onClick={() => { onExploreTabChange?.(null); onFilter?.(isActive ? null : feed.id); }}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors"
-                  style={{
-                    color: isActive ? T.blue : T.text,
-                    backgroundColor: isActive ? 'rgba(88,166,255,0.1)' : 'transparent',
-                  }}
-                >
-                  <Hash size={14} strokeWidth={1.5} />
-                  <span className="truncate">{feed.label}</span>
-                </button>
+                <div key={feed.id}>
+                  <button
+                    type="button"
+                    onClick={() => { onExploreTabChange?.(null); onFilter?.(isActive ? null : feed.id); }}
+                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors"
+                    style={{
+                      color: isActive ? T.blue : T.text,
+                      backgroundColor: isActive ? 'rgba(88,166,255,0.1)' : 'transparent',
+                    }}
+                  >
+                    <Hash size={14} strokeWidth={1.5} />
+                    <span className="truncate">{feed.label}</span>
+                  </button>
+
+                  {isPremarket ? (
+                    <div className="pl-5 pr-1 pb-1">
+                      <button
+                        type="button"
+                        onClick={() => setTweetsOpen((prev) => !prev)}
+                        className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] transition-colors hover:bg-white/5"
+                        style={{ color: T.muted }}
+                        title="Open saved Tweets folder"
+                      >
+                        <ChevronRight
+                          size={11}
+                          strokeWidth={1.7}
+                          className={`transition-transform ${tweetsOpen ? 'rotate-90' : ''}`}
+                        />
+                        <span className="uppercase tracking-[0.1em]">Tweets</span>
+                        <span className="ml-auto text-[10px] font-semibold" style={{ color: T.blue }}>
+                          {tweets.length}
+                        </span>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {tweetsOpen ? (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.18 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-1 space-y-1">
+                              {tweets.length === 0 ? (
+                                <div className="rounded-lg px-2 py-1.5 text-[11px]" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                                  No tweets saved yet.
+                                </div>
+                              ) : (
+                                tweets.map((tweet) => (
+                                  <div
+                                    key={tweet.id}
+                                    className="group flex items-start gap-1.5 rounded-lg px-2 py-1.5 text-[11px]"
+                                    style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => onOpenTweetDraft?.(tweet)}
+                                      className="flex-1 min-w-0 text-left leading-relaxed hover:text-[#e6edf3] transition-colors"
+                                      style={{ color: T.text }}
+                                      title="Open tweet in AI Rewrite"
+                                    >
+                                      {String(tweet.content || '').slice(0, 72)}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onDeleteTweetDraft?.(tweet.id)}
+                                      className="opacity-40 group-hover:opacity-100 transition-opacity"
+                                      style={{ color: T.red }}
+                                      title="Delete tweet"
+                                    >
+                                      <Trash2 size={11} strokeWidth={1.6} />
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </motion.div>
+                        ) : null}
+                      </AnimatePresence>
+                    </div>
+                  ) : null}
+                </div>
               );
             })
           ) : (

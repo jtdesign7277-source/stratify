@@ -200,13 +200,30 @@ export const sanitizeAiSearchData = (raw, query) => {
     .map((point) => String(point || '').trim())
     .filter(Boolean)
     .slice(0, 8);
+  const relatedTickers = sanitizeAiTickers(raw?.relatedTickers || []);
+  const tickerSnapshotsRaw = raw?.tickerSnapshots && typeof raw.tickerSnapshots === 'object'
+    ? raw.tickerSnapshots
+    : {};
+  const tickerSnapshots = relatedTickers.reduce((acc, ticker) => {
+    const row = tickerSnapshotsRaw[ticker];
+    if (!row || typeof row !== 'object') return acc;
+    acc[ticker] = {
+      price: toMaybeFiniteNumber(row?.price),
+      percentChange: toMaybeFiniteNumber(row?.percentChange),
+      change: toMaybeFiniteNumber(row?.change),
+      timestamp: row?.timestamp || null,
+    };
+    return acc;
+  }, {});
 
   return {
     summary: summary || `No summary available for "${query}".`,
     keyPoints,
     sources: sanitizeAiSources(raw?.sources || []),
-    relatedTickers: sanitizeAiTickers(raw?.relatedTickers || []),
+    relatedTickers,
     sentiment: sanitizeAiSentiment(raw?.sentiment),
+    tickerSnapshots,
+    generatedAt: String(raw?.generatedAt || '').trim() || null,
   };
 };
 
@@ -528,7 +545,11 @@ export const shareToX = (post) => {
     const pnlStr = `${ticker} ${formatSignedCurrency(pnlValue)}${Number.isFinite(Number(post?.metadata?.percent)) ? ` ${formatSignedPercent(Number(post.metadata.percent))}` : ''}`;
     text = text ? `${pnlStr}: ${text}` : pnlStr;
   }
-  text = `${text} via @stratify_hq`.trim();
+  shareTextToX(text);
+};
+
+export const shareTextToX = (rawText) => {
+  const text = `${String(rawText || '').trim()} via @stratify_hq`.trim();
   const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://stratifymarket.com/dashboard')}`;
   window.open(url, '_blank', 'noopener,noreferrer');
 };

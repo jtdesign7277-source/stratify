@@ -37,6 +37,7 @@ import {
   HASHTAG_WEB_CACHE_TTL_MS,
   PRICE_ALERTS_STORAGE_KEY,
   FEED_HASHTAGS_ENABLED_STORAGE_KEY,
+  COMMUNITY_TWEETS_STORAGE_KEY,
   POST_TYPE_CONFIG,
   POST_TYPE_ORDER,
   ALL_FEED_HASHTAGS,
@@ -183,6 +184,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [alertToasts, setAlertToasts] = useState([]);
   const [feedCustomizerOpen, setFeedCustomizerOpen] = useState(false);
   const [enabledFeeds, setEnabledFeeds] = useState(() => readEnabledFeedHashtags());
+  const [tweetDrafts, setTweetDrafts] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(COMMUNITY_TWEETS_STORAGE_KEY) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const toggleFeedEnabled = useCallback((id) => {
     setEnabledFeeds((prev) => {
       const next = prev.includes(id) ? prev.filter((f) => f !== id) : (prev.length >= MAX_VISIBLE_FEED_HASHTAGS ? prev : [...prev, id]);
@@ -650,9 +660,18 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     const alertSymbols = (Array.isArray(priceAlerts) ? priceAlerts : [])
       .map((alert) => normalizeSymbolKey(String(alert?.ticker || '').replace(/^\$+/, '')))
       .filter(Boolean);
-    const symbols = [...new Set([...alertSymbols, ...DEFAULT_TICKERS, ...mentionSymbolsFromPosts(posts)].map(normalizeSymbolKey).filter(Boolean))];
+    const aiSymbols = (Array.isArray(aiSearchResults) ? aiSearchResults : [])
+      .flatMap((row) => (Array.isArray(row?.relatedTickers) ? row.relatedTickers : []))
+      .map(normalizeSymbolKey)
+      .filter(Boolean);
+    const symbols = [...new Set([
+      ...alertSymbols,
+      ...DEFAULT_TICKERS,
+      ...mentionSymbolsFromPosts(posts),
+      ...aiSymbols,
+    ].map(normalizeSymbolKey).filter(Boolean))];
     return symbols.slice(0, 48);
-  }, [posts, priceAlerts]);
+  }, [aiSearchResults, posts, priceAlerts]);
 
   const previousTrackedSymbolsRef = useRef([]);
 
@@ -1262,6 +1281,70 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   };
   const hasAiSearchCards = aiSearchPending.length > 0 || aiSearchResults.length > 0;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(COMMUNITY_TWEETS_STORAGE_KEY, JSON.stringify(tweetDrafts));
+    } catch {
+      // local-only persistence, ignore write errors
+    }
+  }, [tweetDrafts]);
+
+  const saveTweetDraft = useCallback((content) => {
+    const trimmed = String(content || '').trim();
+    if (!trimmed) return;
+    setTweetDrafts((prev) => {
+      const now = new Date().toISOString();
+      const duplicateIndex = prev.findIndex(
+        (entry) => String(entry?.content || '').trim().toLowerCase() === trimmed.toLowerCase(),
+      );
+
+      if (duplicateIndex >= 0) {
+        const current = prev[duplicateIndex];
+        const next = [...prev];
+        next.splice(duplicateIndex, 1);
+        return [
+          {
+            ...current,
+            content: trimmed,
+            updatedAt: now,
+          },
+          ...next,
+        ];
+      }
+
+      return [
+        {
+          id: `tweet-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          content: trimmed,
+          createdAt: now,
+          updatedAt: now,
+        },
+        ...prev,
+      ];
+    });
+  }, []);
+
+  const deleteTweetDraft = useCallback((tweetId) => {
+    const targetId = String(tweetId || '').trim();
+    if (!targetId) return;
+    setTweetDrafts((prev) => prev.filter((entry) => String(entry?.id || '') !== targetId));
+  }, []);
+
+  const openTweetDraftInRewrite = useCallback((tweet) => {
+    const content = String(tweet?.content || '').trim();
+    if (!content) return;
+    openComposer('general', {
+      prefilledText: content,
+      openAiRewritePanel: true,
+    });
+  }, [openComposer]);
+
+  const handleQuickPostSend = useCallback(async (content, postType) => {
+    saveTweetDraft(content);
+    return createPost({ content, postType, metadata: {} });
+  }, [createPost, saveTweetDraft]);
+
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: T.bg, color: T.text }}>
       <style>{COMMUNITY_PAGE_STYLES}</style>
@@ -1299,6 +1382,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               handleSaveName={handleSaveName}
               enabledFeeds={enabledFeeds}
               onOpenFeedCustomizer={() => setFeedCustomizerOpen(true)}
+              tweetDrafts={tweetDrafts}
+              onOpenTweetDraft={openTweetDraftInRewrite}
+              onDeleteTweetDraft={deleteTweetDraft}
               activeExploreTab={activeExploreTab}
               onExploreTabChange={setActiveExploreTab}
             />
@@ -1453,6 +1539,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                           <AiSearchResultCard
                             key={result.id}
                             result={result}
+                            quoteMap={quoteMap}
                             onClear={() => clearAiSearchResult(result.id)}
                             onTickerClick={(ticker) => {
                               void runAiSearch(`What is happening with ${ticker} today?`);
@@ -1669,7 +1756,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                         searchMode={searchMode}
                         onModeChange={handleSearchModeChange}
                         onOpenComposer={openComposer}
-                        onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
+                        onSend={handleQuickPostSend}
                         onSearch={runAiSearch}
                         onFeedSelect={handleFeedFilterChange}
                         activeFeed={filter}
@@ -1707,6 +1794,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         openAiRewritePanelOnOpen={composerOpenRewritePanel}
         onConsumePrefilledText={consumeComposerPrefill}
         onSubmit={createPost}
+        onSaveTweetDraft={saveTweetDraft}
       />
 
       <FeedCustomizerModal

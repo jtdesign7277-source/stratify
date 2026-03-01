@@ -3,6 +3,12 @@ import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { T, CARD_VARIANTS } from './communityConstants';
 import { ShimmerBlock } from './CommunityShared';
+import {
+  normalizeSymbolKey,
+  toMaybeFiniteNumber,
+  formatPrice,
+  formatSignedPercent,
+} from './communityHelpers';
 
 const sentimentStyle = (sentiment) => {
   if (sentiment === 'bullish') return { label: 'Bullish', color: T.green, bg: 'rgba(63,185,80,0.12)' };
@@ -29,14 +35,48 @@ export const AiSearchLoadingCard = ({ query }) => (
   </motion.article>
 );
 
-export const AiSearchResultCard = ({ result, onClear, onTickerClick }) => {
+export const AiSearchResultCard = ({ result, quoteMap = {}, onClear, onTickerClick }) => {
   const sentiment = sentimentStyle(result?.sentiment);
+  const snapshots = result?.tickerSnapshots && typeof result.tickerSnapshots === 'object'
+    ? result.tickerSnapshots
+    : {};
+
+  const resolveQuote = (ticker, quoteMap) => {
+    const normalized = normalizeSymbolKey(ticker);
+    if (!normalized) return null;
+
+    const streamRow = quoteMap?.[normalized]
+      || quoteMap?.[`${normalized}/USD`]
+      || null;
+    if (streamRow) {
+      const price = toMaybeFiniteNumber(streamRow?.price ?? streamRow?.last ?? streamRow?.close);
+      const percentChange = toMaybeFiniteNumber(
+        streamRow?.dayChangePercent
+        ?? streamRow?.percentChange
+        ?? streamRow?.percent_change
+        ?? streamRow?.changePercent
+      );
+      return {
+        price,
+        percentChange,
+      };
+    }
+
+    const snapshotRow = snapshots?.[normalized]
+      || snapshots?.[`${normalized}/USD`]
+      || null;
+    if (!snapshotRow) return null;
+    return {
+      price: toMaybeFiniteNumber(snapshotRow?.price),
+      percentChange: toMaybeFiniteNumber(snapshotRow?.percentChange),
+    };
+  };
 
   return (
     <motion.article
       layout
       variants={CARD_VARIANTS}
-      className="rounded-lg border border-l-2 p-3"
+      className="rounded-lg border border-l-2 p-4"
       style={{
         borderColor: T.border,
         borderLeftColor: '#58a6ff',
@@ -45,18 +85,18 @@ export const AiSearchResultCard = ({ result, onClear, onTickerClick }) => {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs inline-flex items-center gap-1.5" style={{ color: T.blue }}>
+          <div className="text-sm inline-flex items-center gap-1.5 font-semibold" style={{ color: T.blue }}>
             <Sparkles size={13} strokeWidth={1.5} />
             <span>AI Search Result</span>
           </div>
-          <div className="text-xs mt-1 truncate" style={{ color: T.muted }}>
+          <div className="text-sm mt-1 truncate" style={{ color: T.muted }}>
             "{result?.query || ''}"
           </div>
         </div>
         <button
           type="button"
           onClick={onClear}
-          className="text-xs transition-colors"
+          className="text-sm transition-colors"
           style={{ color: T.muted }}
           onMouseEnter={(event) => { event.currentTarget.style.color = T.text; }}
           onMouseLeave={(event) => { event.currentTarget.style.color = T.muted; }}
@@ -65,14 +105,14 @@ export const AiSearchResultCard = ({ result, onClear, onTickerClick }) => {
         </button>
       </div>
 
-      <p className="mt-2 text-sm leading-relaxed" style={{ color: '#e6edf3' }}>
+      <p className="mt-3 text-[15px] leading-7 font-medium" style={{ color: '#e6edf3' }}>
         {result?.summary}
       </p>
 
       {Array.isArray(result?.keyPoints) && result.keyPoints.length > 0 ? (
-        <div className="mt-2 space-y-1">
+        <div className="mt-3 space-y-2">
           {result.keyPoints.map((point, index) => (
-            <div key={`${result.id}-kp-${index}`} className="text-xs" style={{ color: '#c9d1d9' }}>
+            <div key={`${result.id}-kp-${index}`} className="text-sm leading-6" style={{ color: '#c9d1d9' }}>
               - {point}
             </div>
           ))}
@@ -91,21 +131,34 @@ export const AiSearchResultCard = ({ result, onClear, onTickerClick }) => {
           {sentiment.label}
         </span>
 
-        {(result.relatedTickers || []).map((ticker) => (
-          <button
-            key={`${result.id}-ticker-${ticker}`}
-            type="button"
-            onClick={() => onTickerClick?.(ticker)}
-            className="text-xs px-2 py-0.5 rounded-full border transition-colors"
-            style={{
-              color: T.blue,
-              borderColor: 'rgba(88,166,255,0.35)',
-              backgroundColor: 'rgba(88,166,255,0.12)',
-            }}
-          >
-            ${ticker}
-          </button>
-        ))}
+        {(result.relatedTickers || []).map((ticker) => {
+          const quote = resolveQuote(ticker, quoteMap);
+          const quotePrice = quote?.price;
+          const quotePct = quote?.percentChange;
+          return (
+            <button
+              key={`${result.id}-ticker-${ticker}`}
+              type="button"
+              onClick={() => onTickerClick?.(ticker)}
+              className="text-sm px-3 py-1 rounded-full border transition-colors inline-flex items-center gap-1.5"
+              style={{
+                color: T.blue,
+                borderColor: 'rgba(88,166,255,0.35)',
+                backgroundColor: 'rgba(88,166,255,0.12)',
+              }}
+            >
+              <span className="font-semibold">${ticker}</span>
+              {Number.isFinite(quotePrice) ? (
+                <span style={{ color: '#e6edf3' }}>${formatPrice(quotePrice)}</span>
+              ) : null}
+              {Number.isFinite(quotePct) ? (
+                <span style={{ color: quotePct >= 0 ? T.green : T.red }}>
+                  {formatSignedPercent(quotePct)}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
 
       {Array.isArray(result?.sources) && result.sources.length > 0 ? (

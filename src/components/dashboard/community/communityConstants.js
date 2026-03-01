@@ -84,6 +84,7 @@ export const HASHTAG_WEB_CACHE_STORAGE_KEY = 'stratify_hashtag_cache';
 export const HASHTAG_WEB_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 export const PRICE_ALERTS_STORAGE_KEY = 'stratify_price_alerts';
 export const FEED_HASHTAGS_ENABLED_STORAGE_KEY = 'stratify_feed_hashtags_enabled';
+export const COMMUNITY_TWEETS_STORAGE_KEY = 'stratify_community_tweets';
 
 // ─── Post Type Config ─────────────────────────────────────
 export const POST_TYPE_CONFIG = {
