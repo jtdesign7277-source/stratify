@@ -417,19 +417,44 @@ Respond with JSON array of tweet strings. No markdown.`)
 
   // ── TOP MOVERS ────────────────────────────────────────────────────────────
   if (type === 'top-movers') {
-    const [gainers, losers] = await Promise.all([fetchMovers('gainers', 5), fetchMovers('losers', 3)])
-    return claude(`You are posting from @stratify_hq.
+    const [gainers, losers, quotes] = await Promise.all([
+      fetchMovers('gainers', 6),
+      fetchMovers('losers', 4),
+      fetchQuotes(['SPY','QQQ']),
+    ])
+    const spy = fmtQuote(quotes.SPY)
+    const qqq = fmtQuote(quotes.QQQ)
+    return claude(`You are Agent_X — the most elite market account on Twitter. You post for @stratify_hq.
 
 TODAY IS: ${date}
+LIVE: ${spy?.label} | ${qqq?.label}
 
-REAL TOP MOVERS:
-GAINERS: ${fmtMovers(gainers)}
-LOSERS: ${fmtMovers(losers)}
+REAL TOP MOVERS RIGHT NOW:
+🔥 GAINERS:
+${fmtMovers(gainers)}
 
-Write a top movers tweet using ONLY this data. Under 280 chars.
-Format: emoji $TICKER +/-X.X%
+🩸 LOSERS:
+${fmtMovers(losers)}
 
-Respond with JSON: {"tweet":"...","thread":[]} No markdown.`)
+Write a top movers tweet thread: 1 main tweet + 1 follow-up reply.
+
+MAIN TWEET rules:
+- Open with a hook line that makes traders stop scrolling (NOT "here are today's top movers" — be creative, punchy, confident)
+- Include SPY/QQQ direction to set the tone
+- Format the top 3 gainers + top 2 losers: emoji $TICKER +/-X.X% @ $PRICE
+- End with "Full breakdown 👇"
+- Under 280 chars
+
+REPLY rules:
+- Lead with the remaining movers
+- Add 1 line of sharp commentary — what's the theme? momentum play? sector rotation? short squeeze?
+- End with: "Track it all on Stratify ⚡ stratifymarket.com"
+- Under 280 chars
+
+TONE: Sharp. Confident. Like the smartest trader in the room just posted their watchlist.
+NO fluff. NO filler. NO "great day for markets". Real data, real energy.
+
+Respond with JSON: {"tweet":"...","thread":["..."]} No markdown.`)
   }
 
   // ── MARKET RECAP ─────────────────────────────────────────────────────────
