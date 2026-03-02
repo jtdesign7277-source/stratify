@@ -137,8 +137,17 @@ import LeftRail from './community/LeftRail';
 import StockDetailView from './community/StockDetailView';
 import PriceAlertToasts from './community/PriceAlertToasts';
 
-const DEFAULT_TWEET_FOLDER_ID = 'tweets-default';
-const DEFAULT_TWEET_FOLDER_NAME = 'Tweets';
+const DEFAULT_TWEET_FOLDERS = Object.freeze([
+  { id: 'tweet-folder-drafts', name: 'Drafts' },
+  { id: 'tweet-folder-random', name: 'Random' },
+  { id: 'tweet-folder-ready', name: 'Ready' },
+]);
+const DEFAULT_TWEET_FOLDER_IDS = new Set(DEFAULT_TWEET_FOLDERS.map((folder) => folder.id));
+const DEFAULT_TWEET_FOLDER_NAME_KEYS = new Set(
+  DEFAULT_TWEET_FOLDERS.map((folder) => folder.name.toLowerCase()),
+);
+const LEGACY_TWEET_FOLDER_ID = 'tweets-default';
+const normalizeFolderNameKey = (value) => String(value || '').trim().toLowerCase();
 
 const sanitizeTweet = (raw) => {
   const content = String(raw?.content || '').trim();
@@ -152,17 +161,50 @@ const sanitizeTweet = (raw) => {
   };
 };
 
-const buildDefaultTweetStorage = (tweets = []) => ({
-  folders: [
-    {
-      id: DEFAULT_TWEET_FOLDER_ID,
-      name: DEFAULT_TWEET_FOLDER_NAME,
-      createdAt: new Date().toISOString(),
-      tweets: tweets.filter(Boolean),
-    },
-  ],
-  activeFolderId: DEFAULT_TWEET_FOLDER_ID,
-});
+const buildDefaultTweetStorage = (tweets = []) => {
+  const createdAt = new Date().toISOString();
+  return {
+    folders: DEFAULT_TWEET_FOLDERS.map((folder, index) => ({
+      id: folder.id,
+      name: folder.name,
+      createdAt,
+      tweets: index === 0 ? tweets.filter(Boolean) : [],
+    })),
+    activeFolderId: DEFAULT_TWEET_FOLDERS[0].id,
+  };
+};
+
+const migrateLegacyTweetFolders = (folders = []) => {
+  if (!Array.isArray(folders) || folders.length === 0) {
+    return buildDefaultTweetStorage([]).folders;
+  }
+
+  const hasCurrentDefaults = folders.some((folder) => {
+    const folderId = String(folder?.id || '').trim();
+    const folderNameKey = normalizeFolderNameKey(folder?.name);
+    return DEFAULT_TWEET_FOLDER_IDS.has(folderId) || DEFAULT_TWEET_FOLDER_NAME_KEYS.has(folderNameKey);
+  });
+  if (hasCurrentDefaults) return folders;
+
+  const legacyFolders = folders.filter((folder) => {
+    const folderId = String(folder?.id || '').trim();
+    const folderNameKey = normalizeFolderNameKey(folder?.name);
+    return folderId === LEGACY_TWEET_FOLDER_ID || folderNameKey === 'tweets';
+  });
+
+  if (legacyFolders.length === 0) return folders;
+
+  const legacyTweets = legacyFolders
+    .flatMap((folder) => (Array.isArray(folder?.tweets) ? folder.tweets : []))
+    .map(sanitizeTweet)
+    .filter(Boolean);
+  const customFolders = folders.filter((folder) => !legacyFolders.includes(folder));
+
+  return [
+    ...buildDefaultTweetStorage(legacyTweets).folders,
+    ...customFolders,
+  ];
+};
 
 const normalizeTweetStorage = (raw) => {
   if (Array.isArray(raw)) {
@@ -192,11 +234,13 @@ const normalizeTweetStorage = (raw) => {
     })
     .filter(Boolean);
 
-  const folders = normalizedFolders.length > 0
+  const folderCandidates = normalizedFolders.length > 0
     ? normalizedFolders
     : buildDefaultTweetStorage([]).folders;
-  const activeFolderId = folders.some((folder) => folder.id === raw?.activeFolderId)
-    ? raw.activeFolderId
+  const folders = migrateLegacyTweetFolders(folderCandidates);
+  const requestedActiveFolderId = String(raw?.activeFolderId || '').trim();
+  const activeFolderId = folders.some((folder) => folder.id === requestedActiveFolderId)
+    ? requestedActiveFolderId
     : folders[0].id;
 
   return { folders, activeFolderId };
@@ -1364,7 +1408,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     if (!nextName) return;
     setTweetStorage((prev) => {
       const base = normalizeTweetStorage(prev);
-      const exists = base.folders.some((folder) => folder.name.toLowerCase() === nextName.toLowerCase());
+      const nextNameKey = normalizeFolderNameKey(nextName);
+      const exists = base.folders.some((folder) => normalizeFolderNameKey(folder.name) === nextNameKey);
       if (exists) return base;
       const folder = {
         id: `tweet-folder-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1381,7 +1426,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
   const deleteTweetFolder = useCallback((folderId) => {
     const targetId = String(folderId || '').trim();
-    if (!targetId || targetId === DEFAULT_TWEET_FOLDER_ID) return;
+    if (!targetId) return;
 
     setTweetStorage((prev) => {
       const base = normalizeTweetStorage(prev);
@@ -1390,6 +1435,32 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       return {
         folders: remainingFolders,
         activeFolderId: base.activeFolderId === targetId ? remainingFolders[0].id : base.activeFolderId,
+      };
+    });
+  }, []);
+
+  const renameTweetFolder = useCallback((folderId, nextNameInput) => {
+    const targetId = String(folderId || '').trim();
+    const nextName = String(nextNameInput || '').trim().slice(0, 28);
+    if (!targetId || !nextName) return;
+
+    setTweetStorage((prev) => {
+      const base = normalizeTweetStorage(prev);
+      if (!base.folders.some((folder) => folder.id === targetId)) return base;
+
+      const nextNameKey = normalizeFolderNameKey(nextName);
+      const nameTaken = base.folders.some((folder) => (
+        folder.id !== targetId && normalizeFolderNameKey(folder.name) === nextNameKey
+      ));
+      if (nameTaken) return base;
+
+      return {
+        ...base,
+        folders: base.folders.map((folder) => (
+          folder.id === targetId
+            ? { ...folder, name: nextName }
+            : folder
+        )),
       };
     });
   }, []);
@@ -1476,6 +1547,55 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     });
   }, []);
 
+  const moveTweetDraft = useCallback((fromFolderId, toFolderId, tweetId) => {
+    const fromKey = String(fromFolderId || '').trim();
+    const toKey = String(toFolderId || '').trim();
+    const tweetKey = String(tweetId || '').trim();
+    if (!fromKey || !toKey || !tweetKey || fromKey === toKey) return;
+
+    setTweetStorage((prev) => {
+      const base = normalizeTweetStorage(prev);
+      const fromFolder = base.folders.find((folder) => folder.id === fromKey);
+      const toFolder = base.folders.find((folder) => folder.id === toKey);
+      if (!fromFolder || !toFolder) return base;
+
+      const tweet = fromFolder.tweets.find((entry) => String(entry?.id || '') === tweetKey);
+      if (!tweet) return base;
+
+      const now = new Date().toISOString();
+      const movedTweet = {
+        ...tweet,
+        updatedAt: now,
+      };
+
+      const nextFolders = base.folders.map((folder) => {
+        if (folder.id === fromKey) {
+          return {
+            ...folder,
+            tweets: folder.tweets.filter((entry) => String(entry?.id || '') !== tweetKey),
+          };
+        }
+
+        if (folder.id === toKey) {
+          const hasDuplicate = folder.tweets.some((entry) => String(entry?.id || '') === tweetKey);
+          if (hasDuplicate) return folder;
+          return {
+            ...folder,
+            tweets: [movedTweet, ...folder.tweets],
+          };
+        }
+
+        return folder;
+      });
+
+      return {
+        ...base,
+        folders: nextFolders,
+        activeFolderId: toKey,
+      };
+    });
+  }, []);
+
   const openTweetDraftInRewrite = useCallback((tweet, folderId) => {
     const content = String(tweet?.content || '').trim();
     if (!content) return;
@@ -1486,8 +1606,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     });
   }, [openComposer, setActiveTweetFolder]);
 
-  const handleQuickPostSend = useCallback(async (content) => {
-    saveTweetDraft(content, DEFAULT_TWEET_FOLDER_ID);
+  const handleQuickPostSend = useCallback(async (content, _postType = 'general', preferredFolderId = '') => {
+    saveTweetDraft(content, preferredFolderId);
     return true;
   }, [saveTweetDraft]);
 
@@ -1532,9 +1652,11 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               activeTweetFolderId={activeTweetFolderId}
               onSetActiveTweetFolder={setActiveTweetFolder}
               onCreateTweetFolder={createTweetFolder}
+              onRenameTweetFolder={renameTweetFolder}
               onDeleteTweetFolder={deleteTweetFolder}
               onOpenTweetDraft={openTweetDraftInRewrite}
               onDeleteTweetDraft={deleteTweetDraft}
+              onMoveTweetDraft={moveTweetDraft}
               activeExploreTab={activeExploreTab}
               onExploreTabChange={setActiveExploreTab}
             />
@@ -1911,6 +2033,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                         onFeedSelect={handleFeedFilterChange}
                         activeFeed={filter}
                         enabledFeeds={enabledFeeds}
+                        tweetFolders={tweetFolders}
+                        activeTweetFolderId={activeTweetFolderId}
                       />
                     </div>
                   </div>

@@ -6,6 +6,15 @@ const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const CACHE_TTL = 900; // 15 minutes
+const MAX_WINDOW_DAYS = 14;
+const MAX_LIMIT = 30;
+const ALLOWED_SORTS = new Set([
+  'published_desc',
+  'published_asc',
+  'entity_match_score',
+  'relevance_score',
+  'sentiment_score',
+]);
 
 const PAYWALLED_SOURCES = [
   'seekingalpha.com',
@@ -32,6 +41,20 @@ function getDateDaysAgo(days) {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString().split('T')[0];
+}
+
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseBool(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
 function stripHtml(html) {
@@ -74,6 +97,29 @@ function transformArticle(article) {
   };
 }
 
+function dedupeArticles(rows = []) {
+  const seen = new Set();
+  const list = Array.isArray(rows) ? rows : [];
+
+  return list.filter((row) => {
+    const title = String(row?.title || '').trim().toLowerCase();
+    const source = String(row?.source || '').trim().toLowerCase();
+    const url = String(row?.url || '').trim().toLowerCase().replace(/[?#].*$/, '');
+    const key = `${title}|${source}|${url}`;
+    if (!title && !url) return false;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isWithinAge(publishedAt, maxAgeMs) {
+  const ts = Date.parse(String(publishedAt || ''));
+  if (!Number.isFinite(ts)) return false;
+  const ageMs = Date.now() - ts;
+  return ageMs >= -60_000 && ageMs <= maxAgeMs;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -86,7 +132,25 @@ export default async function handler(req, res) {
   }
 
   const cleanQuery = String(q).trim().slice(0, 200);
-  const cacheKey = `search:v1:${cleanQuery.toLowerCase()}`;
+  const days = clamp(parsePositiveInt(req.query?.days, 7), 1, MAX_WINDOW_DAYS);
+  const limit = clamp(parsePositiveInt(req.query?.limit, 15), 1, MAX_LIMIT);
+  const sort = ALLOWED_SORTS.has(String(req.query?.sort || '').trim())
+    ? String(req.query.sort).trim()
+    : '';
+  const language = String(req.query?.language || 'en').trim().slice(0, 8).toLowerCase() || 'en';
+  const countries = String(req.query?.countries || '').trim().toLowerCase().replace(/[^a-z,]/g, '').slice(0, 30);
+  const mustHaveEntities = parseBool(req.query?.must_have_entities);
+
+  const cacheVariant = [
+    `q=${cleanQuery.toLowerCase()}`,
+    `days=${days}`,
+    `limit=${limit}`,
+    `sort=${sort || 'default'}`,
+    `language=${language}`,
+    `countries=${countries || 'all'}`,
+    `mustHaveEntities=${mustHaveEntities ? '1' : '0'}`,
+  ].join('|');
+  const cacheKey = `search:v2:${cacheVariant}`;
 
   // 1. Try Redis cache
   if (REDIS_URL && REDIS_TOKEN) {
@@ -107,14 +171,38 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `https://api.marketaux.com/v1/news/all?search=${encodeURIComponent(cleanQuery)}&filter_entities=true&language=en&published_after=${getDateDaysAgo(7)}&limit=15&api_token=${MARKETAUX_KEY}`;
-    const response = await fetch(url);
+    const params = new URLSearchParams({
+      search: cleanQuery,
+      filter_entities: 'true',
+      language,
+      published_after: getDateDaysAgo(days),
+      limit: String(limit),
+      api_token: MARKETAUX_KEY,
+    });
+    if (sort) params.set('sort', sort);
+    if (countries) params.set('countries', countries);
+    if (mustHaveEntities) params.set('must_have_entities', 'true');
+
+    const response = await fetch(`https://api.marketaux.com/v1/news/all?${params.toString()}`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Marketaux ${response.status}: ${body.slice(0, 240)}`);
+    }
     const data = await response.json();
 
     const rawArticles = Array.isArray(data.data) ? data.data : [];
-    const articles = rawArticles
+    const maxAgeMs = days * 24 * 60 * 60 * 1000;
+    const filtered = rawArticles
       .filter((a) => !isPaywalled(a))
-      .map(transformArticle);
+      .map(transformArticle)
+      .filter((a) => isWithinAge(a.publishedAt, maxAgeMs));
+    const articles = dedupeArticles(filtered);
+
+    if (sort === 'published_desc') {
+      articles.sort((a, b) => Date.parse(String(b.publishedAt || '')) - Date.parse(String(a.publishedAt || '')));
+    }
 
     const result = { articles, query: cleanQuery, count: articles.length };
 

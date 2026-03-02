@@ -40,15 +40,19 @@ const LeftRail = ({
   activeTweetFolderId = '',
   onSetActiveTweetFolder,
   onCreateTweetFolder,
+  onRenameTweetFolder,
   onDeleteTweetFolder,
   onOpenTweetDraft,
   onDeleteTweetDraft,
+  onMoveTweetDraft,
   // explore tabs
   activeExploreTab,
   onExploreTabChange,
 }) => {
   const [priceAlertsOpen, setPriceAlertsOpen] = useState(false);
   const [tweetsOpen, setTweetsOpen] = useState(true);
+  const [draggedTweetRef, setDraggedTweetRef] = useState(null);
+  const [tweetDropTargetFolderId, setTweetDropTargetFolderId] = useState('');
   const isPro = true; // hardcoded until Stripe subscription wired
 
   const profileName = String(displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader').trim() || 'Trader';
@@ -67,6 +71,70 @@ const LeftRail = ({
     const nextName = window.prompt('Create tweet folder');
     if (!nextName || !String(nextName).trim()) return;
     onCreateTweetFolder?.(String(nextName).trim());
+  };
+
+  const handleRenameTweetFolder = (folder) => {
+    const folderId = String(folder?.id || '').trim();
+    const currentName = String(folder?.name || '').trim();
+    if (!folderId || !currentName) return;
+    const nextName = window.prompt('Rename tweet folder', currentName);
+    if (!nextName || !String(nextName).trim()) return;
+    onRenameTweetFolder?.(folderId, String(nextName).trim());
+  };
+
+  const beginTweetDrag = (event, folderId, tweet) => {
+    if (!folderId || !tweet?.id) return;
+    const payload = {
+      tweetId: String(tweet.id),
+      fromFolderId: String(folderId),
+    };
+    setDraggedTweetRef(payload);
+    try {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('application/x-stratify-tweet', JSON.stringify(payload));
+      event.dataTransfer.setData('text/plain', String(tweet.content || '').slice(0, 120));
+    } catch {
+      // no-op: fallback uses local draggedTweetRef state
+    }
+  };
+
+  const endTweetDrag = () => {
+    setDraggedTweetRef(null);
+    setTweetDropTargetFolderId('');
+  };
+
+  const getDraggedTweetPayload = (event) => {
+    try {
+      const raw = event.dataTransfer.getData('application/x-stratify-tweet');
+      if (!raw) return draggedTweetRef;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.tweetId || !parsed?.fromFolderId) return draggedTweetRef;
+      return {
+        tweetId: String(parsed.tweetId),
+        fromFolderId: String(parsed.fromFolderId),
+      };
+    } catch {
+      return draggedTweetRef;
+    }
+  };
+
+  const handleFolderDragOver = (event, folderId) => {
+    const dragging = draggedTweetRef || getDraggedTweetPayload(event);
+    if (!dragging?.tweetId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setTweetDropTargetFolderId(String(folderId || ''));
+  };
+
+  const handleFolderDrop = (event, folderId) => {
+    event.preventDefault();
+    const dragging = getDraggedTweetPayload(event);
+    if (!dragging?.tweetId || !dragging?.fromFolderId || !folderId) {
+      endTweetDrag();
+      return;
+    }
+    onMoveTweetDraft?.(dragging.fromFolderId, folderId, dragging.tweetId);
+    endTweetDrag();
   };
 
   if (collapsed) {
@@ -319,21 +387,34 @@ const LeftRail = ({
               >
                 <div className="pl-2 pr-1 space-y-1">
                   {folders.length === 0 ? (
-                    <div className="rounded-lg px-2 py-1.5 text-[11px]" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                    <div className="rounded-lg px-2 py-1.5 text-sm" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
                       No tweet folders yet.
                     </div>
                   ) : (
                     folders.map((folder) => {
                       const isActiveFolder = activeTweetFolder?.id === folder.id;
                       const folderCount = Array.isArray(folder?.tweets) ? folder.tweets.length : 0;
-                      const canDeleteFolder = folder.id !== 'tweets-default';
+                      const isDropTarget = tweetDropTargetFolderId === folder.id;
                       return (
-                        <div key={folder.id} className="rounded-lg border border-white/8 bg-white/[0.02]">
+                        <div
+                          key={folder.id}
+                          className="rounded-lg border bg-white/[0.02] transition-colors"
+                          style={{
+                            borderColor: isDropTarget ? 'rgba(88,166,255,0.55)' : 'rgba(255,255,255,0.08)',
+                            boxShadow: isDropTarget ? '0 0 0 1px rgba(88,166,255,0.25) inset' : 'none',
+                          }}
+                          onDragOver={(event) => handleFolderDragOver(event, folder.id)}
+                          onDragEnter={(event) => handleFolderDragOver(event, folder.id)}
+                          onDragLeave={() => {
+                            if (tweetDropTargetFolderId === folder.id) setTweetDropTargetFolderId('');
+                          }}
+                          onDrop={(event) => handleFolderDrop(event, folder.id)}
+                        >
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
                               onClick={() => onSetActiveTweetFolder?.(folder.id)}
-                              className="flex-1 text-left px-2 py-1.5 text-[11px] rounded-l-lg transition-colors"
+                              className="flex-1 text-left px-2 py-1.5 text-base rounded-l-lg transition-colors"
                               style={{
                                 color: isActiveFolder ? T.blue : T.text,
                                 backgroundColor: isActiveFolder ? 'rgba(88,166,255,0.1)' : 'transparent',
@@ -341,19 +422,26 @@ const LeftRail = ({
                               title={`Open ${folder.name} folder`}
                             >
                               <span className="font-semibold">{folder.name}</span>
-                              <span className="ml-1" style={{ color: T.muted }}>({folderCount})</span>
+                              <span className="ml-1 text-sm" style={{ color: T.muted }}>({folderCount})</span>
                             </button>
-                            {canDeleteFolder ? (
-                              <button
-                                type="button"
-                                onClick={() => onDeleteTweetFolder?.(folder.id)}
-                                className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-white/8 transition-colors mr-1"
-                                style={{ color: T.red }}
-                                title="Delete folder"
-                              >
-                                <Trash2 size={11} strokeWidth={1.6} />
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => handleRenameTweetFolder(folder)}
+                              className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-white/8 transition-colors"
+                              style={{ color: T.muted }}
+                              title="Rename folder"
+                            >
+                              <Pencil size={11} strokeWidth={1.6} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteTweetFolder?.(folder.id)}
+                              className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-white/8 transition-colors mr-1"
+                              style={{ color: T.red }}
+                              title="Delete folder"
+                            >
+                              <Trash2 size={11} strokeWidth={1.6} />
+                            </button>
                           </div>
                         </div>
                       );
@@ -362,15 +450,18 @@ const LeftRail = ({
 
                   <div className="pt-1 space-y-1">
                     {activeTweets.length === 0 ? (
-                      <div className="rounded-lg px-2 py-1.5 text-[11px]" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                      <div className="rounded-lg px-2 py-1.5 text-sm" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
                         No tweets saved in this folder.
                       </div>
                     ) : (
                       activeTweets.map((tweet) => (
                         <div
                           key={tweet.id}
-                          className="group flex items-start gap-1.5 rounded-lg px-2 py-1.5 text-[11px]"
+                          className="group flex items-start gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-grab active:cursor-grabbing"
                           style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+                          draggable
+                          onDragStart={(event) => beginTweetDrag(event, activeTweetFolder?.id, tweet)}
+                          onDragEnd={endTweetDrag}
                         >
                           <button
                             type="button"

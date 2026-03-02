@@ -36,21 +36,35 @@ const ChatInputBar = ({
   onFeedSelect,
   activeFeed,
   enabledFeeds = [],
+  tweetFolders = [],
+  activeTweetFolderId = '',
 }) => {
   const [message, setMessage] = useState('');
   const [selectedHashtags, setSelectedHashtags] = useState([]);
   const [debouncedMessage, setDebouncedMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showFeedHashtags, setShowFeedHashtags] = useState(false);
+  const [showSaveFolderPicker, setShowSaveFolderPicker] = useState(false);
 
   const visibleFeedHashtags = useMemo(() => (
     ALL_FEED_HASHTAGS.filter(feed => (enabledFeeds || []).includes(feed.id)).slice(0, MAX_VISIBLE_FEED_HASHTAGS)
   ), [enabledFeeds]);
+  const availableTweetFolders = useMemo(() => (
+    (Array.isArray(tweetFolders) ? tweetFolders : []).filter(
+      (folder) => String(folder?.id || '').trim() && String(folder?.name || '').trim(),
+    )
+  ), [tweetFolders]);
+  const resolvedActiveTweetFolderId = useMemo(() => {
+    const requestedId = String(activeTweetFolderId || '').trim();
+    if (availableTweetFolders.some((folder) => folder.id === requestedId)) return requestedId;
+    return String(availableTweetFolders[0]?.id || '');
+  }, [activeTweetFolderId, availableTweetFolders]);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const inputRef = useRef(null);
   const lookupRef = useRef(null);
+  const saveFolderPickerRef = useRef(null);
   const prevSearchModeRef = useRef(searchMode);
 
   const tickerQuery = useMemo(() => {
@@ -174,6 +188,23 @@ const ChatInputBar = ({
     lookupRef.current?.call(tickerQuery);
   }, [tickerQuery, searchMode]);
 
+  useEffect(() => {
+    if (searchMode || !String(message || '').trim()) {
+      setShowSaveFolderPicker(false);
+    }
+  }, [message, searchMode]);
+
+  useEffect(() => {
+    if (!showSaveFolderPicker) return undefined;
+    const handlePointerDown = (event) => {
+      if (!saveFolderPickerRef.current?.contains(event.target)) {
+        setShowSaveFolderPicker(false);
+      }
+    };
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [showSaveFolderPicker]);
+
   const applySuggestion = useCallback((item, options = {}) => {
     const triggerSearch = Boolean(options?.triggerSearch);
     const text = String(item?.text || '').trim();
@@ -257,18 +288,20 @@ const ChatInputBar = ({
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }, [addHashtagToMessage, removeHashtagFromMessage]);
 
-  const send = async () => {
+  const send = async (options = {}) => {
     const trimmed = searchMode ? normalizeAiSearchQuery(message) : String(message || '').trim();
     if (!trimmed) return;
+    const preferredFolderId = String(options?.preferredFolderId || '').trim();
 
     const ok = searchMode
       ? await onSearch?.(trimmed)
-      : await onSend?.(trimmed, 'general');
+      : await onSend?.(trimmed, 'general', preferredFolderId || resolvedActiveTweetFolderId);
     if (ok !== false) {
       setMessage('');
       setSuggestions([]);
       setActiveSuggestion(0);
       setDebouncedMessage('');
+      setShowSaveFolderPicker(false);
       if (!searchMode) setSelectedHashtags([]);
     }
   };
@@ -280,6 +313,7 @@ const ChatInputBar = ({
     setSuggestionsLoading(false);
     setActiveSuggestion(0);
     setSelectedHashtags([]);
+    setShowSaveFolderPicker(false);
     onModeChange?.(false, { source: 'post-toggle' });
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }, [onModeChange]);
@@ -300,6 +334,7 @@ const ChatInputBar = ({
     setDebouncedMessage('');
     setSelectedHashtags([]);
     setShowEmojiPicker(false);
+    setShowSaveFolderPicker(false);
   }, [message, onOpenComposer, searchMode]);
 
   const handleKeyDown = (event) => {
@@ -531,20 +566,76 @@ const ChatInputBar = ({
                   </AnimatePresence>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => void send()}
-                  disabled={!canUseInput || !hasMessage}
-                  className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-200 hover:bg-[#79b8ff] hover:scale-[1.02]"
-                  title={searchMode ? 'Run AI search' : 'Save quick post to Tweets folder'}
-                >
-                  {searchMode ? (
-                    <CornerDownLeft size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
-                  ) : (
-                    <Send size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
-                  )}
-                  <span>{searchMode ? 'Enter' : 'Save'}</span>
-                </button>
+                <div className="relative" ref={saveFolderPickerRef}>
+                  <AnimatePresence initial={false}>
+                    {!searchMode && showSaveFolderPicker ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                        transition={OVERLAY_PANEL_TRANSITION}
+                        className="absolute right-0 bottom-full mb-2 z-40 w-[240px] rounded-xl border border-white/12 bg-[#0f1622]/95 backdrop-blur-md shadow-[0_14px_30px_rgba(0,0,0,0.42)] p-2"
+                      >
+                        <div className="px-2 pb-1 pt-0.5 text-sm font-semibold" style={{ color: T.text }}>
+                          Save to folder
+                        </div>
+                        {availableTweetFolders.length > 0 ? (
+                          <div className="max-h-56 overflow-y-auto space-y-1">
+                            {availableTweetFolders.map((folder) => {
+                              const folderId = String(folder.id);
+                              const tweetCount = Array.isArray(folder?.tweets) ? folder.tweets.length : 0;
+                              const isActiveFolder = folderId === resolvedActiveTweetFolderId;
+                              return (
+                                <button
+                                  key={folderId}
+                                  type="button"
+                                  onClick={() => void send({ preferredFolderId: folderId })}
+                                  className="w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-sm transition-colors"
+                                  style={{
+                                    color: isActiveFolder ? T.blue : T.text,
+                                    backgroundColor: isActiveFolder ? 'rgba(88,166,255,0.12)' : 'rgba(255,255,255,0.02)',
+                                  }}
+                                  title={`Save to ${folder.name}`}
+                                >
+                                  <span className="truncate">{folder.name}</span>
+                                  <span className="ml-2 tabular-nums" style={{ color: T.muted }}>
+                                    {tweetCount}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg px-2.5 py-2 text-sm" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                            Create a folder in the left sidebar first.
+                          </div>
+                        )}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (searchMode) {
+                        void send();
+                        return;
+                      }
+                      if (!canUseInput || !hasMessage) return;
+                      setShowSaveFolderPicker((open) => !open);
+                    }}
+                    disabled={!canUseInput || !hasMessage}
+                    className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-200 hover:bg-[#79b8ff] hover:scale-[1.02]"
+                    title={searchMode ? 'Run AI search' : 'Choose folder and save quick post'}
+                  >
+                    {searchMode ? (
+                      <CornerDownLeft size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
+                    ) : (
+                      <Send size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
+                    )}
+                    <span>{searchMode ? 'Enter' : 'Save'}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

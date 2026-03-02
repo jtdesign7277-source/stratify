@@ -32,6 +32,27 @@ const formatPublishedDateTime = (value) => {
   });
 };
 
+const FINANCE_NEWS_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+
+const toRelativeTime = (value) => {
+  const timestamp = Date.parse(String(value || ''));
+  if (!Number.isFinite(timestamp)) return '';
+  const diffMs = Date.now() - timestamp;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+};
+
+const isFreshFinanceArticle = (row) => {
+  const timestamp = Date.parse(String(row?.publishedAt || ''));
+  if (!Number.isFinite(timestamp)) return false;
+  const ageMs = Date.now() - timestamp;
+  return ageMs >= -60_000 && ageMs <= FINANCE_NEWS_MAX_AGE_MS;
+};
+
 // ─── History View ─────────────────────────────────────────
 export const HistoryView = ({ history, loading, onClear, onArticleClick }) => {
   const relTime = (iso) => {
@@ -202,20 +223,74 @@ export const FinanceView = ({ onArticleClick }) => {
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState(false);
 
+  const fetchDiscoverFallbackNews = useCallback(async () => {
+    const res = await fetch('/api/discover');
+    if (!res.ok) throw new Error('discover failed');
+    const data = await res.json();
+    const stories = dedupeArticles(Array.isArray(data?.topStories) ? data.topStories : []);
+
+    return stories
+      .map((story, idx) => ({
+        id: story.id || story.url || `discover-fallback-${idx}`,
+        title: story.title || 'Untitled',
+        description: story.description || '',
+        url: story.url || null,
+        source: story.source || 'News',
+        source_domain: story.source || '',
+        publishedAt: story.publishedAt || null,
+        timeAgo: toRelativeTime(story.publishedAt),
+        image: story.thumbnailUrl || null,
+        tickers: [],
+      }))
+      .filter(isFreshFinanceArticle);
+  }, []);
+
+  const fetchFinanceNewsWindow = useCallback(async (days) => {
+    const params = new URLSearchParams({
+      q: 'financial market news',
+      days: String(days),
+      limit: '24',
+      sort: 'published_desc',
+      language: 'en',
+      countries: 'us',
+      must_have_entities: 'true',
+    });
+
+    const res = await fetch(`/api/search?${params.toString()}`);
+    if (!res.ok) throw new Error('failed');
+    const data = await res.json();
+    const rows = Array.isArray(data.articles) ? data.articles : [];
+    return dedupeArticles(rows).filter(isFreshFinanceArticle);
+  }, []);
+
   const fetchNews = useCallback(async () => {
     setNewsLoading(true);
     setNewsError(false);
     try {
-      const res = await fetch('/api/search?q=financial+market+news');
-      if (!res.ok) throw new Error('failed');
-      const data = await res.json();
-      setArticles(dedupeArticles(Array.isArray(data.articles) ? data.articles : []));
+      const oneDayArticles = await fetchFinanceNewsWindow(1);
+      let nextArticles = oneDayArticles;
+
+      if (nextArticles.length < 6) {
+        const twoDayArticles = await fetchFinanceNewsWindow(2);
+        if (twoDayArticles.length > 0) {
+          nextArticles = twoDayArticles;
+        }
+      }
+
+      if (nextArticles.length === 0) {
+        const discoverFallback = await fetchDiscoverFallbackNews();
+        if (discoverFallback.length > 0) {
+          nextArticles = discoverFallback;
+        }
+      }
+
+      setArticles(nextArticles);
     } catch {
       setNewsError(true);
     } finally {
       setNewsLoading(false);
     }
-  }, []);
+  }, [fetchDiscoverFallbackNews, fetchFinanceNewsWindow]);
 
   useEffect(() => { void fetchNews(); }, [fetchNews]);
 
