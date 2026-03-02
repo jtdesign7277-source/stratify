@@ -123,7 +123,7 @@
     },
     {
       "path": "/api/x-post?type=just-in&post=true",
-      "schedule": "*/30 0-4 * * 1-7"
+      "schedule": "*/30 0-4 * * 0-6"
     }
   ]
 }
