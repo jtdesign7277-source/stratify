@@ -80,6 +80,34 @@
           {
                   "path": "/api/feeds?feed=MemeStocks",
                   "schedule": "9 12 * * 0"
-          }
+          },
+                {
+                                "path": "/api/x-bot-v2?type=market-open",
+                                "schedule": "35 13 * * 1-5"
+                },
+                {
+                                "path": "/api/x-bot-v2?type=mag7",
+                                "schedule": "0 15 * * 1-5"
+                },
+                {
+                                "path": "/api/x-bot-v2?type=breaking",
+                                "schedule": "30 16 * * 1-5"
+                },
+                {
+                                "path": "/api/x-bot-v2?type=top-movers",
+                                "schedule": "0 17 * * 1-5"
+                },
+                {
+                                "path": "/api/x-bot-v2?type=crypto",
+                                "schedule": "0 19 * * 0-6"
+                },
+                {
+                                "path": "/api/x-bot-v2?type=market-close",
+                                "schedule": "5 20 * * 1-5"
+                },
+                {
+                                "path": "/api/x-bot-v2?type=breaking",
+                                "schedule": "0 23 * * 1-5"
+                }
     ]
 }
