@@ -256,6 +256,24 @@ const loadTweetStorage = () => {
   }
 };
 
+const buildUserScopedStorageKey = (baseKey, userId) => {
+  const safeBaseKey = String(baseKey || '').trim();
+  const safeUserId = String(userId || '').trim();
+  if (!safeBaseKey) return '';
+  return safeUserId ? `${safeBaseKey}:${safeUserId}` : safeBaseKey;
+};
+
+const readLocalStorageString = (key) => {
+  if (typeof window === 'undefined') return '';
+  const safeKey = String(key || '').trim();
+  if (!safeKey) return '';
+  try {
+    return String(window.localStorage.getItem(safeKey) || '').trim();
+  } catch {
+    return '';
+  }
+};
+
 // ─── Main Community Page ──────────────────────────────────
 const CommunityPage = ({ tradeHistory = [] }) => {
   const [posts, setPosts] = useState([]);
@@ -338,6 +356,59 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   ).trim() || buildCurrentUserAvatarUrl(activeAvatarSeed);
   const priceAlertPopoverRef = useRef(null);
   const alertToastTimersRef = useRef(new Map());
+  const upsertProfileRecord = useCallback(async ({
+    userId,
+    email,
+    displayName: nextDisplayName,
+    avatarUrl: nextAvatarUrl,
+  }) => {
+    const safeUserId = String(userId || '').trim();
+    if (!safeUserId) return;
+
+    const payload = {
+      id: safeUserId,
+      email: String(email || '').trim() || null,
+      display_name: String(nextDisplayName || '').trim().slice(0, 24) || null,
+      avatar_url: String(nextAvatarUrl || '').trim() || null,
+    };
+
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (upsertError) throw upsertError;
+  }, []);
+
+  const syncProfileLocalCache = useCallback(({
+    userId,
+    displayName: nextDisplayName,
+    avatarUrl: nextAvatarUrl,
+  }) => {
+    if (typeof window === 'undefined') return;
+
+    const safeDisplayName = String(nextDisplayName || '').trim().slice(0, 24) || 'Anonymous Trader';
+    const safeAvatarUrl = String(nextAvatarUrl || '').trim();
+    const scopedDisplayNameKey = buildUserScopedStorageKey(DISPLAY_NAME_STORAGE_KEY, userId);
+    const scopedAvatarSeedKey = buildUserScopedStorageKey(USER_AVATAR_SEED_STORAGE_KEY, userId);
+    const scopedAvatarUrlKey = buildUserScopedStorageKey(USER_AVATAR_URL_STORAGE_KEY, userId);
+
+    try {
+      window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, safeDisplayName);
+      window.localStorage.setItem(USER_AVATAR_SEED_STORAGE_KEY, safeDisplayName);
+      if (scopedDisplayNameKey) window.localStorage.setItem(scopedDisplayNameKey, safeDisplayName);
+      if (scopedAvatarSeedKey) window.localStorage.setItem(scopedAvatarSeedKey, safeDisplayName);
+
+      if (safeAvatarUrl) {
+        window.localStorage.setItem(USER_AVATAR_URL_STORAGE_KEY, safeAvatarUrl);
+        if (scopedAvatarUrlKey) window.localStorage.setItem(scopedAvatarUrlKey, safeAvatarUrl);
+      } else {
+        window.localStorage.removeItem(USER_AVATAR_URL_STORAGE_KEY);
+        if (scopedAvatarUrlKey) window.localStorage.removeItem(scopedAvatarUrlKey);
+      }
+    } catch {
+      // localStorage sync is best effort only
+    }
+  }, []);
 
   const mockFeed = useMemo(() => generateMockFeed(), []);
 
@@ -508,15 +579,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     let cancelled = false;
 
     const getUser = async () => {
-      let localDisplayName = '';
-      if (typeof window !== 'undefined') {
-        try {
-          localDisplayName = String(window.localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || '').trim().slice(0, 24);
-          if (localDisplayName) setDisplayName(localDisplayName);
-        } catch {
-          localDisplayName = '';
-        }
-      }
+      const legacyDisplayName = readLocalStorageString(DISPLAY_NAME_STORAGE_KEY).slice(0, 24);
+      if (legacyDisplayName) setDisplayName(legacyDisplayName);
 
       try {
         const {
@@ -524,6 +588,10 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         } = await supabase.auth.getUser();
 
         if (!user || cancelled) return;
+        const scopedDisplayNameKey = buildUserScopedStorageKey(DISPLAY_NAME_STORAGE_KEY, user.id);
+        const scopedAvatarUrlKey = buildUserScopedStorageKey(USER_AVATAR_URL_STORAGE_KEY, user.id);
+        const scopedDisplayName = readLocalStorageString(scopedDisplayNameKey).slice(0, 24);
+        const scopedAvatarUrl = readLocalStorageString(scopedAvatarUrlKey);
 
         let profile = null;
         try {
@@ -543,40 +611,47 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         const metadataDisplayName = String(user.user_metadata?.full_name || '').trim().slice(0, 24);
         const emailDisplayName = String(user.email?.split('@')[0] || '').trim().slice(0, 24);
         const resolvedDisplayName = remoteDisplayName
-          || localDisplayName
+          || scopedDisplayName
           || metadataDisplayName
           || emailDisplayName
+          || legacyDisplayName
           || 'Anonymous Trader';
+        const remoteAvatarUrl = String(profile?.avatar_url || user.user_metadata?.avatar_url || '').trim();
+        const resolvedAvatarUrl = remoteAvatarUrl || scopedAvatarUrl;
 
         setDisplayName(resolvedDisplayName);
-        if (typeof window !== 'undefined') {
-          try {
-            window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, resolvedDisplayName);
-            const existingAvatarSeed = String(window.localStorage.getItem(USER_AVATAR_SEED_STORAGE_KEY) || '').trim();
-            if (!existingAvatarSeed) {
-              window.localStorage.setItem(USER_AVATAR_SEED_STORAGE_KEY, resolvedDisplayName);
-            }
-
-            const existingAvatarUrl = String(window.localStorage.getItem(USER_AVATAR_URL_STORAGE_KEY) || '').trim();
-            const remoteAvatarUrl = String(profile?.avatar_url || user.user_metadata?.avatar_url || '').trim();
-            if (!existingAvatarUrl && remoteAvatarUrl) {
-              window.localStorage.setItem(USER_AVATAR_URL_STORAGE_KEY, remoteAvatarUrl);
-            }
-          } catch {
-            // localStorage sync is best effort only
-          }
-        }
+        syncProfileLocalCache({
+          userId: user.id,
+          displayName: resolvedDisplayName,
+          avatarUrl: resolvedAvatarUrl,
+        });
 
         const resolvedAvatar = readCurrentUserAvatar(resolvedDisplayName);
+        const resolvedAvatarForUser = String(resolvedAvatarUrl || resolvedAvatar.url || '').trim()
+          || buildCurrentUserAvatarUrl(resolvedDisplayName);
         setCurrentUserAvatar(resolvedAvatar);
 
         setCurrentUser({
           id: user.id,
           email: user.email,
           display_name: resolvedDisplayName,
-          avatar_url: resolvedAvatar.url,
+          avatar_url: resolvedAvatarForUser,
           avatar_color: user.user_metadata?.avatar_color || null,
         });
+
+        const profileIsMissingCoreFields = !remoteDisplayName || !remoteAvatarUrl;
+        if (profileIsMissingCoreFields) {
+          try {
+            await upsertProfileRecord({
+              userId: user.id,
+              email: user.email,
+              displayName: resolvedDisplayName,
+              avatarUrl: resolvedAvatarForUser,
+            });
+          } catch {
+            // best effort bootstrap upsert
+          }
+        }
       } catch {
         // fall back to local storage name and anonymous browsing
       }
@@ -587,7 +662,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncProfileLocalCache, upsertProfileRecord]);
 
   useEffect(() => {
     setCurrentUser((prev) => {
@@ -598,6 +673,30 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       return { ...prev, display_name: activeDisplayName, avatar_url: activeAvatarUrl };
     });
   }, [activeAvatarUrl, activeDisplayName]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return undefined;
+    const timerId = window.setTimeout(() => {
+      void upsertProfileRecord({
+        userId: currentUser.id,
+        email: currentUser.email,
+        displayName: activeDisplayName,
+        avatarUrl: activeAvatarUrl,
+      }).catch(() => {
+        // best effort sync; avoid blocking UX on transient profile write failures
+      });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [
+    activeAvatarUrl,
+    activeDisplayName,
+    currentUser?.email,
+    currentUser?.id,
+    upsertProfileRecord,
+  ]);
 
   const handleSaveName = useCallback(async () => {
     const trimmedInput = String(editName || '').trim();
@@ -610,27 +709,38 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     const trimmedName = trimmedInput.slice(0, 24);
     setDisplayName(trimmedName);
     setIsEditingName(false);
+
+    syncProfileLocalCache({
+      userId: currentUser?.id,
+      displayName: trimmedName,
+      avatarUrl: activeAvatarUrl,
+    });
+
     if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, trimmedName);
-        window.localStorage.setItem(USER_AVATAR_SEED_STORAGE_KEY, trimmedName);
-      } catch {
-        // localStorage sync is best effort only
-      }
       window.dispatchEvent(new Event('storage'));
     }
 
     try {
       if (currentUser?.id) {
-        await supabase.from('profiles').upsert({
-          id: currentUser.id,
-          display_name: trimmedName,
+        await upsertProfileRecord({
+          userId: currentUser.id,
+          email: currentUser.email,
+          displayName: trimmedName,
+          avatarUrl: activeAvatarUrl,
         });
       }
     } catch {
       // best effort profile sync; UI should not block on failure
     }
-  }, [activeDisplayName, currentUser?.id, editName]);
+  }, [
+    activeAvatarUrl,
+    activeDisplayName,
+    currentUser?.email,
+    currentUser?.id,
+    editName,
+    syncProfileLocalCache,
+    upsertProfileRecord,
+  ]);
 
   const hydratePosts = useCallback((rows) => {
     return (Array.isArray(rows) ? rows : []).map((post) => ({
