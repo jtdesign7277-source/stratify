@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, TrendingUp, ArrowLeftRight, Bell, BarChart3, Globe, MessageCircle,
-  Camera, SmilePlus, Wand2, Send, Loader2,
+  Camera, SmilePlus, Wand2,
 } from 'lucide-react';
 import SophiaMark from '../SophiaMark';
 import EmojiPicker from '../EmojiPicker';
@@ -39,13 +39,13 @@ const PostComposerModal = ({
   currentUserAvatarUrl,
   displayName,
   closedTrades = [],
-  submitting = false,
   initialPostType = 'general',
   prefilledText = '',
   openAiRewritePanelOnOpen = false,
   onConsumePrefilledText,
-  onSubmit,
   onSaveTweetDraft,
+  tweetFolders = [],
+  activeTweetFolderId = '',
 }) => {
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState('general');
@@ -64,8 +64,10 @@ const PostComposerModal = ({
   const [hasAiRewriteResult, setHasAiRewriteResult] = useState(false);
   const [lastAiRewriteConfig, setLastAiRewriteConfig] = useState({ styleId: '', personalityId: '' });
   const [rewriteResultVersion, setRewriteResultVersion] = useState(0);
+  const [showSaveFolderPicker, setShowSaveFolderPicker] = useState(false);
   const fileRef = useRef(null);
   const textareaRef = useRef(null);
+  const saveFolderPickerRef = useRef(null);
   const hasInitializedOnOpenRef = useRef(false);
 
   const resetAiRewriteSelections = useCallback(() => {
@@ -113,6 +115,7 @@ const PostComposerModal = ({
     setHasAiRewriteResult(false);
     setLastAiRewriteConfig({ styleId: '', personalityId: '' });
     setRewriteResultVersion(0);
+    setShowSaveFolderPicker(false);
     if (fileRef.current) fileRef.current.value = '';
     if (hasDraftPrefill) onConsumePrefilledText?.();
   }, [open, initialPostType, closedTrades, prefilledText, openAiRewritePanelOnOpen, onConsumePrefilledText, resetAiRewriteSelections]);
@@ -123,6 +126,17 @@ const PostComposerModal = ({
       try { URL.revokeObjectURL(imagePreview); } catch {}
     };
   }, [imagePreview]);
+
+  useEffect(() => {
+    if (!showSaveFolderPicker) return undefined;
+    const handlePointerDown = (event) => {
+      if (!saveFolderPickerRef.current?.contains(event.target)) {
+        setShowSaveFolderPicker(false);
+      }
+    };
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [showSaveFolderPicker]);
 
   const selectedTrade = useMemo(
     () => closedTrades.find((trade) => String(trade.id) === String(selectedTradeId)) || null,
@@ -137,6 +151,16 @@ const PostComposerModal = ({
   const canOpenAiRewrite = !isAiRewriteLoading;
   const canRunAiRewrite = hasComposerText && !isAiRewriteLoading;
   const canRetryAiRewrite = Boolean(!isAiRewriteLoading && (lastAiRewriteConfig.styleId || lastAiRewriteConfig.personalityId) && (originalDraft || content.trim()));
+  const availableTweetFolders = useMemo(() => (
+    (Array.isArray(tweetFolders) ? tweetFolders : []).filter(
+      (folder) => String(folder?.id || '').trim() && String(folder?.name || '').trim(),
+    )
+  ), [tweetFolders]);
+  const resolvedActiveTweetFolderId = useMemo(() => {
+    const requestedId = String(activeTweetFolderId || '').trim();
+    if (availableTweetFolders.some((folder) => folder.id === requestedId)) return requestedId;
+    return String(availableTweetFolders[0]?.id || '');
+  }, [activeTweetFolderId, availableTweetFolders]);
 
   const toggleSlipEmoji = (emoji) => {
     setSelectedSlipEmojis((prev) => (
@@ -246,42 +270,20 @@ const PostComposerModal = ({
     }
   };
 
-  const submit = async () => {
-    const trimmed = content.trim();
-    if (!trimmed && !imageFile && !(postType === 'pnl' && selectedTrade)) return;
-
-    const metadata = {};
-    let finalContent = trimmed;
-
-    if (postType === 'pnl' && selectedTrade) {
-      metadata.ticker = selectedTrade.symbol;
-      metadata.pnl = Number(selectedTrade.pnl.toFixed(2));
-      metadata.percent = Number(selectedTrade.percent.toFixed(2));
-      metadata.shares = Number(selectedTrade.shares.toFixed(4));
-      metadata.entry_price = Number(selectedTrade.entryPrice.toFixed(4));
-      metadata.exit_price = Number(selectedTrade.exitPrice.toFixed(4));
-      metadata.opened_at = new Date(selectedTrade.openedAt).toISOString();
-      metadata.closed_at = new Date(selectedTrade.closedAt).toISOString();
-      metadata.emoji = selectedSlipEmojis;
-      if (!finalContent) finalContent = createSlipCaption({ trade: selectedTrade, emojis: selectedSlipEmojis });
-    }
-
-    const ok = await onSubmit?.({ content: finalContent, postType, metadata, imageFile });
-    if (ok !== false) closeComposerModal();
-  };
-
-  const saveDraftForLater = useCallback(() => {
+  const saveDraftForLater = useCallback((preferredFolderId = '') => {
     const trimmed = String(content || '').trim();
     if (!trimmed) return;
-    onSaveTweetDraft?.(trimmed);
-  }, [content, onSaveTweetDraft]);
+    const targetFolderId = String(preferredFolderId || '').trim() || resolvedActiveTweetFolderId;
+    onSaveTweetDraft?.(trimmed, targetFolderId);
+    setShowSaveFolderPicker(false);
+  }, [content, onSaveTweetDraft, resolvedActiveTweetFolderId]);
 
   const postDraftToX = useCallback(() => {
     const trimmed = String(content || '').trim();
     if (!trimmed) return;
-    onSaveTweetDraft?.(trimmed);
+    setShowSaveFolderPicker(false);
     shareTextToX(trimmed);
-  }, [content, onSaveTweetDraft]);
+  }, [content]);
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -590,7 +592,12 @@ const PostComposerModal = ({
                           type="button"
                           onClick={() => void runAiRewrite()}
                           disabled={!canRunAiRewrite}
-                          className={`mt-3 inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium text-xs px-4 py-1.5 rounded-lg hover:bg-[#79b8ff] transition-all ${hasAiRewriteSelection ? 'brightness-110 shadow-[0_0_16px_rgba(88,166,255,0.35)]' : ''} disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-[#58a6ff]`}
+                          className={`mt-3 inline-flex items-center gap-1.5 border border-white/20 text-white font-semibold text-xs px-4 py-1.5 rounded-lg transition-all duration-300 ${hasAiRewriteSelection ? 'shadow-[0_0_22px_rgba(34,211,238,0.45),0_0_36px_rgba(16,185,129,0.25)] brightness-110' : ''} hover:scale-[1.03] hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed`}
+                          style={{
+                            background: 'linear-gradient(135deg, #0891b2, #0ea5a4, #10b981, #0ea5a4, #0891b2)',
+                            backgroundSize: '300% 300%',
+                            animation: hasAiRewriteSelection ? 'premiumShimmer 3.8s ease infinite' : 'premiumShimmer 6s ease infinite',
+                          }}
                         >
                           <Wand2 strokeWidth={1.5} className="h-3.5 w-3.5" />
                           Rewrite
@@ -647,15 +654,67 @@ const PostComposerModal = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={saveDraftForLater}
-                  disabled={!content.trim()}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 text-[#e6edf3] text-xs font-medium bg-white/5 hover:bg-white/10 transition disabled:opacity-45 disabled:cursor-not-allowed"
-                  title="Save draft for later"
-                >
-                  Save Draft
-                </button>
+                <div className="relative" ref={saveFolderPickerRef}>
+                  <AnimatePresence initial={false}>
+                    {showSaveFolderPicker ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                        transition={OVERLAY_PANEL_TRANSITION}
+                        className="absolute right-0 bottom-full mb-2 z-40 w-[240px] rounded-xl border border-white/12 bg-[#0f1622]/95 backdrop-blur-md shadow-[0_14px_30px_rgba(0,0,0,0.42)] p-2"
+                      >
+                        <div className="px-2 pb-1 pt-0.5 text-sm font-semibold" style={{ color: T.text }}>
+                          Save to folder
+                        </div>
+                        {availableTweetFolders.length > 0 ? (
+                          <div className="max-h-56 overflow-y-auto space-y-1">
+                            {availableTweetFolders.map((folder) => {
+                              const folderId = String(folder.id);
+                              const folderCount = Array.isArray(folder?.tweets) ? folder.tweets.length : 0;
+                              const isActiveFolder = folderId === resolvedActiveTweetFolderId;
+                              return (
+                                <button
+                                  key={`composer-folder-${folderId}`}
+                                  type="button"
+                                  onClick={() => saveDraftForLater(folderId)}
+                                  className="w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-sm transition-colors"
+                                  style={{
+                                    color: isActiveFolder ? T.blue : T.text,
+                                    backgroundColor: isActiveFolder ? 'rgba(88,166,255,0.12)' : 'rgba(255,255,255,0.02)',
+                                  }}
+                                  title={`Save to ${folder.name}`}
+                                >
+                                  <span className="truncate">{folder.name}</span>
+                                  <span className="ml-2 tabular-nums" style={{ color: T.muted }}>
+                                    {folderCount}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg px-2.5 py-2 text-sm" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                            Create a folder in the left sidebar first.
+                          </div>
+                        )}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!content.trim()) return;
+                      setShowSaveFolderPicker((openState) => !openState);
+                    }}
+                    disabled={!content.trim()}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 text-[#e6edf3] text-xs font-medium bg-white/5 hover:bg-white/10 transition disabled:opacity-45 disabled:cursor-not-allowed"
+                    title="Choose folder and save draft"
+                  >
+                    Save Draft
+                  </button>
+                </div>
 
                 <button
                   type="button"
@@ -666,16 +725,6 @@ const PostComposerModal = ({
                 >
                   <XLogoIcon className="w-3.5 h-3.5" />
                   Post to X
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void submit()}
-                  disabled={isAiRewriteLoading || submitting || (!content.trim() && !imageFile && !(postType === 'pnl' && selectedTrade))}
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#58a6ff] text-black text-sm font-semibold shadow-lg shadow-[#58a6ff]/20 transition-all duration-200 hover:bg-[#79b8ff] hover:scale-105 disabled:opacity-45 disabled:cursor-not-allowed"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 text-black animate-spin" /> : <Send className="w-4 h-4 text-black" />}
-                  Publish
                 </button>
               </div>
             </motion.div>

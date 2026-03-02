@@ -2179,6 +2179,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         onConsumePrefilledText={consumeComposerPrefill}
         onSubmit={createPost}
         onSaveTweetDraft={saveTweetDraft}
+        tweetFolders={tweetFolders}
+        activeTweetFolderId={activeTweetFolderId}
       />
 
       <FeedCustomizerModal
