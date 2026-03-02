@@ -9,11 +9,68 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 const STARTING_BALANCE = 100000;
 const GOAL_TARGET = 150000;
+const PORTFOLIO_SPLIT_VIEW_STORAGE_KEY = 'stratify-portfolio-split-view';
+const AI_IDEA_FALLBACK_SYMBOLS = ['SPY', 'QQQ', 'SMH', 'XLF', 'XLE', 'IWM', 'TLT', 'GLD', 'COIN', 'MSTR', 'AMD', 'AVGO'];
 
 const CRYPTO_BASE_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LINK', 'ADA', 'AVAX', 'DOT']);
 
 const normalizeSymbol = (value = '') => String(value || '').trim().toUpperCase().replace(/^\$/, '');
 const toSymbolKey = (value = '') => normalizeSymbol(value).replace(/[^A-Z0-9]/g, '');
+
+const loadInitialSplitViewPreference = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(PORTFOLIO_SPLIT_VIEW_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const buildAiIdeaQuery = (heldSymbols = [], strategySymbols = []) => {
+  const held = Array.isArray(heldSymbols) ? heldSymbols.filter(Boolean).slice(0, 8) : [];
+  const strategy = Array.isArray(strategySymbols) ? strategySymbols.filter(Boolean).slice(0, 6) : [];
+
+  if (held.length === 0 && strategy.length === 0) {
+    return 'Suggest 8 liquid US stocks or ETFs to watch today using momentum, relative strength, and fresh financial headlines.';
+  }
+
+  const lines = [];
+  if (held.length > 0) lines.push(`Current holdings: ${held.map((symbol) => `$${symbol}`).join(', ')}`);
+  if (strategy.length > 0) lines.push(`AI strategy exposure: ${strategy.map((symbol) => `$${symbol}`).join(', ')}`);
+
+  return `${lines.join('. ')}. Suggest 8 additional stocks or ETFs to watch now, prioritize liquid names not already held, and include concise rationale tied to current momentum and headlines.`;
+};
+
+const buildFallbackIdeas = (heldSymbols = []) => {
+  const heldSet = new Set((Array.isArray(heldSymbols) ? heldSymbols : []).map((symbol) => normalizeSymbol(symbol)).filter(Boolean));
+  const hasCryptoExposure = [...heldSet].some((symbol) => isCryptoSymbol(symbol));
+  const hasMegaCapTechExposure = [...heldSet].some((symbol) => ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'TSLA', 'QQQ'].includes(symbol));
+
+  const candidatePool = hasCryptoExposure
+    ? ['COIN', 'MSTR', 'IBIT', 'HOOD', 'SMH', 'QQQ', 'SPY', 'AMD']
+    : hasMegaCapTechExposure
+      ? ['SMH', 'SOXX', 'AVGO', 'AMD', 'QQQ', 'IWM', 'XLF', 'SPY']
+      : AI_IDEA_FALLBACK_SYMBOLS;
+
+  const rationalePool = [
+    'High-liquidity name with active momentum and options flow.',
+    'Useful diversification candidate relative to current concentration.',
+    'Sector leadership signal with strong volume participation.',
+    'Macro-sensitive exposure to balance portfolio beta.',
+    'Potential continuation setup if risk-on sentiment holds.',
+  ];
+
+  return candidatePool
+    .map((symbol) => normalizeSymbol(symbol))
+    .filter((symbol) => symbol && !heldSet.has(symbol))
+    .slice(0, 8)
+    .map((symbol, index) => ({
+      symbol,
+      price: null,
+      percentChange: null,
+      rationale: rationalePool[index % rationalePool.length],
+    }));
+};
 
 const isCryptoSymbol = (value = '') => {
   const normalized = normalizeSymbol(value);
@@ -147,6 +204,15 @@ export default function PortfolioDashboard() {
   const { portfolio, trades, loading, error, fetchPortfolio, updatePositionPrice } = usePaperTrading();
   const { trades: syncedTrades = [] } = useTradeHistoryStore();
   const [marketStatus, setMarketStatus] = useState(() => getMarketStatus());
+  const [splitViewEnabled, setSplitViewEnabled] = useState(() => loadInitialSplitViewPreference());
+  const [ideaRefreshNonce, setIdeaRefreshNonce] = useState(0);
+  const [aiIdeas, setAiIdeas] = useState(() => ({
+    loading: false,
+    error: '',
+    rows: [],
+    summary: '',
+    generatedAt: '',
+  }));
 
   const positions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
   const cashBalance = Number(portfolio?.cash_balance || 0);
@@ -295,6 +361,53 @@ export default function PortfolioDashboard() {
     return [...unique].sort().join(',');
   }, [positions]);
 
+  const strategySymbolsKey = useMemo(
+    () => [...strategySymbols].sort().join(','),
+    [strategySymbols]
+  );
+
+  const heldSymbols = useMemo(
+    () => (heldSymbolsKey ? heldSymbolsKey.split(',').map((symbol) => normalizeSymbol(symbol)).filter(Boolean) : []),
+    [heldSymbolsKey]
+  );
+
+  const strategyExposureSymbols = useMemo(
+    () => (strategySymbolsKey ? strategySymbolsKey.split(',').map((symbol) => normalizeSymbol(symbol)).filter(Boolean) : []),
+    [strategySymbolsKey]
+  );
+
+  const aiIdeasQuery = useMemo(
+    () => buildAiIdeaQuery(heldSymbols, strategyExposureSymbols),
+    [heldSymbols, strategyExposureSymbols]
+  );
+
+  const fallbackAiIdeas = useMemo(
+    () => buildFallbackIdeas(heldSymbols),
+    [heldSymbols]
+  );
+
+  const aiIdeasUpdatedLabel = useMemo(() => {
+    const generatedAt = String(aiIdeas.generatedAt || '').trim();
+    if (!generatedAt) return '';
+    const timestamp = Date.parse(generatedAt);
+    if (!Number.isFinite(timestamp)) return '';
+    return new Date(timestamp).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }, [aiIdeas.generatedAt]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(PORTFOLIO_SPLIT_VIEW_STORAGE_KEY, splitViewEnabled ? 'true' : 'false');
+    } catch {
+      // no-op
+    }
+  }, [splitViewEnabled]);
+
   const streamConfig = useMemo(() => {
     const equitiesEnabled = marketStatus !== 'Weekend' && marketStatus !== 'Holiday';
     const streamSymbols = [];
@@ -362,6 +475,96 @@ export default function PortfolioDashboard() {
     window.addEventListener('paper-trade-executed', onTradeExecuted);
     return () => window.removeEventListener('paper-trade-executed', onTradeExecuted);
   }, [fetchPortfolio]);
+
+  useEffect(() => {
+    if (!splitViewEnabled) return undefined;
+
+    let cancelled = false;
+    const abortController = new AbortController();
+
+    const runAiIdeas = async () => {
+      setAiIdeas((previous) => ({
+        ...previous,
+        loading: true,
+        error: '',
+      }));
+
+      try {
+        const response = await fetch('/api/community/ai-search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: aiIdeasQuery,
+            interests: {
+              trackedSymbols: heldSymbols,
+              filter: 'portfolio',
+              signedIn: true,
+            },
+          }),
+          signal: abortController.signal,
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(String(payload?.error || `Ideas request failed (${response.status})`));
+        }
+
+        const data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+        const relatedTickers = Array.isArray(data?.relatedTickers) ? data.relatedTickers : [];
+        const tickerSnapshots = data?.tickerSnapshots && typeof data.tickerSnapshots === 'object'
+          ? data.tickerSnapshots
+          : {};
+        const keyPoints = Array.isArray(data?.keyPoints) ? data.keyPoints : [];
+        const heldSet = new Set(heldSymbols);
+
+        const mappedRows = relatedTickers
+          .map((rawSymbol, index) => {
+            const symbol = normalizeSymbol(rawSymbol);
+            if (!symbol || heldSet.has(symbol)) return null;
+
+            const snapshot = tickerSnapshots[symbol] || {};
+            const priceValue = Number(snapshot?.price);
+            const percentValue = Number(snapshot?.percentChange);
+
+            return {
+              symbol,
+              price: Number.isFinite(priceValue) ? priceValue : null,
+              percentChange: Number.isFinite(percentValue) ? percentValue : null,
+              rationale: String(keyPoints[index] || '').trim(),
+            };
+          })
+          .filter(Boolean)
+          .slice(0, 8);
+
+        const nextRows = mappedRows.length > 0 ? mappedRows : fallbackAiIdeas;
+
+        if (cancelled) return;
+        setAiIdeas({
+          loading: false,
+          error: '',
+          rows: nextRows,
+          summary: String(data?.summary || '').trim(),
+          generatedAt: String(data?.generatedAt || new Date().toISOString()),
+        });
+      } catch {
+        if (abortController.signal.aborted || cancelled) return;
+        setAiIdeas({
+          loading: false,
+          error: 'Live AI ideas are reconnecting. Showing fallback watchlist ideas.',
+          rows: fallbackAiIdeas,
+          summary: '',
+          generatedAt: new Date().toISOString(),
+        });
+      }
+    };
+
+    void runAiIdeas();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
+  }, [aiIdeasQuery, fallbackAiIdeas, heldSymbols, ideaRefreshNonce, splitViewEnabled]);
 
   const walletChartOptions = useMemo(() => ({
     chart: {
@@ -576,15 +779,39 @@ export default function PortfolioDashboard() {
             Paper Mode
           </span>
         </div>
-        <button
-          onClick={fetchPortfolio}
-          className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff]"
-        >
-          <RefreshCw size={12} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSplitViewEnabled((previous) => !previous)}
+            className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+              splitViewEnabled
+                ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200'
+                : 'border-[#1f1f1f] bg-[#0b0b0b] text-[#f8fbff] hover:text-[#ffffff]'
+            }`}
+            title={splitViewEnabled ? 'Switch back to full-width layout' : 'Split layout and show AI stock ideas'}
+          >
+            {splitViewEnabled ? 'Full Width' : 'Split View'}
+          </button>
+          <button
+            onClick={() => setIdeaRefreshNonce((value) => value + 1)}
+            disabled={!splitViewEnabled || aiIdeas.loading}
+            className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff] disabled:cursor-not-allowed disabled:opacity-50"
+            title="Refresh AI ideas"
+          >
+            <RefreshCw size={12} className={aiIdeas.loading ? 'animate-spin' : ''} /> Ideas
+          </button>
+          <button
+            onClick={fetchPortfolio}
+            className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff]"
+          >
+            <RefreshCw size={12} /> Refresh
+          </button>
+        </div>
       </div>
 
-      <div className={`mt-3 ${panelClass} p-3`}>
+      <div className={splitViewEnabled ? 'mt-3 grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,58%)_minmax(320px,42%)]' : 'mt-3'}>
+      <div className={splitViewEnabled ? 'min-w-0' : ''}>
+      <div className="space-y-3">
+      <div className={`${panelClass} p-3`}>
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Holdings</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -721,12 +948,12 @@ export default function PortfolioDashboard() {
         </div>
       </div>
 
-      <div className={`mt-3 ${panelClass} p-3`}>
+      <div className={`${panelClass} p-3`}>
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Performance</div>
         <HighchartsReact highcharts={Highcharts} options={walletChartOptions} />
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <div className={`${panelClass} p-3`}>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Allocation View</div>
           <HighchartsReact highcharts={Highcharts} options={allocationPieOptions} />
@@ -738,7 +965,7 @@ export default function PortfolioDashboard() {
       </div>
 
       {Array.isArray(trades) && trades.length > 0 ? (
-        <div className={`mt-3 ${panelClass} p-3`}>
+        <div className={`${panelClass} p-3`}>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Recent Trades</div>
           <div className="space-y-1">
             {trades.slice(0, 8).map((trade, index) => {
@@ -765,10 +992,78 @@ export default function PortfolioDashboard() {
       ) : null}
 
       {error ? (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
           <AlertTriangle size={14} /> {error}
         </div>
       ) : null}
+      </div>
+      </div>
+
+      {splitViewEnabled ? (
+        <aside className={`${panelClass} min-w-0 p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-120px)] xl:overflow-y-auto`}>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">AI Opportunity Radar</div>
+              <div className="mt-1 text-[11px] text-gray-400">
+                {aiIdeas.summary || 'Personalized ideas based on your current holdings and strategy exposure.'}
+              </div>
+              {aiIdeasUpdatedLabel ? (
+                <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-gray-500">Updated {aiIdeasUpdatedLabel}</div>
+              ) : null}
+            </div>
+          </div>
+
+          {aiIdeas.error ? (
+            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-200">
+              {aiIdeas.error}
+            </div>
+          ) : null}
+
+          <div className="mt-3 space-y-2">
+            {aiIdeas.loading ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <div
+                  key={`ai-idea-loading-${index}`}
+                  className="animate-pulse rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]/60 px-2.5 py-2"
+                >
+                  <div className="h-3 w-20 rounded bg-white/10" />
+                  <div className="mt-2 h-2.5 w-full rounded bg-white/5" />
+                  <div className="mt-1 h-2.5 w-[70%] rounded bg-white/5" />
+                </div>
+              ))
+            ) : (Array.isArray(aiIdeas.rows) && aiIdeas.rows.length > 0 ? aiIdeas.rows : fallbackAiIdeas).map((idea, index) => {
+              const change = Number(idea?.percentChange);
+              const hasChange = Number.isFinite(change);
+              const isGain = change >= 0;
+              const price = Number(idea?.price);
+              const hasPrice = Number.isFinite(price) && price > 0;
+
+              return (
+                <div
+                  key={`portfolio-ai-idea-${idea?.symbol || index}`}
+                  className="rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]/60 px-2.5 py-2"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-mono text-sm text-[#f8fbff]">${normalizeSymbol(idea?.symbol || '--')}</div>
+                      <div className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                        {String(idea?.rationale || 'Monitor this setup for momentum continuation and portfolio diversification.')}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-xs text-[#f8fbff]">{hasPrice ? fmtMoney(price) : '—'}</div>
+                      <div className={`font-mono text-xs ${hasChange ? (isGain ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
+                        {hasChange ? fmtPct(change) : 'n/a'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
+      ) : null}
+      </div>
       </div>
     </div>
   );

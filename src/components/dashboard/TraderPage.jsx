@@ -3361,10 +3361,6 @@ export default function TraderPage({
         : 'Disconnected';
   const activeStreamSymbolCount = streamSubscriptionSymbols.length;
   const extendedHoursStatus = getExtendedHoursStatus();
-  const pageBackgroundStyle = {
-    background:
-      'radial-gradient(circle at 12% 8%, rgba(34,197,94,0.08), transparent 36%), radial-gradient(circle at 86% 6%, rgba(56,189,248,0.08), transparent 34%), linear-gradient(180deg, #04070f 0%, #060b14 58%, #04070f 100%)',
-  };
   const watchlistPanelStyle = {
     width: `${watchlistPanelWidth}px`,
     ...GLASS_SHELL_STYLE,
@@ -3380,11 +3376,8 @@ export default function TraderPage({
   return (
     <motion.div
       {...PAGE_TRANSITION}
-      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#060b14] text-[#e5e7eb]"
-      style={pageBackgroundStyle}
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]"
     >
-      <div className="pointer-events-none absolute inset-0 opacity-70" style={{ background: 'radial-gradient(circle at 50% 36%, rgba(14,165,233,0.07), transparent 46%)' }} />
-
       <div className="flex h-[68px] shrink-0 items-center justify-between px-4 py-3 backdrop-blur-xl" style={GLASS_TOPBAR_STYLE}>
         <div className="flex items-center gap-2">
           <button
