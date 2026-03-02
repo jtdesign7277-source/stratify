@@ -1765,6 +1765,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               onDeleteTweetFolder={deleteTweetFolder}
               onOpenTweetDraft={openTweetDraftInRewrite}
               onDeleteTweetDraft={deleteTweetDraft}
+              onMoveTweetDraft={moveTweetDraft}
               activeExploreTab={activeExploreTab}
               onExploreTabChange={setActiveExploreTab}
             />
