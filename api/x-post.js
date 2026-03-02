@@ -536,29 +536,56 @@ JSON: {"tweet":"..."} No markdown.`)
   }
 
 
-  // ── JUST IN (Trump / Iran / Israel / Geopolitical) ────────────────────────
+  // ── JUST IN (Breaking News — STRICT. Only posts if genuinely market-moving.) ─────────────────
+  // ████████████████████████████████████████████████████████████████
+  // ⚠️  @stratify_hq TWEET STANDARD — NON-NEGOTIABLE. BURN THIS IN.
+  // ████████████████████████████████████████████████████████████████
+  // 1.  ONLY post REAL, CONFIRMED, CURRENT breaking news that moves markets.
+  // 2.  NO weather. NO lifestyle. NO opinions. NO vague vibes. NO filler. NEVER.
+  // 3.  News must be from the LAST 2 HOURS. Old news = silence.
+  // 4.  Format: 🚨 BREAKING 🚨 — hard, urgent, impossible to scroll past.
+  // 5.  Every tweet must be the most elite, high-signal post on all of Twitter.
+  // 6.  A trader must read it and IMMEDIATELY act on it.
+  // 7.  Specific tickers. Specific impact. Specific reason. Always.
+  // 8.  When in doubt → skip. Silence > noise. Always.
+  // 9.  Zero fabrication. Only confirmed facts. Ever.
+  // 10. Under 280 chars. Every word earns its place.
+  // 11. Zero tolerance for lazy, inaccurate, or irrelevant posts.
+  // 12. One elite tweet > ten mediocre ones.
+  // ████████████████████████████████████████████████████████████████
   if (type === 'just-in') {
-    // Step 1: Fetch Trump's recent tweets via X API
+    // Step 1: Fetch Trump's recent tweets with timestamps
     const trumpId = '25073877' // @realDonaldTrump user ID
     const tweetsRes = await fetch(
       `https://api.x.com/2/users/${trumpId}/tweets?max_results=10&tweet.fields=created_at,text&exclude=retweets,replies`,
       { headers: { 'Authorization': `Bearer ${process.env.X_BEARER_TOKEN}` } }
     )
     const tweetsData = await tweetsRes.json()
-    const recentTweets = (tweetsData.data || []).map(t => t.text).join('\n---\n')
+    const recentTweets = (tweetsData.data || []).map(t => `[${t.created_at}] ${t.text}`).join('\n---\n')
 
-    // Step 2: Fetch live market news via MarketAux for context
+    // Step 2: Fetch live market-moving news via MarketAux (broader topics, with timestamps)
     let newsContext = ''
     try {
       const newsRes = await fetch(
-        `https://api.marketaux.com/v1/news/all?topics=politics,war,geopolitics&filter_entities=true&language=en&limit=5&api_token=${process.env.MARKETAUX_API_KEY}`
+        `https://api.marketaux.com/v1/news/all?topics=politics,war,geopolitics,economics,earnings&filter_entities=true&language=en&limit=10&api_token=${process.env.MARKETAUX_API_KEY}`
       )
       const newsData = await newsRes.json()
-      const headlines = (newsData.data || []).map(n => `- ${n.title}`).join('\n')
-      newsContext = `\n\nLATEST MARKET NEWS HEADLINES:\n${headlines}`
+      const headlines = (newsData.data || [])
+        .map(n => `[${n.published_at}] ${n.title}`)
+        .join('\n')
+      newsContext = `\n\nLATEST BREAKING MARKET NEWS:\n${headlines}`
     } catch(_) {}
 
-    // Step 3: Use Grok (xAI) to analyze and rewrite
+    // Step 3: Fetch live SPY/QQQ for market context
+    let marketSnap = ''
+    try {
+      const mq = await fetchQuotes(['SPY','QQQ'])
+      const spy = fmtQuote(mq.SPY)
+      const qqq = fmtQuote(mq.QQQ)
+      if (spy && qqq) marketSnap = `\nLIVE MARKET: ${spy.label} | ${qqq.label}`
+    } catch(_) {}
+
+    // Step 4: Grok — STRICT qualification + elite formatting
     const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -567,37 +594,50 @@ JSON: {"tweet":"..."} No markdown.`)
       },
       body: JSON.stringify({
         model: 'grok-3-latest',
-        max_tokens: 1000,
+        max_tokens: 1200,
         messages: [{
           role: 'user',
-          content: `You are Agent_X for @stratify_hq — a market intelligence bot that monitors geopolitical events and posts market-moving news.
+          content: `You are Agent_X — the most elite financial breaking news account on all of Twitter/X. You post for @stratify_hq.
 
-TODAY IS: ${date}
+YOUR STANDARD: Every post must be the single most compelling, urgent, and accurate market tweet a trader has ever seen. If it does not make traders stop scrolling and immediately act, you DO NOT post. Silence is better than noise.
 
-TRUMP'S RECENT POSTS:
-${recentTweets || 'No recent posts available'}${newsContext}
+TODAY IS: ${date}${marketSnap}
 
-Your job:
-1. Identify if any Trump post is market-moving (tariffs, Iran, Israel, war, sanctions, Fed, economy, major policy)
-2. If YES — rewrite it as a sharp, professional market alert tweet
-3. If NO significant post — respond with {"skip": true}
+TRUMP'S RECENT POSTS (with timestamps):
+${recentTweets || 'None available'}
+${newsContext}
 
-TWEET FORMAT RULES:
-- Start with: JUST IN 🇺🇸
-- If about IRAN: add 🇮🇷 after the flags — "JUST IN 🇺🇸🇮🇷"
-- If about ISRAEL: add 🇮🇱 after the flags — "JUST IN 🇺🇸🇮🇱"
-- If about tariffs/trade/China: add 🇨🇳 — "JUST IN 🇺🇸🇨🇳"
-- If about Russia/Ukraine: add 🇷🇺 — "JUST IN 🇺🇸🇷🇺"
-- Then: bold headline rewrite (factual, no spin)
-- Then: 1 line on potential market impact (which sectors, which tickers)
-- End: "Watch: $SPY $QQQ" or relevant tickers
+STRICT QUALIFICATION — ALL 4 must be true or you SKIP:
+1. News is from the LAST 2 HOURS (check timestamps). Anything older → skip.
+2. It DIRECTLY moves markets: tariffs, Fed action, war escalation, major sanctions, emergency policy, rate decision, major earnings surprise, GDP/jobs shock. NOT: weather, lifestyle, sports, opinions, stale news.
+3. You can name specific tickers or sectors immediately impacted.
+4. A trader reading this RIGHT NOW would change their position or watchlist.
+
+If even ONE criterion fails → {"skip":true,"reason":"..."} — DO NOT POST.
+
+FORMAT (only when all 4 criteria are met):
+🚨 BREAKING 🚨
+
+[ONE LINE: The actual news. Plain English. No spin. Punchy. Factual.]
+
+💥 Market impact: [Specific sectors/tickers and WHY they move — precise, not vague]
+
+Watch: $TICKER $TICKER $SPY $QQQ
+
+Country flags if relevant: 🇺🇸 US policy | 🇮🇷 Iran | 🇮🇱 Israel | 🇨🇳 China/tariffs | 🇷🇺 Russia/Ukraine
+
+HARD RULES:
 - Under 280 chars total
-- Do NOT fabricate quotes or events — only use what Trump actually posted
+- Zero fabrication — only confirmed facts
+- Zero filler — every word earns its place
+- Zero weather, lifestyle, opinions, old news — EVER
+- Must be impossible to scroll past
+- When in doubt → skip. Always.
 
 Respond with JSON only:
-{"tweet":"...","skip":false,"topic":"iran|israel|tariffs|economy|other","marketImpact":"brief note"}
+{"tweet":"...","skip":false,"topic":"tariffs|fed|war|earnings|macro|other","tickers":["SPY","QQQ"]}
 
-If nothing is market-moving: {"skip":true}`
+If anything does not qualify: {"skip":true,"reason":"brief explanation"}`
         }]
       })
     })
@@ -608,7 +648,8 @@ If nothing is market-moving: {"skip":true}`
     const parsed   = JSON.parse(grokText.replace(/```json|```/g, '').trim())
 
     if (parsed.skip) {
-      return { skip: true, reason: 'No market-moving Trump posts found', type }
+      console.log(`[Agent_X] just-in SKIPPED: ${parsed.reason || 'no qualifying news'}`)
+      return { skip: true, reason: parsed.reason || 'No qualifying breaking news', type }
     }
 
     return parsed

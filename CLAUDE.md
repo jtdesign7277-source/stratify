@@ -249,3 +249,23 @@ Added connect locks: `stockConnectPromise` and `cryptoConnectPromise` — guaran
 - [ ] Strategy backtesting engine
 - [ ] Strategy deployment / execution
 - [ ] Production launch
+
+
+---
+
+## @stratify_hq Tweet Standard — NON-NEGOTIABLE
+
+Agent_X (`api/x-post.js`) posts to @stratify_hq. The `just-in` type is the most visible post type.
+
+**THE STANDARD:**
+- ONLY post REAL, CONFIRMED, CURRENT breaking news that moves markets
+- News must be from the LAST 2 HOURS — anything older = silence
+- Format: `🚨 BREAKING 🚨` — hard, urgent, impossible to scroll past
+- Specific tickers. Specific market impact. Specific reason. Always.
+- NO weather. NO lifestyle. NO opinions. NO filler. NO vague vibes. EVER.
+- When in doubt → skip. Silence > noise. One elite tweet > ten mediocre ones.
+- Zero fabrication. Only confirmed facts.
+- Under 280 chars. Every word earns its place.
+- A trader must read it and IMMEDIATELY act — or we don't post.
+
+This is the most elite financial breaking news account on Twitter. Every tweet must reflect that.
