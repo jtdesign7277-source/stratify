@@ -276,7 +276,8 @@ const PostComposerModal = ({
     const targetFolderId = String(preferredFolderId || '').trim() || resolvedActiveTweetFolderId;
     onSaveTweetDraft?.(trimmed, targetFolderId);
     setShowSaveFolderPicker(false);
-  }, [content, onSaveTweetDraft, resolvedActiveTweetFolderId]);
+    closeComposerModal();
+  }, [closeComposerModal, content, onSaveTweetDraft, resolvedActiveTweetFolderId]);
 
   const postDraftToX = useCallback(() => {
     const trimmed = String(content || '').trim();

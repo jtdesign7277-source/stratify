@@ -1762,11 +1762,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               activeTweetFolderId={activeTweetFolderId}
               onSetActiveTweetFolder={setActiveTweetFolder}
               onCreateTweetFolder={createTweetFolder}
-              onRenameTweetFolder={renameTweetFolder}
               onDeleteTweetFolder={deleteTweetFolder}
               onOpenTweetDraft={openTweetDraftInRewrite}
               onDeleteTweetDraft={deleteTweetDraft}
-              onMoveTweetDraft={moveTweetDraft}
               activeExploreTab={activeExploreTab}
               onExploreTabChange={setActiveExploreTab}
             />
