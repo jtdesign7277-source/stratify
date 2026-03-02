@@ -1,30 +1,38 @@
 // api/x-post.js — Agent_X for @stratify_hq
-// Real data first (Twelve Data), then Claude writes copy. No hallucination.
+// Real Twelve Data → Claude writes copy → chart image → post to X
 
 import { Redis } from '@upstash/redis'
 
-const TD_KEY = process.env.TWELVE_DATA_API_KEY
-const TODAY = () => new Date().toLocaleDateString('en-US', {
+const TD_KEY   = process.env.TWELVE_DATA_API_KEY
+const TODAY    = () => new Date().toLocaleDateString('en-US', {
   weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
 })
 
 const CONTENT_TYPES = {
-  'morning-briefing':   { schedule: '8:30am EST',  description: 'Daily pre-market briefing' },
-  'technical-setup':    { schedule: 'multiple/day', description: 'Technical setups with real prices' },
-  'top-movers':         { schedule: '10:00am EST',  description: 'Real top movers from Twelve Data' },
-  'midday-update':      { schedule: '12:30pm EST',  description: 'Midday market pulse' },
+  'morning-briefing':   { schedule: '8:30am EST',  description: 'Pre-market briefing' },
+  'technical-setup':    { schedule: 'multiple/day', description: 'Chart setup with entry/exit — image attached' },
+  'alert':              { schedule: 'on demand',    description: '🚨 ALERT — urgent market move' },
+  'breaking-news':      { schedule: 'on demand',    description: 'BREAKING: major market event' },
+  'top-movers':         { schedule: '10:00am EST',  description: 'Top movers' },
   'power-hour':         { schedule: '3:00pm EST',   description: 'Power hour alert' },
   'market-recap':       { schedule: '4:15pm EST',   description: 'End of day recap' },
-  'afterhours-movers':  { schedule: '5:00pm EST',   description: 'After hours movers' },
+  'afterhours-movers':  { schedule: '5:00pm EST',   description: 'AH movers' },
   'weekend-watchlist':  { schedule: 'Sat 10am EST', description: 'Weekend watchlist' },
+  'midday-update':      { schedule: '12:30pm EST',  description: 'Midday pulse' },
 }
 
-// ── Twelve Data helpers ────────────────────────────────────────────────────
+// ── Twelve Data ────────────────────────────────────────────────────────────
 
 async function fetchQuotes(symbols) {
   const sym = Array.isArray(symbols) ? symbols.join(',') : symbols
   const res = await fetch(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}&apikey=${TD_KEY}&extended_hours=1`)
   if (!res.ok) throw new Error(`Twelve Data quote failed: ${res.status}`)
+  return res.json()
+}
+
+async function fetchOHLC(symbol, interval = '1day', outputsize = 30) {
+  const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=${outputsize}&apikey=${TD_KEY}`)
+  if (!res.ok) throw new Error(`Twelve Data OHLC failed: ${res.status}`)
   return res.json()
 }
 
@@ -54,50 +62,199 @@ function fmtMover(m) {
 
 function fmtMovers(arr) { return arr.map(fmtMover).join('\n') }
 
-// ── Redis ──────────────────────────────────────────────────────────────────
+// ── QuickChart — generate chart PNG ───────────────────────────────────────
 
-function getRedis() {
-  const url   = process.env.KV_REST_API_URL
-  const token = process.env.KV_REST_API_TOKEN
-  if (!url || !token) return null
-  return new Redis({ url, token })
+async function generateChartImage(symbol, ohlcData, entry, stop, target) {
+  const candles = (ohlcData.values || []).slice(0, 20).reverse()
+  if (!candles.length) return null
+
+  const labels = candles.map(c => c.datetime.split(' ')[0])
+  const closes = candles.map(c => parseFloat(c.close))
+  const highs  = candles.map(c => parseFloat(c.high))
+  const lows   = candles.map(c => parseFloat(c.low))
+
+  const lastPrice = closes[closes.length - 1]
+  const minPrice  = Math.min(...lows, stop || lastPrice * 0.95)
+  const maxPrice  = Math.max(...highs, target || lastPrice * 1.08)
+  const padding   = (maxPrice - minPrice) * 0.1
+
+  const chartConfig = {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: symbol,
+          data: closes,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16,185,129,0.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3,
+        },
+        ...(entry ? [{
+          label: `Entry $${entry}`,
+          data: Array(labels.length).fill(entry),
+          borderColor: '#3b82f6',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 0,
+          fill: false,
+        }] : []),
+        ...(stop ? [{
+          label: `Stop $${stop}`,
+          data: Array(labels.length).fill(stop),
+          borderColor: '#ef4444',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 0,
+          fill: false,
+        }] : []),
+        ...(target ? [{
+          label: `Target $${target}`,
+          data: Array(labels.length).fill(target),
+          borderColor: '#a855f7',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 0,
+          fill: false,
+        }] : []),
+      ]
+    },
+    options: {
+      plugins: {
+        legend: {
+          labels: { color: '#e2e8f0', font: { size: 12, family: 'monospace' } }
+        },
+        title: {
+          display: true,
+          text: `$${symbol} — Technical Setup`,
+          color: '#f0f0f5',
+          font: { size: 16, weight: 'bold', family: 'monospace' },
+          padding: { bottom: 12 }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', maxTicksLimit: 8, font: { size: 10 } },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        },
+        y: {
+          min: minPrice - padding,
+          max: maxPrice + padding,
+          ticks: { color: '#64748b', font: { size: 10, family: 'monospace' }, callback: (v) => `$${v.toFixed(2)}` },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      },
+      layout: { padding: 16 }
+    }
+  }
+
+  const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&backgroundColor=%230a0a0f&w=1200&h=630&f=png`
+
+  const res = await fetch(chartUrl)
+  if (!res.ok) return null
+  return Buffer.from(await res.arrayBuffer())
 }
 
-// ── OAuth 1.0a X posting ───────────────────────────────────────────────────
+// ── X Media Upload ─────────────────────────────────────────────────────────
 
-async function postToXOAuth(text) {
-  const crypto = await import('crypto')
-  const oauthParams = {
+async function uploadMediaToX(imageBuffer) {
+  const crypto  = await import('crypto')
+  const base64  = imageBuffer.toString('base64')
+
+  // Step 1: INIT
+  const initRes = await xMediaRequest('POST', 'https://upload.twitter.com/1.1/media/upload.json',
+    `command=INIT&total_bytes=${imageBuffer.length}&media_type=image%2Fpng&media_category=tweet_image`, crypto)
+  const initData = await initRes.json()
+  const mediaId  = initData.media_id_string
+  if (!mediaId) throw new Error(`Media INIT failed: ${JSON.stringify(initData)}`)
+
+  // Step 2: APPEND
+  const form = new FormData()
+  form.append('command', 'APPEND')
+  form.append('media_id', mediaId)
+  form.append('segment_index', '0')
+  form.append('media_data', base64)
+  await xMediaFormRequest('POST', 'https://upload.twitter.com/1.1/media/upload.json', form, crypto)
+
+  // Step 3: FINALIZE
+  const finalRes = await xMediaRequest('POST', 'https://upload.twitter.com/1.1/media/upload.json',
+    `command=FINALIZE&media_id=${mediaId}`, crypto)
+  const finalData = await finalRes.json()
+
+  return finalData.media_id_string || mediaId
+}
+
+async function xMediaRequest(method, url, body, crypto) {
+  const oauthParams = buildOAuth(method, url, {}, crypto)
+  return fetch(url, {
+    method,
+    headers: {
+      'Authorization': oauthHeader(oauthParams),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
+}
+
+async function xMediaFormRequest(method, url, form, crypto) {
+  const oauthParams = buildOAuth(method, url, {}, crypto)
+  return fetch(url, {
+    method,
+    headers: { 'Authorization': oauthHeader(oauthParams) },
+    body: form,
+  })
+}
+
+function buildOAuth(method, url, extraParams, crypto) {
+  const params = {
     oauth_consumer_key:     process.env.X_API_KEY,
     oauth_nonce:            crypto.randomBytes(16).toString('hex'),
     oauth_signature_method: 'HMAC-SHA1',
     oauth_timestamp:        Math.floor(Date.now() / 1000).toString(),
     oauth_token:            process.env.X_ACCESS_TOKEN,
     oauth_version:          '1.0',
+    ...extraParams,
   }
-  const url = 'https://api.x.com/2/tweets'
-  const paramString = Object.keys(oauthParams).sort()
-    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(oauthParams[k])}`).join('&')
-  const signatureBase = `POST&${encodeURIComponent(url)}&${encodeURIComponent(paramString)}`
-  const signingKey = `${encodeURIComponent(process.env.X_API_SECRET)}&${encodeURIComponent(process.env.X_ACCESS_TOKEN_SECRET)}`
-  const signature = crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64')
-  oauthParams.oauth_signature = signature
-  const authHeader = 'OAuth ' + Object.keys(oauthParams).sort()
-    .map(k => `${encodeURIComponent(k)}="${encodeURIComponent(oauthParams[k])}"`)
-    .join(', ')
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
-    body: JSON.stringify({ text }),
-  })
-  if (!response.ok) {
-    const err = await response.text()
-    throw new Error(`X OAuth ${response.status}: ${err}`)
-  }
-  return response.json()
+  const allParams = { ...params, ...extraParams }
+  const paramString = Object.keys(allParams).sort()
+    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(allParams[k])}`).join('&')
+  const base = `${method}&${encodeURIComponent(url)}&${encodeURIComponent(paramString)}`
+  const key  = `${encodeURIComponent(process.env.X_API_SECRET)}&${encodeURIComponent(process.env.X_ACCESS_TOKEN_SECRET)}`
+  params.oauth_signature = crypto.createHmac('sha1', key).update(base).digest('base64')
+  return params
 }
 
-// ── Claude content generation ──────────────────────────────────────────────
+function oauthHeader(params) {
+  return 'OAuth ' + Object.keys(params).sort()
+    .map(k => `${encodeURIComponent(k)}="${encodeURIComponent(params[k])}"`)
+    .join(', ')
+}
+
+// ── Post tweet (with optional media) ──────────────────────────────────────
+
+async function postTweet(text, mediaId = null) {
+  const crypto = await import('crypto')
+  const url    = 'https://api.x.com/2/tweets'
+  const params = buildOAuth('POST', url, {}, crypto)
+  const body   = { text }
+  if (mediaId) body.media = { media_ids: [mediaId] }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': oauthHeader(params),
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`X post failed ${res.status}: ${await res.text()}`)
+  return res.json()
+}
+
+// ── Claude ─────────────────────────────────────────────────────────────────
 
 async function claude(prompt) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -113,109 +270,168 @@ async function claude(prompt) {
       messages: [{ role: 'user', content: prompt }],
     }),
   })
-  if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`)
+  if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`)
   const data = await res.json()
   const text = data.content?.[0]?.text || ''
   return JSON.parse(text.replace(/```json|```/g, '').trim())
 }
 
-// ── Content generators (real data → Claude copy) ───────────────────────────
+// ── Content generators ─────────────────────────────────────────────────────
 
 async function generateContent(type) {
   const date = TODAY()
 
+  // ── TECHNICAL SETUP (with chart) ─────────────────────────────────────────
+  if (type === 'technical-setup') {
+    const symbols  = ['NVDA','TSLA','AAPL','AMZN','META','MSFT','AMD','GOOGL','SPY','QQQ']
+    const quotes   = await fetchQuotes(symbols)
+    const lines    = symbols.map(s => {
+      const q = fmtQuote(quotes[s])
+      return q ? `${q.symbol}: $${q.price.toFixed(2)} (${q.pct >= 0 ? '+' : ''}${q.pct.toFixed(2)}%)` : null
+    }).filter(Boolean).join('\n')
+
+    const setup = await claude(`You are a professional technical analyst for @stratify_hq.
+
+TODAY IS: ${date}
+
+REAL PRICE DATA — use ONLY these prices:
+${lines}
+
+Pick the stock with the cleanest setup. Write a professional technical setup tweet.
+
+Requirements:
+- Entry must be within 0.5% of the real current price above
+- Stop: ~2-3% from entry (tight, professional)
+- Target: ~6-10% from entry (realistic)
+- Calculate R:R ratio
+- Pattern: one of — bull flag, breakout, pullback to support, VWAP reclaim, golden cross, wedge breakout
+- Tweet: under 270 chars, starts with $TICKER
+- Tone: sharp, confident, like a pro trader. No fluff.
+- End with 1-2 hashtags: #trading #stocks
+
+Respond with JSON only:
+{"tweet":"...","ticker":"...","entry":0.00,"stop":0.00,"target":0.00,"rr":"X:1","pattern":"..."}`)
+
+    return { ...setup, hasChart: true }
+  }
+
+  // ── 🚨 ALERT ──────────────────────────────────────────────────────────────
+  if (type === 'alert') {
+    const [quotes, movers] = await Promise.all([
+      fetchQuotes(['SPY', 'QQQ']),
+      fetchMovers('gainers', 5),
+    ])
+    const spy = fmtQuote(quotes.SPY)
+    const qqq = fmtQuote(quotes.QQQ)
+
+    return claude(`You are posting an urgent alert from @stratify_hq.
+
+TODAY IS: ${date}
+
+REAL MARKET DATA:
+${spy?.label}
+${qqq?.label}
+
+TOP MOVERS:
+${fmtMovers(movers)}
+
+Write 1 urgent alert tweet. 
+
+RULES:
+- MUST start with: 🚨 ALERT:
+- Use only the real data above
+- Urgent tone, makes people stop scrolling
+- Under 280 chars
+- No invented data
+
+Respond with JSON: {"tweet":"..."} No markdown.`)
+  }
+
+  // ── BREAKING NEWS ─────────────────────────────────────────────────────────
+  if (type === 'breaking-news') {
+    const [quotes, gainers, losers] = await Promise.all([
+      fetchQuotes(['SPY', 'QQQ', 'DIA']),
+      fetchMovers('gainers', 5),
+      fetchMovers('losers', 3),
+    ])
+    const spy = fmtQuote(quotes.SPY)
+    const qqq = fmtQuote(quotes.QQQ)
+    const dia = fmtQuote(quotes.DIA)
+
+    return claude(`You are posting a breaking news update from @stratify_hq.
+
+TODAY IS: ${date}
+
+REAL MARKET DATA:
+${spy?.label}
+${qqq?.label}
+${dia?.label}
+
+TOP MOVERS:
+GAINERS: ${fmtMovers(gainers)}
+LOSERS: ${fmtMovers(losers)}
+
+Write 1 breaking news tweet + 1 follow-up reply using ONLY the real data above.
+
+RULES:
+- Main tweet MUST start with: BREAKING:
+- Pick the most significant real move from the data
+- Urgent, newsroom energy
+- Main tweet under 270 chars
+
+Respond with JSON: {"tweet":"...","thread":["..."]} No markdown.`)
+  }
+
+  // ── MORNING BRIEFING ──────────────────────────────────────────────────────
   if (type === 'morning-briefing') {
     const [quotes, gainers, losers] = await Promise.all([
       fetchQuotes(['SPY', 'QQQ', 'DIA']),
       fetchMovers('gainers', 6),
       fetchMovers('losers', 4),
     ])
-    const spy = fmtQuote(quotes.SPY || quotes)
+    const spy = fmtQuote(quotes.SPY)
     const qqq = fmtQuote(quotes.QQQ)
     const dia = fmtQuote(quotes.DIA)
-    const prompt = `You are the social media voice of @stratify_hq, an AI-powered trading platform.
+
+    return claude(`You are the social media voice of @stratify_hq.
 
 TODAY IS: ${date}
 
-REAL MARKET DATA (use these exact numbers):
-${spy?.label || 'SPY data unavailable'}
-${qqq?.label || 'QQQ data unavailable'}
-${dia?.label || 'DIA data unavailable'}
+REAL MARKET DATA:
+${spy?.label}
+${qqq?.label}
+${dia?.label}
 
-TOP GAINERS RIGHT NOW:
-${fmtMovers(gainers)}
+TOP GAINERS: ${fmtMovers(gainers)}
+TOP LOSERS: ${fmtMovers(losers)}
 
-TOP LOSERS RIGHT NOW:
-${fmtMovers(losers)}
-
-Write a morning market briefing tweet thread: 1 main tweet + 2-3 replies.
-
-STRICT RULES:
-- Use ONLY the real data above. Never invent prices or percentages.
-- The date is ${date} — use the correct year.
+Write a morning briefing thread: 1 main tweet + 2-3 replies.
+- Use ONLY real data above. Never invent prices.
 - Main tweet: punchy, under 280 chars
-- Last reply ends with: "Follow @stratify_hq for real-time alerts ⚡"
-- Personality: sharp, witty, no-BS. Dry humor. Confident but not arrogant.
-- Max 2 emojis per tweet
+- Last reply: "Follow @stratify_hq for real-time alerts ⚡"
+- Sharp, witty, dry humor. No fluff.
 
-Respond with a JSON array of tweet strings only. No markdown, no backticks.`
-    return claude(prompt)
+Respond with JSON array of tweet strings. No markdown.`)
   }
 
-  if (type === 'technical-setup') {
-    const symbols = ['SPY','QQQ','NVDA','TSLA','AAPL','AMZN','META','MSFT','AMD','GOOGL']
-    const quotes = await fetchQuotes(symbols)
-    const lines = symbols.map(s => {
-      const q = fmtQuote(quotes[s])
-      return q ? q.label : `${s} unavailable`
-    }).join('\n')
-    const prompt = `You are a technical analyst posting from @stratify_hq.
-
-TODAY IS: ${date}
-
-REAL PRICE DATA (use these exact prices):
-${lines}
-
-Pick the stock with the most interesting price action. Write ONE technical setup tweet.
-
-STRICT RULES:
-- Entry must be within 1% of the real current price shown above
-- Stop loss ~2-3% from entry, target ~5-8% from entry
-- Include $TICKER, entry, stop, target, R:R ratio, pattern name
-- Under 280 characters
-- Personality: confident, sharp, like a pro trader texting their group
-
-Respond with JSON object only: {"tweet":"...","ticker":"...","entry":0,"stop":0,"target":0}
-No markdown, no backticks.`
-    return claude(prompt)
-  }
-
+  // ── TOP MOVERS ────────────────────────────────────────────────────────────
   if (type === 'top-movers') {
     const [gainers, losers] = await Promise.all([fetchMovers('gainers', 5), fetchMovers('losers', 3)])
-    const prompt = `You are posting from @stratify_hq.
+    return claude(`You are posting from @stratify_hq.
 
 TODAY IS: ${date}
 
-REAL TOP MOVERS (use these exact numbers):
-GAINERS:
-${fmtMovers(gainers)}
+REAL TOP MOVERS:
+GAINERS: ${fmtMovers(gainers)}
+LOSERS: ${fmtMovers(losers)}
 
-LOSERS:
-${fmtMovers(losers)}
+Write a top movers tweet using ONLY this data. Under 280 chars.
+Format: emoji $TICKER +/-X.X%
 
-Write a "Top Movers" tweet using ONLY this real data. Do not invent any tickers or percentages.
-
-STRICT RULES:
-- Use only the tickers and percentages shown above
-- Main tweet under 280 chars
-- Format: emoji $TICKER +/-X.X%
-- Personality: sharp, energetic
-
-Respond with JSON: {"tweet":"...","thread":[]}
-No markdown, no backticks.`
-    return claude(prompt)
+Respond with JSON: {"tweet":"...","thread":[]} No markdown.`)
   }
 
+  // ── MARKET RECAP ─────────────────────────────────────────────────────────
   if (type === 'market-recap') {
     const [quotes, gainers, losers] = await Promise.all([
       fetchQuotes(['SPY', 'QQQ', 'DIA']),
@@ -225,140 +441,112 @@ No markdown, no backticks.`
     const spy = fmtQuote(quotes.SPY)
     const qqq = fmtQuote(quotes.QQQ)
     const dia = fmtQuote(quotes.DIA)
-    const prompt = `You are posting the end-of-day recap from @stratify_hq.
+    return claude(`You are posting end-of-day recap from @stratify_hq.
 
 TODAY IS: ${date}
 
-REAL CLOSING DATA (use these exact numbers):
-${spy?.label || 'SPY unavailable'}
-${qqq?.label || 'QQQ unavailable'}
-${dia?.label || 'DIA unavailable'}
+REAL CLOSING DATA:
+${spy?.label}
+${qqq?.label}
+${dia?.label}
 
-TOP MOVERS TODAY:
-GAINERS: ${fmtMovers(gainers)}
-LOSERS: ${fmtMovers(losers)}
+MOVERS:
+${fmtMovers(gainers)}
+${fmtMovers(losers)}
 
-Write a market recap thread: 1 main tweet + 2 replies.
+Write a recap thread: 1 main + 2 replies. ONLY real data. Each under 280 chars.
+Last reply ends: "Follow @stratify_hq ⚡"
 
-STRICT RULES:
-- Use ONLY the real data above
-- Main tweet: overall market tone + index levels
-- Reply 1: notable movers
-- Reply 2: what to watch tomorrow + "Follow @stratify_hq ⚡"
-- Each under 280 chars
-- Sharp, insightful, no filler
-
-Respond with JSON array of tweet strings. No markdown, no backticks.`
-    return claude(prompt)
+JSON array of tweet strings. No markdown.`)
   }
 
+  // ── POWER HOUR ───────────────────────────────────────────────────────────
   if (type === 'power-hour') {
-    const [quotes, movers] = await Promise.all([
-      fetchQuotes(['SPY', 'QQQ']),
-      fetchMovers('gainers', 5),
-    ])
+    const [quotes, movers] = await Promise.all([fetchQuotes(['SPY','QQQ']), fetchMovers('gainers', 5)])
     const spy = fmtQuote(quotes.SPY)
     const qqq = fmtQuote(quotes.QQQ)
-    const prompt = `You are posting a power hour alert from @stratify_hq. It is 3:00 PM EST — final hour of trading.
+    return claude(`Power hour alert from @stratify_hq. 3:00 PM EST.
 
-TODAY IS: ${date}
-
-REAL MARKET DATA RIGHT NOW:
-${spy?.label || 'SPY unavailable'}
-${qqq?.label || 'QQQ unavailable'}
-
-TOP MOVERS RIGHT NOW:
+TODAY: ${date}
+${spy?.label}
+${qqq?.label}
 ${fmtMovers(movers)}
 
-Write 1 urgent power hour tweet using ONLY this real data. Urgent, energetic tone.
+1 urgent tweet using ONLY real data. Final hour energy.
 
-Under 280 chars. Respond with JSON: {"tweet":"..."}
-No markdown, no backticks.`
-    return claude(prompt)
+JSON: {"tweet":"..."} No markdown.`)
   }
 
+  // ── AFTERHOURS ───────────────────────────────────────────────────────────
   if (type === 'afterhours-movers') {
     const [quotes, gainers, losers] = await Promise.all([
-      fetchQuotes(['SPY', 'QQQ']),
+      fetchQuotes(['SPY','QQQ']),
       fetchMovers('gainers', 5),
       fetchMovers('losers', 3),
     ])
     const spy = fmtQuote(quotes.SPY)
     const qqq = fmtQuote(quotes.QQQ)
-    const prompt = `You are posting after-hours movers from @stratify_hq.
+    return claude(`After-hours update from @stratify_hq.
 
-TODAY IS: ${date}
-
-REAL AFTER-HOURS DATA:
-${spy?.label || 'SPY unavailable'}
-${qqq?.label || 'QQQ unavailable'}
-
-TOP MOVERS (AH):
+TODAY: ${date}
+${spy?.label}
+${qqq?.label}
 GAINERS: ${fmtMovers(gainers)}
 LOSERS: ${fmtMovers(losers)}
 
-Write an after-hours tweet using ONLY this real data. Focus on biggest moves.
+After-hours tweet, ONLY real data. Under 280 chars.
 
-Respond with JSON: {"tweet":"...","thread":[]}
-No markdown, no backticks.`
-    return claude(prompt)
+JSON: {"tweet":"...","thread":[]} No markdown.`)
   }
 
+  // ── WEEKEND WATCHLIST ─────────────────────────────────────────────────────
   if (type === 'weekend-watchlist') {
     const symbols = ['SPY','QQQ','NVDA','TSLA','AAPL','AMZN','META','MSFT','AMD','GOOGL']
-    const quotes = await fetchQuotes(symbols)
-    const lines = symbols.map(s => {
-      const q = fmtQuote(quotes[s])
-      return q ? q.label : `${s} unavailable`
-    }).join('\n')
-    const prompt = `You are posting the weekend watchlist from @stratify_hq.
+    const quotes  = await fetchQuotes(symbols)
+    const lines   = symbols.map(s => { const q = fmtQuote(quotes[s]); return q ? q.label : null }).filter(Boolean).join('\n')
+    return claude(`Weekend watchlist from @stratify_hq.
 
-TODAY IS: ${date}
+TODAY: ${date}
 
-REAL CLOSING PRICES (use these exact numbers):
+REAL PRICES:
 ${lines}
 
-Write a weekend watchlist thread (3 tweets) for next week's setups.
-Pick 5-6 stocks from the list above. For each: $TICKER @ real price, what to watch.
+3-tweet thread, 5-6 stocks, setups for next week using ONLY real prices above.
+Last tweet: risk reminder + "Follow @stratify_hq ⚡"
 
-STRICT RULES:
-- Base all price levels on the real data above
-- Tweet 3 ends with risk reminder + "Follow @stratify_hq ⚡"
-- Each under 280 chars
-
-Respond with JSON array of 3 tweet strings. No markdown, no backticks.`
-    return claude(prompt)
+JSON array of 3 tweet strings. No markdown.`)
   }
 
+  // ── MIDDAY ───────────────────────────────────────────────────────────────
   if (type === 'midday-update') {
-    const [quotes, movers] = await Promise.all([
-      fetchQuotes(['SPY', 'QQQ']),
-      fetchMovers('gainers', 4),
-    ])
+    const [quotes, movers] = await Promise.all([fetchQuotes(['SPY','QQQ']), fetchMovers('gainers', 4)])
     const spy = fmtQuote(quotes.SPY)
     const qqq = fmtQuote(quotes.QQQ)
-    const prompt = `You are posting a midday market update from @stratify_hq.
+    return claude(`Midday update from @stratify_hq. 12:30 PM EST.
 
-TODAY IS: ${date}
-
-REAL MIDDAY DATA:
-${spy?.label || 'SPY unavailable'}
-${qqq?.label || 'QQQ unavailable'}
-
-TOP MOVERS MID-SESSION:
+TODAY: ${date}
+${spy?.label}
+${qqq?.label}
 ${fmtMovers(movers)}
 
-Write 1 midday pulse tweet using ONLY this real data. Calm, informative, professional.
+1 calm, professional midday pulse tweet. ONLY real data. Under 280 chars.
 
-Under 280 chars. Respond with JSON: {"tweet":"..."}
-No markdown, no backticks.`
-    return claude(prompt)
+JSON: {"tweet":"..."} No markdown.`)
   }
 
-  throw new Error(`Unknown content type: ${type}`)
+  throw new Error(`Unknown type: ${type}`)
 }
 
-// ── Handler ────────────────────────────────────────────────────────────────
+// ── Redis ─────────────────────────────────────────────────────────────────
+
+function getRedis() {
+  const url   = process.env.KV_REST_API_URL
+  const token = process.env.KV_REST_API_TOKEN
+  if (!url || !token) return null
+  return new Redis({ url, token })
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -367,66 +555,71 @@ export default async function handler(req, res) {
 
   const { type, action, post } = req.query
 
-  if (action === 'list') {
-    return res.status(200).json({ contentTypes: CONTENT_TYPES })
-  }
+  if (action === 'list') return res.status(200).json({ contentTypes: CONTENT_TYPES })
 
   if (!type || !CONTENT_TYPES[type]) {
-    return res.status(400).json({
-      error: `Invalid type. Available: ${Object.keys(CONTENT_TYPES).join(', ')}`,
-    })
+    return res.status(400).json({ error: `Invalid type. Available: ${Object.keys(CONTENT_TYPES).join(', ')}` })
   }
 
-  console.log(`[Agent_X] Generating: ${type} | ${TODAY()}`)
+  console.log(`[Agent_X] ${type} | ${TODAY()}`)
 
   try {
     const content = await generateContent(type)
-    const result = { type, content, generatedAt: new Date().toISOString() }
+    const result  = { type, content, generatedAt: new Date().toISOString() }
 
     if (post === 'true' || post === '1') {
-      console.log(`[Agent_X] Posting to X...`)
       const tweets = Array.isArray(content)
         ? content
         : content.thread?.length
           ? [content.tweet, ...content.thread]
           : [content.tweet || JSON.stringify(content)]
 
-      const posted = []
-      let lastTweetId = null
-
-      for (const tweet of tweets) {
+      // Generate and upload chart image for technical-setup
+      let mediaId = null
+      if (type === 'technical-setup' && content.ticker) {
         try {
-          const text = typeof tweet === 'string' ? tweet : tweet.text || JSON.stringify(tweet)
-          // Thread replies need reply param — rebuild body for thread
-          const body = { text }
-          if (lastTweetId) body.reply = { in_reply_to_tweet_id: lastTweetId }
+          console.log(`[Agent_X] Generating chart for $${content.ticker}`)
+          const ohlc  = await fetchOHLC(content.ticker, '1day', 30)
+          const imgBuf = await generateChartImage(content.ticker, ohlc, content.entry, content.stop, content.target)
+          if (imgBuf) {
+            mediaId = await uploadMediaToX(imgBuf)
+            console.log(`[Agent_X] Chart uploaded, mediaId: ${mediaId}`)
+          }
+        } catch (chartErr) {
+          console.warn(`[Agent_X] Chart generation failed (posting without image):`, chartErr.message)
+        }
+      }
 
-          // For threads we need to handle reply separately via OAuth
-          const xRes = await postToXOAuth(text)
-          lastTweetId = xRes.data?.id
-          posted.push({ text, id: lastTweetId, status: 'posted' })
-          if (tweets.length > 1) await new Promise(r => setTimeout(r, 1000))
+      const posted = []
+      let lastId   = null
+
+      for (let i = 0; i < tweets.length; i++) {
+        try {
+          const text   = typeof tweets[i] === 'string' ? tweets[i] : JSON.stringify(tweets[i])
+          // Attach chart to first tweet only
+          const mid    = i === 0 && mediaId ? mediaId : null
+          const xResult = await postTweet(text, mid)
+          lastId = xResult.data?.id
+          posted.push({ text, id: lastId, status: 'posted', hasImage: i === 0 && !!mid })
+          if (tweets.length > 1) await new Promise(r => setTimeout(r, 1500))
         } catch (err) {
           posted.push({ status: 'failed', error: err.message })
         }
       }
 
-      result.posted = posted
+      result.posted     = posted
       result.tweetCount = posted.filter(p => p.status === 'posted').length
     }
 
-    // Cache result
-    const redis = getRedis()
-    if (redis) {
-      try {
-        const key = `xpost:${type}:${new Date().toISOString().split('T')[0]}`
-        await redis.set(key, JSON.stringify(result), { ex: 86400 })
-      } catch (_) {}
-    }
+    // Cache
+    try {
+      const redis = getRedis()
+      if (redis) await redis.set(`xpost:${type}:${new Date().toISOString().split('T')[0]}`, JSON.stringify(result), { ex: 86400 })
+    } catch (_) {}
 
     return res.status(200).json(result)
   } catch (err) {
-    console.error(`[Agent_X] Error for ${type}:`, err.message)
+    console.error(`[Agent_X] Error:`, err.message)
     return res.status(500).json({ error: err.message, type })
   }
 }
