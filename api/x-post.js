@@ -417,42 +417,53 @@ Respond with JSON array of tweet strings. No markdown.`)
 
   // ── TOP MOVERS ────────────────────────────────────────────────────────────
   if (type === 'top-movers') {
-    const [gainers, losers, quotes] = await Promise.all([
-      fetchMovers('gainers', 6),
-      fetchMovers('losers', 4),
-      fetchQuotes(['SPY','QQQ']),
-    ])
+    // Only tweet about tickers people actually know and care about
+    const KNOWN_TICKERS = ['AAPL','MSFT','NVDA','TSLA','AMZN','META','GOOGL','AMD','SPY','QQQ','DIA','BTC','ETH','NFLX','JPM','BAC','GS','PLTR','COIN','MSTR','HOOD','GME','AMC','SOFI','ARM','SMCI','INTC','MU','AVGO']
+    const quotes = await fetchQuotes(KNOWN_TICKERS)
+
+    // Sort by absolute % change, filter out missing/zero
+    const movers = KNOWN_TICKERS
+      .map(s => fmtQuote(quotes[s] || quotes[s.toLowerCase()]))
+      .filter(q => q && Math.abs(q.pct) >= 0.5)
+      .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
+
+    const gainers = movers.filter(q => q.pct > 0).slice(0, 5)
+    const losers  = movers.filter(q => q.pct < 0).slice(0, 3)
+
     const spy = fmtQuote(quotes.SPY)
     const qqq = fmtQuote(quotes.QQQ)
+
+    const fmtKnown = arr => arr.map(q => `${q.arrow} $${q.symbol} ${q.pct >= 0 ? '+' : ''}${q.pct.toFixed(1)}% @ $${q.price.toFixed(2)}`).join('\n')
+
     return claude(`You are Agent_X — the most elite market account on Twitter. You post for @stratify_hq.
 
 TODAY IS: ${date}
 LIVE: ${spy?.label} | ${qqq?.label}
 
-REAL TOP MOVERS RIGHT NOW:
+TOP MOVERS (tickers everyone knows):
 🔥 GAINERS:
-${fmtMovers(gainers)}
+${fmtKnown(gainers)}
 
 🩸 LOSERS:
-${fmtMovers(losers)}
+${fmtKnown(losers)}
 
 Write a top movers tweet thread: 1 main tweet + 1 follow-up reply.
 
 MAIN TWEET rules:
-- Open with a hook line that makes traders stop scrolling (NOT "here are today's top movers" — be creative, punchy, confident)
+- Open with a punchy hook that makes traders stop scrolling
 - Include SPY/QQQ direction to set the tone
-- Format the top 3 gainers + top 2 losers: emoji $TICKER +/-X.X% @ $PRICE
+- Top 3 gainers + top 2 losers: emoji $TICKER +/-X.X% @ $PRICE
 - End with "Full breakdown 👇"
 - Under 280 chars
 
 REPLY rules:
-- Lead with the remaining movers
-- Add 1 line of sharp commentary — what's the theme? momentum play? sector rotation? short squeeze?
+- Remaining movers
+- 1 line sharp commentary on the theme (rotation? squeeze? earnings? macro?)
 - End with: "Track it all on Stratify ⚡ stratifymarket.com"
 - Under 280 chars
 
-TONE: Sharp. Confident. Like the smartest trader in the room just posted their watchlist.
-NO fluff. NO filler. NO "great day for markets". Real data, real energy.
+TONE: Sharp. Confident. Smartest trader in the room.
+NO filler. NO unknown tickers. Real data, real energy.
 
 Respond with JSON: {"tweet":"...","thread":["..."]} No markdown.`)
   }
