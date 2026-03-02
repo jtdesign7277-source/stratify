@@ -3,7 +3,10 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ],
   "crons": [
     {
@@ -113,6 +116,14 @@
     {
       "path": "/api/feeds?feed=MemeStocks",
       "schedule": "9 12 * * 0"
+    },
+    {
+      "path": "/api/x-post?type=just-in&post=true",
+      "schedule": "*/30 12-23 * * 1-5"
+    },
+    {
+      "path": "/api/x-post?type=just-in&post=true",
+      "schedule": "*/30 0-4 * * 1-7"
     }
   ]
 }

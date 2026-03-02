@@ -19,6 +19,7 @@ const CONTENT_TYPES = {
   'afterhours-movers':  { schedule: '5:00pm EST',   description: 'AH movers' },
   'weekend-watchlist':  { schedule: 'Sat 10am EST', description: 'Weekend watchlist' },
   'midday-update':      { schedule: '12:30pm EST',  description: 'Midday pulse' },
+  'just-in':            { schedule: 'on demand',    description: 'JUST IN — Trump/Iran/Israel market news' },
 }
 
 // ── Twelve Data ────────────────────────────────────────────────────────────
@@ -532,6 +533,85 @@ ${fmtMovers(movers)}
 1 calm, professional midday pulse tweet. ONLY real data. Under 280 chars.
 
 JSON: {"tweet":"..."} No markdown.`)
+  }
+
+
+  // ── JUST IN (Trump / Iran / Israel / Geopolitical) ────────────────────────
+  if (type === 'just-in') {
+    // Step 1: Fetch Trump's recent tweets via X API
+    const trumpId = '25073877' // @realDonaldTrump user ID
+    const tweetsRes = await fetch(
+      `https://api.x.com/2/users/${trumpId}/tweets?max_results=10&tweet.fields=created_at,text&exclude=retweets,replies`,
+      { headers: { 'Authorization': `Bearer ${process.env.X_BEARER_TOKEN}` } }
+    )
+    const tweetsData = await tweetsRes.json()
+    const recentTweets = (tweetsData.data || []).map(t => t.text).join('\n---\n')
+
+    // Step 2: Fetch live market news via MarketAux for context
+    let newsContext = ''
+    try {
+      const newsRes = await fetch(
+        `https://api.marketaux.com/v1/news/all?topics=politics,war,geopolitics&filter_entities=true&language=en&limit=5&api_token=${process.env.MARKETAUX_API_KEY}`
+      )
+      const newsData = await newsRes.json()
+      const headlines = (newsData.data || []).map(n => `- ${n.title}`).join('\n')
+      newsContext = `\n\nLATEST MARKET NEWS HEADLINES:\n${headlines}`
+    } catch(_) {}
+
+    // Step 3: Use Grok (xAI) to analyze and rewrite
+    const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'grok-3-latest',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `You are Agent_X for @stratify_hq — a market intelligence bot that monitors geopolitical events and posts market-moving news.
+
+TODAY IS: ${date}
+
+TRUMP'S RECENT POSTS:
+${recentTweets || 'No recent posts available'}${newsContext}
+
+Your job:
+1. Identify if any Trump post is market-moving (tariffs, Iran, Israel, war, sanctions, Fed, economy, major policy)
+2. If YES — rewrite it as a sharp, professional market alert tweet
+3. If NO significant post — respond with {"skip": true}
+
+TWEET FORMAT RULES:
+- Start with: JUST IN 🇺🇸
+- If about IRAN: add 🇮🇷 after the flags — "JUST IN 🇺🇸🇮🇷"
+- If about ISRAEL: add 🇮🇱 after the flags — "JUST IN 🇺🇸🇮🇱"
+- If about tariffs/trade/China: add 🇨🇳 — "JUST IN 🇺🇸🇨🇳"
+- If about Russia/Ukraine: add 🇷🇺 — "JUST IN 🇺🇸🇷🇺"
+- Then: bold headline rewrite (factual, no spin)
+- Then: 1 line on potential market impact (which sectors, which tickers)
+- End: "Watch: $SPY $QQQ" or relevant tickers
+- Under 280 chars total
+- Do NOT fabricate quotes or events — only use what Trump actually posted
+
+Respond with JSON only:
+{"tweet":"...","skip":false,"topic":"iran|israel|tariffs|economy|other","marketImpact":"brief note"}
+
+If nothing is market-moving: {"skip":true}`
+        }]
+      })
+    })
+
+    if (!grokRes.ok) throw new Error(`xAI API ${grokRes.status}: ${await grokRes.text()}`)
+    const grokData = await grokRes.json()
+    const grokText = grokData.choices?.[0]?.message?.content || '{}'
+    const parsed   = JSON.parse(grokText.replace(/```json|```/g, '').trim())
+
+    if (parsed.skip) {
+      return { skip: true, reason: 'No market-moving Trump posts found', type }
+    }
+
+    return parsed
   }
 
   throw new Error(`Unknown type: ${type}`)
