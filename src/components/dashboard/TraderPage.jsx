@@ -148,6 +148,19 @@ const listItemMotion = (index) => ({
 });
 
 const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+const GLASS_SHELL_STYLE = {
+  background: 'linear-gradient(150deg, rgba(14,20,34,0.9) 0%, rgba(6,10,20,0.82) 100%)',
+  border: '1px solid rgba(148,163,184,0.16)',
+  boxShadow: '0 18px 42px rgba(2,6,23,0.55), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 28px rgba(56,189,248,0.08)',
+};
+const GLASS_TOPBAR_STYLE = {
+  background: 'linear-gradient(150deg, rgba(10,16,28,0.9) 0%, rgba(6,10,20,0.82) 100%)',
+  borderBottom: '1px solid rgba(148,163,184,0.16)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(2,6,23,0.35)',
+  backdropFilter: 'blur(16px)',
+};
+const GLASS_INSET_CARD_CLASS = 'rounded-lg border border-white/[0.12] bg-white/[0.035] px-2.5 py-2 text-[11px] backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_24px_rgba(2,6,23,0.32)]';
+const GLASS_INSET_INPUT_CLASS = 'h-[36px] w-full rounded-lg border border-white/[0.14] bg-[linear-gradient(150deg,rgba(15,23,42,0.72),rgba(6,10,20,0.7))] px-3 text-[13px] font-semibold text-white outline-none backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(15,23,42,0.45)] transition-colors focus:border-cyan-400/55';
 
 const modalBackdropMotion = {
   initial: { opacity: 0 },
@@ -1143,7 +1156,7 @@ function TraderOrderEntry({
   const selectedPositionPnlClass = selectedPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
   const showSellAllButton = hasSelectedPosition && side === 'sell';
   const selectedPositionSummary = hasSelectedPosition ? (
-    <div className="rounded-md border border-white/10 bg-transparent px-2 py-1 text-[11px]">
+    <div className={GLASS_INSET_CARD_CLASS}>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 space-y-0.5">
           <div className="truncate text-slate-300">
@@ -1170,8 +1183,7 @@ function TraderOrderEntry({
     </div>
   ) : null;
 
-  const fieldClassName =
-    'h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60';
+  const fieldClassName = GLASS_INSET_INPUT_CLASS;
 
   const handleSymbolSubmit = (input) => {
     const normalized = String(input || '')
@@ -1327,14 +1339,14 @@ function TraderOrderEntry({
           </div>
         ) : null}
 
-        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+        <div className={GLASS_INSET_CARD_CLASS}>
           <div className="flex items-center justify-between">
             <span className="uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
             <span className="font-semibold text-white">{buyingPowerDisplay}</span>
           </div>
         </div>
 
-        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+        <div className={GLASS_INSET_CARD_CLASS}>
           <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
             Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
           </div>
@@ -1354,7 +1366,7 @@ function TraderOrderEntry({
           ) : null}
         </div>
 
-        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+        <div className={GLASS_INSET_CARD_CLASS}>
           <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
             Recent Trades {recentTrades.length ? `(${recentTrades.length})` : '(0)'}
           </div>
@@ -3349,14 +3361,31 @@ export default function TraderPage({
         : 'Disconnected';
   const activeStreamSymbolCount = streamSubscriptionSymbols.length;
   const extendedHoursStatus = getExtendedHoursStatus();
+  const pageBackgroundStyle = {
+    background:
+      'radial-gradient(circle at 12% 8%, rgba(34,197,94,0.08), transparent 36%), radial-gradient(circle at 86% 6%, rgba(56,189,248,0.08), transparent 34%), linear-gradient(180deg, #04070f 0%, #060b14 58%, #04070f 100%)',
+  };
+  const watchlistPanelStyle = {
+    width: `${watchlistPanelWidth}px`,
+    ...GLASS_SHELL_STYLE,
+  };
+  const chartPanelStyle = {
+    ...GLASS_SHELL_STYLE,
+  };
   const orderTicketStyle = {
-    background: '#0b0b0b',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
+    ...GLASS_SHELL_STYLE,
+    boxShadow: '0 20px 44px rgba(2,6,23,0.56), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px rgba(16,185,129,0.1)',
   };
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0b0b0b] text-[#e5e7eb]">
-      <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
+    <motion.div
+      {...PAGE_TRANSITION}
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#060b14] text-[#e5e7eb]"
+      style={pageBackgroundStyle}
+    >
+      <div className="pointer-events-none absolute inset-0 opacity-70" style={{ background: 'radial-gradient(circle at 50% 36%, rgba(14,165,233,0.07), transparent 46%)' }} />
+
+      <div className="flex h-[68px] shrink-0 items-center justify-between px-4 py-3 backdrop-blur-xl" style={GLASS_TOPBAR_STYLE}>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -3482,8 +3511,8 @@ export default function TraderPage({
         className="flex flex-1 min-h-0 gap-2 overflow-hidden p-2"
       >
         <aside
-          className="flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0b] transition-[width] duration-200 ease-in-out"
-          style={{ width: `${watchlistPanelWidth}px` }}
+          className="flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl transition-[width] duration-200 ease-in-out backdrop-blur-xl"
+          style={watchlistPanelStyle}
         >
           {isWatchlistCollapsed && (
             <div className="flex h-10 shrink-0 items-center justify-center border-b border-[#1f1f1f] px-1">
@@ -3503,7 +3532,7 @@ export default function TraderPage({
 
           {!isWatchlistCollapsed && (
             <>
-              <form onSubmit={addSymbol} className="shrink-0 border-b border-[#1f1f1f] px-4 py-3">
+              <form onSubmit={addSymbol} className="shrink-0 border-b border-white/[0.09] px-4 py-3">
                 <div className="mb-3 flex items-center justify-center gap-2">
                   <motion.button
                     type="button"
@@ -3580,7 +3609,7 @@ export default function TraderPage({
                         }}
                         placeholder="Search here"
                         autoComplete="off"
-                        className="h-10 w-full rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-10 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
+                        className="h-10 w-full rounded-xl border border-white/[0.14] bg-white/[0.04] pl-9 pr-10 text-sm text-white outline-none transition-colors backdrop-blur-sm focus:border-emerald-400/70"
                       />
                       <motion.button
                         type="button"
@@ -3601,7 +3630,7 @@ export default function TraderPage({
                         <Pin className="h-3 w-3" />
                       </motion.button>
                       {isSearchDropdownOpen && symbolInput.trim() && (
-                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto rounded-xl border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
+                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto rounded-xl border border-white/[0.14] bg-[rgba(10,16,30,0.93)] backdrop-blur-xl shadow-[0_16px_36px_rgba(2,6,23,0.5),0_0_18px_rgba(56,189,248,0.08)]">
                           {isSearchLoading ? (
                             <div className="px-3 py-2 text-xs text-[#7c8087]">Searching...</div>
                           ) : searchResults.length === 0 ? (
@@ -3622,7 +3651,7 @@ export default function TraderPage({
                                   whileTap={{ scale: 0.98 }}
                                   transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                                   onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
-                                  className="flex h-10 w-full items-center justify-between gap-2 border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
+                                  className="flex h-10 w-full items-center justify-between gap-2 border-b border-white/[0.06] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.06]"
                                 >
                                   <span className="truncate text-sm text-white">
                                     <span className="font-medium">${result.symbol}</span>
@@ -3676,7 +3705,7 @@ export default function TraderPage({
               </form>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex shrink-0 items-center justify-between border-b border-[#1f1f1f] px-4 py-2 text-xs">
+                <div className="flex shrink-0 items-center justify-between border-b border-white/[0.09] px-4 py-2 text-xs">
                   {watchlistView === 'watchlist' ? (
                     <>
                       <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
@@ -3778,10 +3807,10 @@ export default function TraderPage({
                                     <div
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
-                                      className={`group relative flex items-center justify-between cursor-pointer transition-colors duration-150 border-b border-[#1f1f1f]/30 ${
-                                        isSelected ? 'bg-emerald-500/5 border-l border-l-emerald-500/30' : 'hover:bg-white/5'
+                                      className={`group relative flex items-center justify-between cursor-pointer transition-colors duration-150 border-b border-white/[0.05] ${
+                                        isSelected ? 'bg-emerald-500/10 border-l border-l-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.1)]' : 'hover:bg-white/[0.06]'
                                       } px-3 py-2.5 ${
-                                        snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
+                                        snapshot.isDragging ? 'bg-[rgba(30,41,59,0.7)] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
                                       } ${
                                         isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
                                       }`}
@@ -3893,7 +3922,7 @@ export default function TraderPage({
                       </Droppable>
                     </DragDropContext>
                   ) : (
-                    <div className="min-h-full divide-y divide-[#1f1f1f]/60">
+                    <div className="min-h-full divide-y divide-white/[0.06]">
                       {portfolioPositions.length === 0 ? (
                         <div className="px-4 py-6 text-center text-white/50 text-sm">
                           No paper holdings yet. Execute a paper trade to populate this tab.
@@ -3914,7 +3943,7 @@ export default function TraderPage({
                               whileTap={{ scale: 0.99 }}
                               transition={interactiveTransition}
                               className={`w-full px-4 py-3 text-left transition-colors ${
-                                isSelected ? 'bg-emerald-500/5 border-l border-l-emerald-500/30' : 'hover:bg-white/[0.03]'
+                                isSelected ? 'bg-emerald-500/10 border-l border-l-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.1)]' : 'hover:bg-white/[0.06]'
                               }`}
                               title="Double-click to open order entry"
                             >
@@ -4002,8 +4031,8 @@ export default function TraderPage({
         </aside>
 
         <section className="flex flex-1 min-h-0 gap-2 overflow-hidden">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0b]">
-            <div className="shrink-0 border-b border-[#1f1f1f] px-4 py-2">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl backdrop-blur-xl" style={chartPanelStyle}>
+            <div className="shrink-0 border-b border-white/[0.09] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
                   {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
@@ -4019,7 +4048,7 @@ export default function TraderPage({
                         className={`h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
                           isActive
                             ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
-                            : 'border-[#1f1f1f] text-gray-400 hover:bg-white/5 hover:text-white'
+                            : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
                         }`}
                         aria-pressed={isActive}
                       >
@@ -4037,8 +4066,8 @@ export default function TraderPage({
                   disabled={chartStatus.loading || !selectedSymbol}
                   className={`inline-flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
                     chartStatus.loading || !selectedSymbol
-                      ? 'cursor-not-allowed border-[#1f1f1f] text-gray-500'
-                      : 'border-[#1f1f1f] text-gray-300 hover:bg-white/5 hover:text-white'
+                      ? 'cursor-not-allowed border-white/[0.12] text-gray-500'
+                      : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
                   }`}
                   title="Refresh chart and reset viewport"
                   aria-label="Refresh chart"
@@ -4054,13 +4083,13 @@ export default function TraderPage({
                 <div ref={chartContainerRef} className="h-full w-full" />
 
                 {chartStatus.loading && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/55 text-sm text-[#9ca3af]">
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#060b14]/55 text-sm text-[#9ca3af]">
                     Loading candles...
                   </div>
                 )}
 
                 {!chartStatus.loading && chartStatus.error && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/65 px-6 text-center text-sm text-[#9ca3af]">
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#060b14]/65 px-6 text-center text-sm text-[#9ca3af]">
                     {chartStatus.error}
                   </div>
                 )}
@@ -4072,7 +4101,7 @@ export default function TraderPage({
                 aria-label={isNewsPanelCollapsed ? 'Expand news panel' : 'Resize news panel'}
                 onMouseDown={isNewsPanelCollapsed ? undefined : handleNewsPanelResizeStart}
                 className={`relative flex h-[12px] shrink-0 items-center justify-center ${
-                  isNewsPanelCollapsed ? '' : 'cursor-row-resize bg-white/5 transition hover:bg-white/10'
+                  isNewsPanelCollapsed ? '' : 'cursor-row-resize bg-white/[0.07] transition hover:bg-white/[0.12]'
                 }`}
               >
                 {!isNewsPanelCollapsed && (
