@@ -14,7 +14,7 @@ import useSubscription from './hooks/useSubscription';
 import LiveScoresPill from './components/shared/LiveScoresPill';
 import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
 import AppErrorBoundary from './components/shared/AppErrorBoundary';
-import MarketIntelligence from './components/dashboard/MarketIntelligence';
+import StrategyRadarPage from './components/dashboard/StrategyRadarPage';
 import { Radar } from 'lucide-react';
 import {
   clearPendingCheckoutSession,
@@ -1612,7 +1612,7 @@ function StratifyAppContent() {
       </div>
     ) : currentPage === 'radar' ? (
       <RadarErrorBoundary>
-        <MarketIntelligence />
+        <StrategyRadarPage />
       </RadarErrorBoundary>
     ) : (
       <Dashboard

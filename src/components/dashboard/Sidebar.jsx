@@ -23,7 +23,6 @@ import {
   Terminal,
   MessageCircle,
   LogOut,
-  Radar
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -75,7 +74,7 @@ const Sidebar = ({
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
-    { id: 'radar', label: 'Radar', icon: Radar, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
+    { id: 'radar', label: 'Strategy Radar', icon: Crosshair },
   ];
 
   const handleTabClick = (id) => {

@@ -23,6 +23,7 @@ import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import MarketIntelPage from './MarketIntelPage';
+import StrategyRadarPage from './StrategyRadarPage';
 import SophiaCopilot from './SophiaCopilot';
 import WarRoom from './WarRoom';
 import SettingsPage from './SettingsPage';
@@ -2460,6 +2461,11 @@ export default function Dashboard({
               setActiveTab('xray');
               return;
             }
+
+            if (tabId === 'radar') {
+              setCurrentPage('radar');
+              return;
+            }
           }}
           savedStrategies={savedStrategies}
           deployedStrategies={deployedStrategies}
@@ -2515,7 +2521,7 @@ export default function Dashboard({
           {activeTab === 'market' && <MarketMoversPage />}
           {activeTab === 'radar' && (
             <AppErrorBoundary>
-              <MarketIntelPage />
+              <StrategyRadarPage />
             </AppErrorBoundary>
           )}
           {activeTab === 'ai-chat' && (
