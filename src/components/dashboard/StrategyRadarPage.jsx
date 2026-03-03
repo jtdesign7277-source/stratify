@@ -66,6 +66,84 @@ const addBaselineSeriesCompat = (chart, options) => {
   throw new Error('Baseline series API is unavailable in lightweight-charts.');
 };
 
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+function timeAgo(timestamp) {
+  if (!timestamp) return '';
+  const ts = typeof timestamp === 'string' ? Math.floor(new Date(timestamp).getTime() / 1000) : Number(timestamp);
+  const seconds = Math.floor(Date.now() / 1000 - ts);
+  if (seconds < 60) return `${Math.max(0, seconds)}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function QualityGauge({ score }) {
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+  const color = score >= 90 ? '#00C2FF' : score >= 80 ? '#1de9b6' : score >= 60 ? '#089981' : '#eab308';
+
+  return (
+    <div className="relative w-[100px] h-[100px] flex-shrink-0">
+      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+        <motion.circle
+          cx="50" cy="50" r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1, ease: 'easeOut' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-2xl font-bold font-mono" style={{ color }}>{score}</span>
+      </div>
+    </div>
+  );
+}
+
+function RadarSweep() {
+  return (
+    <div className="flex flex-col items-center py-8">
+      <div className="relative w-32 h-32">
+        <svg viewBox="0 0 128 128" className="w-full h-full">
+          <circle cx="64" cy="64" r="58" fill="none" stroke="#00C2FF" strokeWidth="0.5" opacity="0.2" />
+          <circle cx="64" cy="64" r="38" fill="none" stroke="#00C2FF" strokeWidth="0.5" opacity="0.15" />
+          <circle cx="64" cy="64" r="18" fill="none" stroke="#00C2FF" strokeWidth="0.5" opacity="0.1" />
+          <line x1="64" y1="4" x2="64" y2="124" stroke="#00C2FF" strokeWidth="0.5" opacity="0.1" />
+          <line x1="4" y1="64" x2="124" y2="64" stroke="#00C2FF" strokeWidth="0.5" opacity="0.1" />
+        </svg>
+        <motion.div
+          className="absolute inset-0"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+        >
+          <div
+            className="absolute top-1/2 left-1/2 h-[1px] origin-left"
+            style={{
+              width: '58px',
+              background: 'linear-gradient(to right, rgba(0,194,255,0.8), transparent)',
+            }}
+          />
+        </motion.div>
+        <div
+          className="absolute top-1/2 left-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#00C2FF]"
+          style={{ boxShadow: '0 0 8px #00C2FF' }}
+        />
+      </div>
+      <p className="text-xs text-gray-600 mt-4">Scanning for setups...</p>
+    </div>
+  );
+}
+
 // ── Error Boundary ───────────────────────────────────────────────────────────
 class RadarErrorBoundary extends React.Component {
   constructor(props) {
@@ -389,109 +467,101 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SIGNAL CARD — Individual detected signal
+// SIGNAL CARD — Redesigned with quality gauge, price ladder, always-visible details
 // ══════════════════════════════════════════════════════════════════════════════
 
-function SignalCard({ signal, isNew }) {
-  const [expanded, setExpanded] = useState(false);
+function SignalCard({ signal }) {
   const dirColor = signal.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
   const hpzColor = signal.direction === 'long' ? HPZ_BULL : HPZ_BEAR;
   const displayColor = signal.is_hpz ? hpzColor : dirColor;
+  const rr = Math.abs(signal.entry_price - signal.stop_loss) > 0
+    ? (Math.abs(signal.take_profit - signal.entry_price) / Math.abs(signal.entry_price - signal.stop_loss)).toFixed(1)
+    : '—';
 
   return (
-    <motion.div
-      initial={isNew ? { opacity: 0, y: -20 } : false}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      onClick={() => setExpanded(!expanded)}
-      className="border border-white/6 rounded-lg p-4 hover:bg-white/[0.02] transition-colors cursor-pointer"
-    >
-      {/* Top Row */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <span className="text-white font-semibold text-sm">${signal.ticker}</span>
-          <span className="text-xs font-medium" style={{ color: displayColor }}>
-            {signal.direction.toUpperCase()}
-          </span>
-          {signal.is_hpz && (
-            <span className="text-xs font-medium" style={{ color: hpzColor }}>
-              HPZ
+    <div className="border border-white/6 rounded-xl p-5 bg-white/[0.02]">
+      {/* Header: Gauge + Ticker Info */}
+      <div className="flex items-start gap-4">
+        <QualityGauge score={signal.quality_score} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 mb-1">
+            <span className="text-lg font-bold text-white font-mono">{signal.ticker}</span>
+            <span
+              className="text-sm font-bold uppercase"
+              style={{
+                color: displayColor,
+                textShadow: `0 0 10px ${displayColor}40`,
+              }}
+            >
+              {signal.direction === 'long' ? '▲ LONG' : '▼ SHORT'}
             </span>
-          )}
+            {signal.is_hpz && (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                style={{ color: hpzColor, backgroundColor: `${hpzColor}15` }}
+              >
+                HPZ
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <span className="font-mono">{signal.timeframe}</span>
+            <span>·</span>
+            <span>{timeAgo(signal.detected_at || signal.time)}</span>
+          </div>
         </div>
-        <span className="text-xs text-gray-600">{signal.timeframe}</span>
       </div>
 
-      {/* Quality Score Bar */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${signal.quality_score}%`,
-              backgroundColor: signal.quality_score > 80 ? hpzColor : signal.quality_score > 60 ? BULL_COLOR : '#eab308',
-            }}
-          />
+      {/* Visual Price Ladder */}
+      <div className="mt-4 py-3 space-y-2">
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-gray-500 w-8 text-right">TP</span>
+          <div className="flex-1 border-t border-dashed" style={{ borderColor: BULL_COLOR }} />
+          <span className="text-xs font-mono font-medium" style={{ color: BULL_COLOR }}>${signal.take_profit.toFixed(2)}</span>
         </div>
-        <span className="text-xs font-mono" style={{ color: displayColor }}>
-          {signal.quality_score}%
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-white/60 w-8 text-right font-medium">Entry</span>
+          <div className="flex-1 border-t-2 border-white/70" />
+          <span className="text-xs font-mono font-medium text-white">${signal.entry_price.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-gray-500 w-8 text-right">SL</span>
+          <div className="flex-1 border-t border-dashed border-red-400" />
+          <span className="text-xs font-mono font-medium text-red-400">${signal.stop_loss.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-end">
+          <span className="text-[10px] font-mono font-bold" style={{ color: '#00C2FF' }}>R:R {rr}</span>
+        </div>
       </div>
 
-      {/* Price Levels */}
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-gray-500">
-          Entry <span className="text-gray-300 font-mono">${signal.entry_price.toFixed(2)}</span>
-        </span>
-        <span className="text-gray-500">
-          SL <span className="text-red-400 font-mono">${signal.stop_loss.toFixed(2)}</span>
-        </span>
-        <span className="text-gray-500">
-          TP <span className="font-mono" style={{ color: BULL_COLOR }}>${signal.take_profit.toFixed(2)}</span>
-        </span>
+      {/* Always-visible Details */}
+      <div className="border-t border-white/5 pt-3 space-y-2">
+        <div className="flex justify-between text-xs">
+          <span className="text-gray-500">OB Zone</span>
+          <span className="text-gray-300 font-mono">${signal.ob_bottom.toFixed(2)} – ${signal.ob_top.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-gray-500">MSB Level</span>
+          <span className="text-gray-300 font-mono">${signal.msb_level.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-gray-500">Momentum Z</span>
+          <span className="text-gray-300 font-mono">{signal.momentum_z}</span>
+        </div>
       </div>
 
-      {/* Expanded Details */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">OB Zone</span>
-                <span className="text-gray-300 font-mono">${signal.ob_bottom.toFixed(2)} - ${signal.ob_top.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">MSB Level</span>
-                <span className="text-gray-300 font-mono">${signal.msb_level.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Momentum Z</span>
-                <span className="text-gray-300 font-mono">{signal.momentum_z}</span>
-              </div>
-              <p className="text-xs text-gray-600 leading-relaxed mt-2">
-                {signal.direction === 'long'
-                  ? 'Bullish MSB detected. Price broke above pivot high with momentum confirmation. Order block demand zone identified below — waiting for pullback entry.'
-                  : 'Bearish MSB detected. Price broke below pivot low with momentum confirmation. Order block supply zone identified above — waiting for pullback entry.'}
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Confirm Trade */}
+      {/* Premium Confirm Trade */}
       <button
         onClick={(e) => e.stopPropagation()}
-        className="w-full mt-3 py-2 text-xs font-medium text-emerald-400 border border-emerald-400/20 rounded-lg hover:bg-emerald-400/5 transition-colors"
+        className="w-full mt-4 py-2.5 text-xs font-semibold text-white rounded-lg transition-all hover:brightness-110"
+        style={{
+          background: `linear-gradient(135deg, ${displayColor}, ${displayColor}90)`,
+          boxShadow: `0 0 20px ${displayColor}30`,
+        }}
       >
         Confirm Trade
       </button>
-    </motion.div>
+    </div>
   );
 }
 
@@ -585,76 +655,113 @@ function StrategyCard({ strategy, enabled, onToggle }) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function RadarSettings({ settings, onUpdate }) {
+  // Risk profile calculation
+  const slPct = (settings.stop_loss_multiplier - 0.1) / (2.0 - 0.1);
+  const tpFillPct = (settings.take_profit_multiplier - 1.0) / (5.0 - 1.0);
+  const riskPct = (settings.risk_per_trade * 100 - 0.5) / (5.0 - 0.5);
+  const riskScore = (slPct + (1 - tpFillPct) + riskPct) / 3;
+
+  const riskProfile = riskScore < 0.33
+    ? { label: 'Conservative', color: '#089981' }
+    : riskScore < 0.66
+      ? { label: 'Moderate', color: '#eab308' }
+      : { label: 'Aggressive', color: '#f23645' };
+
+  const slColor = slPct < 0.3 ? '#089981' : slPct < 0.7 ? '#eab308' : '#f23645';
+  const tpColor = tpFillPct < 0.3 ? '#f23645' : tpFillPct < 0.7 ? '#eab308' : '#089981';
+  const riskColor = riskPct < 0.3 ? '#089981' : riskPct < 0.7 ? '#eab308' : '#f23645';
+
   return (
-    <div className="border border-white/6 rounded-lg p-4 space-y-4">
-      <h3 className="text-xs text-gray-500 uppercase tracking-widest font-medium">Settings</h3>
+    <div className="border border-white/6 rounded-xl p-5 space-y-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs text-gray-500 uppercase tracking-widest font-medium">Settings</h3>
+        <span
+          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+          style={{
+            color: riskProfile.color,
+            backgroundColor: `${riskProfile.color}15`,
+            border: `1px solid ${riskProfile.color}30`,
+          }}
+        >
+          {riskProfile.label}
+        </span>
+      </div>
 
       {/* Stop Loss */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs text-gray-500">Stop Loss</label>
-          <span className="text-xs text-gray-300 font-mono">{settings.stop_loss_multiplier}x</span>
+        <div className="flex items-center gap-2 mb-3">
+          <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <label className="text-xs text-gray-400 flex-1">Stop Loss</label>
+          <span className="text-xs font-mono font-semibold" style={{ color: slColor }}>{settings.stop_loss_multiplier}x</span>
         </div>
-        <input
-          type="range"
-          min="0.1"
-          max="2.0"
-          step="0.1"
-          value={settings.stop_loss_multiplier}
-          onChange={e => onUpdate({ stop_loss_multiplier: parseFloat(e.target.value) })}
-          className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer
-            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
-            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-        />
-        <div className="flex justify-between text-[10px] text-gray-600 mt-1">
-          <span>0.1x</span>
-          <span>2.0x</span>
+        <div className="relative h-6 flex items-center">
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${slPct * 100}%`, backgroundColor: slColor }} />
+          </div>
+          <input
+            type="range" min="0.1" max="2.0" step="0.1"
+            value={settings.stop_loss_multiplier}
+            onChange={e => onUpdate({ stop_loss_multiplier: parseFloat(e.target.value) })}
+            className="relative w-full appearance-none bg-transparent cursor-pointer z-10
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2
+              [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer
+              [&::-webkit-slider-thumb]:transition-transform [&:hover::-webkit-slider-thumb]:scale-110"
+          />
         </div>
       </div>
 
       {/* Take Profit */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs text-gray-500">Take Profit</label>
-          <span className="text-xs text-gray-300 font-mono">{settings.take_profit_multiplier}x</span>
+        <div className="flex items-center gap-2 mb-3">
+          <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
+          </svg>
+          <label className="text-xs text-gray-400 flex-1">Take Profit</label>
+          <span className="text-xs font-mono font-semibold" style={{ color: tpColor }}>{settings.take_profit_multiplier}x</span>
         </div>
-        <input
-          type="range"
-          min="1.0"
-          max="5.0"
-          step="0.5"
-          value={settings.take_profit_multiplier}
-          onChange={e => onUpdate({ take_profit_multiplier: parseFloat(e.target.value) })}
-          className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer
-            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
-            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-        />
-        <div className="flex justify-between text-[10px] text-gray-600 mt-1">
-          <span>1.0x</span>
-          <span>5.0x</span>
+        <div className="relative h-6 flex items-center">
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${tpFillPct * 100}%`, backgroundColor: tpColor }} />
+          </div>
+          <input
+            type="range" min="1.0" max="5.0" step="0.5"
+            value={settings.take_profit_multiplier}
+            onChange={e => onUpdate({ take_profit_multiplier: parseFloat(e.target.value) })}
+            className="relative w-full appearance-none bg-transparent cursor-pointer z-10
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2
+              [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer
+              [&::-webkit-slider-thumb]:transition-transform [&:hover::-webkit-slider-thumb]:scale-110"
+          />
         </div>
       </div>
 
       {/* Risk Per Trade */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs text-gray-500">Risk Per Trade</label>
-          <span className="text-xs text-gray-300 font-mono">{(settings.risk_per_trade * 100).toFixed(1)}%</span>
+        <div className="flex items-center gap-2 mb-3">
+          <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="19" y1="5" x2="5" y2="19" /><circle cx="6.5" cy="6.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" />
+          </svg>
+          <label className="text-xs text-gray-400 flex-1">Risk Per Trade</label>
+          <span className="text-xs font-mono font-semibold" style={{ color: riskColor }}>{(settings.risk_per_trade * 100).toFixed(1)}%</span>
         </div>
-        <input
-          type="range"
-          min="0.5"
-          max="5.0"
-          step="0.5"
-          value={settings.risk_per_trade * 100}
-          onChange={e => onUpdate({ risk_per_trade: parseFloat(e.target.value) / 100 })}
-          className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer
-            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
-            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-        />
-        <div className="flex justify-between text-[10px] text-gray-600 mt-1">
-          <span>0.5%</span>
-          <span>5.0%</span>
+        <div className="relative h-6 flex items-center">
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${riskPct * 100}%`, backgroundColor: riskColor }} />
+          </div>
+          <input
+            type="range" min="0.5" max="5.0" step="0.5"
+            value={settings.risk_per_trade * 100}
+            onChange={e => onUpdate({ risk_per_trade: parseFloat(e.target.value) / 100 })}
+            className="relative w-full appearance-none bg-transparent cursor-pointer z-10
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2
+              [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer
+              [&::-webkit-slider-thumb]:transition-transform [&:hover::-webkit-slider-thumb]:scale-110"
+          />
         </div>
       </div>
     </div>
@@ -976,33 +1083,45 @@ function StrategyRadarContent() {
             </h2>
             {currentTickerSignals.length > 0 ? (
               <>
-                <div className="flex items-center gap-1 mb-3">
-                  {currentTickerSignals.slice(0, 10).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setActiveSignalIdx(i)}
-                      className={`w-7 h-7 text-xs font-mono transition-colors ${
-                        activeSignalIdx === i
-                          ? 'text-white'
-                          : 'text-gray-600 hover:text-gray-400'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                {/* Signal Navigation Strip */}
+                <div className="flex gap-1 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
+                  {currentTickerSignals.slice(0, 10).map((sig, i) => {
+                    const isActive = activeSignalIdx === i;
+                    const tabDirColor = sig.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setActiveSignalIdx(i)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all border-l-2 flex-shrink-0 ${
+                          isActive ? 'bg-white/[0.04]' : 'bg-transparent hover:bg-white/[0.02]'
+                        }`}
+                        style={{ borderColor: isActive ? tabDirColor : 'transparent' }}
+                      >
+                        <span style={{ color: tabDirColor }}>{sig.direction === 'long' ? '▲' : '▼'}</span>
+                        <span className={`font-mono ${isActive ? 'text-white' : 'text-gray-500'}`}>{sig.ticker}</span>
+                        <span className="font-mono text-gray-600">{sig.quality_score}%</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                {currentTickerSignals[activeSignalIdx] && (
-                  <SignalCard
-                    signal={currentTickerSignals[activeSignalIdx]}
-                    isNew={activeSignalIdx === 0}
-                  />
-                )}
+
+                {/* Signal Card with slide animation */}
+                <AnimatePresence mode="wait">
+                  {currentTickerSignals[activeSignalIdx] && (
+                    <motion.div
+                      key={activeSignalIdx}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <SignalCard signal={currentTickerSignals[activeSignalIdx]} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </>
             ) : (
-              <div className="text-center py-8">
-                <div className="text-gray-600 text-xs">No active signals for ${selectedTicker}</div>
-                <div className="text-gray-700 text-[10px] mt-1">Radar is scanning...</div>
-              </div>
+              <RadarSweep />
             )}
           </div>
 
