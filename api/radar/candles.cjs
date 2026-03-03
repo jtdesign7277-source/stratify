@@ -1,32 +1,38 @@
-// /api/radar/candles.js
+// /api/radar/candles.cjs — CommonJS forced via .cjs (package.json has "type":"module")
 const https = require('https');
 
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
+    const req = https.get(url, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
         try {
           resolve(JSON.parse(data));
         } catch (e) {
-          reject(new Error('Invalid JSON: ' + data.substring(0, 100)));
+          reject(new Error('Invalid JSON: ' + data.substring(0, 200)));
         }
       });
-    }).on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
   });
 }
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { symbol, interval } = req.query;
   if (!symbol) return res.status(400).json({ error: 'Missing symbol' });
 
   const apiKey = process.env.TWELVE_DATA_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'No TWELVE_DATA_API_KEY env var' });
+  if (!apiKey) return res.status(500).json({ error: 'TWELVE_DATA_API_KEY not set' });
 
   const tf = interval || '1h';
   const outputSize = tf === '1day' ? 365 : 500;
@@ -36,6 +42,6 @@ module.exports = async function handler(req, res) {
     const data = await httpsGet(url);
     return res.status(200).json(data);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(502).json({ error: err.message });
   }
 };

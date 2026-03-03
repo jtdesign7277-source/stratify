@@ -479,6 +479,14 @@ function SignalCard({ signal, isNew }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Confirm Trade */}
+      <button
+        onClick={(e) => e.stopPropagation()}
+        className="w-full mt-3 py-2 text-xs font-medium text-emerald-400 border border-emerald-400/20 rounded-lg hover:bg-emerald-400/5 transition-colors"
+      >
+        Confirm Trade
+      </button>
     </motion.div>
   );
 }
@@ -577,26 +585,6 @@ function RadarSettings({ settings, onUpdate }) {
     <div className="border border-white/6 rounded-lg p-4 space-y-4">
       <h3 className="text-xs text-gray-500 uppercase tracking-widest font-medium">Settings</h3>
 
-      {/* Timeframe */}
-      <div>
-        <label className="text-xs text-gray-500 block mb-2">Timeframe</label>
-        <div className="flex gap-1">
-          {TIMEFRAMES.map(tf => (
-            <button
-              key={tf}
-              onClick={() => onUpdate({ timeframe: tf })}
-              className={`flex-1 py-1.5 text-xs font-mono transition-colors ${
-                settings.timeframe === tf
-                  ? 'text-[#00C2FF]'
-                  : 'text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              {tf}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Stop Loss */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -684,6 +672,7 @@ function StrategyRadarContent() {
   const [activeStrategies, setActiveStrategies] = useState({});
   const [isScanning, setIsScanning] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeSignalIdx, setActiveSignalIdx] = useState(0);
   const [settings, setSettings] = useState({
     timeframe: '1H',
     stop_loss_multiplier: 0.5,
@@ -901,11 +890,11 @@ function StrategyRadarContent() {
           {DEFAULT_TICKERS.slice(0, 8).map(t => (
             <button
               key={t}
-              onClick={() => setSelectedTicker(t)}
-              className={`px-3 py-1 text-xs font-mono rounded transition-colors whitespace-nowrap ${
+              onClick={() => { setSelectedTicker(t); setActiveSignalIdx(0); }}
+              className={`px-2 py-1 text-xs font-mono transition-colors whitespace-nowrap ${
                 selectedTicker === t
-                  ? 'bg-white/10 text-white'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                  ? 'text-white'
+                  : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               ${t}
@@ -975,24 +964,42 @@ function StrategyRadarContent() {
         </div>
 
         {/* RIGHT — Signals + Strategies (40%) */}
-        <div className="flex-[2] h-full max-h-screen min-h-0 flex flex-col overflow-y-auto">
+        <div className="flex-[2] min-h-0 overflow-y-auto">
           {/* Active Signals */}
           <div className="p-4 border-b border-white/6">
             <h2 className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-3">
               Active Signals
             </h2>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {currentTickerSignals.length > 0 ? (
-                currentTickerSignals.slice(0, 10).map((signal, i) => (
-                  <SignalCard key={`${signal.ticker}-${signal.detected_at}-${i}`} signal={signal} isNew={i === 0} />
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-gray-600 text-xs">No active signals for ${selectedTicker}</div>
-                  <div className="text-gray-700 text-[10px] mt-1">Radar is scanning...</div>
+            {currentTickerSignals.length > 0 ? (
+              <>
+                <div className="flex items-center gap-1 mb-3">
+                  {currentTickerSignals.slice(0, 10).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveSignalIdx(i)}
+                      className={`w-7 h-7 text-xs font-mono transition-colors ${
+                        activeSignalIdx === i
+                          ? 'text-white'
+                          : 'text-gray-600 hover:text-gray-400'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
+                {currentTickerSignals[activeSignalIdx] && (
+                  <SignalCard
+                    signal={currentTickerSignals[activeSignalIdx]}
+                    isNew={activeSignalIdx === 0}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-gray-600 text-xs">No active signals for ${selectedTicker}</div>
+                <div className="text-gray-700 text-[10px] mt-1">Radar is scanning...</div>
+              </div>
+            )}
           </div>
 
           {/* Settings */}
