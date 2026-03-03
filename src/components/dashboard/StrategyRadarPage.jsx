@@ -506,8 +506,8 @@ function StrategyCard({ strategy, enabled, onToggle }) {
     <div className="border border-white/6 rounded-lg p-4">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-white">{strategy.name}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{strategy.subtitle}</p>
+          <h3 className="text-base font-semibold text-white">{strategy.name}</h3>
+          <p className="text-sm text-gray-500 mt-0.5">{strategy.subtitle}</p>
         </div>
         {/* Toggle switch */}
         <button
@@ -539,7 +539,7 @@ function StrategyCard({ strategy, enabled, onToggle }) {
 
       <button
         onClick={() => setShowDetails(!showDetails)}
-        className="text-xs text-gray-600 hover:text-gray-400 transition-colors mt-3"
+        className="text-sm text-gray-400 hover:text-gray-300 transition-colors mt-3"
       >
         {showDetails ? 'Hide details' : 'View details'}
       </button>
@@ -552,24 +552,24 @@ function StrategyCard({ strategy, enabled, onToggle }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 pt-3 border-t border-white/5 space-y-3 text-xs text-gray-500 leading-relaxed">
-              <p>{strategy.description}</p>
+            <div className="mt-3 pt-3 border-t border-white/5 space-y-5">
+              <p className="text-sm text-gray-300 leading-relaxed">{strategy.description}</p>
               {strategy.entry_logic && (
                 <div>
-                  <span className="text-gray-400 font-medium">Entry</span>
-                  <p className="mt-1">{strategy.entry_logic}</p>
+                  <span className="text-base text-white font-medium">Entry</span>
+                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">{strategy.entry_logic}</p>
                 </div>
               )}
               {strategy.exit_logic && (
                 <div>
-                  <span className="text-gray-400 font-medium">Exit</span>
-                  <p className="mt-1">{strategy.exit_logic}</p>
+                  <span className="text-base text-white font-medium">Exit</span>
+                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">{strategy.exit_logic}</p>
                 </div>
               )}
               {strategy.risk_management && (
                 <div>
-                  <span className="text-gray-400 font-medium">Risk</span>
-                  <p className="mt-1">{strategy.risk_management}</p>
+                  <span className="text-base text-white font-medium">Risk</span>
+                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">{strategy.risk_management}</p>
                 </div>
               )}
             </div>
