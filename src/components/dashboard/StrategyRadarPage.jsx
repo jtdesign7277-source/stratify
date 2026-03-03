@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   createChart,
+  createSeriesMarkers,
   CrosshairMode,
   CandlestickSeries,
   LineSeries,
@@ -171,6 +172,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
+  const markersRef = useRef(null);
   const obOverlaySeriesRef = useRef([]);
 
   useEffect(() => {
@@ -248,9 +250,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
     if (!candleSeriesRef.current || !candles.length) return;
     candleSeriesRef.current.setData(candles);
 
-    // Clear existing markers
-    candleSeriesRef.current.setMarkers([]);
-
+    // Build markers array
     const markers = [];
 
     // MSB markers — plain text labels on chart
@@ -283,9 +283,13 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
         });
       });
 
-    // Sort markers by time
+    // Sort markers by time and apply via v5 createSeriesMarkers API
     markers.sort((a, b) => a.time - b.time);
-    candleSeriesRef.current.setMarkers(markers);
+    if (markersRef.current) {
+      markersRef.current.setMarkers(markers);
+    } else {
+      markersRef.current = createSeriesMarkers(candleSeriesRef.current, markers);
+    }
 
     // Active OB zone overlay — single latest non-mitigated block (clean chart)
     if (chartRef.current) {
