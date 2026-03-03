@@ -36,6 +36,27 @@ const HPZ_BEAR = '#ff5252';
 
 const DEFAULT_TICKERS = ['TSLA', 'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'SPY', 'QQQ', 'BTC/USD', 'ETH/USD', 'SOL/USD'];
 
+const CRYPTO_TICKERS = new Set(['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOGE/USD', 'LINK/USD', 'ADA/USD', 'AVAX/USD', 'DOT/USD']);
+
+function isCryptoTicker(ticker) {
+  return CRYPTO_TICKERS.has(ticker) || /\/(USD|USDT|BTC)$/.test(ticker);
+}
+
+// Returns { open, premarket, afterhours, label, dotColor }
+function getMarketStatus(ticker) {
+  if (isCryptoTicker(ticker)) return { open: true, premarket: false, afterhours: false, label: 'Scanning', dotColor: 'bg-emerald-400' };
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay(); // 0=Sun, 6=Sat
+  const mins = et.getHours() * 60 + et.getMinutes();
+  const isWeekday = day >= 1 && day <= 5;
+  if (!isWeekday) return { open: false, premarket: false, afterhours: false, label: 'Market Closed', dotColor: 'bg-orange-400' };
+  if (mins >= 570 && mins < 960) return { open: true, premarket: false, afterhours: false, label: 'Scanning', dotColor: 'bg-emerald-400' }; // 9:30-16:00
+  if (mins >= 240 && mins < 570) return { open: false, premarket: true, afterhours: false, label: 'Pre-Market', dotColor: 'bg-orange-400' }; // 4:00-9:30
+  if (mins >= 960 && mins < 1200) return { open: false, premarket: false, afterhours: true, label: 'After-Hours', dotColor: 'bg-orange-400' }; // 16:00-20:00
+  return { open: false, premarket: false, afterhours: false, label: 'Market Closed', dotColor: 'bg-orange-400' };
+}
+
 const addCandlestickSeriesCompat = (chart, options) => {
   if (typeof chart?.addCandlestickSeries === 'function') {
     return chart.addCandlestickSeries(options);
@@ -118,38 +139,58 @@ function QualityGauge({ score }) {
   );
 }
 
-function RadarSweep() {
+function RadarSweep({ disabled, statusText }) {
+  const color = disabled ? '#666' : '#00C2FF';
   return (
     <div className="flex flex-col items-center py-8">
       <div className="relative w-32 h-32">
         <svg viewBox="0 0 128 128" className="w-full h-full">
-          <circle cx="64" cy="64" r="58" fill="none" stroke="#00C2FF" strokeWidth="0.5" opacity="0.2" />
-          <circle cx="64" cy="64" r="38" fill="none" stroke="#00C2FF" strokeWidth="0.5" opacity="0.15" />
-          <circle cx="64" cy="64" r="18" fill="none" stroke="#00C2FF" strokeWidth="0.5" opacity="0.1" />
-          <line x1="64" y1="4" x2="64" y2="124" stroke="#00C2FF" strokeWidth="0.5" opacity="0.1" />
-          <line x1="4" y1="64" x2="124" y2="64" stroke="#00C2FF" strokeWidth="0.5" opacity="0.1" />
+          <circle cx="64" cy="64" r="58" fill="none" stroke={color} strokeWidth="0.5" opacity="0.2" />
+          <circle cx="64" cy="64" r="38" fill="none" stroke={color} strokeWidth="0.5" opacity="0.15" />
+          <circle cx="64" cy="64" r="18" fill="none" stroke={color} strokeWidth="0.5" opacity="0.1" />
+          <line x1="64" y1="4" x2="64" y2="124" stroke={color} strokeWidth="0.5" opacity="0.1" />
+          <line x1="4" y1="64" x2="124" y2="64" stroke={color} strokeWidth="0.5" opacity="0.1" />
         </svg>
-        <motion.div
-          className="absolute inset-0"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-        >
-          <div
-            className="absolute top-1/2 left-1/2 h-[1px] origin-left"
-            style={{
-              width: '58px',
-              background: 'linear-gradient(to right, rgba(0,194,255,0.8), transparent)',
-            }}
-          />
-        </motion.div>
+        {!disabled && (
+          <motion.div
+            className="absolute inset-0"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+          >
+            <div
+              className="absolute top-1/2 left-1/2 h-[1px] origin-left"
+              style={{
+                width: '58px',
+                background: `linear-gradient(to right, ${color}cc, transparent)`,
+              }}
+            />
+          </motion.div>
+        )}
         <div
-          className="absolute top-1/2 left-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#00C2FF]"
-          style={{ boxShadow: '0 0 8px #00C2FF' }}
+          className="absolute top-1/2 left-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{ backgroundColor: color, boxShadow: disabled ? 'none' : `0 0 8px ${color}` }}
         />
       </div>
-      <p className="text-xs text-gray-600 mt-4">Scanning for setups...</p>
+      <p className="text-xs text-gray-600 mt-4">{statusText || 'Scanning for setups...'}</p>
     </div>
   );
+}
+
+async function loadActiveStrategies(userId) {
+  const { data } = await supabase
+    .from('radar_active_strategies')
+    .select('strategy_id, enabled')
+    .eq('user_id', userId);
+  if (!data) return null;
+  const map = {};
+  data.forEach(r => { map[r.strategy_id] = r.enabled; });
+  return map;
+}
+
+async function saveActiveStrategy(userId, strategyId, enabled) {
+  await supabase
+    .from('radar_active_strategies')
+    .upsert({ user_id: userId, strategy_id: strategyId, enabled }, { onConflict: 'user_id,strategy_id' });
 }
 
 // ── Error Boundary ───────────────────────────────────────────────────────────
@@ -529,7 +570,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
 // SIGNAL CARD — Redesigned with quality gauge, price ladder, always-visible details
 // ══════════════════════════════════════════════════════════════════════════════
 
-function SignalCard({ signal }) {
+function SignalCard({ signal, marketStatus }) {
   const dirColor = signal.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
   const hpzColor = signal.direction === 'long' ? HPZ_BULL : HPZ_BEAR;
   const displayColor = signal.is_hpz ? hpzColor : dirColor;
@@ -613,14 +654,29 @@ function SignalCard({ signal }) {
         if (typeof t === 'string') sigMs = new Date(t).getTime();
         else if (t) sigMs = Number(t) < 4102444800 ? Number(t) * 1000 : Number(t);
         const expired = !sigMs || Date.now() - sigMs > 4 * 60 * 60 * 1000;
-        return expired ? (
-          <button
-            disabled
-            className="w-full mt-4 py-2.5 text-xs font-semibold text-gray-500 rounded-lg bg-white/5 cursor-not-allowed"
-          >
+        const ms = marketStatus || {};
+        const marketClosed = !ms.open && !ms.premarket && !ms.afterhours;
+        const extendedHours = ms.premarket || ms.afterhours;
+
+        if (expired) return (
+          <button disabled className="w-full mt-4 py-2.5 text-xs font-semibold text-gray-500 rounded-lg bg-white/5 cursor-not-allowed">
             Expired
           </button>
-        ) : (
+        );
+        if (marketClosed) return (
+          <button disabled className="w-full mt-4 py-2.5 text-xs font-semibold text-gray-500 rounded-lg bg-white/5 cursor-not-allowed">
+            Market Closed
+          </button>
+        );
+        if (extendedHours) return (
+          <button
+            onClick={(e) => e.stopPropagation()}
+            className="w-full mt-4 py-2.5 text-xs font-semibold text-orange-400 rounded-lg bg-white/5 transition-all hover:bg-white/10"
+          >
+            Extended Hours — Limited
+          </button>
+        );
+        return (
           <button
             onClick={(e) => e.stopPropagation()}
             className="w-full mt-4 py-2.5 text-xs font-semibold text-white rounded-lg transition-all hover:brightness-110"
@@ -872,7 +928,16 @@ function StrategyRadarContent() {
   const detectorRef = useRef(null);
   const wsRef = useRef(null);
 
-  // Load user settings and strategies on mount
+  // Derived: is any strategy enabled?
+  const anyStrategyEnabled = useMemo(() => Object.values(activeStrategies).some(Boolean), [activeStrategies]);
+
+  // Market status for current ticker
+  const marketStatus = useMemo(() => getMarketStatus(selectedTicker), [selectedTicker]);
+
+  // Should scanning be active? Need at least one strategy ON, and market open or crypto
+  const canScan = anyStrategyEnabled && (marketStatus.open || marketStatus.premarket || marketStatus.afterhours);
+
+  // Load user settings, strategies, and toggle states on mount
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -888,23 +953,42 @@ function StrategyRadarContent() {
         }
         const userSignals = await getUserSignals(user.id);
         setSignals(userSignals.map(s => ({ ...s, ticker: s.ticker })));
+
+        // Load persisted toggle states
+        const saved = await loadActiveStrategies(user.id);
+        if (saved && Object.keys(saved).length > 0) {
+          setActiveStrategies(prev => ({ ...prev, ...saved }));
+        }
       }
 
       const strats = await getVerifiedStrategies();
       setStrategies(strats);
 
-      // Default enable all strategies
-      const active = {};
-      strats.forEach(s => { active[s.id] = true; });
-      setActiveStrategies(active);
+      // Default enable all strategies (persisted state overrides in the effect above)
+      setActiveStrategies(prev => {
+        const merged = { ...prev };
+        strats.forEach(s => { if (!(s.id in merged)) merged[s.id] = true; });
+        return merged;
+      });
 
       setLoading(false);
     }
     init();
   }, []);
 
-  // Fetch candles and run detection when ticker or timeframe changes
+  // Fetch candles and run detection — gated on canScan
   useEffect(() => {
+    if (!canScan) {
+      // Scanning disabled: close WS, clear detection state, keep candles for chart
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+      detectorRef.current = null;
+      setIsScanning(false);
+      setSignals(prev => prev.filter(s => s.ticker !== selectedTicker));
+      setOrderBlocks([]);
+      setMsbEvents([]);
+      return;
+    }
+
     async function loadAndDetect() {
       setLoading(true);
       setIsScanning(true);
@@ -920,7 +1004,6 @@ function StrategyRadarContent() {
         const results = detector.setCandles(candleData);
         detectorRef.current = detector;
 
-        // Tag signals with ticker and timeframe
         const taggedSignals = results.signals.map(s => ({
           ...s,
           ticker: selectedTicker,
@@ -931,7 +1014,6 @@ function StrategyRadarContent() {
         setMsbEvents(results.msbEvents);
         setPivots(results.pivots);
 
-        // Merge with existing signals (no duplicates)
         setSignals(prev => {
           const existing = new Set(prev.map(s => `${s.ticker}-${s.detected_at}`));
           const newSignals = taggedSignals.filter(s => !existing.has(`${s.ticker}-${s.detected_at}`));
@@ -942,23 +1024,20 @@ function StrategyRadarContent() {
       setIsScanning(false);
       setLoading(false);
 
-      // Connect WebSocket for live updates
       connectWebSocket(selectedTicker, settings.timeframe);
     }
 
     loadAndDetect();
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
     };
-  }, [selectedTicker, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier]);
+  }, [selectedTicker, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier, canScan]);
 
   // WebSocket connection to Twelve Data
   function connectWebSocket(ticker, timeframe) {
     if (wsRef.current) wsRef.current.close();
+    if (!canScan) return;
 
     const ws = new WebSocket('wss://ws.twelvedata.com/v1/quotes/price');
     wsRef.current = ws;
@@ -979,7 +1058,6 @@ function StrategyRadarContent() {
           const timestamp = Math.floor(msg.timestamp);
 
           if (detectorRef.current && price > 0) {
-            // Build candle update from price tick
             const currentCandles = detectorRef.current.getCandles();
             const lastCandle = currentCandles[currentCandles.length - 1];
 
@@ -998,7 +1076,6 @@ function StrategyRadarContent() {
               setOrderBlocks(results.orderBlocks);
               setMsbEvents(results.msbEvents);
 
-              // Check for new signals
               const taggedSignals = results.signals.map(s => ({
                 ...s,
                 ticker: selectedTicker,
@@ -1033,12 +1110,16 @@ function StrategyRadarContent() {
     }
   }, [settings]);
 
-  // Toggle strategy
-  const handleToggleStrategy = useCallback((strategyId) => {
-    setActiveStrategies(prev => ({
-      ...prev,
-      [strategyId]: !prev[strategyId],
-    }));
+  // Toggle strategy — persist to Supabase
+  const handleToggleStrategy = useCallback(async (strategyId) => {
+    setActiveStrategies(prev => {
+      const next = { ...prev, [strategyId]: !prev[strategyId] };
+      // Fire-and-forget save
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) saveActiveStrategy(user.id, strategyId, next[strategyId]);
+      });
+      return next;
+    });
   }, []);
 
   // Filter signals for current ticker — only last 48 hours
@@ -1083,9 +1164,15 @@ function StrategyRadarContent() {
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-semibold tracking-wide">Strategy Radar</h1>
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${isScanning ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              !anyStrategyEnabled ? 'bg-gray-600'
+              : isScanning && marketStatus.open ? 'bg-emerald-400 animate-pulse'
+              : marketStatus.dotColor
+            }`} />
             <span className="text-xs text-gray-500">
-              {isScanning ? 'Scanning' : 'Idle'}
+              {!anyStrategyEnabled ? 'Disabled'
+                : isScanning && marketStatus.open ? 'Scanning'
+                : marketStatus.label}
             </span>
           </div>
         </div>
@@ -1209,13 +1296,21 @@ function StrategyRadarContent() {
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <SignalCard signal={currentTickerSignals[activeSignalIdx]} />
+                      <SignalCard signal={currentTickerSignals[activeSignalIdx]} marketStatus={marketStatus} />
                     </motion.div>
                   )}
                 </AnimatePresence>
               </>
             ) : (
-              <RadarSweep />
+              <RadarSweep
+                disabled={!canScan}
+                statusText={
+                  !anyStrategyEnabled ? 'Scanning disabled'
+                  : !marketStatus.open && !marketStatus.premarket && !marketStatus.afterhours
+                    ? 'Market closed — signals update at next open'
+                  : 'Scanning for setups...'
+                }
+              />
             )}
           </div>
 
