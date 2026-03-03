@@ -323,15 +323,15 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
     };
   }, []);
 
-  // Update candle data
+  // Update candle data + LuxAlgo-style OB/MSB overlays
   useEffect(() => {
     if (!candleSeriesRef.current || !candles.length) return;
     candleSeriesRef.current.setData(candles);
 
-    // Build markers array
+    const chartNow = Number(candles[candles.length - 1]?.time);
     const markers = [];
 
-    // MSB markers — plain text labels on chart
+    // ── MSB markers — "MSB" text labels ──────────────────────────────
     msbEvents.forEach(msb => {
       markers.push({
         time: msb.time,
@@ -342,7 +342,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
       });
     });
 
-    // Completed/triggered signals — clean triangle entries only
+    // ── Triggered/completed signal markers ───────────────────────────
     (Array.isArray(signals) ? signals : [])
       .filter((signal) => {
         const status = String(signal?.status || '').toLowerCase();
@@ -361,98 +361,149 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
         });
       });
 
+    // ── Clean up previous overlay series ─────────────────────────────
+    if (chartRef.current) {
+      obOverlaySeriesRef.current.forEach((s) => {
+        try { chartRef.current.removeSeries(s); } catch {}
+      });
+      obOverlaySeriesRef.current = [];
+
+      // ── OB Zone Rectangles (LuxAlgo style) ───────────────────────
+      const sortedOBs = [...orderBlocks].sort((a, b) => Number(b?.msbBar ?? 0) - Number(a?.msbBar ?? 0));
+      const activeOBs = sortedOBs.filter(ob => !ob?.mitigated).slice(0, 3);
+      const mitigatedOBs = sortedOBs.filter(ob => ob?.mitigated).slice(0, 2);
+      const displayOBs = [...activeOBs, ...mitigatedOBs];
+
+      displayOBs.forEach(ob => {
+        const obTop = Number(ob?.top);
+        const obBottom = Number(ob?.bottom);
+        const obStart = Number(ob?.time);
+        if (!Number.isFinite(obTop) || !Number.isFinite(obBottom) || !Number.isFinite(obStart) || !Number.isFinite(chartNow)) return;
+
+        const startTime = Math.min(obStart, chartNow);
+        const endTime = Math.max(obStart, chartNow);
+        const bullish = String(ob?.direction || '').toLowerCase() === 'long';
+        const isMitigated = !!ob?.mitigated;
+
+        // Zone fill + border colors
+        const zoneFill = isMitigated
+          ? 'rgba(100,100,100,0.08)'
+          : bullish ? 'rgba(8,153,129,0.15)' : 'rgba(242,54,69,0.15)';
+        const borderColor = isMitigated
+          ? 'rgba(100,100,100,0.3)'
+          : bullish ? 'rgba(8,153,129,0.6)' : 'rgba(242,54,69,0.6)';
+
+        // Shaded zone — baseline series (base=bottom, value=top)
+        const zone = addBaselineSeriesCompat(chartRef.current, {
+          baseValue: { type: 'price', price: obBottom },
+          topFillColor1: zoneFill,
+          topFillColor2: zoneFill,
+          topLineColor: 'rgba(0,0,0,0)',
+          bottomFillColor1: 'rgba(0,0,0,0)',
+          bottomFillColor2: 'rgba(0,0,0,0)',
+          bottomLineColor: 'rgba(0,0,0,0)',
+          lineWidth: 0,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        zone.setData([
+          { time: startTime, value: obTop },
+          { time: endTime, value: obTop },
+        ]);
+        obOverlaySeriesRef.current.push(zone);
+
+        // Top border (dashed)
+        const topBorder = addLineSeriesCompat(chartRef.current, {
+          color: borderColor,
+          lineWidth: 1,
+          lineStyle: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        topBorder.setData([
+          { time: startTime, value: obTop },
+          { time: endTime, value: obTop },
+        ]);
+        obOverlaySeriesRef.current.push(topBorder);
+
+        // Bottom border (dashed)
+        const bottomBorder = addLineSeriesCompat(chartRef.current, {
+          color: borderColor,
+          lineWidth: 1,
+          lineStyle: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        bottomBorder.setData([
+          { time: startTime, value: obBottom },
+          { time: endTime, value: obBottom },
+        ]);
+        obOverlaySeriesRef.current.push(bottomBorder);
+
+        // Quality score text marker on the OB candle
+        if (!isMitigated && ob?.score != null) {
+          markers.push({
+            time: obStart,
+            position: bullish ? 'belowBar' : 'aboveBar',
+            color: bullish ? BULL_COLOR : BEAR_COLOR,
+            shape: 'square',
+            text: `${Math.round(ob.score)}%`,
+          });
+        }
+      });
+
+      // ── MSB Break Lines — short horizontal at pivot level ────────
+      // For each MSB event, find the pivot candle and draw a segment
+      msbEvents.slice(-10).forEach(msb => {
+        const msbIdx = Number(msb.bar);
+        const msbTime = Number(msb.time);
+        const level = Number(msb.level);
+        if (!Number.isFinite(msbIdx) || !Number.isFinite(msbTime) || !Number.isFinite(level)) return;
+
+        // Find the pivot candle whose high/low matches the break level
+        const lookback = Math.min(msbIdx, 20);
+        let pivotIdx = Math.max(0, msbIdx - lookback);
+        let bestDist = Infinity;
+        for (let i = Math.max(0, msbIdx - lookback); i < msbIdx; i++) {
+          const c = candles[i];
+          if (!c) continue;
+          const p = msb.direction === 'long' ? c.high : c.low;
+          const d = Math.abs(p - level);
+          if (d < bestDist) {
+            bestDist = d;
+            pivotIdx = i;
+          }
+        }
+
+        const pivotTime = Number(candles[pivotIdx]?.time);
+        if (!Number.isFinite(pivotTime) || pivotTime === msbTime) return;
+
+        const lineColor = msb.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
+        const msbLine = addLineSeriesCompat(chartRef.current, {
+          color: lineColor,
+          lineWidth: 1,
+          lineStyle: 0,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        msbLine.setData([
+          { time: Math.min(pivotTime, msbTime), value: level },
+          { time: Math.max(pivotTime, msbTime), value: level },
+        ]);
+        obOverlaySeriesRef.current.push(msbLine);
+      });
+    }
+
     // Sort markers by time and apply via v5 createSeriesMarkers API
     markers.sort((a, b) => a.time - b.time);
     if (markersRef.current) {
       markersRef.current.setMarkers(markers);
     } else {
       markersRef.current = createSeriesMarkers(candleSeriesRef.current, markers);
-    }
-
-    // Active OB zone overlay — single latest non-mitigated block (clean chart)
-    if (chartRef.current) {
-      obOverlaySeriesRef.current.forEach((series) => {
-        try {
-          chartRef.current.removeSeries(series);
-        } catch {
-          // ignore stale series handles
-        }
-      });
-      obOverlaySeriesRef.current = [];
-
-      const latestActiveOb = [...orderBlocks]
-        .filter((ob) => !ob?.mitigated)
-        .sort((a, b) => Number(b?.msbBar ?? 0) - Number(a?.msbBar ?? 0))[0];
-
-      if (latestActiveOb) {
-        const obTop = Number(latestActiveOb?.top);
-        const obBottom = Number(latestActiveOb?.bottom);
-        const obStart = Number(latestActiveOb?.time);
-        const chartNow = Number(candles[candles.length - 1]?.time ?? obStart);
-
-        if (
-          Number.isFinite(obTop) &&
-          Number.isFinite(obBottom) &&
-          Number.isFinite(obStart) &&
-          Number.isFinite(chartNow)
-        ) {
-          const startTime = Math.min(obStart, chartNow);
-          const endTime = Math.max(obStart, chartNow);
-          const bullish = String(latestActiveOb?.direction || '').toLowerCase() === 'long';
-          const zoneFill = bullish ? 'rgba(29,233,182,0.08)' : 'rgba(242,54,69,0.08)';
-          const boundaryColor = bullish ? 'rgba(29,233,182,0.45)' : 'rgba(242,54,69,0.45)';
-
-          // Shaded entry zone using baseline series between bottom (base) and top value
-          const zoneSeries = addBaselineSeriesCompat(chartRef.current, {
-            baseValue: { type: 'price', price: obBottom },
-            topFillColor1: zoneFill,
-            topFillColor2: zoneFill,
-            topLineColor: 'rgba(0,0,0,0)',
-            bottomFillColor1: 'rgba(0,0,0,0)',
-            bottomFillColor2: 'rgba(0,0,0,0)',
-            bottomLineColor: 'rgba(0,0,0,0)',
-            lineWidth: 0,
-            lastValueVisible: false,
-            priceLineVisible: false,
-            crosshairMarkerVisible: false,
-          });
-          zoneSeries.setData([
-            { time: startTime, value: obTop },
-            { time: endTime, value: obTop },
-          ]);
-          obOverlaySeriesRef.current.push(zoneSeries);
-
-          // Top boundary
-          const topBoundarySeries = addLineSeriesCompat(chartRef.current, {
-            color: boundaryColor,
-            lineWidth: 1,
-            lineStyle: 0,
-            lastValueVisible: false,
-            priceLineVisible: false,
-            crosshairMarkerVisible: false,
-          });
-          topBoundarySeries.setData([
-            { time: startTime, value: obTop },
-            { time: endTime, value: obTop },
-          ]);
-          obOverlaySeriesRef.current.push(topBoundarySeries);
-
-          // Bottom boundary
-          const bottomBoundarySeries = addLineSeriesCompat(chartRef.current, {
-            color: boundaryColor,
-            lineWidth: 1,
-            lineStyle: 0,
-            lastValueVisible: false,
-            priceLineVisible: false,
-            crosshairMarkerVisible: false,
-          });
-          bottomBoundarySeries.setData([
-            { time: startTime, value: obBottom },
-            { time: endTime, value: obBottom },
-          ]);
-          obOverlaySeriesRef.current.push(bottomBoundarySeries);
-        }
-      }
     }
 
     // Fit content
