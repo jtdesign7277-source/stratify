@@ -544,9 +544,9 @@ function SignalCard({ signal }) {
         <QualityGauge score={signal.quality_score} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
-            <span className="text-lg font-bold text-white font-mono">{signal.ticker}</span>
+            <span className="text-2xl font-bold text-white font-mono">{signal.ticker}</span>
             <span
-              className="text-sm font-bold uppercase"
+              className="text-lg font-semibold uppercase"
               style={{
                 color: displayColor,
                 textShadow: `0 0 10px ${displayColor}40`,
@@ -555,10 +555,7 @@ function SignalCard({ signal }) {
               {signal.direction === 'long' ? '▲ LONG' : '▼ SHORT'}
             </span>
             {signal.is_hpz && (
-              <span
-                className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                style={{ color: hpzColor, backgroundColor: `${hpzColor}15` }}
-              >
+              <span className="text-xs font-bold" style={{ color: '#00C2FF' }}>
                 HPZ
               </span>
             )}
@@ -572,40 +569,40 @@ function SignalCard({ signal }) {
       </div>
 
       {/* Visual Price Ladder */}
-      <div className="mt-4 py-3 space-y-2">
+      <div className="mt-4 py-3 space-y-2.5">
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-gray-500 w-8 text-right">TP</span>
+          <span className="text-xs text-gray-500 w-10 text-right">TP</span>
           <div className="flex-1 border-t border-dashed" style={{ borderColor: BULL_COLOR }} />
-          <span className="text-xs font-mono font-medium" style={{ color: BULL_COLOR }}>${signal.take_profit.toFixed(2)}</span>
+          <span className="text-base font-mono font-medium" style={{ color: BULL_COLOR }}>${signal.take_profit.toFixed(2)}</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-white/60 w-8 text-right font-medium">Entry</span>
+          <span className="text-xs text-white/60 w-10 text-right font-medium">Entry</span>
           <div className="flex-1 border-t-2 border-white/70" />
-          <span className="text-xs font-mono font-medium text-white">${signal.entry_price.toFixed(2)}</span>
+          <span className="text-base font-mono font-medium text-white">${signal.entry_price.toFixed(2)}</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-gray-500 w-8 text-right">SL</span>
+          <span className="text-xs text-gray-500 w-10 text-right">SL</span>
           <div className="flex-1 border-t border-dashed border-red-400" />
-          <span className="text-xs font-mono font-medium text-red-400">${signal.stop_loss.toFixed(2)}</span>
+          <span className="text-base font-mono font-medium text-red-400">${signal.stop_loss.toFixed(2)}</span>
         </div>
         <div className="flex justify-end">
-          <span className="text-[10px] font-mono font-bold" style={{ color: '#00C2FF' }}>R:R {rr}</span>
+          <span className="text-base font-mono font-semibold text-emerald-400">R:R {rr}</span>
         </div>
       </div>
 
       {/* Always-visible Details */}
-      <div className="border-t border-white/5 pt-3 space-y-2">
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-500">OB Zone</span>
-          <span className="text-gray-300 font-mono">${signal.ob_bottom.toFixed(2)} – ${signal.ob_top.toFixed(2)}</span>
+      <div className="border-t border-white/5 pt-3 space-y-2.5">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">OB Zone</span>
+          <span className="text-white font-mono">${signal.ob_bottom.toFixed(2)} – ${signal.ob_top.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-500">MSB Level</span>
-          <span className="text-gray-300 font-mono">${signal.msb_level.toFixed(2)}</span>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">MSB Level</span>
+          <span className="text-white font-mono">${signal.msb_level.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-500">Momentum Z</span>
-          <span className="text-gray-300 font-mono">{signal.momentum_z}</span>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Momentum Z</span>
+          <span className="text-white font-mono">{signal.momentum_z}</span>
         </div>
       </div>
 
@@ -644,9 +641,7 @@ function SignalCard({ signal }) {
 // STRATEGY CARD — Verified strategy with toggle
 // ══════════════════════════════════════════════════════════════════════════════
 
-function StrategyCard({ strategy, enabled, onToggle }) {
-  const [showDetails, setShowDetails] = useState(false);
-
+function StrategyCard({ strategy, enabled, onToggle, onViewDetails }) {
   return (
     <div className="border border-white/6 rounded-lg p-4">
       <div className="flex items-start justify-between mb-2">
@@ -683,45 +678,61 @@ function StrategyCard({ strategy, enabled, onToggle }) {
       )}
 
       <button
-        onClick={() => setShowDetails(!showDetails)}
+        onClick={() => onViewDetails(strategy)}
         className="text-sm text-gray-400 hover:text-gray-300 transition-colors mt-3"
       >
-        {showDetails ? 'Hide details' : 'View details'}
+        View details
       </button>
-
-      <AnimatePresence>
-        {showDetails && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 pt-3 border-t border-white/5 space-y-5">
-              <p className="text-sm text-gray-300 leading-relaxed">{strategy.description}</p>
-              {strategy.entry_logic && (
-                <div>
-                  <span className="text-base text-white font-medium">Entry</span>
-                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">{strategy.entry_logic}</p>
-                </div>
-              )}
-              {strategy.exit_logic && (
-                <div>
-                  <span className="text-base text-white font-medium">Exit</span>
-                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">{strategy.exit_logic}</p>
-                </div>
-              )}
-              {strategy.risk_management && (
-                <div>
-                  <span className="text-base text-white font-medium">Risk</span>
-                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">{strategy.risk_management}</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
+  );
+}
+
+function StrategyDetailOverlay({ strategy, onClose }) {
+  return (
+    <motion.div
+      initial={{ y: '100%' }}
+      animate={{ y: 0 }}
+      exit={{ y: '100%' }}
+      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+      className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-y-auto"
+    >
+      <div className="p-6">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+        >
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+
+        <h2 className="text-xl font-bold text-white">{strategy.name}</h2>
+        <p className="text-base text-gray-400 mt-1">{strategy.subtitle}</p>
+
+        <div className="mt-6 space-y-6">
+          <p className="text-base text-gray-300 leading-relaxed">{strategy.description}</p>
+          {strategy.entry_logic && (
+            <div>
+              <span className="text-lg font-semibold text-emerald-400">Entry</span>
+              <p className="mt-2 text-base text-gray-300 leading-relaxed">{strategy.entry_logic}</p>
+            </div>
+          )}
+          {strategy.exit_logic && (
+            <div>
+              <span className="text-lg font-semibold text-emerald-400">Exit</span>
+              <p className="mt-2 text-base text-gray-300 leading-relaxed">{strategy.exit_logic}</p>
+            </div>
+          )}
+          {strategy.risk_management && (
+            <div>
+              <span className="text-lg font-semibold text-emerald-400">Risk</span>
+              <p className="mt-2 text-base text-gray-300 leading-relaxed">{strategy.risk_management}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -737,27 +748,18 @@ function RadarSettings({ settings, onUpdate }) {
   const riskScore = (slPct + (1 - tpFillPct) + riskPct) / 3;
 
   const riskProfile = riskScore < 0.33
-    ? { label: 'Conservative', color: '#089981' }
+    ? { label: 'Conservative', color: '#34d399' }
     : riskScore < 0.66
-      ? { label: 'Moderate', color: '#eab308' }
+      ? { label: 'Moderate', color: '#34d399' }
       : { label: 'Aggressive', color: '#f23645' };
 
-  const slColor = slPct < 0.3 ? '#089981' : slPct < 0.7 ? '#eab308' : '#f23645';
-  const tpColor = tpFillPct < 0.3 ? '#f23645' : tpFillPct < 0.7 ? '#eab308' : '#089981';
-  const riskColor = riskPct < 0.3 ? '#089981' : riskPct < 0.7 ? '#eab308' : '#f23645';
+  const SLIDER_FILL = '#10b981';
 
   return (
     <div className="border border-white/6 rounded-xl p-5 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-xs text-gray-500 uppercase tracking-widest font-medium">Settings</h3>
-        <span
-          className="text-xs font-semibold px-2 py-0.5 rounded-full"
-          style={{
-            color: riskProfile.color,
-            backgroundColor: `${riskProfile.color}15`,
-            border: `1px solid ${riskProfile.color}30`,
-          }}
-        >
+        <span className="text-xs font-semibold" style={{ color: riskProfile.color }}>
           {riskProfile.label}
         </span>
       </div>
@@ -769,11 +771,11 @@ function RadarSettings({ settings, onUpdate }) {
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
           <label className="text-xs text-gray-400 flex-1">Stop Loss</label>
-          <span className="text-xs font-mono font-semibold" style={{ color: slColor }}>{settings.stop_loss_multiplier}x</span>
+          <span className="text-xs font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span>
         </div>
         <div className="relative h-6 flex items-center">
           <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${slPct * 100}%`, backgroundColor: slColor }} />
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${slPct * 100}%`, backgroundColor: SLIDER_FILL }} />
           </div>
           <input
             type="range" min="0.1" max="2.0" step="0.1"
@@ -795,11 +797,11 @@ function RadarSettings({ settings, onUpdate }) {
             <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
           </svg>
           <label className="text-xs text-gray-400 flex-1">Take Profit</label>
-          <span className="text-xs font-mono font-semibold" style={{ color: tpColor }}>{settings.take_profit_multiplier}x</span>
+          <span className="text-xs font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span>
         </div>
         <div className="relative h-6 flex items-center">
           <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${tpFillPct * 100}%`, backgroundColor: tpColor }} />
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${tpFillPct * 100}%`, backgroundColor: SLIDER_FILL }} />
           </div>
           <input
             type="range" min="1.0" max="5.0" step="0.5"
@@ -821,11 +823,11 @@ function RadarSettings({ settings, onUpdate }) {
             <line x1="19" y1="5" x2="5" y2="19" /><circle cx="6.5" cy="6.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" />
           </svg>
           <label className="text-xs text-gray-400 flex-1">Risk Per Trade</label>
-          <span className="text-xs font-mono font-semibold" style={{ color: riskColor }}>{(settings.risk_per_trade * 100).toFixed(1)}%</span>
+          <span className="text-xs font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span>
         </div>
         <div className="relative h-6 flex items-center">
           <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${riskPct * 100}%`, backgroundColor: riskColor }} />
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${riskPct * 100}%`, backgroundColor: SLIDER_FILL }} />
           </div>
           <input
             type="range" min="0.5" max="5.0" step="0.5"
@@ -859,6 +861,7 @@ function StrategyRadarContent() {
   const [isScanning, setIsScanning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeSignalIdx, setActiveSignalIdx] = useState(0);
+  const [expandedStrategy, setExpandedStrategy] = useState(null);
   const [settings, setSettings] = useState({
     timeframe: '1H',
     stop_loss_multiplier: 0.5,
@@ -1166,7 +1169,7 @@ function StrategyRadarContent() {
         </div>
 
         {/* RIGHT — Signals + Strategies (40%) */}
-        <div className="flex-[2] min-h-0 overflow-y-auto">
+        <div className="flex-[2] min-h-0 overflow-y-auto relative">
           {/* Active Signals */}
           <div className="p-4 border-b border-white/6">
             <h2 className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-3">
@@ -1236,10 +1239,21 @@ function StrategyRadarContent() {
                   strategy={strategy}
                   enabled={activeStrategies[strategy.id] || false}
                   onToggle={handleToggleStrategy}
+                  onViewDetails={setExpandedStrategy}
                 />
               ))}
             </div>
           </div>
+
+          {/* Strategy Detail Overlay */}
+          <AnimatePresence>
+            {expandedStrategy && (
+              <StrategyDetailOverlay
+                strategy={expandedStrategy}
+                onClose={() => setExpandedStrategy(null)}
+              />
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
