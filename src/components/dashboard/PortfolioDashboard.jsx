@@ -808,7 +808,7 @@ export default function PortfolioDashboard() {
         </div>
       </div>
 
-      <div className={splitViewEnabled ? 'mt-3 grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,58%)_minmax(320px,42%)]' : 'mt-3'}>
+      <div className={splitViewEnabled ? 'mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,56%)_minmax(340px,44%)]' : 'mt-3'}>
       <div className={splitViewEnabled ? 'min-w-0' : ''}>
       <div className="space-y-3">
       <div className={`${panelClass} p-3`}>
@@ -1000,7 +1000,7 @@ export default function PortfolioDashboard() {
       </div>
 
       {splitViewEnabled ? (
-        <aside className={`${panelClass} min-w-0 p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-120px)] xl:overflow-y-auto`}>
+        <aside className={`${panelClass} min-w-0 p-3 lg:sticky lg:top-3 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto`}>
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">AI Opportunity Radar</div>
