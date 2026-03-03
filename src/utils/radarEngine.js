@@ -153,7 +153,15 @@ export function detectSignals(candles, userSettings = {}) {
     lows: pivotLows.map((v, i) => v !== null ? { time: candles[i].time, price: v } : null).filter(Boolean),
   };
 
-  return { signals, orderBlocks, msbEvents, pivots: pivotData };
+  // Only return signals detected within the last 10 candles
+  const recentSignals = signals.filter(s => {
+    const detectedBar = orderBlocks.find(ob =>
+      ob.msbTime === s.detected_at && ob.direction === s.direction
+    )?.msbBar;
+    return detectedBar == null || detectedBar >= candles.length - 10;
+  });
+
+  return { signals: recentSignals, orderBlocks, msbEvents, pivots: pivotData };
 }
 
 export function createLiveDetector(userSettings = {}) {

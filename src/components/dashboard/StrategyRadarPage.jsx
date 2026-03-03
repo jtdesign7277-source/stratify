@@ -70,15 +70,23 @@ const addBaselineSeriesCompat = (chart, options) => {
 
 function timeAgo(timestamp) {
   if (!timestamp) return '';
-  const ts = typeof timestamp === 'string' ? Math.floor(new Date(timestamp).getTime() / 1000) : Number(timestamp);
-  const seconds = Math.floor(Date.now() / 1000 - ts);
-  if (seconds < 60) return `${Math.max(0, seconds)}s ago`;
+  // Handle ISO strings, unix seconds, or unix milliseconds
+  let ms;
+  if (typeof timestamp === 'string') {
+    ms = new Date(timestamp).getTime();
+  } else {
+    const n = Number(timestamp);
+    // If value is small enough to be unix seconds (before year 2100), convert to ms
+    ms = n < 4102444800 ? n * 1000 : n;
+  }
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  const seconds = Math.floor((Date.now() - ms) / 1000);
+  if (seconds < 0) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return `${hours}h ago`;
 }
 
 function QualityGauge({ score }) {
@@ -602,16 +610,32 @@ function SignalCard({ signal }) {
       </div>
 
       {/* Premium Confirm Trade */}
-      <button
-        onClick={(e) => e.stopPropagation()}
-        className="w-full mt-4 py-2.5 text-xs font-semibold text-white rounded-lg transition-all hover:brightness-110"
-        style={{
-          background: `linear-gradient(135deg, ${displayColor}, ${displayColor}90)`,
-          boxShadow: `0 0 20px ${displayColor}30`,
-        }}
-      >
-        Confirm Trade
-      </button>
+      {(() => {
+        const t = signal.detected_at || signal.time;
+        let sigMs = 0;
+        if (typeof t === 'string') sigMs = new Date(t).getTime();
+        else if (t) sigMs = Number(t) < 4102444800 ? Number(t) * 1000 : Number(t);
+        const expired = !sigMs || Date.now() - sigMs > 4 * 60 * 60 * 1000;
+        return expired ? (
+          <button
+            disabled
+            className="w-full mt-4 py-2.5 text-xs font-semibold text-gray-500 rounded-lg bg-white/5 cursor-not-allowed"
+          >
+            Expired
+          </button>
+        ) : (
+          <button
+            onClick={(e) => e.stopPropagation()}
+            className="w-full mt-4 py-2.5 text-xs font-semibold text-white rounded-lg transition-all hover:brightness-110"
+            style={{
+              background: `linear-gradient(135deg, ${displayColor}, ${displayColor}90)`,
+              boxShadow: `0 0 20px ${displayColor}30`,
+            }}
+          >
+            Confirm Trade
+          </button>
+        );
+      })()}
     </div>
   );
 }
@@ -1014,16 +1038,32 @@ function StrategyRadarContent() {
     }));
   }, []);
 
-  // Filter signals for current ticker
-  const currentTickerSignals = useMemo(() =>
-    signals.filter(s => s.ticker === selectedTicker),
-    [signals, selectedTicker]
-  );
+  // Filter signals for current ticker — only last 48 hours
+  const currentTickerSignals = useMemo(() => {
+    const cutoff48h = Date.now() - 48 * 60 * 60 * 1000;
+    return signals.filter(s => {
+      if (s.ticker !== selectedTicker) return false;
+      const t = s.detected_at || s.time;
+      if (!t) return false;
+      let ms;
+      if (typeof t === 'string') ms = new Date(t).getTime();
+      else ms = Number(t) < 4102444800 ? Number(t) * 1000 : Number(t);
+      return Number.isFinite(ms) && ms > cutoff48h;
+    });
+  }, [signals, selectedTicker]);
 
-  const activeSignalCount = useMemo(() =>
-    signals.filter(s => s.status === 'active').length,
-    [signals]
-  );
+  const activeSignalCount = useMemo(() => {
+    const cutoff48h = Date.now() - 48 * 60 * 60 * 1000;
+    return signals.filter(s => {
+      if (s.status !== 'active') return false;
+      const t = s.detected_at || s.time;
+      if (!t) return false;
+      let ms;
+      if (typeof t === 'string') ms = new Date(t).getTime();
+      else ms = Number(t) < 4102444800 ? Number(t) * 1000 : Number(t);
+      return Number.isFinite(ms) && ms > cutoff48h;
+    }).length;
+  }, [signals]);
 
   if (loading && candles.length === 0) {
     return (
