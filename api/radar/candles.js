@@ -1,5 +1,5 @@
-// /api/radar/candles.cjs — CommonJS forced via .cjs (package.json has "type":"module")
-const https = require('https');
+// /api/radar/candles.js — ESM (package.json "type":"module")
+import https from 'node:https';
 
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
@@ -22,7 +22,7 @@ function httpsGet(url) {
   });
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Content-Type', 'application/json');
@@ -44,4 +44,4 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     return res.status(502).json({ error: err.message });
   }
-};
+}
