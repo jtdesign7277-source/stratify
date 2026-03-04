@@ -9,8 +9,9 @@ import {
 } from 'lightweight-charts';
 import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
+import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MousePointer2, TrendingUp, Minus, Square, GitBranch, Eraser } from 'lucide-react';
+import { MousePointer2, TrendingUp, Minus, Square, GitBranch, Eraser, Search } from 'lucide-react';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -34,6 +35,8 @@ const BULL_COLOR = '#089981';
 const BEAR_COLOR = '#f23645';
 const HPZ_BULL = '#1de9b6';
 const HPZ_BEAR = '#ff5252';
+const CHOCH_COLOR = '#00C2FF';
+const BOS_COLOR = '#7B61FF';
 
 const DEFAULT_TICKERS = ['TSLA', 'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'SPY', 'QQQ', 'BTC/USD', 'ETH/USD', 'SOL/USD'];
 
@@ -260,6 +263,221 @@ function DrawingToolbar({ activeTool, activeColor, onToolChange, onColorChange }
   );
 }
 
+// ── Rainbow Search Bar CSS ───────────────────────────────────────────────────
+const RAINBOW_STYLE_ID = 'radar-rainbow-css';
+if (typeof document !== 'undefined' && !document.getElementById(RAINBOW_STYLE_ID)) {
+  const style = document.createElement('style');
+  style.id = RAINBOW_STYLE_ID;
+  style.textContent = `
+@keyframes rainbow-rotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.radar-rainbow-border {
+  background: linear-gradient(270deg, #34d399, #06b6d4, #3b82f6, #7c3aed, #ec4899, #ef4444, #f97316, #34d399);
+  background-size: 400% 400%;
+  animation: rainbow-rotate 6s ease infinite;
+}
+`;
+  document.head.appendChild(style);
+}
+
+const RECENT_KEY = 'radar_recent_searches';
+
+function loadRecentSearches() {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]').slice(0, 5); }
+  catch { return []; }
+}
+
+function saveRecentSearch(ticker) {
+  try {
+    const prev = loadRecentSearches().filter(t => t !== ticker);
+    localStorage.setItem(RECENT_KEY, JSON.stringify([ticker, ...prev].slice(0, 5)));
+  } catch {}
+}
+
+function RadarSearchBar({ selectedTicker, onSelect }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
+  const [recentSearches, setRecentSearches] = useState(loadRecentSearches);
+  const inputRef = useRef(null);
+  const debounceRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.length < 2) { setResults([]); setIsOpen(query.length > 0 || isFocused); return; }
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/radar/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        setResults(Array.isArray(data) ? data : []);
+        setIsOpen(true);
+        setHighlightIdx(-1);
+      } catch {
+        setResults([]);
+      }
+    }, 300);
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
+
+  function selectTicker(ticker) {
+    setQuery('');
+    setResults([]);
+    setIsOpen(false);
+    saveRecentSearch(ticker);
+    setRecentSearches(loadRecentSearches());
+    onSelect(ticker);
+  }
+
+  function handleKeyDown(e) {
+    const totalItems = results.length + recentSearches.length;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIdx(prev => (prev + 1) % totalItems);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIdx(prev => (prev - 1 + totalItems) % totalItems);
+    } else if (e.key === 'Enter' && highlightIdx >= 0) {
+      e.preventDefault();
+      if (highlightIdx < results.length) {
+        selectTicker(results[highlightIdx].symbol);
+      } else {
+        selectTicker(recentSearches[highlightIdx - results.length]);
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+      inputRef.current?.blur();
+    }
+  }
+
+  function getTypeColor(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('crypto') || t.includes('digital')) return '#06b6d4';
+    if (t.includes('etf') || t.includes('etp')) return '#7c3aed';
+    return '#34d399';
+  }
+
+  function getTypeLabel(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('crypto') || t.includes('digital')) return 'Crypto';
+    if (t.includes('etf') || t.includes('etp')) return 'ETF';
+    if (t.includes('index')) return 'Index';
+    return 'Stock';
+  }
+
+  const showDropdown = isOpen && (results.length > 0 || (query.length < 2 && recentSearches.length > 0));
+
+  return (
+    <div ref={containerRef} className="flex-1 mx-4 relative">
+      {/* Search input wrapper */}
+      <div className={`relative rounded-xl ${isFocused ? 'p-[1px] radar-rainbow-border' : ''}`}>
+        <div
+          className={`flex items-center gap-3 rounded-xl py-2.5 px-4 transition-all duration-200 ${
+            isFocused
+              ? 'bg-[#0a0a0f]'
+              : 'bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] hover:shadow-[0_0_8px_rgba(255,255,255,0.03)]'
+          }`}
+        >
+          <Search size={16} className="text-gray-500 flex-shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onFocus={() => { setIsFocused(true); setIsOpen(true); }}
+            onBlur={() => setIsFocused(false)}
+            onKeyDown={handleKeyDown}
+            placeholder="Search any stock, ETF, crypto..."
+            className="flex-1 bg-transparent text-base font-mono text-white placeholder:text-gray-600 placeholder:italic outline-none"
+          />
+          {query && (
+            <button onClick={() => { setQuery(''); setResults([]); }} className="text-gray-600 hover:text-gray-400 transition-colors">
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          )}
+          <span className="text-xs font-mono text-gray-600 flex-shrink-0">{selectedTicker}</span>
+        </div>
+      </div>
+
+      {/* Dropdown */}
+      <AnimatePresence>
+        {showDropdown && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-0 right-0 top-full mt-1 z-50 overflow-hidden rounded-xl bg-[#0a0a0f]/95 backdrop-blur-xl border border-white/[0.08] shadow-2xl"
+          >
+            {/* Search results */}
+            {results.length > 0 && (
+              <div className="py-1">
+                {results.map((r, i) => (
+                  <button
+                    key={r.symbol}
+                    onMouseDown={() => selectTicker(r.symbol)}
+                    onMouseEnter={() => setHighlightIdx(i)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                      highlightIdx === i ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <span className="text-sm font-mono font-bold text-white w-20 flex-shrink-0">{r.symbol}</span>
+                    <span className="text-sm text-gray-400 flex-1 truncate">{r.name}</span>
+                    <span className="text-xs text-gray-600 flex-shrink-0">{r.exchange}</span>
+                    <span className="text-xs flex-shrink-0" style={{ color: getTypeColor(r.type) }}>{getTypeLabel(r.type)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Recent searches */}
+            {recentSearches.length > 0 && (
+              <div className={results.length > 0 ? 'border-t border-white/[0.06]' : ''}>
+                <div className="px-4 pt-2 pb-1">
+                  <span className="text-[10px] text-gray-600 uppercase tracking-widest">Recent</span>
+                </div>
+                <div className="flex flex-wrap gap-1 px-4 pb-2.5">
+                  {recentSearches.map((t, i) => (
+                    <button
+                      key={t}
+                      onMouseDown={() => selectTicker(t)}
+                      onMouseEnter={() => setHighlightIdx(results.length + i)}
+                      className={`px-2.5 py-1 text-xs font-mono transition-colors rounded-md ${
+                        highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Error Boundary ───────────────────────────────────────────────────────────
 class RadarErrorBoundary extends React.Component {
   constructor(props) {
@@ -362,7 +580,7 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART — TradingView Lightweight Charts with MSB/OB Overlays
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals, drawings = [], activeTool = 'crosshair', activeColor = '#ffffff', onAddDrawing, onRemoveDrawing }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = [], bosEvents = [], drawings = [], activeTool = 'crosshair', activeColor = '#ffffff', onAddDrawing, onRemoveDrawing }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -522,6 +740,28 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, drawings = [], a
         color: msb.direction === 'long' ? BULL_COLOR : BEAR_COLOR,
         shape: msb.direction === 'long' ? 'arrowUp' : 'arrowDown',
         text: 'MSB',
+      });
+    });
+
+    // ── CHoCH markers ─────────────────────────────────────────────────
+    chochEvents.forEach(ev => {
+      markers.push({
+        time: ev.time,
+        position: ev.direction === 'long' ? 'belowBar' : 'aboveBar',
+        color: CHOCH_COLOR,
+        shape: ev.direction === 'long' ? 'arrowUp' : 'arrowDown',
+        text: 'CHoCH',
+      });
+    });
+
+    // ── BOS markers ─────────────────────────────────────────────────
+    bosEvents.forEach(ev => {
+      markers.push({
+        time: ev.time,
+        position: ev.direction === 'long' ? 'belowBar' : 'aboveBar',
+        color: BOS_COLOR,
+        shape: ev.direction === 'long' ? 'arrowUp' : 'arrowDown',
+        text: 'BOS',
       });
     });
 
@@ -693,7 +933,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, drawings = [], a
     if (chartRef.current) {
       chartRef.current.timeScale().fitContent();
     }
-  }, [candles, orderBlocks, msbEvents, signals]);
+  }, [candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents]);
 
   // Render user drawings
   useEffect(() => {
@@ -826,6 +1066,9 @@ function SignalCard({ signal, marketStatus }) {
               </span>
             )}
           </div>
+          {signal.strategy_source && (
+            <p className="text-xs text-gray-500 mt-0.5">{signal.strategy_source}</p>
+          )}
           <div className="flex items-center gap-3 text-xs text-gray-500">
             <span className="font-mono">{signal.timeframe}</span>
             <span>·</span>
@@ -1127,6 +1370,47 @@ function RadarSettings({ settings, onUpdate }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// TREND STRENGTH MATRIX — Multi-TF alignment from Smart Money engine
+// ══════════════════════════════════════════════════════════════════════════════
+
+function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
+  if (!trendDetails || trendDetails.length === 0) return null;
+  return (
+    <div className="border border-white/6 rounded-xl p-4">
+      <h3 className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-3">Trend Strength</h3>
+      <div className="space-y-1.5">
+        {trendDetails.map(({ label, direction }) => (
+          <div key={label} className="flex items-center justify-between text-sm">
+            <span className="text-gray-400 font-mono w-10">{label}</span>
+            <span
+              className="font-semibold"
+              style={{ color: direction === 1 ? '#34d399' : direction === -1 ? '#f87171' : '#666' }}
+            >
+              {direction === 1 ? '▲' : direction === -1 ? '▼' : '—'}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-white/6 mt-3 pt-3 space-y-1.5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-400">Strength</span>
+          <span
+            className="font-mono font-semibold"
+            style={{ color: trendStrength >= 0 ? '#34d399' : '#f87171' }}
+          >
+            {trendStrength > 0 ? '+' : ''}{trendStrength}%
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-400">Confidence</span>
+          <span className="font-mono font-semibold text-white">{confidence}%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE — StrategyRadarPage
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -1154,8 +1438,20 @@ function StrategyRadarContent() {
   const [activeTool, setActiveTool] = useState('crosshair');
   const [activeColor, setActiveColor] = useState('#ffffff');
 
+  const [smResults, setSmResults] = useState({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 0, trendDetails: [], divergences: [], liquidityZones: [] });
+
   const detectorRef = useRef(null);
+  const smDetectorRef = useRef(null);
   const wsRef = useRef(null);
+
+  // Derive which engine types are enabled from strategies + activeStrategies
+  const enabledTypes = useMemo(() => {
+    const types = new Set();
+    strategies.forEach(s => {
+      if (activeStrategies[s.id]) types.add(s.strategy_type || 'msb_ob');
+    });
+    return types;
+  }, [strategies, activeStrategies]);
 
   // Derived: is any strategy enabled?
   const anyStrategyEnabled = useMemo(() => Object.values(activeStrategies).some(Boolean), [activeStrategies]);
@@ -1211,10 +1507,12 @@ function StrategyRadarContent() {
       // Scanning disabled: close WS, clear detection state, keep candles for chart
       if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
       detectorRef.current = null;
+      smDetectorRef.current = null;
       setIsScanning(false);
       setSignals(prev => prev.filter(s => s.ticker !== selectedTicker));
       setOrderBlocks([]);
       setMsbEvents([]);
+      setSmResults({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 0, trendDetails: [], divergences: [], liquidityZones: [] });
       return;
     }
 
@@ -1225,27 +1523,68 @@ function StrategyRadarContent() {
       const candleData = await fetchCandles(selectedTicker, settings.timeframe);
       setCandles(candleData);
 
+      let allTaggedSignals = [];
+
       if (candleData.length > 0) {
-        const detector = createLiveDetector({
-          stop_loss_multiplier: settings.stop_loss_multiplier,
-          take_profit_multiplier: settings.take_profit_multiplier,
-        });
-        const results = detector.setCandles(candleData);
-        detectorRef.current = detector;
+        // MSB/OB engine
+        if (enabledTypes.has('msb_ob')) {
+          const detector = createLiveDetector({
+            stop_loss_multiplier: settings.stop_loss_multiplier,
+            take_profit_multiplier: settings.take_profit_multiplier,
+          });
+          const results = detector.setCandles(candleData);
+          detectorRef.current = detector;
 
-        const taggedSignals = results.signals.map(s => ({
-          ...s,
-          ticker: selectedTicker,
-          timeframe: settings.timeframe,
-        }));
+          allTaggedSignals.push(...results.signals.map(s => ({
+            ...s,
+            ticker: selectedTicker,
+            timeframe: settings.timeframe,
+            strategy_source: 'MSB/OB',
+          })));
 
-        setOrderBlocks(results.orderBlocks);
-        setMsbEvents(results.msbEvents);
-        setPivots(results.pivots);
+          setOrderBlocks(results.orderBlocks);
+          setMsbEvents(results.msbEvents);
+          setPivots(results.pivots);
+        } else {
+          detectorRef.current = null;
+          setOrderBlocks([]);
+          setMsbEvents([]);
+          setPivots({ highs: [], lows: [] });
+        }
+
+        // Smart Money engine
+        if (enabledTypes.has('smart_money')) {
+          const smDetector = createSmartMoneyDetector({
+            stop_loss_multiplier: settings.stop_loss_multiplier,
+            take_profit_multiplier: settings.take_profit_multiplier,
+          });
+          const smRes = smDetector.setCandles(candleData);
+          smDetectorRef.current = smDetector;
+
+          allTaggedSignals.push(...smRes.signals.map(s => ({
+            ...s,
+            ticker: selectedTicker,
+            timeframe: settings.timeframe,
+            strategy_source: 'Smart Money',
+          })));
+
+          setSmResults({
+            chochEvents: smRes.chochEvents,
+            bosEvents: smRes.bosEvents,
+            trendStrength: smRes.trendStrength,
+            confidence: smRes.confidence,
+            trendDetails: smRes.trendDetails,
+            divergences: smRes.divergences,
+            liquidityZones: smRes.liquidityZones,
+          });
+        } else {
+          smDetectorRef.current = null;
+          setSmResults({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 0, trendDetails: [], divergences: [], liquidityZones: [] });
+        }
 
         setSignals(prev => {
-          const existing = new Set(prev.map(s => `${s.ticker}-${s.detected_at}`));
-          const newSignals = taggedSignals.filter(s => !existing.has(`${s.ticker}-${s.detected_at}`));
+          const existing = new Set(prev.map(s => `${s.ticker}-${s.detected_at}-${s.strategy_source || ''}`));
+          const newSignals = allTaggedSignals.filter(s => !existing.has(`${s.ticker}-${s.detected_at}-${s.strategy_source || ''}`));
           return [...newSignals, ...prev].slice(0, 100);
         });
       }
@@ -1261,7 +1600,7 @@ function StrategyRadarContent() {
     return () => {
       if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
     };
-  }, [selectedTicker, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier, canScan]);
+  }, [selectedTicker, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier, canScan, enabledTypes]);
 
   // WebSocket connection to Twelve Data
   function connectWebSocket(ticker, timeframe) {
@@ -1286,35 +1625,67 @@ function StrategyRadarContent() {
           const price = parseFloat(msg.price);
           const timestamp = Math.floor(msg.timestamp);
 
-          if (detectorRef.current && price > 0) {
-            const currentCandles = detectorRef.current.getCandles();
-            const lastCandle = currentCandles[currentCandles.length - 1];
+          if (price > 0) {
+            let allNewSignals = [];
 
-            if (lastCandle) {
-              const updatedCandle = {
-                time: lastCandle.time,
-                open: lastCandle.open,
-                high: Math.max(lastCandle.high, price),
-                low: Math.min(lastCandle.low, price),
-                close: price,
-                volume: lastCandle.volume,
-              };
+            // Update MSB/OB detector
+            if (detectorRef.current) {
+              const currentCandles = detectorRef.current.getCandles();
+              const lastCandle = currentCandles[currentCandles.length - 1];
+              if (lastCandle) {
+                const updatedCandle = {
+                  time: lastCandle.time,
+                  open: lastCandle.open,
+                  high: Math.max(lastCandle.high, price),
+                  low: Math.min(lastCandle.low, price),
+                  close: price,
+                  volume: lastCandle.volume,
+                };
+                const results = detectorRef.current.addCandle(updatedCandle);
+                setCandles(detectorRef.current.getCandles());
+                setOrderBlocks(results.orderBlocks);
+                setMsbEvents(results.msbEvents);
+                allNewSignals.push(...results.signals.map(s => ({
+                  ...s, ticker: selectedTicker, timeframe: settings.timeframe, strategy_source: 'MSB/OB',
+                })));
+              }
+            }
 
-              const results = detectorRef.current.addCandle(updatedCandle);
-              setCandles(detectorRef.current.getCandles());
-              setOrderBlocks(results.orderBlocks);
-              setMsbEvents(results.msbEvents);
+            // Update Smart Money detector
+            if (smDetectorRef.current) {
+              const smCandles = smDetectorRef.current.getCandles();
+              const smLast = smCandles[smCandles.length - 1];
+              if (smLast) {
+                const updatedCandle = {
+                  time: smLast.time,
+                  open: smLast.open,
+                  high: Math.max(smLast.high, price),
+                  low: Math.min(smLast.low, price),
+                  close: price,
+                  volume: smLast.volume,
+                };
+                const smRes = smDetectorRef.current.addCandle(updatedCandle);
+                if (!detectorRef.current) setCandles(smDetectorRef.current.getCandles());
+                setSmResults({
+                  chochEvents: smRes.chochEvents,
+                  bosEvents: smRes.bosEvents,
+                  trendStrength: smRes.trendStrength,
+                  confidence: smRes.confidence,
+                  trendDetails: smRes.trendDetails,
+                  divergences: smRes.divergences,
+                  liquidityZones: smRes.liquidityZones,
+                });
+                allNewSignals.push(...smRes.signals.map(s => ({
+                  ...s, ticker: selectedTicker, timeframe: settings.timeframe, strategy_source: 'Smart Money',
+                })));
+              }
+            }
 
-              const taggedSignals = results.signals.map(s => ({
-                ...s,
-                ticker: selectedTicker,
-                timeframe: settings.timeframe,
-              }));
-
+            if (allNewSignals.length > 0) {
               setSignals(prev => {
-                const existing = new Set(prev.map(s => `${s.ticker}-${s.detected_at}`));
-                const newSignals = taggedSignals.filter(s => !existing.has(`${s.ticker}-${s.detected_at}`));
-                return [...newSignals, ...prev].slice(0, 100);
+                const existing = new Set(prev.map(s => `${s.ticker}-${s.detected_at}-${s.strategy_source || ''}`));
+                const newSigs = allNewSignals.filter(s => !existing.has(`${s.ticker}-${s.detected_at}-${s.strategy_source || ''}`));
+                return [...newSigs, ...prev].slice(0, 100);
               });
             }
           }
@@ -1427,24 +1798,13 @@ function StrategyRadarContent() {
           </div>
         </div>
 
-        {/* Ticker selector */}
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {DEFAULT_TICKERS.slice(0, 8).map(t => (
-            <button
-              key={t}
-              onClick={() => { setSelectedTicker(t); setActiveSignalIdx(0); }}
-              className={`px-2 py-1 text-xs font-mono transition-colors whitespace-nowrap ${
-                selectedTicker === t
-                  ? 'text-white'
-                  : 'text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              ${t}
-            </button>
-          ))}
-        </div>
+        {/* Search bar */}
+        <RadarSearchBar
+          selectedTicker={selectedTicker}
+          onSelect={(t) => { setSelectedTicker(t); setActiveSignalIdx(0); }}
+        />
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <span className="text-xs text-gray-500">
             {activeSignalCount} active signals
           </span>
@@ -1459,7 +1819,11 @@ function StrategyRadarContent() {
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/6">
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-white font-mono">${selectedTicker}</span>
-              <span className="text-xs text-gray-500">MSB + Order Block</span>
+              <span className="text-xs text-gray-500">
+                {enabledTypes.has('smart_money') && enabledTypes.has('msb_ob') ? 'MSB + OB + CHoCH/BOS'
+                  : enabledTypes.has('smart_money') ? 'CHoCH + BOS'
+                  : 'MSB + Order Block'}
+              </span>
             </div>
             <div className="flex items-center gap-1">
               {TIMEFRAMES.map(tf => (
@@ -1491,6 +1855,8 @@ function StrategyRadarContent() {
               orderBlocks={orderBlocks}
               msbEvents={msbEvents}
               signals={currentTickerSignals}
+              chochEvents={smResults.chochEvents}
+              bosEvents={smResults.bosEvents}
               drawings={drawings}
               activeTool={activeTool}
               activeColor={activeColor}
@@ -1513,6 +1879,18 @@ function StrategyRadarContent() {
               <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: HPZ_BULL }} />
               <span className="text-gray-500">High Probability Zone</span>
             </span>
+            {enabledTypes.has('smart_money') && (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: CHOCH_COLOR }} />
+                  <span className="text-gray-500">CHoCH</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BOS_COLOR }} />
+                  <span className="text-gray-500">BOS</span>
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -1574,6 +1952,17 @@ function StrategyRadarContent() {
               />
             )}
           </div>
+
+          {/* Trend Strength Matrix — only when Smart Money engine is active */}
+          {enabledTypes.has('smart_money') && smResults.trendDetails.length > 0 && (
+            <div className="p-4 border-b border-white/6">
+              <TrendStrengthMatrix
+                trendStrength={smResults.trendStrength}
+                confidence={smResults.confidence}
+                trendDetails={smResults.trendDetails}
+              />
+            </div>
+          )}
 
           {/* Settings */}
           <div className="p-4 border-b border-white/6">
