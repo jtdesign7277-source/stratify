@@ -167,8 +167,9 @@ const TOPBAR_TICKER_TAPE_MAX_SYMBOLS = 24;
 const TOPBAR_TICKER_TAPE_MIN_SCROLL_SECONDS = 80;
 const TOPBAR_TICKER_TAPE_PER_ITEM_SECONDS = 6;
 const TOPBAR_ANIMATION = {
-  duration: 0.3,
-  ease: [0.4, 0, 0.2, 1],
+  type: 'spring',
+  stiffness: 320,
+  damping: 34,
 };
 const TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS = [
   { proName: 'NASDAQ:TSLA', title: 'Tesla' },
@@ -653,8 +654,11 @@ const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false 
             return (
               <span key={`${row.ticker}-${idx}`} className="flex items-center gap-2 px-2">
                 <TopBarTickerLogo ticker={row.ticker} />
-                <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/85 leading-none">
-                  {row.ticker}
+                <span
+                  className="ticker-symbol text-[12px] font-semibold uppercase tracking-[0.08em] text-white/85 leading-none"
+                  style={{ fontVariationSettings: '"wght" 500', transition: 'font-variation-settings 200ms ease' }}
+                >
+                  ${row.ticker}
                 </span>
                 <span className="text-[12px] font-mono text-white/70 leading-none">{priceText}</span>
                 <span className={`text-[12px] font-mono ${pctClass} leading-none`}>{pct}</span>
@@ -2375,7 +2379,7 @@ export default function Dashboard({
   );
 
   return (
-    <div className={`soft-glass-theme h-screen h-[100dvh] w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
+    <div className={`soft-glass-theme h-screen h-[100dvh] w-screen flex flex-col bg-[#0a0a0f] ${themeClasses.text} overflow-hidden`}>
       <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
       <motion.div
         className="relative z-20 overflow-visible"
@@ -2386,7 +2390,7 @@ export default function Dashboard({
         <motion.div
           className={isTopBarCollapsed ? 'pointer-events-none' : ''}
           animate={{ opacity: isTopBarCollapsed ? 0 : 1 }}
-          transition={{ duration: 0.2, ease: TOPBAR_ANIMATION.ease }}
+          transition={TOPBAR_ANIMATION}
         >
           <TopMetricsBar
             alpacaData={alpacaData}
@@ -2418,7 +2422,7 @@ export default function Dashboard({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, ease: TOPBAR_ANIMATION.ease }}
+              transition={TOPBAR_ANIMATION}
               className="absolute inset-x-0 top-0 h-[56px] border-b border-[rgba(255,255,255,0.06)] bg-transparent"
             >
               <div className="relative h-full w-full">
@@ -2490,7 +2494,7 @@ export default function Dashboard({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 34 }}
                 className="h-full min-h-0 w-full"
               >
           {activeTab === 'trader' && (
@@ -2521,6 +2525,11 @@ export default function Dashboard({
           )}
           {activeTab === 'market' && <MarketMoversPage />}
           {activeTab === 'radar' && (
+            <AppErrorBoundary>
+              <StrategyRadarPage />
+            </AppErrorBoundary>
+          )}
+          {activeTab === 'strategy-radar' && (
             <AppErrorBoundary>
               <StrategyRadarPage />
             </AppErrorBoundary>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Crosshair,
   SlidersHorizontal,
@@ -62,15 +62,15 @@ const Sidebar = ({
 
   const navItems = [
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
-    { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true, labelClass: 'font-semibold text-red-500', iconClass: 'text-red-500' },
+    { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true },
     { id: 'trader', label: 'Trader', icon: TrendingUp },
     { id: 'crypto', label: 'Crypto', icon: Bitcoin },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'xray', label: 'X-Ray', icon: Microscope },
-    { id: 'market', label: 'Market', icon: TrendingUp, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
+    { id: 'market', label: 'Market', icon: TrendingUp, isNew: true },
     { id: 'trade', label: 'Community', icon: SlidersHorizontal },
-    { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
+    { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
@@ -91,8 +91,8 @@ const Sidebar = ({
     <motion.div
       initial={false}
       animate={{ width: collapsed ? 60 : 220 }}
-      transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="soft-glass-surface h-full bg-[#0b0b0b] border-r border-[#1f1f1f] flex flex-col flex-shrink-0"
+      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+      className="soft-glass-surface h-full bg-[#0a0a0f] border-r border-[#1f1f1f] flex flex-col flex-shrink-0"
     >
       {/* Main Navigation */}
       <nav className="flex-1 px-2 overflow-y-auto min-h-0 flex flex-col" style={{ scrollbarWidth: 'none' }}>
@@ -100,57 +100,41 @@ const Sidebar = ({
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
-            const isLegend = item.id === 'legend';
-            const isTrade = item.id === 'trade';
-            const isTradeActive = isTrade && isActive;
-            const isWarRoom = item.id === 'war-room';
-            const activeTabClasses = isLegend
-              ? 'text-amber-400 bg-amber-500/10 border border-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.2)]'
-              : isTradeActive
-                ? 'text-white bg-blue-500/10 border border-blue-400/30 trade-tab-active-glow'
-                : isWarRoom
-                  ? 'text-red-300 bg-red-500/10 border border-red-400/20 shadow-[0_0_12px_rgba(248,113,113,0.25)]'
-                  : 'bg-emerald-500/5 border border-emerald-500/20 text-white';
-            const activeIconClass = isLegend
-              ? 'text-amber-400'
-              : isTradeActive
-                ? 'text-blue-300'
-                : isWarRoom
-                  ? 'text-red-400'
-                  : 'text-emerald-300';
             
             return (
               <li key={item.id}>
-                <button
+                <motion.button
                   onClick={() => handleTabClick(item.id)}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 min-h-[36px] rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
-                    isActive
-                      ? activeTabClasses
-                      : 'text-white hover:bg-white/5 border border-transparent'
+                  whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  className={`relative w-full flex items-center gap-2.5 px-2.5 py-2 min-h-[36px] rounded-lg text-[13px] tracking-wide border border-transparent ${
+                    isActive ? 'text-emerald-300' : 'text-white/85'
                   } ${collapsed ? 'justify-center px-2' : ''}`}
                   title={collapsed ? item.label : undefined}
                 >
+                  {isActive && (
+                    <motion.div
+                      layoutId="tab-indicator"
+                      className="absolute inset-0 rounded-lg bg-white/10"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
                   <Icon 
-                    className={`w-[18px] h-[18px] flex-shrink-0 ${item.iconClass || ''} ${isActive ? activeIconClass : ''}`} 
+                    className={`relative z-10 w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-emerald-400' : 'text-white/65'}`}
                     strokeWidth={1.5}
                     fill="none"
                   />
                   {!collapsed && (
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span className={`whitespace-nowrap ${item.labelClass || ''}`}>{item.label}</span>
-                      {item.badge && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500/30 text-emerald-300 rounded-full min-w-[18px] text-center">
-                          {item.badge}
-                        </span>
-                      )}
+                    <div className="relative z-10 flex items-center gap-2 overflow-hidden">
+                      <span className="whitespace-nowrap font-medium">{item.label}</span>
+                      {item.badge ? <span className="text-[10px] text-emerald-400">{item.badge}</span> : null}
                       {item.isNew && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 rounded">
-                          New
-                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.12em] text-emerald-400">new</span>
                       )}
                     </div>
                   )}
-                </button>
+                </motion.button>
               </li>
             );
           })}
@@ -165,28 +149,34 @@ const Sidebar = ({
         <ul className="space-y-px mb-2">
           {/* More info button */}
           <li>
-            <button
+            <motion.button
               onClick={() => handleTabClick('more')}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-white hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 ${
+              whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-white ${
                 collapsed ? 'justify-center px-2' : ''
               }`}
               title={collapsed ? 'More info' : undefined}
             >
-              <MoreHorizontal className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
+              <MoreHorizontal className="w-[18px] h-[18px] flex-shrink-0 text-emerald-400" strokeWidth={1.5} />
               {!collapsed && (
                 <span className="whitespace-nowrap overflow-hidden">More info</span>
               )}
-            </button>
+            </motion.button>
           </li>
           {/* Logout button */}
           {isAuthenticated && (
             <li>
-              <button
+              <motion.button
                 onClick={async () => {
                   await signOut();
                   if (onLogout) onLogout();
                 }}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-red-400 hover:bg-red-500/10 transition-all duration-200 hover:-translate-y-0.5 ${
+                whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-emerald-300 ${
                   collapsed ? 'justify-center px-2' : ''
                 }`}
                 title={collapsed ? 'Log out' : undefined}
@@ -195,16 +185,19 @@ const Sidebar = ({
                 {!collapsed && (
                   <span className="whitespace-nowrap overflow-hidden">Log out</span>
                 )}
-              </button>
+              </motion.button>
             </li>
           )}
         </ul>
 
         <div className="h-px bg-white/10 mx-2 mb-2" />
 
-        <button
+        <motion.button
           onClick={() => setCollapsed(!collapsed)}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
+          whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide ${
             collapsed
               ? 'text-emerald-300 hover:text-emerald-200'
               : 'text-emerald-300/70 hover:text-emerald-300'
@@ -223,7 +216,7 @@ const Sidebar = ({
               Collapse
             </span>
           )}
-        </button>
+        </motion.button>
 
       </div>
     </motion.div>

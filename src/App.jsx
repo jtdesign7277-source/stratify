@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
+import Lenis from 'lenis';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import TokensPage from './components/dashboard/TokensPage';
@@ -29,6 +31,28 @@ import {
   PRO_YEARLY_STRIPE_PRICE_ID,
   resolveProCheckoutPriceId,
 } from './lib/billing';
+
+const pageVariants = {
+  initial: { opacity: 0, y: 6 },
+  enter: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 300,
+      damping: 30,
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -4,
+    transition: {
+      type: 'spring',
+      stiffness: 320,
+      damping: 34,
+    },
+  },
+};
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -1040,6 +1064,26 @@ function StratifyAppContent() {
   const authCheckStartedAtRef = useRef(null);
 
   useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+    });
+
+    let rafId = 0;
+    const raf = (time) => {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    };
+
+    rafId = requestAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const host = String(window.location.hostname || '').toLowerCase();
@@ -1693,7 +1737,7 @@ function StratifyAppContent() {
 
   if (isCheckingSession) {
     return (
-      <div className="relative min-h-screen bg-[#0b0b0b]">
+      <div className="soft-glass-theme relative min-h-screen bg-[#0a0a0f]">
         <SpaceBackground variant={backgroundVariant} />
         <div className="relative z-10 min-h-screen bg-transparent text-white flex items-center justify-center">
           <div className="rounded-2xl border border-[#1e1e2d] bg-[#0b0b12]/90 px-6 py-5 text-sm text-gray-300">
@@ -1724,10 +1768,21 @@ function StratifyAppContent() {
   }
 
   return (
-    <div className="relative min-h-screen">
+    <div className="soft-glass-theme relative min-h-screen bg-[#0a0a0f]">
       <SpaceBackground variant={backgroundVariant} />
       <div className="relative z-10 min-h-screen">
-        {mainContent}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage}
+            variants={pageVariants}
+            initial="initial"
+            animate="enter"
+            exit="exit"
+            className="min-h-screen"
+          >
+            {mainContent}
+          </motion.div>
+        </AnimatePresence>
         <LiveScoresPill
           isOpen={isLiveScoresOpen}
           onOpenChange={setIsLiveScoresOpen}

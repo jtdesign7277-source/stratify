@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
-/* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap');
+/* Inter Variable Font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 
 * {
-  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Google Finance Color Variables */
 :root {
-  --gf-bg: #202124;
+  --gf-bg: #0a0a0f;
   --gf-surface: #303134;
   --gf-surface-hover: #3c4043;
   --gf-border: #5f6368;
@@ -19,13 +19,13 @@
   --gf-green-dim: rgba(0, 200, 83, 0.1);
   --gf-red: #F44336;
   --gf-red-dim: rgba(244, 67, 54, 0.1);
-  --gf-blue: #8AB4F8;
+  --gf-blue: #10b981;
   --gf-text: #E8EAED;
   --gf-text-secondary: #9AA0A6;
   --gf-text-muted: #5f6368;
 
   /* Soft Glass / Neumorphic tokens */
-  --soft-glass-panel-base: #0b0b0b;
+  --soft-glass-panel-base: #0a0a0f;
   --soft-glass-panel-tint-a: rgba(255, 255, 255, 0.045);
   --soft-glass-panel-tint-b: rgba(255, 255, 255, 0.012);
   --soft-glass-panel-border: rgba(255, 255, 255, 0.06);
@@ -37,14 +37,29 @@
 }
 
 body {
+  font-family: 'Inter', sans-serif;
   background-color: var(--gf-bg);
   color: var(--gf-text);
 }
 
-/* Headers use Google Sans */
+html, body, #root {
+  min-height: 100%;
+  background-color: #0a0a0f;
+}
+
+/* Headers inherit Inter */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Google Sans', 'Roboto', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 500;
+}
+
+.ticker-symbol {
+  font-variation-settings: "wght" 500;
+  transition: font-variation-settings 200ms ease;
+}
+
+.ticker-symbol:hover {
+  font-variation-settings: "wght" 650;
 }
 
 /* Hide scrollbars but allow scrolling */
@@ -124,10 +139,60 @@ h1, h2, h3, h4, h5, h6 {
     inset -2px -2px 6px rgba(255, 255, 255, 0.02);
 }
 
+.soft-glass-theme .sg-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.soft-glass-theme .sg-inset {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 4px 4px 8px rgba(0, 0, 0, 0.5),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.02);
+}
+
+.soft-glass-theme .sg-accent {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 1rem;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(16, 185, 129, 0.1);
+}
+
+.soft-glass-theme [class*="text-blue-"] {
+  color: #10b981 !important;
+}
+
+.soft-glass-theme [class*="border-blue-"] {
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.soft-glass-theme [class*="bg-blue-"] {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
 /* Automatic soft-glass treatment for core dark dashboard cards */
 .soft-glass-theme :where(div, section, article, aside, main):not(.soft-glass-optout):where(
+    [class*="rounded-xl"][class*="border"][class*="bg-white/5"],
+    [class*="rounded-2xl"][class*="border"][class*="bg-white/5"],
+    [class*="rounded-xl"][class*="border"][class*="bg-[#111111]"],
+    [class*="rounded-2xl"][class*="border"][class*="bg-[#111111]"],
     [class*="rounded-xl"][class*="border"][class*="bg-[#0b0b0b]"],
     [class*="rounded-2xl"][class*="border"][class*="bg-[#0b0b0b]"],
+    [class*="rounded-xl"][class*="border"][class*="bg-[#0d1117]"],
+    [class*="rounded-2xl"][class*="border"][class*="bg-[#0d1117]"],
     [class*="rounded-xl"][class*="border"][class*="bg-[#0a1628]"],
     [class*="rounded-2xl"][class*="border"][class*="bg-[#0a1628]"]
 ) {
@@ -148,8 +213,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .soft-glass-theme :where(div, section, article, aside, main):not(.soft-glass-optout):where(
+    [class*="rounded-xl"][class*="border"][class*="bg-white/5"],
+    [class*="rounded-2xl"][class*="border"][class*="bg-white/5"],
+    [class*="rounded-xl"][class*="border"][class*="bg-[#111111]"],
+    [class*="rounded-2xl"][class*="border"][class*="bg-[#111111]"],
     [class*="rounded-xl"][class*="border"][class*="bg-[#0b0b0b]"],
     [class*="rounded-2xl"][class*="border"][class*="bg-[#0b0b0b]"],
+    [class*="rounded-xl"][class*="border"][class*="bg-[#0d1117]"],
+    [class*="rounded-2xl"][class*="border"][class*="bg-[#0d1117]"],
     [class*="rounded-xl"][class*="border"][class*="bg-[#0a1628]"],
     [class*="rounded-2xl"][class*="border"][class*="bg-[#0a1628]"]
 ):hover {
@@ -167,6 +238,20 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow:
     inset 4px 4px 8px rgba(0, 0, 0, 0.5),
     inset -2px -2px 6px rgba(255, 255, 255, 0.02);
+}
+
+/* Icon rule: remove icon background boxes/circles/pills */
+.soft-glass-theme :where(button, div, span, a)[class*="bg-"][class*="rounded"]:has(> svg):not(:has(> :not(svg))) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* No badge/chip/pill text containers */
+.soft-glass-theme :where(span, div, a)[class*="rounded-full"][class*="bg-"]:not(:has(svg)) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 @keyframes scroll {
@@ -232,18 +317,18 @@ h1, h2, h3, h4, h5, h6 {
 
 @keyframes tradeGlow {
   0% {
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
   }
   50% {
-    box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
   }
   100% {
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
   }
 }
 
 .trade-tab-active-glow {
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
   animation: tradeGlow 3s ease-in-out infinite;
 }
 
