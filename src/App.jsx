@@ -1093,7 +1093,7 @@ function StratifyAppContent() {
     } else if (nextPage === 'tokens') {
       nextPath = '/tokens';
     } else if (nextPage === 'radar') {
-      nextPath = '/dashboard';
+      nextPath = '/radar';
     } else if (nextPage === 'dashboard') {
       nextPath = '/dashboard';
     }
@@ -1653,7 +1653,7 @@ function StratifyAppContent() {
       }
 
       if (path === '/radar' || path === '/radar/') {
-        setCurrentPage('dashboard');
+        setCurrentPage('radar');
         return;
       }
 
