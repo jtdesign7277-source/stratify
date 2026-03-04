@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import CountUp from 'react-countup';
 import { motion } from 'framer-motion';
+import Lenis from 'lenis';
 import usePaperTrading from '../../hooks/usePaperTrading';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import { subscribeTwelveDataQuotes } from '../../services/twelveDataWebSocket';
@@ -300,8 +301,21 @@ const AnimatedMoney = ({ value, signed = false, className = '', duration = 1.1, 
   const numeric = Number(value || 0);
   const absolute = Math.abs(numeric);
   const prefix = signed ? (numeric >= 0 ? '+$' : '-$') : '$';
+  const prevRef = useRef(numeric);
+  const [flash, setFlash] = useState(null);
+
+  useEffect(() => {
+    if (prevRef.current !== numeric) {
+      setFlash(numeric > prevRef.current ? 'up' : 'down');
+      prevRef.current = numeric;
+      const t = setTimeout(() => setFlash(null), 600);
+      return () => clearTimeout(t);
+    }
+  }, [numeric]);
+
+  const flashClass = flash === 'up' ? 'text-emerald-400' : flash === 'down' ? 'text-red-400' : '';
   return (
-    <span className={className}>
+    <span className={`${className} ${flashClass}`} style={{ transition: 'color 0.4s ease' }}>
       <CountUp
         key={countKey || `${prefix}-${numeric}`}
         start={0}
@@ -318,8 +332,21 @@ const AnimatedMoney = ({ value, signed = false, className = '', duration = 1.1, 
 
 const AnimatedPercent = ({ value, className = '', duration = 0.8, countKey }) => {
   const numeric = Number(value || 0);
+  const prevRef = useRef(numeric);
+  const [flash, setFlash] = useState(null);
+
+  useEffect(() => {
+    if (prevRef.current !== numeric) {
+      setFlash(numeric > prevRef.current ? 'up' : 'down');
+      prevRef.current = numeric;
+      const t = setTimeout(() => setFlash(null), 600);
+      return () => clearTimeout(t);
+    }
+  }, [numeric]);
+
+  const flashClass = flash === 'up' ? 'text-emerald-400' : flash === 'down' ? 'text-red-400' : '';
   return (
-    <span className={className}>
+    <span className={`${className} ${flashClass}`} style={{ transition: 'color 0.4s ease' }}>
       <CountUp
         key={countKey || `pct-${numeric}`}
         start={0}
@@ -1817,11 +1844,23 @@ export default function PortfolioDashboard() {
     ],
   }), [cashBalance, goalColor, goalProbability, investedNow, riskColor, riskScore, totalValue]);
 
+  // Lenis smooth scroll
+  const scrollContainerRef = useRef(null);
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const lenis = new Lenis({ wrapper: el, content: el.firstElementChild || el, smoothWheel: true, lerp: 0.1 });
+    let raf;
+    const loop = (time) => { lenis.raf(time); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(raf); lenis.destroy(); };
+  }, [loading, portfolio]);
+
   if (loading && !portfolio) {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-[#060d18] text-gray-400" style={starfieldBaseStyle}>
+      <div className="relative h-full bg-[#060d18] text-gray-400" style={starfieldBaseStyle}>
         <div className="pointer-events-none absolute inset-0 opacity-70" style={starfieldDotsStyle} />
-        <div className="relative z-10 flex min-h-screen items-center justify-center">
+        <div className="relative z-10 flex h-full items-center justify-center">
           <RefreshCw size={16} className="mr-2 animate-spin" /> Loading portfolio...
         </div>
       </div>
@@ -1829,7 +1868,7 @@ export default function PortfolioDashboard() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-y-auto bg-[#060d18] text-[#f8fbff]" style={starfieldBaseStyle}>
+    <div ref={scrollContainerRef} className="relative h-full min-h-0 flex-1 overflow-y-auto bg-[#060d18] text-[#f8fbff]" style={starfieldBaseStyle}>
       <div className="pointer-events-none absolute inset-0 opacity-70" style={starfieldDotsStyle} />
       <div className="relative z-10 p-4">
       <div className="mb-4 flex items-center justify-between">
