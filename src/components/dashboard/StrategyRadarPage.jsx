@@ -236,7 +236,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   const showDropdown = isOpen && (results.length > 0 || (query.length < 2 && recentSearches.length > 0));
 
   return (
-    <div ref={containerRef} className="w-full max-w-2xl mx-4 relative flex-shrink min-w-0">
+    <div ref={containerRef} className="w-full max-w-md mx-4 relative flex-shrink min-w-0 overflow-hidden">
       <div className={`relative rounded-xl ${isFocused ? 'p-[1px] radar-rainbow-border' : ''}`}>
         <div className={`flex items-center gap-3 rounded-xl py-2.5 px-4 transition-all duration-200 ${isFocused ? 'bg-[#0a0a0f]' : 'bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12]'}`}>
           <Search size={16} className="text-gray-500 flex-shrink-0" />
@@ -1092,16 +1092,7 @@ function StrategyRadarContent() {
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT — Chart */}
         <div className="flex-[3] flex flex-col border-r border-white/6">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-white/6">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-white font-mono">${selectedTicker}</span>
-              <span className="text-xs text-gray-500">
-                {enabledTypes.size === 0 ? ''
-                  : enabledTypes.has('smart_money') && enabledTypes.has('msb_ob') ? 'MSB + OB + CHoCH/BOS'
-                  : enabledTypes.has('smart_money') ? 'CHoCH + BOS'
-                  : 'MSB + Order Block'}
-              </span>
-            </div>
+          <div className="flex items-center justify-end px-4 py-2 border-b border-white/6">
             <div className="flex items-center gap-1">
               {TIMEFRAMES.map(tf => (
                 <button key={tf} onClick={() => handleSettingsUpdate({ timeframe: tf })}
