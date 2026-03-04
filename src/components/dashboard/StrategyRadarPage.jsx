@@ -232,10 +232,10 @@ function persistDrawings(ticker, drawings) {
   } catch {}
 }
 
-function DrawingToolbar({ activeTool, activeColor, onToolChange, onColorChange }) {
+function DrawingToolbar({ activeTool, onToolChange }) {
   let lastGroup = -1;
   return (
-    <div className="absolute left-2 right-2 top-1 z-10 flex items-center gap-0 bg-[#1e222d] border border-white/[0.08] rounded-lg px-1 py-0.5 backdrop-blur-sm">
+    <div className="absolute left-2 top-1 z-20 inline-flex items-center w-fit bg-[#1e222d] border border-white/[0.08] rounded-lg px-1 py-0.5 backdrop-blur-sm">
       {DRAW_TOOLS.map(tool => {
         const Icon = tool.icon;
         const isActive = activeTool === tool.id;
@@ -256,15 +256,6 @@ function DrawingToolbar({ activeTool, activeColor, onToolChange, onColorChange }
           </React.Fragment>
         );
       })}
-      <div className="w-px h-5 bg-white/[0.08] mx-0.5" />
-      {DRAW_COLORS.map(color => (
-        <button
-          key={color}
-          onClick={() => onColorChange(color)}
-          className={`w-4 h-4 rounded-full mx-0.5 transition-all ${activeColor === color ? 'ring-1 ring-offset-1 ring-offset-[#1e222d] ring-white/40 scale-110' : 'hover:scale-110'}`}
-          style={{ backgroundColor: color }}
-        />
-      ))}
     </div>
   );
 }
@@ -592,6 +583,7 @@ async function fetchCandles(ticker, timeframe) {
 
 function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = [], bosEvents = [], drawings = [], activeTool = 'crosshair', activeColor = '#ffffff', onAddDrawing, onRemoveDrawing, onUpdateDrawing }) {
   const chartContainerRef = useRef(null);
+  const drawOverlayRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const markersRef = useRef(null);
@@ -714,12 +706,12 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
     });
   }, [activeTool]);
 
-  // Mouse-based drawing interaction (click-and-drag)
+  // Mouse-based drawing interaction via overlay div
   useEffect(() => {
-    const container = chartContainerRef.current;
+    const overlay = drawOverlayRef.current;
     const chart = chartRef.current;
     const series = candleSeriesRef.current;
-    if (!container || !chart || !series) return;
+    if (!overlay || !chart || !series) return;
 
     function getTimeFromX(x) {
       const ts = chart.timeScale();
@@ -745,8 +737,9 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
       return ts.logicalToCoordinate(idx);
     }
 
+    // Convert mouse event to chart coordinates using overlay bounding rect
     function getCoords(e) {
-      const rect = container.getBoundingClientRect();
+      const rect = overlay.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const time = getTimeFromX(x);
@@ -846,6 +839,9 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
       if (!tool || tool === 'crosshair') return;
       if (e.button !== 0) return;
 
+      e.preventDefault();
+      e.stopPropagation();
+
       const coords = getCoords(e);
       if (!coords) return;
 
@@ -911,7 +907,6 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
       // Drag tools: trendline, rectangle, fib
       isDraggingRef.current = true;
       dragStartRef.current = coords;
-      e.preventDefault();
     }
 
     function onMouseMove(e) {
@@ -950,6 +945,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
 
     function onContextMenu(e) {
       e.preventDefault();
+      e.stopPropagation();
       const coords = getCoords(e);
       if (!coords) return;
       const ds = drawingsRef.current;
@@ -987,18 +983,18 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
         }
       });
       if (bestId != null && bestDist <= 15) {
-        const rect = container.getBoundingClientRect();
+        const rect = overlay.getBoundingClientRect();
         setColorPalette({ x: e.clientX - rect.left, y: e.clientY - rect.top, drawingId: bestId });
       }
     }
 
-    container.addEventListener('mousedown', onMouseDown);
-    container.addEventListener('contextmenu', onContextMenu);
+    overlay.addEventListener('mousedown', onMouseDown);
+    overlay.addEventListener('contextmenu', onContextMenu);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
     return () => {
-      container.removeEventListener('mousedown', onMouseDown);
-      container.removeEventListener('contextmenu', onContextMenu);
+      overlay.removeEventListener('mousedown', onMouseDown);
+      overlay.removeEventListener('contextmenu', onContextMenu);
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
       clearPreview();
@@ -1408,11 +1404,17 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
   }, [drawings]);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative" style={{ position: 'relative' }}>
+      <div ref={chartContainerRef} className="w-full h-full" />
+      {/* Transparent overlay for drawing — captures mouse when tool is active */}
       <div
-        ref={chartContainerRef}
-        className="w-full h-full"
-        style={{ cursor: activeTool !== 'crosshair' ? 'crosshair' : undefined }}
+        ref={drawOverlayRef}
+        className="absolute inset-0"
+        style={{
+          cursor: activeTool !== 'crosshair' ? 'crosshair' : 'default',
+          pointerEvents: activeTool !== 'crosshair' ? 'auto' : 'none',
+          zIndex: 5,
+        }}
         onClick={() => setColorPalette(null)}
       />
       {/* Right-click color palette */}
@@ -2175,9 +2177,7 @@ function StrategyRadarContent() {
           <div className="flex-1 p-2 relative">
             <DrawingToolbar
               activeTool={activeTool}
-              activeColor={activeColor}
               onToolChange={setActiveTool}
-              onColorChange={setActiveColor}
             />
             <RadarChart
               candles={candles}
