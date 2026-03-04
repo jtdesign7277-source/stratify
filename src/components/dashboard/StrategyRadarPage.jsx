@@ -36,8 +36,9 @@ const CRYPTO_TICKERS = new Set(['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOG
 
 const SIGNAL_DESCRIPTIONS = {
   msb_ob: {
-    summary: 'Detects Market Structure Breaks — when price breaks through a previous pivot high or low with momentum confirmation. Order Blocks mark the origin candle of the break.',
+    summary: 'Detects institutional order blocks combined with market structure breaks (MSB) for high-probability pullback entries. Identifies premium and discount zones using Fibonacci retracements with multi-timeframe confirmation.',
     triggers: 'BUY signals trigger when price breaks above a pivot high (bullish MSB) and revisits the order block zone. SELL signals trigger on bearish breaks below pivot lows.',
+    stats: { win: '68', ret: '+28.7', pf: '1.9' },
   },
   smart_money: {
     summary: 'Identifies Change of Character (CHoCH) and Break of Structure (BOS) patterns used by institutional traders. Multi-timeframe trend alignment and RSI divergence filtering improve signal quality.',
@@ -686,27 +687,50 @@ function SignalCard({ signal, marketStatus }) {
 // STRATEGY CARD
 // ══════════════════════════════════════════════════════════════════════════════
 
-function StrategyCard({ strategy, enabled, onToggle, onViewDetails }) {
+function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, onExpandToggle }) {
+  const desc = SIGNAL_DESCRIPTIONS[strategy.strategy_type];
+  const stats = desc?.stats || (strategy.backtest_win_rate ? { win: strategy.backtest_win_rate, ret: `+${strategy.backtest_return}`, pf: strategy.backtest_profit_factor } : null);
+
   return (
     <div className="border border-white/6 rounded-lg p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-lg font-semibold text-white truncate flex-1 min-w-0">{String(strategy.name || '')}</span>
-        <button onClick={() => onToggle(strategy.id)}
+        <button onClick={onExpandToggle} className="flex-1 min-w-0 flex items-center gap-2 text-left">
+          <span className="text-lg font-semibold text-white truncate">{String(strategy.name || '')}</span>
+          <svg
+            className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onToggle(strategy.id); }}
           className={`w-5 h-5 rounded-full border-2 transition-all flex-shrink-0 flex items-center justify-center ${enabled ? 'border-emerald-400' : 'border-white/20 hover:border-white/40'}`}>
           {enabled && <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />}
         </button>
       </div>
-      {SIGNAL_DESCRIPTIONS[strategy.strategy_type] && (
-        <p className="text-base text-gray-400 leading-relaxed mt-1.5">{SIGNAL_DESCRIPTIONS[strategy.strategy_type].summary}</p>
-      )}
-      {strategy.backtest_win_rate && (
-        <div className="flex items-center gap-3 mt-2 text-sm">
-          <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(strategy.backtest_win_rate)}%</span></span>
-          <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">+{String(strategy.backtest_return)}%</span></span>
-          <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(strategy.backtest_profit_factor)}</span></span>
-          <button onClick={() => onViewDetails(strategy)} className="text-sm text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="overflow-hidden"
+          >
+            {desc && (
+              <p className="text-base text-gray-400 leading-relaxed mt-2">{desc.summary}</p>
+            )}
+            {stats && (
+              <div className="flex items-center gap-3 mt-2 text-sm">
+                <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(stats.win)}%</span></span>
+                <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">{String(stats.ret)}%</span></span>
+                <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(stats.pf)}</span></span>
+                <button onClick={() => onViewDetails(strategy)} className="text-sm text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -932,6 +956,7 @@ function StrategyRadarContent() {
   const [loading, setLoading] = useState(true);
   const [activeSignalIdx, setActiveSignalIdx] = useState(0);
   const [expandedStrategy, setExpandedStrategy] = useState(null);
+  const [expandedCardId, setExpandedCardId] = useState(null);
   const [settings, setSettings] = useState({
     timeframe: '1H',
     stop_loss_multiplier: 0.5,
@@ -1327,7 +1352,7 @@ function StrategyRadarContent() {
             <h2 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-2">Verified Strategies</h2>
             <div className="space-y-2">
               {strategies.map(strategy => (
-                <StrategyCard key={strategy.id} strategy={strategy} enabled={activeStrategies[strategy.id] || false} onToggle={handleToggleStrategy} onViewDetails={setExpandedStrategy} />
+                <StrategyCard key={strategy.id} strategy={strategy} enabled={activeStrategies[strategy.id] || false} onToggle={handleToggleStrategy} onViewDetails={setExpandedStrategy} isExpanded={expandedCardId === strategy.id} onExpandToggle={() => setExpandedCardId(prev => prev === strategy.id ? null : strategy.id)} />
               ))}
             </div>
           </div>
