@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { ChevronsUp, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
+import gsap from 'gsap';
 import { supabase } from '../../lib/supabaseClient';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
 import useStrategySync from '../../hooks/useStrategySync';
@@ -1181,6 +1182,7 @@ export default function Dashboard({
   const [allocationPrompt, setAllocationPrompt] = useState(null);
   const deployedStrategiesRef = useRef(deployedStrategies);
   const allocationResolverRef = useRef(null);
+  const dashboardRootRef = useRef(null);
 
   const openProPlusModal = useCallback((payload = null) => {
     setProPlusCheckoutError('');
@@ -2378,8 +2380,50 @@ export default function Dashboard({
     [watchlist, isTopBarCollapsed]
   );
 
+  useEffect(() => {
+    if (!dashboardRootRef.current) return undefined;
+
+    const context = gsap.context(() => {
+      gsap.fromTo(
+        '.dashboard-card',
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.4, stagger: 0.06, ease: 'power2.out' },
+      );
+    }, dashboardRootRef);
+
+    return () => context.revert();
+  }, [activeTab]);
+
   return (
-    <div className={`soft-glass-theme h-screen h-[100dvh] w-screen flex flex-col bg-[#0a0a0f] ${themeClasses.text} overflow-hidden`}>
+    <MotionConfig transition={{ type: 'spring', stiffness: 500, damping: 30 }}>
+      <div
+        ref={dashboardRootRef}
+        className={`soft-glass-theme h-screen h-[100dvh] w-screen flex flex-col bg-[#0a0a0f] ${themeClasses.text} overflow-hidden`}
+      >
+      <style>{`
+        .soft-glass-theme .soft-glass-surface,
+        .soft-glass-theme .dashboard-card {
+          background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%) !important;
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.06) !important;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+          transition: background 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+        }
+        .soft-glass-theme .soft-glass-surface:hover,
+        .soft-glass-theme .dashboard-card:hover {
+          background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%) !important;
+          border-color: rgba(255,255,255,0.1) !important;
+          box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+        }
+        .soft-glass-theme .dashboard-inset {
+          background: rgba(0,0,0,0.4) !important;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.04) !important;
+          box-shadow: inset 4px 4px 8px rgba(0,0,0,0.5), inset -2px -2px 6px rgba(255,255,255,0.02) !important;
+        }
+      `}</style>
       <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
       <motion.div
         className="relative z-20 overflow-visible"
@@ -2814,14 +2858,17 @@ export default function Dashboard({
           onClick={() => setShowStrategyLimitModal(false)}
         >
           <div className="relative w-full max-w-2xl" onClick={(event) => event.stopPropagation()}>
-            <button
+            <motion.button
               type="button"
               onClick={() => setShowStrategyLimitModal(false)}
-              className="absolute right-4 top-4 z-10 p-1.5 rounded-md bg-black/30 hover:bg-black/50 text-white/60 hover:text-white transition-colors"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className="absolute right-4 top-4 z-10 text-white/60 hover:text-white transition-colors"
               aria-label="Close upgrade modal"
             >
               <X className="w-4 h-4" strokeWidth={1.8} />
-            </button>
+            </motion.button>
             <UpgradePrompt
               featureName="Active Strategy Limit Reached"
               description="Free accounts can run up to 3 active strategies at once. Upgrade to Pro for unlimited active strategy slots."
@@ -2837,7 +2884,7 @@ export default function Dashboard({
           onClick={() => resolveAllocationPrompt(null)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111111] p-5"
+            className="dashboard-card w-full max-w-md p-5"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="text-[10px] uppercase tracking-[0.16em] text-emerald-300/80">Paper Allocation</div>
@@ -2846,7 +2893,7 @@ export default function Dashboard({
               {allocationPrompt.strategyName} ({allocationPrompt.symbol})
             </p>
 
-            <div className="mt-4 rounded-lg border border-white/10 bg-black/30 px-3 py-3 space-y-2">
+            <div className="dashboard-inset mt-4 px-3 py-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-white/60">Backtest Amount:</span>
                 <span className="font-semibold text-white">{formatCurrency(allocationPromptBacktestAmount)}</span>
@@ -2900,20 +2947,26 @@ export default function Dashboard({
             </div>
 
             <div className="mt-5 flex items-center justify-end gap-2">
-              <button
+              <motion.button
                 type="button"
                 onClick={() => resolveAllocationPrompt(null)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 className="px-3 py-1.5 rounded-lg border border-white/15 text-xs text-white/75 hover:bg-white/5"
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={handleAllocationPromptConfirm}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 className="px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/20 text-xs text-emerald-200 hover:bg-emerald-500/30"
               >
                 Activate Strategy
-              </button>
+              </motion.button>
             </div>
           </div>
         </div>
@@ -2958,6 +3011,7 @@ export default function Dashboard({
         onMessageCountChange={setGrokMessageCount}
       />
 
-    </div>
+      </div>
+    </MotionConfig>
   );
 }

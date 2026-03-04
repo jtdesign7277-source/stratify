@@ -12,6 +12,7 @@ import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search } from 'lucide-react';
+import gsap from 'gsap';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -31,6 +32,10 @@ const HPZ_BULL = '#1de9b6';
 const HPZ_BEAR = '#ff5252';
 const CHOCH_COLOR = '#00C2FF';
 const BOS_COLOR = '#7B61FF';
+const SOFT_GLASS_CARD_CLASS = 'dashboard-card bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 hover:from-white/[0.06] hover:to-white/[0.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:border-white/[0.1]';
+const SOFT_GLASS_ACCENT_CLASS = 'dashboard-card bg-gradient-to-br from-emerald-500/[0.08] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-emerald-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgba(16,185,129,0.1)]';
+const SOFT_GLASS_INSET_CLASS = 'bg-black/40 rounded-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] border border-white/[0.04]';
+const BUTTON_SPRING = { type: 'spring', stiffness: 500, damping: 30 };
 
 const CRYPTO_TICKERS = new Set(['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOGE/USD', 'LINK/USD', 'ADA/USD', 'AVAX/USD', 'DOT/USD']);
 
@@ -336,8 +341,16 @@ class RadarErrorBoundary extends React.Component {
           <div className="text-center">
             <p className="text-red-400 text-lg mb-2">Strategy Radar encountered an error</p>
             <p className="text-gray-500 text-sm">{String(this.state.error?.message || 'Unknown error')}</p>
-            <button onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 text-sm text-white bg-white/10 hover:bg-white/15 rounded-lg transition-colors">Reload</button>
+            <motion.button
+              type="button"
+              onClick={() => window.location.reload()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              transition={BUTTON_SPRING}
+              className="mt-4 px-4 py-2 text-sm text-white border border-white/15 rounded-lg"
+            >
+              Reload
+            </motion.button>
           </div>
         </div>
       );
@@ -615,16 +628,21 @@ function SignalCard({ signal, marketStatus }) {
     : '—';
 
   return (
-    <div className="border border-white/6 rounded-lg p-2 bg-white/[0.02]">
+    <motion.div
+      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      className={`${signal?.is_hpz ? SOFT_GLASS_ACCENT_CLASS : SOFT_GLASS_CARD_CLASS} p-2`}
+    >
       <div className="flex items-center gap-2">
         <QualityGauge score={signal.quality_score} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-base font-bold text-white font-mono">{String(signal.ticker || '')}</span>
             <span className="text-sm font-semibold uppercase" style={{ color: displayColor }}>
-              {signal.direction === 'long' ? '▲ LONG' : '▼ SHORT'}
+              {signal.direction === 'long' ? 'LONG' : 'SHORT'}
             </span>
-            {signal.is_hpz && <span className="text-[10px] font-bold" style={{ color: '#00C2FF' }}>HPZ</span>}
+            {signal.is_hpz && <span className="text-[10px] font-bold text-emerald-400">HPZ</span>}
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
             {signal.strategy_source && <span>{String(signal.strategy_source)}</span>}
@@ -670,16 +688,48 @@ function SignalCard({ signal, marketStatus }) {
         const expired = !sigMs || Date.now() - sigMs > 4 * 60 * 60 * 1000;
         const marketClosed = !ms.open && !ms.premarket && !ms.afterhours;
 
-        if (expired) return <button disabled className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-gray-500 rounded bg-white/5 cursor-not-allowed">Expired</button>;
-        if (marketClosed) return <button disabled className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-gray-500 rounded bg-white/5 cursor-not-allowed">Market Closed</button>;
+        if (expired) {
+          return (
+            <motion.button
+              type="button"
+              disabled
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              transition={BUTTON_SPRING}
+              className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-gray-500 rounded cursor-not-allowed border border-white/10"
+            >
+              Expired
+            </motion.button>
+          );
+        }
+        if (marketClosed) {
+          return (
+            <motion.button
+              type="button"
+              disabled
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              transition={BUTTON_SPRING}
+              className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-gray-500 rounded cursor-not-allowed border border-white/10"
+            >
+              Market Closed
+            </motion.button>
+          );
+        }
         return (
-          <button onClick={(e) => e.stopPropagation()} className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-white rounded transition-all hover:brightness-110"
+          <motion.button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            transition={BUTTON_SPRING}
+            className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-white rounded transition-all hover:brightness-110"
             style={{ background: `linear-gradient(135deg, ${displayColor}, ${displayColor}90)`, boxShadow: `0 0 20px ${displayColor}30` }}>
             Confirm Trade
-          </button>
+          </motion.button>
         );
       })()}
-    </div>
+    </motion.div>
   );
 }
 
@@ -692,9 +742,21 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
   const stats = desc?.stats || (strategy.backtest_win_rate ? { win: strategy.backtest_win_rate, ret: `+${strategy.backtest_return}`, pf: strategy.backtest_profit_factor } : null);
 
   return (
-    <div className="border border-white/6 rounded-lg p-3">
+    <motion.div
+      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      className={`${enabled ? SOFT_GLASS_ACCENT_CLASS : SOFT_GLASS_CARD_CLASS} p-3`}
+    >
       <div className="flex items-center justify-between gap-2">
-        <button onClick={onExpandToggle} className="flex-1 min-w-0 flex items-center gap-2 text-left">
+        <motion.button
+          type="button"
+          onClick={onExpandToggle}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.96 }}
+          transition={BUTTON_SPRING}
+          className="flex-1 min-w-0 flex items-center gap-2 text-left"
+        >
           <span className="text-lg font-semibold text-white truncate">{String(strategy.name || '')}</span>
           <svg
             className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
@@ -702,11 +764,16 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onToggle(strategy.id); }}
+        </motion.button>
+        <motion.button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggle(strategy.id); }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.96 }}
+          transition={BUTTON_SPRING}
           className={`w-5 h-5 rounded-full border-2 transition-all flex-shrink-0 flex items-center justify-center ${enabled ? 'border-emerald-400' : 'border-white/20 hover:border-white/40'}`}>
           {enabled && <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />}
-        </button>
+        </motion.button>
       </div>
       <AnimatePresence initial={false}>
         {isExpanded && (
@@ -725,13 +792,22 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
                 <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(stats.win)}%</span></span>
                 <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">{String(stats.ret)}%</span></span>
                 <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(stats.pf)}</span></span>
-                <button onClick={() => onViewDetails(strategy)} className="text-sm text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
+                <motion.button
+                  type="button"
+                  onClick={() => onViewDetails(strategy)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={BUTTON_SPRING}
+                  className="text-sm text-gray-600 hover:text-gray-400 transition-colors ml-auto"
+                >
+                  details
+                </motion.button>
               </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -743,11 +819,18 @@ function StrategyDetailOverlay({ strategy, onClose }) {
       className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-y-auto"
     >
       <div className="p-6">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+        <motion.button
+          type="button"
+          onClick={onClose}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.96 }}
+          transition={BUTTON_SPRING}
+          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+        >
           <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
-        </button>
+        </motion.button>
         <h2 className="text-xl font-bold text-white">{String(strategy.name || '')}</h2>
         <p className="text-base text-gray-400 mt-1">{String(strategy.subtitle || '')}</p>
         <div className="mt-6 space-y-6">
@@ -766,16 +849,60 @@ function StrategyDetailOverlay({ strategy, onClose }) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function RadarSettings({ settings, onUpdate }) {
+  const [activeSlider, setActiveSlider] = useState('');
   const slPct = (settings.stop_loss_multiplier - 0.1) / (2.0 - 0.1);
   const tpFillPct = (settings.take_profit_multiplier - 1.0) / (5.0 - 1.0);
   const riskPct = (settings.risk_per_trade * 100 - 0.5) / (5.0 - 0.5);
   const riskScore = (slPct + (1 - tpFillPct) + riskPct) / 3;
   const riskProfile = riskScore < 0.33 ? { label: 'Conservative', color: '#34d399' } : riskScore < 0.66 ? { label: 'Moderate', color: '#34d399' } : { label: 'Aggressive', color: '#f23645' };
-  const SLIDER_FILL = '#10b981';
-  const sliderClass = "relative w-full appearance-none bg-transparent cursor-pointer z-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer";
+  const sliderClass = 'radar-soft-slider relative w-full appearance-none bg-transparent cursor-pointer z-10';
 
   return (
-    <div className="border border-white/6 rounded-lg p-3 space-y-3">
+    <motion.div
+      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      className={`${SOFT_GLASS_CARD_CLASS} p-3 space-y-3`}
+    >
+      <style>{`
+        .radar-soft-slider::-webkit-slider-runnable-track {
+          height: 6px;
+          border-radius: 9999px;
+          background: linear-gradient(to right, rgba(16,185,129,0.45), rgba(52,211,153,0.45));
+        }
+        .radar-soft-slider::-moz-range-track {
+          height: 6px;
+          border-radius: 9999px;
+          background: linear-gradient(to right, rgba(16,185,129,0.45), rgba(52,211,153,0.45));
+        }
+        .radar-soft-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 9999px;
+          background: #ffffff;
+          border: 2px solid rgba(255,255,255,0.2);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+          margin-top: -4px;
+          transition: transform 220ms cubic-bezier(0.22,1,0.36,1);
+        }
+        .radar-soft-slider::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          border-radius: 9999px;
+          background: #ffffff;
+          border: 2px solid rgba(255,255,255,0.2);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+          transition: transform 220ms cubic-bezier(0.22,1,0.36,1);
+        }
+        .radar-soft-slider:active::-webkit-slider-thumb,
+        .radar-soft-slider.is-dragging::-webkit-slider-thumb,
+        .radar-soft-slider:active::-moz-range-thumb,
+        .radar-soft-slider.is-dragging::-moz-range-thumb {
+          transform: scale(1.2);
+        }
+      `}</style>
       <div className="flex items-center justify-between">
         <h3 className="text-base text-gray-500 uppercase tracking-widest font-semibold">Settings</h3>
         <span className="text-lg font-semibold" style={{ color: riskProfile.color }}>{riskProfile.label}</span>
@@ -783,25 +910,64 @@ function RadarSettings({ settings, onUpdate }) {
       <div>
         <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Stop Loss</label><span className="text-lg font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span></div>
         <div className="relative h-5 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${slPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
-          <input type="range" min="0.1" max="2.0" step="0.1" value={settings.stop_loss_multiplier} onChange={e => onUpdate({ stop_loss_multiplier: parseFloat(e.target.value) })} className={sliderClass} />
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${slPct * 100}%` }} />
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="2.0"
+            step="0.1"
+            value={settings.stop_loss_multiplier}
+            onPointerDown={() => setActiveSlider('sl')}
+            onPointerUp={() => setActiveSlider('')}
+            onBlur={() => setActiveSlider('')}
+            onChange={e => onUpdate({ stop_loss_multiplier: parseFloat(e.target.value) })}
+            className={`${sliderClass} ${activeSlider === 'sl' ? 'is-dragging' : ''}`}
+          />
         </div>
       </div>
       <div>
         <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Take Profit</label><span className="text-lg font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span></div>
         <div className="relative h-5 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${tpFillPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
-          <input type="range" min="1.0" max="5.0" step="0.5" value={settings.take_profit_multiplier} onChange={e => onUpdate({ take_profit_multiplier: parseFloat(e.target.value) })} className={sliderClass} />
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${tpFillPct * 100}%` }} />
+          </div>
+          <input
+            type="range"
+            min="1.0"
+            max="5.0"
+            step="0.5"
+            value={settings.take_profit_multiplier}
+            onPointerDown={() => setActiveSlider('tp')}
+            onPointerUp={() => setActiveSlider('')}
+            onBlur={() => setActiveSlider('')}
+            onChange={e => onUpdate({ take_profit_multiplier: parseFloat(e.target.value) })}
+            className={`${sliderClass} ${activeSlider === 'tp' ? 'is-dragging' : ''}`}
+          />
         </div>
       </div>
       <div>
         <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Risk Per Trade</label><span className="text-lg font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span></div>
         <div className="relative h-5 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${riskPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
-          <input type="range" min="0.5" max="5.0" step="0.5" value={settings.risk_per_trade * 100} onChange={e => onUpdate({ risk_per_trade: parseFloat(e.target.value) / 100 })} className={sliderClass} />
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${riskPct * 100}%` }} />
+          </div>
+          <input
+            type="range"
+            min="0.5"
+            max="5.0"
+            step="0.5"
+            value={settings.risk_per_trade * 100}
+            onPointerDown={() => setActiveSlider('risk')}
+            onPointerUp={() => setActiveSlider('')}
+            onBlur={() => setActiveSlider('')}
+            onChange={e => onUpdate({ risk_per_trade: parseFloat(e.target.value) / 100 })}
+            className={`${sliderClass} ${activeSlider === 'risk' ? 'is-dragging' : ''}`}
+          />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -812,7 +978,12 @@ function RadarSettings({ settings, onUpdate }) {
 function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
   if (!trendDetails || trendDetails.length === 0) return null;
   return (
-    <div className="border border-white/6 rounded-lg p-3">
+    <motion.div
+      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      className={`${SOFT_GLASS_CARD_CLASS} p-3`}
+    >
       <h3 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-1.5">Trend Strength</h3>
       <div className="flex items-center gap-2 text-sm font-mono">
         {trendDetails.map((td, i) => (
@@ -828,7 +999,7 @@ function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
         {'Str: '}<span className="font-mono font-semibold" style={{ color: trendStrength >= 0 ? '#34d399' : '#f87171' }}>{trendStrength > 0 ? '+' : ''}{String(trendStrength)}%</span>
         {' · Conf: '}<span className="font-mono font-semibold text-white">{String(confidence)}%</span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -914,7 +1085,7 @@ function LiveTickerHeader({ ticker }) {
   const flashColor = flash === 'up' ? 'text-emerald-400' : flash === 'down' ? 'text-red-400' : null;
 
   return (
-    <div className="px-5 py-3 border-b border-white/6 flex items-center gap-3">
+    <div className={`${SOFT_GLASS_CARD_CLASS} rounded-none px-5 py-3 border-b border-white/6 flex items-center gap-3`}>
       <span className="text-white font-bold text-lg font-mono">${ticker}</span>
       {connected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
       {price !== null && (
@@ -981,6 +1152,13 @@ function StrategyRadarContent() {
   const anyStrategyEnabled = useMemo(() => Object.values(activeStrategies).some(Boolean), [activeStrategies]);
   const marketStatus = useMemo(() => getMarketStatus(selectedTicker), [selectedTicker]);
   const canScan = anyStrategyEnabled && (marketStatus.open || marketStatus.premarket || marketStatus.afterhours);
+
+  useEffect(() => {
+    gsap.fromTo('.dashboard-card',
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.4, stagger: 0.06, ease: 'power2.out' },
+    );
+  }, [selectedTicker, activeSignalIdx, expandedCardId, strategies.length]);
 
   // Load user settings, strategies, toggle states
   useEffect(() => {
@@ -1221,7 +1399,7 @@ function StrategyRadarContent() {
             <span className={`w-1.5 h-1.5 rounded-full ${
               !anyStrategyEnabled ? 'bg-gray-600'
               : isScanning && marketStatus.open ? 'bg-emerald-400 animate-pulse'
-              : anyStrategyEnabled ? 'bg-blue-400'
+              : anyStrategyEnabled ? 'bg-emerald-400'
               : String(marketStatus.dotColor || 'bg-gray-600')
             }`} />
             <span className="text-xs text-gray-500">
@@ -1290,7 +1468,7 @@ function StrategyRadarContent() {
         <div className="flex-[2] min-h-0 overflow-y-auto relative">
           <LiveTickerHeader ticker={selectedTicker} />
 
-          <div className="p-3 border-b border-white/6">
+          <div className={`${SOFT_GLASS_CARD_CLASS} p-3 border-b border-white/6`}>
             <h2 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
             {currentTickerSignals.length > 0 ? (
               <>
@@ -1299,13 +1477,16 @@ function StrategyRadarContent() {
                     const isActive = activeSignalIdx === i;
                     const tabDirColor = sig.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
                     return (
-                      <button key={i} onClick={() => setActiveSignalIdx(i)}
+                      <motion.button key={i} onClick={() => setActiveSignalIdx(i)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.96 }}
+                        transition={BUTTON_SPRING}
                         className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] whitespace-nowrap transition-all border-l-2 flex-shrink-0 ${isActive ? 'bg-white/[0.04]' : 'bg-transparent hover:bg-white/[0.02]'}`}
                         style={{ borderColor: isActive ? tabDirColor : 'transparent' }}>
                         <span style={{ color: tabDirColor }}>{sig.direction === 'long' ? '▲' : '▼'}</span>
                         <span className={`font-mono ${isActive ? 'text-white' : 'text-gray-500'}`}>{String(sig.ticker || '')}</span>
                         <span className="font-mono text-gray-600">{String(sig.quality_score || '')}%</span>
-                      </button>
+                      </motion.button>
                     );
                   })}
                 </div>
@@ -1339,16 +1520,16 @@ function StrategyRadarContent() {
           </div>
 
           {enabledTypes.has('smart_money') && smResults.trendDetails && smResults.trendDetails.length > 0 && (
-            <div className="p-3 border-b border-white/6">
+            <div className={`${SOFT_GLASS_CARD_CLASS} p-3 border-b border-white/6`}>
               <TrendStrengthMatrix trendStrength={smResults.trendStrength} confidence={smResults.confidence} trendDetails={smResults.trendDetails} />
             </div>
           )}
 
-          <div className="p-3 border-b border-white/6">
+          <div className={`${SOFT_GLASS_CARD_CLASS} p-3 border-b border-white/6`}>
             <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
           </div>
 
-          <div className="p-3">
+          <div className={`${SOFT_GLASS_CARD_CLASS} p-3`}>
             <h2 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-2">Verified Strategies</h2>
             <div className="space-y-2">
               {strategies.map(strategy => (

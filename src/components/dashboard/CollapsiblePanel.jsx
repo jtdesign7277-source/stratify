@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 
 /**
  * CollapsiblePanel - Premium collapsible panel with smooth animations
@@ -33,18 +34,25 @@ export default function CollapsiblePanel({
   };
 
   return (
-    <div
+    <motion.div
       ref={panelRef}
-      className={`flex flex-col overflow-hidden transition-all duration-300 ease-out ${className}`}
+      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      className={`dashboard-card bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col overflow-hidden transition-all duration-300 ease-out ${className}`}
       style={{
         minHeight: `${minHeight}px`,
         flex: expanded ? '1 1 auto' : `0 0 ${minHeight}px`,
       }}
     >
       {/* Premium Header */}
-      <div
+      <motion.button
+        type="button"
         onClick={onToggle}
-        className={`h-11 flex-shrink-0 flex items-center justify-between px-4 border-b border-[#1f1f1f] bg-[#111111] cursor-pointer transition-all duration-200 hover:bg-[#12121a] group`}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.96 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        className={`h-11 flex-shrink-0 w-full flex items-center justify-between px-4 border-b border-white/[0.08] bg-black/40 cursor-pointer group`}
       >
         <div className="flex items-center gap-3">
           {/* Animated Chevron */}
@@ -75,7 +83,7 @@ export default function CollapsiblePanel({
           
           {/* Badge */}
           {badge !== undefined && badge !== null && (
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${badgeColor}`}>
+            <span className="text-xs font-medium text-emerald-400">
               {badge}
             </span>
           )}
@@ -87,7 +95,7 @@ export default function CollapsiblePanel({
             <span className="text-xs text-white/50 group-hover:text-gray-400 transition-colors">Click to expand</span>
           )}
         </div>
-      </div>
+      </motion.button>
 
       {/* Content with Smooth Reveal */}
       <div 
@@ -101,7 +109,7 @@ export default function CollapsiblePanel({
           {children}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
