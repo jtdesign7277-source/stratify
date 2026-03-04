@@ -236,7 +236,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   const showDropdown = isOpen && (results.length > 0 || (query.length < 2 && recentSearches.length > 0));
 
   return (
-    <div ref={containerRef} className="w-[280px] mx-4 relative flex-shrink-0">
+    <div ref={containerRef} className="w-full max-w-2xl mx-4 relative flex-shrink min-w-0">
       <div className={`relative rounded-xl ${isFocused ? 'p-[1px] radar-rainbow-border' : ''}`}>
         <div className={`flex items-center gap-3 rounded-xl py-2.5 px-4 transition-all duration-200 ${isFocused ? 'bg-[#0a0a0f]' : 'bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12]'}`}>
           <Search size={16} className="text-gray-500 flex-shrink-0" />
@@ -246,7 +246,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
             onBlur={() => setTimeout(() => setIsFocused(false), 150)}
             onKeyDown={handleKeyDown}
             placeholder="Search any stock, ETF, crypto..."
-            className="flex-1 bg-transparent text-base font-mono text-white placeholder:text-gray-600 placeholder:italic outline-none" />
+            className="min-w-0 flex-1 bg-transparent text-base font-mono text-white placeholder:text-gray-600 placeholder:italic outline-none" />
           {query && (
             <button onClick={() => { setQuery(''); setResults([]); }} className="text-gray-600 hover:text-gray-400 transition-colors">
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
