@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
+import CountUp from 'react-countup';
+import { motion } from 'framer-motion';
 import usePaperTrading from '../../hooks/usePaperTrading';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import { subscribeTwelveDataQuotes } from '../../services/twelveDataWebSocket';
@@ -292,6 +294,44 @@ const fmtQty = (value) => {
 const fmtPct = (value) => {
   const parsed = Number(value || 0);
   return `${parsed >= 0 ? '+' : ''}${parsed.toFixed(2)}%`;
+};
+
+const AnimatedMoney = ({ value, signed = false, className = '', duration = 1.1, countKey }) => {
+  const numeric = Number(value || 0);
+  const absolute = Math.abs(numeric);
+  const prefix = signed ? (numeric >= 0 ? '+$' : '-$') : '$';
+  return (
+    <span className={className}>
+      <CountUp
+        key={countKey || `${prefix}-${numeric}`}
+        start={0}
+        end={absolute}
+        duration={duration}
+        decimals={2}
+        separator=","
+        prefix={prefix}
+        useEasing
+      />
+    </span>
+  );
+};
+
+const AnimatedPercent = ({ value, className = '', duration = 0.8, countKey }) => {
+  const numeric = Number(value || 0);
+  return (
+    <span className={className}>
+      <CountUp
+        key={countKey || `pct-${numeric}`}
+        start={0}
+        end={Math.abs(numeric)}
+        duration={duration}
+        decimals={2}
+        prefix={numeric >= 0 ? '+' : '-'}
+        suffix="%"
+        useEasing
+      />
+    </span>
+  );
 };
 
 const summarizePositions = (rows = []) => {
@@ -1813,7 +1853,13 @@ export default function PortfolioDashboard() {
       <div className={splitViewEnabled ? 'mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,56%)_minmax(340px,44%)]' : 'mt-3'}>
       <div className={splitViewEnabled ? 'min-w-0' : ''}>
       <div className="space-y-3">
-      <div className={`${panelClass} p-3`}>
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-50px' }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className={`${panelClass} p-3`}
+      >
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Holdings</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -1929,28 +1975,48 @@ export default function PortfolioDashboard() {
         <div className="mt-3 border-t-2 border-[#334155] pt-3">
           <div className="flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Portfolio Value</span>
-            <span className="font-mono text-sm text-[#f8fbff]">{fmtMoney(totalValue)}</span>
+            <AnimatedMoney
+              value={totalValue}
+              className="font-mono text-sm text-[#f8fbff]"
+              countKey={`portfolio-value-${totalValue}`}
+            />
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Buying Power</span>
-            <span className="font-mono text-sm text-[#f8fbff]">{fmtMoney(cashBalance)}</span>
+            <AnimatedMoney
+              value={cashBalance}
+              className="font-mono text-sm text-[#f8fbff]"
+              countKey={`buying-power-${cashBalance}`}
+            />
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L</span>
-            <span className={`font-mono text-sm ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {totalPnl >= 0 ? '+' : ''}{fmtMoney(totalPnl)}
-            </span>
+            <AnimatedMoney
+              value={totalPnl}
+              signed
+              className={`font-mono text-sm ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+              countKey={`total-pnl-${totalPnl}`}
+              duration={0.7}
+            />
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L %</span>
-            <span className={`font-mono text-sm ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {fmtPct(totalPnlPct)}
-            </span>
+            <AnimatedPercent
+              value={totalPnlPct}
+              className={`font-mono text-sm ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+              countKey={`total-pnl-pct-${totalPnlPct}`}
+            />
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className={`${panelClass} p-3`}>
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-50px' }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className={`${panelClass} p-3`}
+      >
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Performance</div>
         {performanceState.loading ? (
           <div className="flex h-[280px] items-center justify-center text-sm text-gray-500">
@@ -1966,9 +2032,15 @@ export default function PortfolioDashboard() {
         {performanceState.error ? (
           <div className="mt-2 text-xs text-red-300">{performanceState.error}</div>
         ) : null}
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-50px' }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="grid grid-cols-1 gap-3 lg:grid-cols-2"
+      >
         <div className={`${panelClass} p-3`}>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Allocation View</div>
           <HighchartsReact highcharts={Highcharts} options={allocationPieOptions} />
@@ -1977,10 +2049,16 @@ export default function PortfolioDashboard() {
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Metrics</div>
           <HighchartsReact highcharts={Highcharts} options={metricsBarOptions} />
         </div>
-      </div>
+      </motion.div>
 
       {Array.isArray(trades) && trades.length > 0 ? (
-        <div className={`${panelClass} p-3`}>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className={`${panelClass} p-3`}
+        >
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Recent Trades</div>
           <div className="space-y-1">
             {trades.slice(0, 8).map((trade, index) => {
@@ -2003,7 +2081,7 @@ export default function PortfolioDashboard() {
               );
             })}
           </div>
-        </div>
+        </motion.div>
       ) : null}
 
       {error ? (
@@ -2015,7 +2093,13 @@ export default function PortfolioDashboard() {
       </div>
 
       {splitViewEnabled ? (
-        <aside className={`${panelClass} min-w-0 p-3`}>
+        <motion.aside
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className={`${panelClass} min-w-0 p-3`}
+        >
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-500">AI Opportunity Radar</div>
@@ -2303,7 +2387,7 @@ export default function PortfolioDashboard() {
               </div>
             ) : null}
           </div>
-        </aside>
+        </motion.aside>
       ) : null}
       </div>
       </div>

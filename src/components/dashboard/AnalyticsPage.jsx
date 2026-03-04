@@ -855,7 +855,13 @@ export default function AnalyticsPage() {
 
   return (
     <motion.div {...PAGE_TRANSITION} className="watchlist-grid-page">
-      <motion.div {...sectionMotion(0)} className="watchlist-grid-shell">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-50px' }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="watchlist-grid-shell"
+      >
         <motion.form {...sectionMotion(1)} className="watchlist-grid-controls" onSubmit={handleSubmitSearch}>
           <div className="watchlist-grid-search" ref={searchWrapRef}>
             <input
@@ -905,7 +911,13 @@ export default function AnalyticsPage() {
         </motion.form>
 
         {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
-        <motion.div {...sectionMotion(2)} className="px-4 pb-4">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="px-4 pb-4"
+        >
           <SimpleWatchlistTable rows={tableRows} />
         </motion.div>
       </motion.div>

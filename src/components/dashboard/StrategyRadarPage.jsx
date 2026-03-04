@@ -13,6 +13,7 @@ import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search } from 'lucide-react';
 import gsap from 'gsap';
+import CountUp from 'react-countup';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -258,9 +259,16 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
 
   return (
     <div ref={containerRef} className="w-full max-w-md mx-4 relative flex-shrink min-w-0">
-      <div className={`relative rounded-xl ${isFocused ? 'p-[1px] radar-rainbow-border' : ''}`}>
-        <div className={`flex items-center gap-3 rounded-xl py-2.5 px-4 transition-all duration-200 ${isFocused ? 'bg-[#0a0a0f]' : 'bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12]'}`}>
-          <Search size={16} className="text-gray-500 flex-shrink-0" />
+      <motion.div
+        className="relative rounded-xl border bg-white/[0.03] px-4 py-2.5"
+        animate={{
+          borderColor: isFocused ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.06)',
+          boxShadow: isFocused ? '0 0 20px rgba(16,185,129,0.1)' : '0 0 0 rgba(16,185,129,0)',
+        }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      >
+        <div className="flex items-center gap-3 rounded-xl">
+          <Search size={16} className={`${isFocused ? 'text-emerald-400' : 'text-gray-500'} flex-shrink-0 transition-colors duration-200`} />
           <input ref={inputRef} type="text" value={query}
             onChange={e => setQuery(e.target.value)}
             onFocus={() => { setIsFocused(true); setIsOpen(true); }}
@@ -269,26 +277,30 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
             placeholder="Search any stock, ETF, crypto..."
             className="min-w-0 flex-1 bg-transparent text-base font-mono text-white placeholder:text-gray-600 placeholder:italic outline-none" />
           {isLoading && (
-            <svg className="w-4 h-4 animate-spin text-gray-500 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
+            <div className="h-4 w-4 flex-shrink-0 rounded-full border-2 border-white/20 border-t-emerald-400 animate-spin" />
           )}
           {!isLoading && query && (
-            <button onClick={() => { setQuery(''); setResults([]); setSearched(false); }} className="text-gray-600 hover:text-gray-400 transition-colors">
+            <motion.button
+              type="button"
+              onClick={() => { setQuery(''); setResults([]); setSearched(false); }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              transition={BUTTON_SPRING}
+              className="text-gray-600 hover:text-gray-400 transition-colors"
+            >
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-            </button>
+            </motion.button>
           )}
         </div>
-      </div>
+      </motion.div>
 
       <AnimatePresence>
         {showDropdown && (
           <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.15 } }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl bg-[#0a0a0f] border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl max-h-80 overflow-y-auto"
           >
             {results.length > 0 && (
@@ -409,7 +421,7 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -611,6 +623,44 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
 
     if (chartRef.current) chartRef.current.timeScale().fitContent();
   }, [candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents]);
+
+  useEffect(() => {
+    if (!chartContainerRef.current || !candles.length) return;
+
+    const run = () => {
+      const container = chartContainerRef.current;
+      if (!container) return;
+
+      const linePath = container.querySelector('svg path');
+      const fillArea = container.querySelector('svg path[fill], svg .highcharts-area');
+
+      if (linePath && typeof linePath.getTotalLength === 'function') {
+        const length = linePath.getTotalLength();
+        linePath.style.strokeDasharray = `${length}`;
+        linePath.style.strokeDashoffset = `${length}`;
+        gsap.to(linePath, {
+          strokeDashoffset: 0,
+          duration: 0.8,
+          ease: 'power2.out',
+        });
+      } else {
+        const canvasLayer = container.querySelectorAll('canvas');
+        if (canvasLayer.length > 0) {
+          gsap.fromTo(canvasLayer, { opacity: 0.2 }, { opacity: 1, duration: 0.8, ease: 'power2.out' });
+        }
+      }
+
+      if (fillArea) {
+        gsap.fromTo(fillArea,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.6, ease: 'power2.out', delay: 0.2 }
+        );
+      }
+    };
+
+    const raf = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(raf);
+  }, [selectedTicker, selectedTimeframe, candles.length]);
 
   return <div ref={chartContainerRef} className="w-full h-full" />;
 }
@@ -1015,10 +1065,9 @@ function LiveTickerHeader({ ticker }) {
   const [price, setPrice] = useState(null);
   const [prevClose, setPrevClose] = useState(null);
   const [connected, setConnected] = useState(false);
-  const [flash, setFlash] = useState(null); // 'up' | 'down' | null
   const wsRef = useRef(null);
   const prevPriceRef = useRef(null);
-  const flashTimerRef = useRef(null);
+  const renderPrevPriceRef = useRef(null);
 
   useEffect(() => {
     if (!ticker || !TD_WS_KEY) return;
@@ -1045,8 +1094,7 @@ function LiveTickerHeader({ ticker }) {
 
           // Flash logic
           if (prevPriceRef.current !== null) {
-            if (p > prevPriceRef.current) setFlash('up');
-            else if (p < prevPriceRef.current) setFlash('down');
+            // price direction is consumed by renderPrevPriceRef for UI flash animation
           }
           prevPriceRef.current = p;
           setPrice(p);
@@ -1059,9 +1107,6 @@ function LiveTickerHeader({ ticker }) {
             setPrevClose(p); // fallback: treat first price as baseline
           }
 
-          // Clear flash after 800ms
-          if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-          flashTimerRef.current = setTimeout(() => setFlash(null), 800);
         }
       } catch {}
     };
@@ -1070,7 +1115,6 @@ function LiveTickerHeader({ ticker }) {
     ws.onclose = () => setConnected(false);
 
     return () => {
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: ticker } }));
       }
@@ -1082,7 +1126,16 @@ function LiveTickerHeader({ ticker }) {
   const change = price !== null && prevClose !== null ? price - prevClose : null;
   const changePct = change !== null && prevClose > 0 ? (change / prevClose) * 100 : null;
   const changeColor = change > 0 ? 'text-emerald-400' : change < 0 ? 'text-red-400' : 'text-gray-400';
-  const flashColor = flash === 'up' ? 'text-emerald-400' : flash === 'down' ? 'text-red-400' : null;
+
+  const flashDirection = Number.isFinite(price) && Number.isFinite(renderPrevPriceRef.current)
+    ? (price > renderPrevPriceRef.current ? 'up' : price < renderPrevPriceRef.current ? 'down' : 'flat')
+    : 'flat';
+
+  useEffect(() => {
+    if (Number.isFinite(price)) {
+      renderPrevPriceRef.current = price;
+    }
+  }, [price]);
 
   return (
     <div className={`${SOFT_GLASS_CARD_CLASS} rounded-none px-5 py-3 border-b border-white/6 flex items-center gap-3`}>
@@ -1090,11 +1143,18 @@ function LiveTickerHeader({ ticker }) {
       {connected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
       {price !== null && (
         <>
-          <span
-            className={`font-mono font-semibold text-xl transition-colors duration-[800ms] ${flashColor || 'text-white'}`}
+          <motion.span
+            key={`${ticker}-${price}`}
+            initial={{
+              color: flashDirection === 'up' ? '#10b981' : flashDirection === 'down' ? '#ef4444' : '#ffffff',
+              scale: 1.05,
+            }}
+            animate={{ color: '#ffffff', scale: 1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 26 }}
+            className="font-mono font-semibold text-xl"
           >
-            {price.toFixed(2)}
-          </span>
+            ${price.toFixed(2)}
+          </motion.span>
           {change !== null && (
             <span className={`text-sm font-mono ${changeColor}`}>
               {change >= 0 ? '+' : ''}{change.toFixed(2)}
@@ -1417,7 +1477,10 @@ function StrategyRadarContent() {
         />
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="text-xs text-gray-500">{activeSignalCount} active signals</span>
+          <span className="text-xs text-gray-500">
+            <CountUp key={`${selectedTicker}-${activeSignalCount}`} start={0} end={activeSignalCount} duration={0.9} useEasing />
+            {' '}active signals
+          </span>
         </div>
       </div>
 
@@ -1428,10 +1491,15 @@ function StrategyRadarContent() {
           <div className="flex items-center justify-end px-4 py-2 border-b border-white/6">
             <div className="flex items-center gap-1">
               {TIMEFRAMES.map(tf => (
-                <button key={tf} onClick={() => handleSettingsUpdate({ timeframe: tf })}
+                <motion.button
+                  key={tf}
+                  type="button"
+                  onClick={() => handleSettingsUpdate({ timeframe: tf })}
+                  whileTap={{ scale: 0.92 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className={`px-1 py-0.5 text-[11px] font-mono transition-colors ${settings.timeframe === tf ? 'text-[#00C2FF]' : 'text-gray-600 hover:text-gray-400'}`}>
                   {tf}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -1445,6 +1513,8 @@ function StrategyRadarContent() {
               signals={currentTickerSignals}
               chochEvents={smResults.chochEvents}
               bosEvents={smResults.bosEvents}
+              selectedTicker={selectedTicker}
+              selectedTimeframe={settings.timeframe}
             />
           </div>
 

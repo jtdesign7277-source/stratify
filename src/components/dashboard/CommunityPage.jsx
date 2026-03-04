@@ -1776,7 +1776,13 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                 <PriceAlertToasts toasts={alertToasts} onDismiss={dismissAlertToast} />
               </div>
 
-              <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="flex-1 min-h-0 flex gap-3 pt-3 pr-4"
+              >
                 <div className="w-[92px] flex-shrink-0" aria-hidden />
 
                 <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
@@ -2149,15 +2155,22 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                   </div>
                 </div>
 
-                <RightSidebar
-                  onArticleClick={openArticleInCenter}
-                  onTickerClick={(ticker) => {
-                    setSelectedTicker(ticker);
-                    setSidebarArticle(null);
-                    setFilter(null);
-                  }}
-                />
-              </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-50px' }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                >
+                  <RightSidebar
+                    onArticleClick={openArticleInCenter}
+                    onTickerClick={(ticker) => {
+                      setSelectedTicker(ticker);
+                      setSidebarArticle(null);
+                      setFilter(null);
+                    }}
+                  />
+                </motion.div>
+              </motion.div>
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import CountUp from 'react-countup';
 
 // Notification Settings Dropdown
 const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
@@ -553,7 +554,6 @@ export default function TopMetricsBar({
   const shouldShowPaperMetrics = isPaperTradingMode && hasPaperMetrics;
   const shouldShowBrokerMetrics = hasConnectedBroker;
   const hasDisplayData = shouldShowPaperMetrics || shouldShowBrokerMetrics;
-  const zeroDisplay = '$0.00';
   const dailyPnL = shouldShowPaperMetrics
     ? (toMetricNumber(paperMetrics?.dailyPnl) ?? 0)
     : (shouldShowBrokerMetrics ? Number(account.daily_pnl ?? 0) : 0);
@@ -582,17 +582,20 @@ export default function TopMetricsBar({
   const metrics = [
     {
       label: 'Daily P&L',
-      value: hasDisplayData ? formatCurrency(dailyPnL) : zeroDisplay,
+      value: hasDisplayData ? dailyPnL : 0,
       change: hasDisplayData ? dailyPnL : undefined,
+      signed: true,
     },
     {
       label: 'Buying Power',
-      value: hasDisplayData ? formatCurrencyNeutral(buyingPower) : zeroDisplay,
+      value: hasDisplayData ? buyingPower : 0,
+      signed: false,
     },
     {
       label: 'Unrealized P&L',
-      value: hasDisplayData ? formatCurrency(unrealizedPnL) : zeroDisplay,
+      value: hasDisplayData ? unrealizedPnL : 0,
       change: hasDisplayData ? unrealizedPnL : undefined,
+      signed: true,
     },
   ];
 
@@ -719,7 +722,18 @@ export default function TopMetricsBar({
           {metrics.map((metric, index) => (
             <div key={index} className="flex flex-col min-w-0">
               <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>{metric.label}</span>
-              <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>{metric.value}</span>
+              <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>
+                <CountUp
+                  key={`${metric.label}-${metric.value}`}
+                  start={0}
+                  end={Math.abs(Number(metric.value) || 0)}
+                  duration={metric.signed ? 0.6 : 1.2}
+                  decimals={2}
+                  prefix={metric.signed ? (Number(metric.value) >= 0 ? '+$' : '-$') : '$'}
+                  separator=","
+                  useEasing
+                />
+              </span>
             </div>
           ))}
           {!hasDisplayData && (
