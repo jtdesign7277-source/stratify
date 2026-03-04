@@ -11,7 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MousePointer2, TrendingUp, Minus, MoveRight, Square, GitBranch, Eraser, Search } from 'lucide-react';
+import { MousePointer2, TrendingUp, Minus, MoveRight, Square, GitBranch, Eraser, Search, RotateCcw } from 'lucide-react';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -59,6 +59,16 @@ function getMarketStatus(ticker) {
   if (mins >= 240 && mins < 570) return { open: false, premarket: true, afterhours: false, label: 'Pre-Market', dotColor: 'bg-orange-400' }; // 4:00-9:30
   if (mins >= 960 && mins < 1200) return { open: false, premarket: false, afterhours: true, label: 'After-Hours', dotColor: 'bg-orange-400' }; // 16:00-20:00
   return { open: false, premarket: false, afterhours: false, label: 'Market Closed', dotColor: 'bg-orange-400' };
+}
+
+function getNextMarketOpen() {
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay();
+  const mins = et.getHours() * 60 + et.getMinutes();
+  if (day >= 1 && day <= 5 && mins < 570) return 'today 9:30 AM ET';
+  if ((day === 5 && mins >= 960) || day === 6 || day === 0) return 'Monday 9:30 AM ET';
+  return 'tomorrow 9:30 AM ET';
 }
 
 const addCandlestickSeriesCompat = (chart, options) => {
@@ -143,39 +153,13 @@ function QualityGauge({ score }) {
   );
 }
 
-function RadarSweep({ disabled, statusText }) {
-  const color = disabled ? '#666' : '#00C2FF';
+function ScanStatus({ scanning, preview, statusText }) {
   return (
-    <div className="flex flex-col items-center py-4">
-      <div className="relative w-20 h-20">
-        <svg viewBox="0 0 128 128" className="w-full h-full">
-          <circle cx="64" cy="64" r="58" fill="none" stroke={color} strokeWidth="0.5" opacity="0.2" />
-          <circle cx="64" cy="64" r="38" fill="none" stroke={color} strokeWidth="0.5" opacity="0.15" />
-          <circle cx="64" cy="64" r="18" fill="none" stroke={color} strokeWidth="0.5" opacity="0.1" />
-          <line x1="64" y1="4" x2="64" y2="124" stroke={color} strokeWidth="0.5" opacity="0.1" />
-          <line x1="4" y1="64" x2="124" y2="64" stroke={color} strokeWidth="0.5" opacity="0.1" />
-        </svg>
-        {!disabled && (
-          <motion.div
-            className="absolute inset-0"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-          >
-            <div
-              className="absolute top-1/2 left-1/2 h-[1px] origin-left"
-              style={{
-                width: '58px',
-                background: `linear-gradient(to right, ${color}cc, transparent)`,
-              }}
-            />
-          </motion.div>
-        )}
-        <div
-          className="absolute top-1/2 left-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ backgroundColor: color, boxShadow: disabled ? 'none' : `0 0 8px ${color}` }}
-        />
-      </div>
-      <p className="text-xs text-gray-600 mt-4">{statusText || 'Scanning for setups...'}</p>
+    <div className="flex items-center gap-2 py-1">
+      {scanning && !preview && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
+      {preview && <span className="text-[10px] text-gray-600 flex-shrink-0">◎</span>}
+      {!scanning && !preview && <span className="w-1.5 h-1.5 rounded-full bg-gray-600 flex-shrink-0" />}
+      <span className="text-[10px] text-gray-500">{statusText}</span>
     </div>
   );
 }
@@ -232,7 +216,8 @@ function persistDrawings(ticker, drawings) {
   } catch {}
 }
 
-function DrawingToolbar({ activeTool, onToolChange }) {
+function DrawingToolbar({ activeTool, onToolChange, onClearAll }) {
+  const [clearFlash, setClearFlash] = useState(false);
   let lastGroup = -1;
   return (
     <div className="absolute left-2 top-1 z-20 inline-flex items-center w-fit bg-[#1e222d] border border-white/[0.08] rounded-lg px-1 py-0.5 backdrop-blur-sm">
@@ -256,6 +241,20 @@ function DrawingToolbar({ activeTool, onToolChange }) {
           </React.Fragment>
         );
       })}
+      <div className="w-px h-5 bg-white/[0.08] mx-0.5" />
+      <button
+        onClick={() => {
+          setClearFlash(true);
+          onClearAll?.();
+          setTimeout(() => setClearFlash(false), 200);
+        }}
+        title="Clear all drawings"
+        className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+          clearFlash ? 'text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
+        }`}
+      >
+        <RotateCcw size={15} strokeWidth={1.5} />
+      </button>
     </div>
   );
 }
@@ -1455,7 +1454,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
 // SIGNAL CARD — Redesigned with quality gauge, price ladder, always-visible details
 // ══════════════════════════════════════════════════════════════════════════════
 
-function SignalCard({ signal, marketStatus }) {
+function SignalCard({ signal, marketStatus, isPreview }) {
   const dirColor = signal.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
   const hpzColor = signal.direction === 'long' ? HPZ_BULL : HPZ_BEAR;
   const displayColor = signal.is_hpz ? hpzColor : dirColor;
@@ -1511,6 +1510,9 @@ function SignalCard({ signal, marketStatus }) {
       </div>
 
       {(() => {
+        if (isPreview) return (
+          <div className="w-full mt-1.5 py-1.5 text-[10px] text-gray-500 text-center font-mono">Market opens {getNextMarketOpen()}</div>
+        );
         const t = signal.detected_at || signal.time;
         let sigMs = 0;
         if (typeof t === 'string') sigMs = new Date(t).getTime();
@@ -1545,15 +1547,13 @@ function SignalCard({ signal, marketStatus }) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function StrategyCard({ strategy, enabled, onToggle, onViewDetails }) {
+  const [expanded, setExpanded] = useState(false);
   return (
-    <div className="border border-white/6 rounded-lg p-2">
+    <div className="border border-white/6 rounded-lg p-1.5">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-xs font-semibold text-white truncate">{strategy.name}</h3>
-            <span className="text-[10px] text-gray-600 truncate hidden sm:inline">{strategy.subtitle}</span>
-          </div>
-        </div>
+        <button onClick={() => setExpanded(!expanded)} className="flex-1 min-w-0 text-left">
+          <span className="text-xs font-semibold text-white truncate">{strategy.name}</span>
+        </button>
         <button
           onClick={() => onToggle(strategy.id)}
           className={`relative w-8 h-4 rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-emerald-500/30' : 'bg-white/10'}`}
@@ -1561,7 +1561,7 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails }) {
           <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${enabled ? 'left-4 bg-emerald-400' : 'left-0.5 bg-gray-500'}`} />
         </button>
       </div>
-      {strategy.backtest_win_rate && (
+      {expanded && strategy.backtest_win_rate && (
         <div className="flex items-center gap-3 mt-1 text-[10px]">
           <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{strategy.backtest_win_rate}%</span></span>
           <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">+{strategy.backtest_return}%</span></span>
@@ -1750,6 +1750,9 @@ function StrategyRadarContent() {
   const [drawings, setDrawings] = useState([]);
   const [activeTool, setActiveTool] = useState('crosshair');
   const [activeColor, setActiveColor] = useState('#ffffff');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [expandedSignalIdx, setExpandedSignalIdx] = useState(null);
+  const [marketTick, setMarketTick] = useState(0);
 
   const [smResults, setSmResults] = useState({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 0, trendDetails: [], divergences: [], liquidityZones: [] });
 
@@ -2073,6 +2076,11 @@ function StrategyRadarContent() {
     });
   }, [selectedTicker]);
 
+  const handleClearAllDrawings = useCallback(() => {
+    setDrawings([]);
+    persistDrawings(selectedTicker, []);
+  }, [selectedTicker]);
+
   // Filter signals for current ticker — only last 48 hours
   const currentTickerSignals = useMemo(() => {
     const cutoff48h = Date.now() - 48 * 60 * 60 * 1000;
@@ -2178,6 +2186,7 @@ function StrategyRadarContent() {
             <DrawingToolbar
               activeTool={activeTool}
               onToolChange={setActiveTool}
+              onClearAll={handleClearAllDrawings}
             />
             <RadarChart
               candles={candles}
