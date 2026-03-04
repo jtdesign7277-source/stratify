@@ -11,7 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MousePointer2, TrendingUp, Minus, Square, GitBranch, Eraser, Search } from 'lucide-react';
+import { MousePointer2, TrendingUp, Minus, MoveRight, Square, GitBranch, Eraser, Search } from 'lucide-react';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -200,15 +200,17 @@ async function saveActiveStrategy(userId, strategyId, enabled) {
 // ── Drawing Tools ────────────────────────────────────────────────────────────
 
 const DRAW_TOOLS = [
-  { id: 'crosshair', icon: MousePointer2, label: 'Crosshair' },
-  { id: 'trendline', icon: TrendingUp, label: 'Trendline' },
-  { id: 'hline', icon: Minus, label: 'Horizontal Line' },
-  { id: 'rectangle', icon: Square, label: 'Rectangle' },
-  { id: 'fib', icon: GitBranch, label: 'Fibonacci' },
-  { id: 'eraser', icon: Eraser, label: 'Eraser' },
+  { id: 'crosshair', icon: MousePointer2, label: 'Crosshair', group: 0 },
+  { id: 'hline', icon: Minus, label: 'Horizontal Line', group: 1 },
+  { id: 'trendline', icon: TrendingUp, label: 'Trendline', group: 1 },
+  { id: 'hray', icon: MoveRight, label: 'Horizontal Ray', group: 1 },
+  { id: 'rectangle', icon: Square, label: 'Rectangle', group: 2 },
+  { id: 'fib', icon: GitBranch, label: 'Fibonacci', group: 2 },
+  { id: 'eraser', icon: Eraser, label: 'Eraser', group: 3 },
 ];
 
 const DRAW_COLORS = ['#ffffff', '#089981', '#f23645', '#2962FF', '#FF9800'];
+const PALETTE_COLORS = ['#ffffff', '#34d399', '#f87171', '#06b6d4', '#3b82f6', '#a78bfa', '#f97316', '#facc15'];
 
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -231,34 +233,38 @@ function persistDrawings(ticker, drawings) {
 }
 
 function DrawingToolbar({ activeTool, activeColor, onToolChange, onColorChange }) {
+  let lastGroup = -1;
   return (
-    <div className="absolute left-2 top-2 z-10 flex flex-col gap-1 bg-[#0a0a0f]/90 border border-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+    <div className="absolute left-2 right-2 top-1 z-10 flex items-center gap-0 bg-[#1e222d] border border-white/[0.08] rounded-lg px-1 py-0.5 backdrop-blur-sm">
       {DRAW_TOOLS.map(tool => {
         const Icon = tool.icon;
         const isActive = activeTool === tool.id;
+        const showDivider = lastGroup !== -1 && tool.group !== lastGroup;
+        lastGroup = tool.group;
         return (
-          <button
-            key={tool.id}
-            onClick={() => onToolChange(tool.id)}
-            title={tool.label}
-            className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
-              isActive ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-            }`}
-          >
-            <Icon size={16} strokeWidth={1.5} />
-          </button>
+          <React.Fragment key={tool.id}>
+            {showDivider && <div className="w-px h-5 bg-white/[0.08] mx-0.5" />}
+            <button
+              onClick={() => onToolChange(tool.id)}
+              title={tool.label}
+              className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                isActive ? 'bg-white/[0.08] text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
+              }`}
+            >
+              <Icon size={15} strokeWidth={1.5} />
+            </button>
+          </React.Fragment>
         );
       })}
-      <div className="border-t border-white/10 mt-1 pt-1 flex flex-col gap-1">
-        {DRAW_COLORS.map(color => (
-          <button
-            key={color}
-            onClick={() => onColorChange(color)}
-            className={`w-8 h-4 rounded-sm transition-all ${activeColor === color ? 'ring-1 ring-white/40 scale-110' : 'hover:scale-105'}`}
-            style={{ backgroundColor: color }}
-          />
-        ))}
-      </div>
+      <div className="w-px h-5 bg-white/[0.08] mx-0.5" />
+      {DRAW_COLORS.map(color => (
+        <button
+          key={color}
+          onClick={() => onColorChange(color)}
+          className={`w-4 h-4 rounded-full mx-0.5 transition-all ${activeColor === color ? 'ring-1 ring-offset-1 ring-offset-[#1e222d] ring-white/40 scale-110' : 'hover:scale-110'}`}
+          style={{ backgroundColor: color }}
+        />
+      ))}
     </div>
   );
 }
@@ -352,16 +358,20 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
     const totalItems = results.length + recentSearches.length;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setHighlightIdx(prev => (prev + 1) % totalItems);
+      setHighlightIdx(prev => (prev + 1) % (totalItems || 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlightIdx(prev => (prev - 1 + totalItems) % totalItems);
-    } else if (e.key === 'Enter' && highlightIdx >= 0) {
+      setHighlightIdx(prev => (prev - 1 + (totalItems || 1)) % (totalItems || 1));
+    } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (highlightIdx < results.length) {
+      if (highlightIdx >= 0 && highlightIdx < results.length) {
         selectTicker(results[highlightIdx].symbol);
-      } else {
+      } else if (highlightIdx >= results.length && highlightIdx < totalItems) {
         selectTicker(recentSearches[highlightIdx - results.length]);
+      } else if (results.length > 0) {
+        selectTicker(results[0].symbol);
+      } else if (query.trim().length > 0) {
+        selectTicker(query.trim().toUpperCase());
       }
     } else if (e.key === 'Escape') {
       setIsOpen(false);
@@ -387,7 +397,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   const showDropdown = isOpen && (results.length > 0 || (query.length < 2 && recentSearches.length > 0));
 
   return (
-    <div ref={containerRef} className="flex-1 mx-4 relative">
+    <div ref={containerRef} className="w-[280px] mx-4 relative flex-shrink-0">
       {/* Search input wrapper */}
       <div className={`relative rounded-xl ${isFocused ? 'p-[1px] radar-rainbow-border' : ''}`}>
         <div
@@ -580,7 +590,7 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART — TradingView Lightweight Charts with MSB/OB Overlays
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = [], bosEvents = [], drawings = [], activeTool = 'crosshair', activeColor = '#ffffff', onAddDrawing, onRemoveDrawing }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = [], bosEvents = [], drawings = [], activeTool = 'crosshair', activeColor = '#ffffff', onAddDrawing, onRemoveDrawing, onUpdateDrawing }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -593,11 +603,14 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
   const previewSeriesRef = useRef([]);
   const previewPriceLinesRef = useRef([]);
 
+  const [colorPalette, setColorPalette] = useState(null); // { x, y, drawingId }
+
   // Refs to avoid stale closures in event handlers
   const activeToolRef = useRef(activeTool);
   const activeColorRef = useRef(activeColor);
   const onAddDrawingRef = useRef(onAddDrawing);
   const onRemoveDrawingRef = useRef(onRemoveDrawing);
+  const onUpdateDrawingRef = useRef(onUpdateDrawing);
   const drawingsRef = useRef(drawings);
   const candlesRef = useRef(candles);
 
@@ -605,6 +618,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
   useEffect(() => { activeColorRef.current = activeColor; }, [activeColor]);
   useEffect(() => { onAddDrawingRef.current = onAddDrawing; }, [onAddDrawing]);
   useEffect(() => { onRemoveDrawingRef.current = onRemoveDrawing; }, [onRemoveDrawing]);
+  useEffect(() => { onUpdateDrawingRef.current = onUpdateDrawing; }, [onUpdateDrawing]);
   useEffect(() => { drawingsRef.current = drawings; }, [drawings]);
   useEffect(() => { candlesRef.current = candles; }, [candles]);
 
@@ -839,7 +853,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
         const ds = drawingsRef.current;
         let bestId = null, bestDist = Infinity;
         ds.forEach(d => {
-          if (d.type === 'hline') {
+          if (d.type === 'hline' || d.type === 'hray') {
             const py = series.priceToCoordinate(d.points[0].price);
             if (py != null) {
               const dist = Math.abs(coords.y - py);
@@ -884,12 +898,12 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
         return;
       }
 
-      if (tool === 'hline') {
+      if (tool === 'hline' || tool === 'hray') {
         onAddDrawingRef.current?.({
           id: Date.now(),
-          type: 'hline',
+          type: tool,
           color: activeColorRef.current,
-          points: [{ price: coords.price }],
+          points: [{ price: coords.price, time: coords.time }],
         });
         return;
       }
@@ -934,11 +948,57 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
       });
     }
 
+    function onContextMenu(e) {
+      e.preventDefault();
+      const coords = getCoords(e);
+      if (!coords) return;
+      const ds = drawingsRef.current;
+      let bestId = null, bestDist = Infinity;
+      ds.forEach(d => {
+        if (d.type === 'hline' || d.type === 'hray') {
+          const py = series.priceToCoordinate(d.points[0].price);
+          if (py != null) { const dist = Math.abs(coords.y - py); if (dist < bestDist) { bestDist = dist; bestId = d.id; } }
+        } else if (d.type === 'trendline') {
+          const [p1, p2] = d.points;
+          const x1 = getXFromTime(p1.time), y1 = series.priceToCoordinate(p1.price);
+          const x2 = getXFromTime(p2.time), y2 = series.priceToCoordinate(p2.price);
+          if (x1 != null && y1 != null && x2 != null && y2 != null) {
+            const dist = pointToSegmentDist(coords.x, coords.y, x1, y1, x2, y2);
+            if (dist < bestDist) { bestDist = dist; bestId = d.id; }
+          }
+        } else if (d.type === 'rectangle') {
+          const [p1, p2] = d.points;
+          const topY = series.priceToCoordinate(Math.max(p1.price, p2.price));
+          const botY = series.priceToCoordinate(Math.min(p1.price, p2.price));
+          const x1 = getXFromTime(Math.min(p1.time, p2.time));
+          const x2 = getXFromTime(Math.max(p1.time, p2.time));
+          if (topY != null && botY != null && x1 != null && x2 != null) {
+            if (coords.x >= Math.min(x1, x2) && coords.x <= Math.max(x1, x2) && coords.y >= Math.min(topY, botY) && coords.y <= Math.max(topY, botY)) {
+              bestDist = 0; bestId = d.id;
+            }
+          }
+        } else if (d.type === 'fib') {
+          const [p1, p2] = d.points;
+          const high = Math.max(p1.price, p2.price), low = Math.min(p1.price, p2.price), range = high - low;
+          [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1].forEach(level => {
+            const py = series.priceToCoordinate(high - range * level);
+            if (py != null) { const dist = Math.abs(coords.y - py); if (dist < bestDist) { bestDist = dist; bestId = d.id; } }
+          });
+        }
+      });
+      if (bestId != null && bestDist <= 15) {
+        const rect = container.getBoundingClientRect();
+        setColorPalette({ x: e.clientX - rect.left, y: e.clientY - rect.top, drawingId: bestId });
+      }
+    }
+
     container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('contextmenu', onContextMenu);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
     return () => {
       container.removeEventListener('mousedown', onMouseDown);
+      container.removeEventListener('contextmenu', onContextMenu);
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
       clearPreview();
@@ -966,26 +1026,109 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
       });
     });
 
-    // ── CHoCH markers ─────────────────────────────────────────────────
-    chochEvents.forEach(ev => {
+    // ── Smart Money BUY/SELL signal markers (Pine Script style) ─────
+    (Array.isArray(signals) ? signals : [])
+      .filter(s => s.strategy_source === 'Smart Money' && s.status === 'active')
+      .forEach(s => {
+        const time = Number(s.detected_at ?? s.time);
+        if (!Number.isFinite(time)) return;
+        const isLong = s.direction === 'long';
+        markers.push({
+          time,
+          position: isLong ? 'belowBar' : 'aboveBar',
+          color: isLong ? '#00E676' : '#FF1744',
+          shape: isLong ? 'arrowUp' : 'arrowDown',
+          text: isLong ? 'BUY' : 'SELL',
+        });
+      });
+
+    // ── CHoCH overlays — level line + zone + text marker (Pine Script style)
+    chochEvents.slice(-15).forEach(ev => {
+      const evBar = Number(ev.bar);
+      const evTime = Number(ev.time);
+      const level = Number(ev.level);
+      if (!Number.isFinite(evBar) || !Number.isFinite(evTime) || !Number.isFinite(level)) return;
+
+      // Text marker
       markers.push({
-        time: ev.time,
+        time: evTime,
         position: ev.direction === 'long' ? 'belowBar' : 'aboveBar',
         color: CHOCH_COLOR,
         shape: ev.direction === 'long' ? 'arrowUp' : 'arrowDown',
         text: 'CHoCH',
       });
+
+      if (chartRef.current) {
+        // Level line spanning 2 bars before to 5 bars after
+        const startIdx = Math.max(0, evBar - 2);
+        const endIdx = Math.min(candles.length - 1, evBar + 5);
+        const startTime = Number(candles[startIdx]?.time);
+        const endTime = Number(candles[endIdx]?.time);
+        if (Number.isFinite(startTime) && Number.isFinite(endTime) && startTime !== endTime) {
+          const chLine = addLineSeriesCompat(chartRef.current, {
+            color: CHOCH_COLOR, lineWidth: 2, lineStyle: 0,
+            lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+          });
+          chLine.setData([{ time: Math.min(startTime, endTime), value: level }, { time: Math.max(startTime, endTime), value: level }]);
+          obOverlaySeriesRef.current.push(chLine);
+
+          // Thin semi-transparent zone (0.1% above and below)
+          const zoneHalf = level * 0.001;
+          const chZone = addBaselineSeriesCompat(chartRef.current, {
+            baseValue: { type: 'price', price: level - zoneHalf },
+            topFillColor1: 'rgba(0,194,255,0.06)', topFillColor2: 'rgba(0,194,255,0.06)',
+            topLineColor: 'rgba(0,0,0,0)',
+            bottomFillColor1: 'rgba(0,0,0,0)', bottomFillColor2: 'rgba(0,0,0,0)',
+            bottomLineColor: 'rgba(0,0,0,0)',
+            lineWidth: 0, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+          });
+          chZone.setData([{ time: Math.min(startTime, endTime), value: level + zoneHalf }, { time: Math.max(startTime, endTime), value: level + zoneHalf }]);
+          obOverlaySeriesRef.current.push(chZone);
+        }
+      }
     });
 
-    // ── BOS markers ─────────────────────────────────────────────────
-    bosEvents.forEach(ev => {
+    // ── BOS overlays — level line + zone + text marker (Pine Script style)
+    bosEvents.slice(-15).forEach(ev => {
+      const evBar = Number(ev.bar);
+      const evTime = Number(ev.time);
+      const level = Number(ev.level);
+      if (!Number.isFinite(evBar) || !Number.isFinite(evTime) || !Number.isFinite(level)) return;
+
       markers.push({
-        time: ev.time,
+        time: evTime,
         position: ev.direction === 'long' ? 'belowBar' : 'aboveBar',
         color: BOS_COLOR,
         shape: ev.direction === 'long' ? 'arrowUp' : 'arrowDown',
         text: 'BOS',
       });
+
+      if (chartRef.current) {
+        const startIdx = Math.max(0, evBar - 2);
+        const endIdx = Math.min(candles.length - 1, evBar + 5);
+        const startTime = Number(candles[startIdx]?.time);
+        const endTime = Number(candles[endIdx]?.time);
+        if (Number.isFinite(startTime) && Number.isFinite(endTime) && startTime !== endTime) {
+          const bosLine = addLineSeriesCompat(chartRef.current, {
+            color: '#E040FB', lineWidth: 2, lineStyle: 0,
+            lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+          });
+          bosLine.setData([{ time: Math.min(startTime, endTime), value: level }, { time: Math.max(startTime, endTime), value: level }]);
+          obOverlaySeriesRef.current.push(bosLine);
+
+          const zoneHalf = level * 0.001;
+          const bosZone = addBaselineSeriesCompat(chartRef.current, {
+            baseValue: { type: 'price', price: level - zoneHalf },
+            topFillColor1: 'rgba(224,64,251,0.06)', topFillColor2: 'rgba(224,64,251,0.06)',
+            topLineColor: 'rgba(0,0,0,0)',
+            bottomFillColor1: 'rgba(0,0,0,0)', bottomFillColor2: 'rgba(0,0,0,0)',
+            bottomLineColor: 'rgba(0,0,0,0)',
+            lineWidth: 0, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+          });
+          bosZone.setData([{ time: Math.min(startTime, endTime), value: level + zoneHalf }, { time: Math.max(startTime, endTime), value: level + zoneHalf }]);
+          obOverlaySeriesRef.current.push(bosZone);
+        }
+      }
     });
 
     // ── Triggered/completed signal markers ───────────────────────────
@@ -1178,10 +1321,25 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
           price: d.points[0].price,
           color: d.color,
           lineWidth: 1,
-          lineStyle: 0,
+          lineStyle: 2,
           axisLabelVisible: true,
         });
         drawingPriceLinesRef.current.push(pl);
+      } else if (d.type === 'hray') {
+        // Horizontal ray — from click time to chart end
+        const startTime = d.points[0].time;
+        const chartEnd = candles.length > 0 ? candles[candles.length - 1].time : startTime;
+        if (startTime && chartEnd) {
+          const ray = addLineSeriesCompat(chartRef.current, {
+            color: d.color, lineWidth: 1, lineStyle: 2,
+            lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+          });
+          ray.setData([
+            { time: Math.min(startTime, chartEnd), value: d.points[0].price },
+            { time: Math.max(startTime, chartEnd), value: d.points[0].price },
+          ]);
+          drawingSeriesRef.current.push(ray);
+        }
       } else if (d.type === 'trendline') {
         const [p1, p2] = d.points;
         const sorted = p1.time <= p2.time ? [p1, p2] : [p2, p1];
@@ -1250,11 +1408,44 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
   }, [drawings]);
 
   return (
-    <div
-      ref={chartContainerRef}
-      className="w-full h-full"
-      style={{ cursor: activeTool !== 'crosshair' ? 'crosshair' : undefined }}
-    />
+    <div className="w-full h-full relative">
+      <div
+        ref={chartContainerRef}
+        className="w-full h-full"
+        style={{ cursor: activeTool !== 'crosshair' ? 'crosshair' : undefined }}
+        onClick={() => setColorPalette(null)}
+      />
+      {/* Right-click color palette */}
+      {colorPalette && (
+        <div
+          className="absolute z-20 flex items-center gap-1 bg-[#1e222d] border border-white/[0.1] rounded-lg p-1.5 shadow-xl"
+          style={{ left: colorPalette.x, top: colorPalette.y }}
+        >
+          {PALETTE_COLORS.map(c => (
+            <button
+              key={c}
+              onClick={() => {
+                onUpdateDrawingRef.current?.(colorPalette.drawingId, { color: c });
+                setColorPalette(null);
+              }}
+              className="w-5 h-5 rounded-full transition-transform hover:scale-125"
+              style={{ backgroundColor: c }}
+            />
+          ))}
+          <div className="w-px h-4 bg-white/10 mx-0.5" />
+          <button
+            onClick={() => {
+              onRemoveDrawingRef.current?.(colorPalette.drawingId);
+              setColorPalette(null);
+            }}
+            className="w-5 h-5 flex items-center justify-center text-red-400 hover:text-red-300 transition-colors"
+            title="Delete"
+          >
+            <Eraser size={12} />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1970,6 +2161,14 @@ function StrategyRadarContent() {
     });
   }, [selectedTicker]);
 
+  const handleUpdateDrawing = useCallback((drawingId, updates) => {
+    setDrawings(prev => {
+      const next = prev.map(d => d.id === drawingId ? { ...d, ...updates } : d);
+      persistDrawings(selectedTicker, next);
+      return next;
+    });
+  }, [selectedTicker]);
+
   // Filter signals for current ticker — only last 48 hours
   const currentTickerSignals = useMemo(() => {
     const cutoff48h = Date.now() - 48 * 60 * 60 * 1000;
@@ -2089,6 +2288,7 @@ function StrategyRadarContent() {
               activeColor={activeColor}
               onAddDrawing={handleAddDrawing}
               onRemoveDrawing={handleRemoveDrawing}
+              onUpdateDrawing={handleUpdateDrawing}
             />
           </div>
 
