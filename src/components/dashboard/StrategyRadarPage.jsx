@@ -252,7 +252,6 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           )}
-          <span className="text-xs font-mono text-gray-600 flex-shrink-0">{selectedTicker}</span>
         </div>
       </div>
 
@@ -666,23 +665,23 @@ function SignalCard({ signal, marketStatus }) {
 
 function StrategyCard({ strategy, enabled, onToggle, onViewDetails }) {
   return (
-    <div className="border border-white/6 rounded-lg p-1.5">
+    <div className="border border-white/6 rounded-lg p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-white truncate flex-1 min-w-0">{String(strategy.name || '')}</span>
+        <span className="text-lg font-semibold text-white truncate flex-1 min-w-0">{String(strategy.name || '')}</span>
         <button onClick={() => onToggle(strategy.id)}
-          className={`w-4 h-4 rounded-full border-2 transition-all flex-shrink-0 flex items-center justify-center ${enabled ? 'border-emerald-400' : 'border-white/20 hover:border-white/40'}`}>
-          {enabled && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
+          className={`w-5 h-5 rounded-full border-2 transition-all flex-shrink-0 flex items-center justify-center ${enabled ? 'border-emerald-400' : 'border-white/20 hover:border-white/40'}`}>
+          {enabled && <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />}
         </button>
       </div>
       {SIGNAL_DESCRIPTIONS[strategy.strategy_type] && (
-        <p className="text-[11px] text-gray-400 leading-relaxed mt-1">{SIGNAL_DESCRIPTIONS[strategy.strategy_type].summary}</p>
+        <p className="text-base text-gray-400 leading-relaxed mt-1.5">{SIGNAL_DESCRIPTIONS[strategy.strategy_type].summary}</p>
       )}
       {strategy.backtest_win_rate && (
-        <div className="flex items-center gap-3 mt-1 text-[10px]">
+        <div className="flex items-center gap-3 mt-2 text-sm">
           <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(strategy.backtest_win_rate)}%</span></span>
           <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">+{String(strategy.backtest_return)}%</span></span>
           <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(strategy.backtest_profit_factor)}</span></span>
-          <button onClick={() => onViewDetails(strategy)} className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
+          <button onClick={() => onViewDetails(strategy)} className="text-sm text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
         </div>
       )}
     </div>
@@ -729,29 +728,29 @@ function RadarSettings({ settings, onUpdate }) {
   const sliderClass = "relative w-full appearance-none bg-transparent cursor-pointer z-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer";
 
   return (
-    <div className="border border-white/6 rounded-lg p-2 space-y-2">
+    <div className="border border-white/6 rounded-lg p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Settings</h3>
-        <span className="text-[10px] font-semibold" style={{ color: riskProfile.color }}>{riskProfile.label}</span>
+        <h3 className="text-base text-gray-500 uppercase tracking-widest font-semibold">Settings</h3>
+        <span className="text-lg font-semibold" style={{ color: riskProfile.color }}>{riskProfile.label}</span>
       </div>
       <div>
-        <div className="flex items-center gap-1.5 mb-1"><label className="text-[10px] text-gray-400 flex-1">Stop Loss</label><span className="text-[10px] font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span></div>
-        <div className="relative h-4 flex items-center">
-          <div className="absolute w-full h-1 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${slPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
+        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Stop Loss</label><span className="text-lg font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span></div>
+        <div className="relative h-5 flex items-center">
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${slPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
           <input type="range" min="0.1" max="2.0" step="0.1" value={settings.stop_loss_multiplier} onChange={e => onUpdate({ stop_loss_multiplier: parseFloat(e.target.value) })} className={sliderClass} />
         </div>
       </div>
       <div>
-        <div className="flex items-center gap-1.5 mb-1"><label className="text-[10px] text-gray-400 flex-1">Take Profit</label><span className="text-[10px] font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span></div>
-        <div className="relative h-4 flex items-center">
-          <div className="absolute w-full h-1 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${tpFillPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
+        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Take Profit</label><span className="text-lg font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span></div>
+        <div className="relative h-5 flex items-center">
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${tpFillPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
           <input type="range" min="1.0" max="5.0" step="0.5" value={settings.take_profit_multiplier} onChange={e => onUpdate({ take_profit_multiplier: parseFloat(e.target.value) })} className={sliderClass} />
         </div>
       </div>
       <div>
-        <div className="flex items-center gap-1.5 mb-1"><label className="text-[10px] text-gray-400 flex-1">Risk Per Trade</label><span className="text-[10px] font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span></div>
-        <div className="relative h-4 flex items-center">
-          <div className="absolute w-full h-1 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${riskPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
+        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Risk Per Trade</label><span className="text-lg font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span></div>
+        <div className="relative h-5 flex items-center">
+          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-300" style={{ width: `${riskPct * 100}%`, backgroundColor: SLIDER_FILL }} /></div>
           <input type="range" min="0.5" max="5.0" step="0.5" value={settings.risk_per_trade * 100} onChange={e => onUpdate({ risk_per_trade: parseFloat(e.target.value) / 100 })} className={sliderClass} />
         </div>
       </div>
@@ -766,9 +765,9 @@ function RadarSettings({ settings, onUpdate }) {
 function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
   if (!trendDetails || trendDetails.length === 0) return null;
   return (
-    <div className="border border-white/6 rounded-lg p-2">
-      <h3 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1">Trend Strength</h3>
-      <div className="flex items-center gap-2 text-xs font-mono">
+    <div className="border border-white/6 rounded-lg p-3">
+      <h3 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-1.5">Trend Strength</h3>
+      <div className="flex items-center gap-2 text-sm font-mono">
         {trendDetails.map((td, i) => (
           <span key={String(td.label || i)} className="flex items-center gap-0.5">
             <span className="text-gray-500">{String(td.label || '')}</span>
@@ -1143,8 +1142,11 @@ function StrategyRadarContent() {
 
         {/* RIGHT — Signals + Strategies */}
         <div className="flex-[2] min-h-0 overflow-y-auto relative">
-          <div className="p-2 border-b border-white/6">
-            <h2 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1.5">Active Signals</h2>
+          <div className="px-5 py-3 border-b border-white/6">
+            <span className="text-white font-semibold text-lg font-mono">${selectedTicker}</span>
+          </div>
+          <div className="p-3 border-b border-white/6">
+            <h2 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
             {currentTickerSignals.length > 0 ? (
               <>
                 <div className="flex gap-0.5 mb-2 overflow-x-auto pb-0.5">
@@ -1174,36 +1176,36 @@ function StrategyRadarContent() {
               </>
             ) : (
               anyStrategyEnabled ? (
-                <div className="flex items-center gap-2 py-2">
+                <div className="flex items-center gap-2 py-3">
                   <div className="relative">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                     <div className="absolute inset-0 w-2 h-2 bg-emerald-500 rounded-full animate-ping opacity-50" />
                   </div>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-base text-gray-500">
                     {!marketStatus.open && !marketStatus.premarket && !marketStatus.afterhours
                       ? 'Market closed — signals update at next open'
                       : 'Scanning for setups...'}
                   </span>
                 </div>
               ) : (
-                <p className="text-xs text-gray-500 py-2">Toggle a strategy to start scanning</p>
+                <p className="text-base text-gray-500 py-3">Toggle a strategy to start scanning</p>
               )
             )}
           </div>
 
           {enabledTypes.has('smart_money') && smResults.trendDetails && smResults.trendDetails.length > 0 && (
-            <div className="p-2 border-b border-white/6">
+            <div className="p-3 border-b border-white/6">
               <TrendStrengthMatrix trendStrength={smResults.trendStrength} confidence={smResults.confidence} trendDetails={smResults.trendDetails} />
             </div>
           )}
 
-          <div className="p-2 border-b border-white/6">
+          <div className="p-3 border-b border-white/6">
             <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
           </div>
 
-          <div className="p-2">
-            <h2 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1.5">Verified Strategies</h2>
-            <div className="space-y-1.5">
+          <div className="p-3">
+            <h2 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-2">Verified Strategies</h2>
+            <div className="space-y-2">
               {strategies.map(strategy => (
                 <StrategyCard key={strategy.id} strategy={strategy} enabled={activeStrategies[strategy.id] || false} onToggle={handleToggleStrategy} onViewDetails={setExpandedStrategy} />
               ))}
