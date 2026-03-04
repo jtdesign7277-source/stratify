@@ -22,6 +22,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@upstash/redis": "^1.36.3",
     "canvas-confetti": "^1.9.3",
+    "fancy-canvas": "^2.1.0",
     "framer-motion": "^12.29.2",
     "highcharts": "^12.5.0",
     "highcharts-react-official": "^3.2.3",

@@ -18,6 +18,8 @@ const SCENARIO_SYNC_DEBOUNCE_MS = 900;
 const AI_IDEA_FALLBACK_SYMBOLS = ['SPY', 'QQQ', 'SMH', 'XLF', 'XLE', 'IWM', 'TLT', 'GLD', 'COIN', 'MSTR', 'AMD', 'AVGO'];
 const WHAT_IF_TIMEFRAME_OPTIONS = [3, 6, 9, 12];
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_CANDLE_OUTPUT_SIZE = 5000;
 
 const CRYPTO_BASE_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LINK', 'ADA', 'AVAX', 'DOT']);
 
@@ -307,24 +309,6 @@ const summarizePositions = (rows = []) => {
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-const generateWalletSeries = (holdingValue, investedValue, points = 120) => {
-  const now = Date.now();
-  const holding = [];
-  const invested = [];
-
-  for (let i = 0; i <= points; i += 1) {
-    const ratio = i / points;
-    const t = now - (points - i) * 24 * 60 * 60 * 1000;
-    const wave = Math.sin(i * 0.33) * 0.008 * investedValue;
-    const holdingPoint = investedValue + (holdingValue - investedValue) * ratio + wave;
-
-    holding.push([t, i === points ? holdingValue : holdingPoint]);
-    invested.push([t, investedValue]);
-  }
-
-  return { holding, invested };
-};
-
 const asTradeValue = (trade) => {
   const explicit = Number(trade?.total_cost);
   if (Number.isFinite(explicit) && explicit > 0) return explicit;
@@ -337,6 +321,183 @@ const toTimestamp = (value) => {
   if (Number.isFinite(value)) return Number(value);
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const startOfLocalDay = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const endOfLocalDay = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(23, 59, 59, 999);
+  return date;
+};
+
+const normalizePerformanceTrade = (trade) => {
+  if (!trade || typeof trade !== 'object') return null;
+
+  const symbol = normalizeSymbol(trade?.symbol ?? trade?.ticker ?? trade?.Symbol);
+  if (!symbol) return null;
+
+  const rawQuantity = Number(trade?.quantity ?? trade?.shares ?? trade?.qty ?? trade?.size ?? trade?.amount ?? 0);
+  const quantity = Math.abs(rawQuantity);
+  if (!Number.isFinite(quantity) || quantity <= 0) return null;
+
+  const sideRaw = String(trade?.side ?? trade?.type ?? trade?.action ?? '').trim().toLowerCase();
+  let side = 'buy';
+  if (['sell', 'short', 'close'].includes(sideRaw) || rawQuantity < 0) side = 'sell';
+  if (['buy', 'long', 'open'].includes(sideRaw)) side = 'buy';
+
+  const explicitPrice = Number(trade?.price ?? trade?.fillPrice ?? trade?.avgPrice ?? trade?.executionPrice ?? 0);
+  const totalCost = Number(trade?.total_cost ?? trade?.total ?? trade?.cost ?? 0);
+  const derivedPrice = Number.isFinite(explicitPrice) && explicitPrice > 0
+    ? explicitPrice
+    : (Number.isFinite(totalCost) && totalCost > 0 ? totalCost / quantity : 0);
+  if (!Number.isFinite(derivedPrice) || derivedPrice <= 0) return null;
+
+  const timestamp = toTimestamp(trade?.created_at ?? trade?.timestamp ?? trade?.time ?? trade?.date);
+  if (!timestamp) return null;
+
+  return {
+    symbol,
+    side,
+    quantity,
+    price: derivedPrice,
+    timestamp,
+  };
+};
+
+const dedupeAndNormalizePerformanceTrades = (rows = []) => {
+  const seen = new Map();
+
+  (Array.isArray(rows) ? rows : []).forEach((row, index) => {
+    const normalized = normalizePerformanceTrade(row);
+    if (!normalized) return;
+
+    const rowId = String(row?.id ?? row?.tradeId ?? '').trim();
+    const fallbackId = [
+      normalized.symbol,
+      normalized.side,
+      normalized.quantity.toFixed(8),
+      normalized.price.toFixed(8),
+      normalized.timestamp,
+      index,
+    ].join(':');
+    seen.set(rowId || fallbackId, normalized);
+  });
+
+  return [...seen.values()].sort((a, b) => a.timestamp - b.timestamp);
+};
+
+const buildDailyPerformanceSeries = (trades = [], candlesBySymbol = new Map()) => {
+  const normalizedTrades = Array.isArray(trades) ? trades : [];
+  const buyTrades = normalizedTrades.filter((trade) => trade.side === 'buy');
+  if (buyTrades.length === 0) {
+    return { hasTradeHistory: false, holding: [], invested: [] };
+  }
+
+  const earliestBuyTimestamp = Math.min(...buyTrades.map((trade) => trade.timestamp));
+  const startDate = startOfLocalDay(earliestBuyTimestamp);
+  const endDate = startOfLocalDay(Date.now());
+  if (!startDate || !endDate) {
+    return { hasTradeHistory: false, holding: [], invested: [] };
+  }
+
+  const positions = new Map();
+  const trackedSymbols = new Set(normalizedTrades.map((trade) => trade.symbol).filter(Boolean));
+  const candleState = new Map();
+
+  trackedSymbols.forEach((symbol) => {
+    candleState.set(symbol, {
+      pointer: 0,
+      lastClose: null,
+      rows: Array.isArray(candlesBySymbol.get(symbol)) ? candlesBySymbol.get(symbol) : [],
+    });
+  });
+
+  const holding = [];
+  const invested = [];
+  let tradeIndex = 0;
+
+  for (let cursor = new Date(startDate); cursor.getTime() <= endDate.getTime(); cursor = new Date(cursor.getTime() + DAY_MS)) {
+    const dayEnd = endOfLocalDay(cursor);
+    if (!dayEnd) continue;
+    const dayEndEpoch = dayEnd.getTime();
+
+    while (tradeIndex < normalizedTrades.length && normalizedTrades[tradeIndex].timestamp <= dayEndEpoch) {
+      const trade = normalizedTrades[tradeIndex];
+      const current = positions.get(trade.symbol) || { quantity: 0, avgCost: 0 };
+
+      if (trade.side === 'buy') {
+        const nextQuantity = current.quantity + trade.quantity;
+        const weightedCost = (current.quantity * current.avgCost) + (trade.quantity * trade.price);
+        positions.set(trade.symbol, {
+          quantity: nextQuantity,
+          avgCost: nextQuantity > 0 ? weightedCost / nextQuantity : 0,
+        });
+      } else {
+        const soldQuantity = Math.min(current.quantity, trade.quantity);
+        const remainingQuantity = current.quantity - soldQuantity;
+        if (remainingQuantity <= 0) {
+          positions.delete(trade.symbol);
+        } else {
+          positions.set(trade.symbol, {
+            quantity: remainingQuantity,
+            avgCost: current.avgCost,
+          });
+        }
+      }
+
+      tradeIndex += 1;
+    }
+
+    positions.forEach((_position, symbol) => {
+      const state = candleState.get(symbol);
+      if (!state || !Array.isArray(state.rows) || state.rows.length === 0) return;
+
+      while (state.pointer < state.rows.length) {
+        const row = state.rows[state.pointer];
+        const candleEpoch = parseCandleDateToEpoch(row?.datetime);
+        const close = Number(row?.close);
+        if (!Number.isFinite(candleEpoch)) {
+          state.pointer += 1;
+          continue;
+        }
+        if (candleEpoch <= dayEndEpoch) {
+          if (Number.isFinite(close) && close > 0) state.lastClose = close;
+          state.pointer += 1;
+          continue;
+        }
+        break;
+      }
+    });
+
+    let investedValue = 0;
+    let holdingValue = 0;
+
+    positions.forEach((position, symbol) => {
+      if (!position || !Number.isFinite(position.quantity) || position.quantity <= 0) return;
+      const avgCost = Number(position.avgCost || 0);
+      if (!Number.isFinite(avgCost) || avgCost <= 0) return;
+
+      const state = candleState.get(symbol);
+      const close = Number(state?.lastClose);
+      const marketPrice = Number.isFinite(close) && close > 0 ? close : avgCost;
+
+      investedValue += position.quantity * avgCost;
+      holdingValue += position.quantity * marketPrice;
+    });
+
+    const pointTime = cursor.getTime();
+    invested.push([pointTime, Number(investedValue.toFixed(2))]);
+    holding.push([pointTime, Number(holdingValue.toFixed(2))]);
+  }
+
+  return { hasTradeHistory: true, holding, invested };
 };
 
 const formatTradeTime = (value) => {
@@ -388,6 +549,13 @@ export default function PortfolioDashboard() {
   const [whatIfGeneratedAt, setWhatIfGeneratedAt] = useState('');
   const [radarLiveQuotes, setRadarLiveQuotes] = useState({});
   const [scenarioSyncReady, setScenarioSyncReady] = useState(false);
+  const [performanceState, setPerformanceState] = useState(() => ({
+    loading: true,
+    hasTradeHistory: false,
+    holding: [],
+    invested: [],
+    error: '',
+  }));
   const scenarioSyncTimerRef = useRef(null);
   const syncedScenarioIdsRef = useRef(new Set());
   const lastSyncedScenarioSignatureRef = useRef('');
@@ -399,7 +567,6 @@ export default function PortfolioDashboard() {
   const totalPnlPct = Number(portfolio?.total_pnl_percent || 0);
 
   const investedNow = Math.max(0, totalValue - cashBalance);
-  const holdingNow = totalValue;
 
   const strategyTrades = useMemo(() => {
     const rows = Array.isArray(syncedTrades) ? syncedTrades : [];
@@ -469,9 +636,14 @@ export default function PortfolioDashboard() {
     strategySummary,
   ]);
 
-  const { holding, invested } = useMemo(
-    () => generateWalletSeries(holdingNow, STARTING_BALANCE),
-    [holdingNow]
+  const performanceTradeRefreshKey = useMemo(
+    () => (Array.isArray(trades)
+      ? trades
+        .slice(0, 200)
+        .map((trade) => `${trade?.id || ''}:${trade?.created_at || trade?.timestamp || ''}`)
+        .join('|')
+      : ''),
+    [trades]
   );
 
   const riskScore = useMemo(() => {
@@ -1271,6 +1443,131 @@ export default function PortfolioDashboard() {
     };
   }, [aiIdeasQuery, fallbackAiIdeas, heldSymbols, ideaRefreshNonce, splitViewEnabled]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const abortController = new AbortController();
+
+    const loadPerformanceSeries = async () => {
+      if (!user?.id) {
+        setPerformanceState({
+          loading: false,
+          hasTradeHistory: false,
+          holding: [],
+          invested: [],
+          error: '',
+        });
+        return;
+      }
+
+      setPerformanceState((previous) => ({
+        ...previous,
+        loading: true,
+        error: '',
+      }));
+
+      try {
+        const { data: paperTrades, error: paperTradesError } = await supabase
+          .from('paper_trades')
+          .select('id, symbol, side, quantity, price, total_cost, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true })
+          .limit(5000);
+
+        let supabaseTradeRows = Array.isArray(paperTrades) ? paperTrades : [];
+        if ((paperTradesError || supabaseTradeRows.length === 0) && !abortController.signal.aborted) {
+          const { data: profileRow, error: profileError } = await supabase
+            .from('profiles')
+            .select('trade_history, user_state')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (paperTradesError && profileError) {
+            throw new Error(paperTradesError.message || profileError.message || 'Failed to load trade history.');
+          }
+
+          const profileTrades = Array.isArray(profileRow?.trade_history) ? profileRow.trade_history : [];
+          const userStateTrades = Array.isArray(profileRow?.user_state?.trade_history)
+            ? profileRow.user_state.trade_history
+            : [];
+          supabaseTradeRows = [...supabaseTradeRows, ...profileTrades, ...userStateTrades];
+        }
+
+        const normalizedTrades = dedupeAndNormalizePerformanceTrades(supabaseTradeRows);
+        const buyTrades = normalizedTrades.filter((trade) => trade.side === 'buy');
+
+        if (buyTrades.length === 0) {
+          if (cancelled) return;
+          setPerformanceState({
+            loading: false,
+            hasTradeHistory: false,
+            holding: [],
+            invested: [],
+            error: '',
+          });
+          return;
+        }
+
+        const earliestBuyTimestamp = Math.min(...buyTrades.map((trade) => trade.timestamp));
+        const lookbackDays = Math.ceil((Date.now() - earliestBuyTimestamp) / DAY_MS) + 30;
+        const outputsize = clamp(lookbackDays, 60, MAX_CANDLE_OUTPUT_SIZE);
+        const symbols = [...new Set(normalizedTrades.map((trade) => trade.symbol).filter(Boolean))];
+        const candlesBySymbol = new Map();
+
+        await Promise.all(symbols.map(async (symbol) => {
+          const params = new URLSearchParams({
+            symbol,
+            interval: '1day',
+            outputsize: String(outputsize),
+          });
+
+          try {
+            const response = await fetch(`/api/chart/candles?${params.toString()}`, {
+              method: 'GET',
+              headers: { Accept: 'application/json' },
+              cache: 'no-store',
+              signal: abortController.signal,
+            });
+            if (!response.ok) return;
+            const payload = await response.json().catch(() => ({}));
+            const parsed = parseApiCandles(payload);
+            if (parsed.length > 0) {
+              candlesBySymbol.set(symbol, parsed);
+            }
+          } catch {
+            // best-effort per symbol
+          }
+        }));
+
+        if (cancelled || abortController.signal.aborted) return;
+        const series = buildDailyPerformanceSeries(normalizedTrades, candlesBySymbol);
+
+        setPerformanceState({
+          loading: false,
+          hasTradeHistory: series.hasTradeHistory,
+          holding: series.holding,
+          invested: series.invested,
+          error: '',
+        });
+      } catch (error) {
+        if (cancelled || abortController.signal.aborted) return;
+        setPerformanceState({
+          loading: false,
+          hasTradeHistory: false,
+          holding: [],
+          invested: [],
+          error: String(error?.message || 'Failed to load portfolio performance.'),
+        });
+      }
+    };
+
+    void loadPerformanceSeries();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
+  }, [performanceTradeRefreshKey, user?.id]);
+
   const walletChartOptions = useMemo(() => ({
     chart: {
       type: 'areaspline',
@@ -1319,20 +1616,20 @@ export default function PortfolioDashboard() {
       {
         type: 'areaspline',
         name: 'Holding',
-        data: holding,
+        data: performanceState.holding,
         color: '#10b981',
         lineWidth: 2,
       },
       {
         type: 'line',
         name: 'Invested',
-        data: invested,
+        data: performanceState.invested,
         color: '#737373',
         dashStyle: 'ShortDot',
         lineWidth: 2,
       },
     ],
-  }), [holding, invested]);
+  }), [performanceState.holding, performanceState.invested]);
 
   const riskColor = riskScore >= 75 ? '#ef4444' : '#3b82f6';
   const goalColor = goalProbability >= 60 ? '#10b981' : '#ef4444';
@@ -1464,9 +1761,9 @@ export default function PortfolioDashboard() {
 
   if (loading && !portfolio) {
     return (
-      <div className="relative h-full overflow-hidden bg-[#060d18] text-gray-400" style={starfieldBaseStyle}>
+      <div className="relative min-h-screen overflow-hidden bg-[#060d18] text-gray-400" style={starfieldBaseStyle}>
         <div className="pointer-events-none absolute inset-0 opacity-70" style={starfieldDotsStyle} />
-        <div className="relative z-10 flex h-full items-center justify-center">
+        <div className="relative z-10 flex min-h-screen items-center justify-center">
           <RefreshCw size={16} className="mr-2 animate-spin" /> Loading portfolio...
         </div>
       </div>
@@ -1474,7 +1771,7 @@ export default function PortfolioDashboard() {
   }
 
   return (
-    <div className="relative h-full overflow-y-auto bg-[#060d18] text-[#f8fbff]" style={starfieldBaseStyle}>
+    <div className="relative min-h-screen overflow-y-auto bg-[#060d18] text-[#f8fbff]" style={starfieldBaseStyle}>
       <div className="pointer-events-none absolute inset-0 opacity-70" style={starfieldDotsStyle} />
       <div className="relative z-10 p-4">
       <div className="mb-4 flex items-center justify-between">
@@ -1655,7 +1952,20 @@ export default function PortfolioDashboard() {
 
       <div className={`${panelClass} p-3`}>
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Performance</div>
-        <HighchartsReact highcharts={Highcharts} options={walletChartOptions} />
+        {performanceState.loading ? (
+          <div className="flex h-[280px] items-center justify-center text-sm text-gray-500">
+            Loading performance...
+          </div>
+        ) : performanceState.hasTradeHistory ? (
+          <HighchartsReact highcharts={Highcharts} options={walletChartOptions} />
+        ) : (
+          <div className="flex h-[280px] items-center justify-center text-sm text-gray-400">
+            Make your first trade to see performance
+          </div>
+        )}
+        {performanceState.error ? (
+          <div className="mt-2 text-xs text-red-300">{performanceState.error}</div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -1705,7 +2015,7 @@ export default function PortfolioDashboard() {
       </div>
 
       {splitViewEnabled ? (
-        <aside className={`${panelClass} min-w-0 p-3 lg:sticky lg:top-3 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto`}>
+        <aside className={`${panelClass} min-w-0 p-3`}>
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-500">AI Opportunity Radar</div>
@@ -1961,7 +2271,7 @@ export default function PortfolioDashboard() {
                       </div>
                     </div>
 
-                    <div className="mt-2 max-h-56 overflow-auto rounded-md border border-[#1f1f1f]">
+                    <div className="mt-2 overflow-x-auto rounded-md border border-[#1f1f1f]">
                       <table className="min-w-full text-[11px]">
                         <thead>
                           <tr className="border-b border-[#1f1f1f] text-[10px] uppercase tracking-[0.14em] text-gray-500">
