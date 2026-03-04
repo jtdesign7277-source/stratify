@@ -413,7 +413,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
                 {results.map((r, i) => (
                   <button
                     key={r.symbol}
-                    onMouseDown={() => selectTicker(r.symbol)}
+                    onMouseDown={(e) => { e.stopPropagation(); selectTicker(r.symbol); }}
                     onMouseEnter={() => setHighlightIdx(i)}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                       highlightIdx === i ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]'
@@ -438,7 +438,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
                   {recentSearches.map((t, i) => (
                     <button
                       key={t}
-                      onMouseDown={() => selectTicker(t)}
+                      onMouseDown={(e) => { e.stopPropagation(); selectTicker(t); }}
                       onMouseEnter={() => setHighlightIdx(results.length + i)}
                       className={`px-2.5 py-1 text-xs font-mono transition-colors rounded-md ${
                         highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
@@ -1546,11 +1546,18 @@ function StrategyRadarContent() {
   useEffect(() => {
     const inst = chartInstanceRef.current;
     if (!inst?.chart) return;
-    const isDraw = drawingTool !== 'crosshair';
-    inst.chart.applyOptions({
-      handleScroll: isDraw ? false : { vertTouchDrag: false },
-      handleScale: !isDraw,
-    });
+    if (drawingTool === 'crosshair') {
+      // Fully restore chart interaction
+      inst.chart.applyOptions({
+        handleScroll: true,
+        handleScale: true,
+      });
+    } else {
+      inst.chart.applyOptions({
+        handleScroll: false,
+        handleScale: false,
+      });
+    }
   }, [drawingTool]);
 
   // Render drawings on chart whenever drawings or candles change
@@ -1975,7 +1982,16 @@ function StrategyRadarContent() {
         {/* Search bar */}
         <RadarSearchBar
           selectedTicker={selectedTicker}
-          onSelect={(t) => { setSelectedTicker(t); setActiveSignalIdx(0); }}
+          onSelect={(t) => {
+            // Reset drawing state to prevent chart freeze
+            setDrawingTool('crosshair');
+            isDrawingRef.current = false;
+            startPointRef.current = null;
+            // Clear stale chart instance — new chart will call onChartReady
+            chartInstanceRef.current = null;
+            setSelectedTicker(t);
+            setActiveSignalIdx(0);
+          }}
         />
 
         <div className="flex items-center gap-3 flex-shrink-0">
@@ -2025,6 +2041,7 @@ function StrategyRadarContent() {
               onClearAll={handleClearAllDrawings}
             />
             <RadarChart
+              key={selectedTicker}
               candles={candles}
               orderBlocks={orderBlocks}
               msbEvents={msbEvents}
