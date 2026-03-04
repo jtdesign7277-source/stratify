@@ -238,7 +238,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
           <input ref={inputRef} type="text" value={query}
             onChange={e => setQuery(e.target.value)}
             onFocus={() => { setIsFocused(true); setIsOpen(true); }}
-            onBlur={() => setIsFocused(false)}
+            onBlur={() => setTimeout(() => setIsFocused(false), 150)}
             onKeyDown={handleKeyDown}
             placeholder="Search any stock, ETF, crypto..."
             className="flex-1 bg-transparent text-base font-mono text-white placeholder:text-gray-600 placeholder:italic outline-none" />
@@ -660,38 +660,25 @@ function SignalCard({ signal, marketStatus }) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function StrategyCard({ strategy, enabled, onToggle, onViewDetails }) {
-  const [expanded, setExpanded] = useState(false);
   return (
     <div className="border border-white/6 rounded-lg p-1.5">
       <div className="flex items-center justify-between gap-2">
-        <button onClick={() => setExpanded(!expanded)} className="flex-1 min-w-0 text-left">
-          <span className="text-xs font-semibold text-white truncate">{String(strategy.name || '')}</span>
-        </button>
+        <span className="text-xs font-semibold text-white truncate flex-1 min-w-0">{String(strategy.name || '')}</span>
         <button onClick={() => onToggle(strategy.id)}
           className={`w-4 h-4 rounded-full border-2 transition-all flex-shrink-0 flex items-center justify-center ${enabled ? 'border-emerald-400' : 'border-white/20 hover:border-white/40'}`}>
           {enabled && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
         </button>
       </div>
-      {expanded && (
-        <>
-          {strategy.backtest_win_rate && (
-            <div className="flex items-center gap-3 mt-1 text-[10px]">
-              <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(strategy.backtest_win_rate)}%</span></span>
-              <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">+{String(strategy.backtest_return)}%</span></span>
-              <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(strategy.backtest_profit_factor)}</span></span>
-              <button onClick={() => onViewDetails(strategy)} className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
-            </div>
-          )}
-          {SIGNAL_DESCRIPTIONS[strategy.strategy_type] && (
-            <div className="mt-1.5 space-y-1">
-              <p className="text-[11px] text-gray-400 leading-relaxed">{SIGNAL_DESCRIPTIONS[strategy.strategy_type].summary}</p>
-              <div>
-                <span className="text-[10px] text-gray-500 font-semibold">What triggers BUY/SELL?</span>
-                <p className="text-[11px] text-gray-400 leading-relaxed mt-0.5">{SIGNAL_DESCRIPTIONS[strategy.strategy_type].triggers}</p>
-              </div>
-            </div>
-          )}
-        </>
+      {SIGNAL_DESCRIPTIONS[strategy.strategy_type] && (
+        <p className="text-[11px] text-gray-400 leading-relaxed mt-1">{SIGNAL_DESCRIPTIONS[strategy.strategy_type].summary}</p>
+      )}
+      {strategy.backtest_win_rate && (
+        <div className="flex items-center gap-3 mt-1 text-[10px]">
+          <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(strategy.backtest_win_rate)}%</span></span>
+          <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">+{String(strategy.backtest_return)}%</span></span>
+          <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(strategy.backtest_profit_factor)}</span></span>
+          <button onClick={() => onViewDetails(strategy)} className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
+        </div>
       )}
     </div>
   );
@@ -859,6 +846,9 @@ function StrategyRadarContent() {
       setActiveStrategies(prev => {
         const merged = { ...prev };
         strats.forEach(s => { if (!(s.id in merged)) merged[s.id] = false; });
+        // Auto-enable first strategy if none are enabled
+        const anyEnabled = Object.values(merged).some(Boolean);
+        if (!anyEnabled && strats.length > 0) merged[strats[0].id] = true;
         return merged;
       });
       setLoading(false);
@@ -866,12 +856,12 @@ function StrategyRadarContent() {
     init();
   }, []);
 
-  // Fetch candles + run detection
+  // Fetch candles + run detection (always runs — even when market is closed)
   useEffect(() => {
     let cancelled = false;
     if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
 
-    if (!canScan) {
+    if (!anyStrategyEnabled) {
       detectorRef.current = null;
       smDetectorRef.current = null;
       setIsScanning(false);
@@ -886,8 +876,7 @@ function StrategyRadarContent() {
       if (cancelled) return;
       setCandles(candleData);
 
-      if (!canScan) { setLoading(false); return; }
-      setIsScanning(true);
+      if (!anyStrategyEnabled) { setLoading(false); return; }
 
       let allTaggedSignals = [];
 
@@ -916,6 +905,9 @@ function StrategyRadarContent() {
           setSmResults({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 50, trendDetails: [], divergences: [], liquidityZones: [] });
         }
 
+        console.log(`[Radar] ${selectedTicker} detection complete:`, { signals: allTaggedSignals.length, orderBlocks: enabledTypes.has('msb_ob') ? 'yes' : 'no', smartMoney: enabledTypes.has('smart_money') ? 'yes' : 'no', candles: candleData.length });
+        if (allTaggedSignals.length > 0) console.log('[Radar] Signals:', allTaggedSignals);
+
         setSignals(prev => {
           const existing = new Set(prev.map(s => `${s.ticker}-${s.detected_at}-${s.strategy_source || ''}`));
           const newSignals = allTaggedSignals.filter(s => !existing.has(`${s.ticker}-${s.detected_at}-${s.strategy_source || ''}`));
@@ -923,14 +915,19 @@ function StrategyRadarContent() {
         });
       }
 
-      setIsScanning(false);
       setLoading(false);
-      connectWebSocket(selectedTicker, settings.timeframe);
+      // Only start live WebSocket scanning if market is open
+      if (canScan) {
+        setIsScanning(true);
+        connectWebSocket(selectedTicker, settings.timeframe);
+      } else {
+        setIsScanning(false);
+      }
     }
 
     loadAndDetect();
     return () => { cancelled = true; if (wsRef.current) { wsRef.current.close(); wsRef.current = null; } };
-  }, [selectedTicker, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier, canScan, enabledTypes]);
+  }, [selectedTicker, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier, anyStrategyEnabled, enabledTypes]);
 
   function connectWebSocket(ticker, timeframe) {
     if (wsRef.current) wsRef.current.close();
@@ -1021,7 +1018,7 @@ function StrategyRadarContent() {
   }, []);
 
   const currentTickerSignals = useMemo(() => {
-    const cutoff48h = Date.now() - 48 * 60 * 60 * 1000;
+    const cutoff7d = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return signals.filter(s => {
       if (s.ticker !== selectedTicker) return false;
       const t = s.detected_at || s.time;
@@ -1029,12 +1026,12 @@ function StrategyRadarContent() {
       let ms;
       if (typeof t === 'string') ms = new Date(t).getTime();
       else ms = Number(t) < 4102444800 ? Number(t) * 1000 : Number(t);
-      return Number.isFinite(ms) && ms > cutoff48h;
+      return Number.isFinite(ms) && ms > cutoff7d;
     });
   }, [signals, selectedTicker]);
 
   const activeSignalCount = useMemo(() => {
-    const cutoff48h = Date.now() - 48 * 60 * 60 * 1000;
+    const cutoff7d = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return signals.filter(s => {
       if (s.status !== 'active') return false;
       const t = s.detected_at || s.time;
@@ -1042,7 +1039,7 @@ function StrategyRadarContent() {
       let ms;
       if (typeof t === 'string') ms = new Date(t).getTime();
       else ms = Number(t) < 4102444800 ? Number(t) * 1000 : Number(t);
-      return Number.isFinite(ms) && ms > cutoff48h;
+      return Number.isFinite(ms) && ms > cutoff7d;
     }).length;
   }, [signals]);
 
@@ -1064,11 +1061,13 @@ function StrategyRadarContent() {
             <span className={`w-1.5 h-1.5 rounded-full ${
               !anyStrategyEnabled ? 'bg-gray-600'
               : isScanning && marketStatus.open ? 'bg-emerald-400 animate-pulse'
+              : anyStrategyEnabled ? 'bg-blue-400'
               : String(marketStatus.dotColor || 'bg-gray-600')
             }`} />
             <span className="text-xs text-gray-500">
               {!anyStrategyEnabled ? 'Disabled'
                 : isScanning && marketStatus.open ? 'Scanning'
+                : anyStrategyEnabled && !marketStatus.open ? `Analyzed · ${String(marketStatus.label || '')}`
                 : String(marketStatus.label || '')}
             </span>
           </div>

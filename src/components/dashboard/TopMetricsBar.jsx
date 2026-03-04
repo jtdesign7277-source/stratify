@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import SearchBar from "./SearchBar";
 
 // Notification Settings Dropdown
 const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
