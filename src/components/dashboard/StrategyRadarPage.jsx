@@ -809,6 +809,113 @@ function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// LIVE TICKER HEADER (WebSocket streaming price)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const TD_WS_KEY = import.meta.env.VITE_TWELVE_DATA_WS_KEY
+  || import.meta.env.VITE_TWELVE_DATA_API_KEY
+  || import.meta.env.VITE_TWELVEDATA_API_KEY;
+
+function LiveTickerHeader({ ticker }) {
+  const [price, setPrice] = useState(null);
+  const [prevClose, setPrevClose] = useState(null);
+  const [connected, setConnected] = useState(false);
+  const [flash, setFlash] = useState(null); // 'up' | 'down' | null
+  const wsRef = useRef(null);
+  const prevPriceRef = useRef(null);
+  const flashTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (!ticker || !TD_WS_KEY) return;
+
+    setPrice(null);
+    setPrevClose(null);
+    setConnected(false);
+    prevPriceRef.current = null;
+
+    const ws = new WebSocket(`wss://ws.twelvedata.com/v1/quotes/price?apikey=${TD_WS_KEY}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: ticker } }));
+      setConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.event === 'price' && msg.symbol === ticker) {
+          const p = parseFloat(msg.price);
+          if (!Number.isFinite(p)) return;
+
+          // Flash logic
+          if (prevPriceRef.current !== null) {
+            if (p > prevPriceRef.current) setFlash('up');
+            else if (p < prevPriceRef.current) setFlash('down');
+          }
+          prevPriceRef.current = p;
+          setPrice(p);
+
+          if (msg.day_change !== undefined) {
+            // Derive previous close from price and day_change
+            const dc = parseFloat(msg.day_change);
+            if (Number.isFinite(dc)) setPrevClose(p - dc);
+          } else if (prevClose === null) {
+            setPrevClose(p); // fallback: treat first price as baseline
+          }
+
+          // Clear flash after 800ms
+          if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+          flashTimerRef.current = setTimeout(() => setFlash(null), 800);
+        }
+      } catch {}
+    };
+
+    ws.onerror = () => setConnected(false);
+    ws.onclose = () => setConnected(false);
+
+    return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: ticker } }));
+      }
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [ticker]);
+
+  const change = price !== null && prevClose !== null ? price - prevClose : null;
+  const changePct = change !== null && prevClose > 0 ? (change / prevClose) * 100 : null;
+  const changeColor = change > 0 ? 'text-emerald-400' : change < 0 ? 'text-red-400' : 'text-gray-400';
+  const flashColor = flash === 'up' ? 'text-emerald-400' : flash === 'down' ? 'text-red-400' : null;
+
+  return (
+    <div className="px-5 py-3 border-b border-white/6 flex items-center gap-3">
+      <span className="text-white font-bold text-lg font-mono">${ticker}</span>
+      {connected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
+      {price !== null && (
+        <>
+          <span
+            className={`font-mono font-semibold text-xl transition-colors duration-[800ms] ${flashColor || 'text-white'}`}
+          >
+            {price.toFixed(2)}
+          </span>
+          {change !== null && (
+            <span className={`text-sm font-mono ${changeColor}`}>
+              {change >= 0 ? '+' : ''}{change.toFixed(2)}
+              {changePct !== null && <span className="ml-1">{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>}
+            </span>
+          )}
+        </>
+      )}
+      {price === null && connected && (
+        <span className="text-sm text-gray-500 font-mono">streaming...</span>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -1156,9 +1263,8 @@ function StrategyRadarContent() {
 
         {/* RIGHT — Signals + Strategies */}
         <div className="flex-[2] min-h-0 overflow-y-auto relative">
-          <div className="px-5 py-3 border-b border-white/6">
-            <span className="text-white font-semibold text-lg font-mono">${selectedTicker}</span>
-          </div>
+          <LiveTickerHeader ticker={selectedTicker} />
+
           <div className="p-3 border-b border-white/6">
             <h2 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
             {currentTickerSignals.length > 0 ? (
