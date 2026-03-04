@@ -626,30 +626,34 @@ export default function PortfolioDashboard() {
   const scenarioSyncTimerRef = useRef(null);
   const syncedScenarioIdsRef = useRef(new Set());
   const lastSyncedScenarioSignatureRef = useRef('');
-  const pricesRef = useRef({ totalValue: STARTING_BALANCE, cashBalance: 0, totalPnl: 0, totalPnlPct: 0 });
+
+  // Throttled price updates — buffer ticks in a ref, flush to portfolio every 3s
+  const pendingPriceUpdatesRef = useRef(new Map());
+  const priceFlushTimerRef = useRef(null);
+
+  const throttledUpdatePositionPrice = useCallback((symbol, price) => {
+    pendingPriceUpdatesRef.current.set(symbol, price);
+    if (!priceFlushTimerRef.current) {
+      priceFlushTimerRef.current = setInterval(() => {
+        const pending = pendingPriceUpdatesRef.current;
+        if (pending.size === 0) return;
+        pending.forEach((p, s) => updatePositionPrice(s, p));
+        pending.clear();
+      }, 3000);
+    }
+  }, [updatePositionPrice]);
+
+  useEffect(() => {
+    return () => {
+      if (priceFlushTimerRef.current) clearInterval(priceFlushTimerRef.current);
+    };
+  }, []);
 
   const positions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
   const cashBalance = Number(portfolio?.cash_balance || 0);
   const totalValue = Number(portfolio?.total_account_value || STARTING_BALANCE);
   const totalPnl = Number(portfolio?.total_pnl || 0);
   const totalPnlPct = Number(portfolio?.total_pnl_percent || 0);
-
-  // Buffer latest values into ref (no re-render)
-  pricesRef.current = { totalValue, cashBalance, totalPnl, totalPnlPct };
-
-  // Throttled summary state — updates every 3s instead of every tick
-  const [displaySummary, setDisplaySummary] = useState({ totalValue, cashBalance, totalPnl, totalPnlPct });
-  useEffect(() => {
-    const id = setInterval(() => {
-      setDisplaySummary(prev => {
-        const next = pricesRef.current;
-        if (prev.totalValue === next.totalValue && prev.cashBalance === next.cashBalance
-          && prev.totalPnl === next.totalPnl && prev.totalPnlPct === next.totalPnlPct) return prev;
-        return { ...next };
-      });
-    }, 3000);
-    return () => clearInterval(id);
-  }, []);
 
   const investedNow = Math.max(0, totalValue - cashBalance);
 
@@ -1377,16 +1381,16 @@ export default function PortfolioDashboard() {
       const linkedSymbols = streamConfig.streamToPositionSymbols.get(incomingKey);
       if (linkedSymbols && linkedSymbols.size > 0) {
         linkedSymbols.forEach((positionSymbol) => {
-          updatePositionPrice(positionSymbol, price);
+          throttledUpdatePositionPrice(positionSymbol, price);
         });
         return;
       }
 
-      updatePositionPrice(update?.symbol, price);
+      throttledUpdatePositionPrice(update?.symbol, price);
     });
 
     return () => unsubscribe?.();
-  }, [streamConfig, updatePositionPrice]);
+  }, [streamConfig, throttledUpdatePositionPrice]);
 
   useEffect(() => {
     if (!splitViewEnabled || radarStreamSymbols.length === 0) return undefined;
