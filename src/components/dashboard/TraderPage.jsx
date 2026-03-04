@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
 import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Pin, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -148,6 +148,14 @@ const listItemMotion = (index) => ({
 });
 
 const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+const watchlistRowContainerMotion = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.04, delayChildren: 0.05 } },
+};
+const watchlistRowItemMotion = {
+  hidden: { opacity: 0, x: -8 },
+  show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 400, damping: 30 } },
+};
 const GLASS_SHELL_STYLE = {
   background: 'linear-gradient(150deg, rgba(14,20,34,0.9) 0%, rgba(6,10,20,0.82) 100%)',
   border: '1px solid rgba(148,163,184,0.16)',
@@ -247,6 +255,35 @@ const getDragPreviewScaleByDistance = (distance) => {
   }
   return interpolate(safeDistance, near.distance, dropZone.distance, near.scale, dropZone.scale);
 };
+
+function PriceFlash({ price, prevPrice, children, className = 'font-mono font-medium' }) {
+  const prevPriceRef = useRef(price);
+  const controls = useAnimationControls();
+  const lastPrice = Number.isFinite(prevPrice) ? prevPrice : prevPriceRef.current;
+  const direction = Number.isFinite(price) && Number.isFinite(lastPrice)
+    ? (price > lastPrice ? 'up' : price < lastPrice ? 'down' : 'flat')
+    : 'flat';
+
+  useEffect(() => {
+    const flashColor = direction === 'up'
+      ? '#10b981'
+      : direction === 'down'
+        ? '#ef4444'
+        : '#ffffff';
+    controls.set({ color: flashColor });
+    controls.start({
+      color: '#ffffff',
+      transition: { type: 'spring', stiffness: 260, damping: 30 },
+    });
+    prevPriceRef.current = price;
+  }, [controls, direction, price]);
+
+  return (
+    <motion.span animate={controls} className={className}>
+      {children}
+    </motion.span>
+  );
+}
 
 const getPinnedPillsDropZoneBounds = () => {
   if (typeof document === 'undefined') return null;
@@ -1548,6 +1585,7 @@ export default function TraderPage({
   const [isNewsPanelCollapsed, setIsNewsPanelCollapsed] = useState(() => loadInitialNewsPanelCollapsed());
   const [isResizingNewsPanel, setIsResizingNewsPanel] = useState(false);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
+  const [hoveredWatchlistSymbol, setHoveredWatchlistSymbol] = useState(null);
   const [activeDragTicker, setActiveDragTicker] = useState('');
   const [dragPreviewScale, setDragPreviewScale] = useState(1);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -3721,7 +3759,14 @@ export default function TraderPage({
                     <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
                       <Droppable droppableId="watchlist">
                         {(provided) => (
-                          <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-full">
+                          <motion.ul
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            variants={watchlistRowContainerMotion}
+                            initial="hidden"
+                            animate="show"
+                            className="min-h-full"
+                          >
                             {watchlist.length === 0 ? (
                               <div className="px-4 py-6 text-center text-white/50 text-sm">
                                 Watchlist is empty. Search to add symbols.
@@ -3797,19 +3842,28 @@ export default function TraderPage({
                               return (
                                 <Draggable key={symbol} draggableId={symbol} index={index}>
                                   {(provided, snapshot) => (
-                                    <div
+                                    <motion.li
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
-                                      className={`group relative flex items-center justify-between cursor-pointer transition-colors duration-150 border-b border-white/[0.05] ${
-                                        isSelected ? 'bg-emerald-500/10 border-l border-l-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.1)]' : 'hover:bg-white/[0.06]'
-                                      } px-3 py-2.5 ${
-                                        snapshot.isDragging ? 'bg-[rgba(30,41,59,0.7)] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
-                                      } ${
-                                        isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
-                                      }`}
                                       style={getDragPreviewStyle(provided.draggableProps.style, snapshot.isDragging, symbol)}
-                                      onClick={() => handleWatchlistSymbolSelect(symbol)}
+                                      variants={watchlistRowItemMotion}
+                                      className="list-none"
                                     >
+                                      <motion.div
+                                        whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                                        whileTap={{ scale: 0.98 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                        className={`group relative flex items-center justify-between cursor-pointer border-b border-white/[0.05] ${
+                                          isSelected ? 'bg-emerald-500/10 border-l border-l-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.1)]' : ''
+                                        } px-3 py-2.5 ${
+                                          snapshot.isDragging ? 'bg-[rgba(30,41,59,0.7)] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
+                                        } ${
+                                          isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
+                                        }`}
+                                        onClick={() => handleWatchlistSymbolSelect(symbol)}
+                                        onMouseEnter={() => setHoveredWatchlistSymbol(symbol)}
+                                        onMouseLeave={() => setHoveredWatchlistSymbol((current) => (current === symbol ? null : current))}
+                                      >
                                       <div
                                         {...provided.dragHandleProps}
                                         className={`mr-2 text-gray-600 hover:text-gray-400 ${
@@ -3821,7 +3875,15 @@ export default function TraderPage({
 
                                       <div className="flex-1 min-w-0 pr-2">
                                         <div className="flex items-center">
-                                          <div className="text-[13px] font-semibold text-white">${symbol}</div>
+                                          <div
+                                            className="text-[13px] font-semibold text-white"
+                                            style={{
+                                              fontVariationSettings: hoveredWatchlistSymbol === symbol ? '"wght" 650' : '"wght" 500',
+                                              transition: 'font-variation-settings 200ms ease',
+                                            }}
+                                          >
+                                            ${symbol}
+                                          </div>
                                           {(() => {
                                             if (!extendedHoursStatus) return null;
                                             return (
@@ -3839,9 +3901,12 @@ export default function TraderPage({
 
                                       <div className="ml-auto pr-1 text-right flex-shrink-0">
                                         <div className="flex items-center justify-end gap-1">
-                                          <div className={`text-[12px] font-mono font-semibold ${isPlaceholder ? 'text-white/80' : 'text-white'}`}>
+                                          <PriceFlash
+                                            price={price}
+                                            className={`text-[12px] font-mono font-semibold ${isPlaceholder ? 'text-white/80' : 'text-white'}`}
+                                          >
                                             {Number.isFinite(price) ? formatPrice(price) : '--'}
-                                          </div>
+                                          </PriceFlash>
                                           {isPriceLoading && (
                                             <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
                                           )}
@@ -3903,14 +3968,15 @@ export default function TraderPage({
                                           <Trash2 className="h-3 w-3" />
                                         </motion.button>
                                       </div>
-                                    </div>
+                                    </motion.div>
+                                  </motion.li>
                                   )}
                                 </Draggable>
                               );
                               })
                             )}
                             {provided.placeholder}
-                          </div>
+                          </motion.ul>
                         )}
                       </Droppable>
                     </DragDropContext>
@@ -3974,8 +4040,13 @@ export default function TraderPage({
             </>
           )}
           {isWatchlistCollapsed && (
-            <div className="h-0 min-h-0 flex-1 overflow-y-auto watchlist-scrollable px-1 py-2 space-y-1">
-              {watchlist.map((symbol, index) => {
+            <motion.ul
+              variants={watchlistRowContainerMotion}
+              initial="hidden"
+              animate="show"
+              className="h-0 min-h-0 flex-1 overflow-y-auto watchlist-scrollable px-1 py-2 space-y-1"
+            >
+              {watchlist.map((symbol) => {
                 const quote = quotesBySymbol[symbol] || {};
                 const changePercent = toNumber(quote?.changePercent) ?? 0;
                 const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
@@ -3984,42 +4055,58 @@ export default function TraderPage({
                 const isSelected = selectedSymbol === symbol;
 
                 return (
-                  <motion.button
-                    key={symbol}
-                    onClick={() => handleWatchlistSymbolSelect(symbol)}
-                    {...listItemMotion(index)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
-                    className={`w-full py-2 px-1 rounded transition-colors ${
-                      isSelected ? 'bg-emerald-500/10 border border-emerald-500/30' : 'hover:bg-white/5'
-                    }`}
-                  >
-                    <div className="text-white font-semibold text-[13px]">{symbol}</div>
-                    <div className="mt-0.5 flex items-center justify-center gap-1">
-                      <div
-                        className={`text-[10px] font-mono font-semibold ${
-                          isPositive ? 'text-emerald-400' : 'text-red-400'
-                        }`}
+                  <motion.li key={symbol} variants={watchlistRowItemMotion} className="list-none">
+                    <motion.div
+                      whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      onMouseEnter={() => setHoveredWatchlistSymbol(symbol)}
+                      onMouseLeave={() => setHoveredWatchlistSymbol((current) => (current === symbol ? null : current))}
+                      className={`rounded transition-colors ${
+                        isSelected ? 'bg-emerald-500/10 border border-emerald-500/30' : ''
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleWatchlistSymbolSelect(symbol)}
+                        className="w-full py-2 px-1"
                       >
-                        {isPositive ? '+' : ''}
-                        {changePercent.toFixed(1)}%
-                      </div>
-                      {isDayLoading && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating day change" />
-                      )}
-                    </div>
-                    <div className="mt-1 flex justify-center">
-                      <SentimentBadge
-                        score={sentimentMap[symbol]?.sentiment}
-                        totalDocs={sentimentMap[symbol]?.totalDocs}
-                        compact={true}
-                      />
-                    </div>
-                  </motion.button>
+                        <div
+                          className="text-white font-semibold text-[13px]"
+                          style={{
+                            fontVariationSettings: hoveredWatchlistSymbol === symbol ? '"wght" 650' : '"wght" 500',
+                            transition: 'font-variation-settings 200ms ease',
+                          }}
+                        >
+                          {symbol}
+                        </div>
+                        <div className="mt-0.5 flex items-center justify-center gap-1">
+                          <PriceFlash
+                            price={changePercent}
+                            className={`text-[10px] font-mono font-semibold ${
+                              isPositive ? 'text-emerald-400' : 'text-red-400'
+                            }`}
+                          >
+                            {isPositive ? '+' : ''}
+                            {changePercent.toFixed(1)}%
+                          </PriceFlash>
+                          {isDayLoading && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating day change" />
+                          )}
+                        </div>
+                        <div className="mt-1 flex justify-center">
+                          <SentimentBadge
+                            score={sentimentMap[symbol]?.sentiment}
+                            totalDocs={sentimentMap[symbol]?.totalDocs}
+                            compact={true}
+                          />
+                        </div>
+                      </button>
+                    </motion.div>
+                  </motion.li>
                 );
               })}
-            </div>
+            </motion.ul>
           )}
         </aside>
 
@@ -4038,14 +4125,21 @@ export default function TraderPage({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         transition={interactiveTransition}
-                        className={`h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
+                        className={`relative h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
                           isActive
-                            ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
+                            ? 'border-emerald-400 text-emerald-400'
                             : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
                         }`}
                         aria-pressed={isActive}
                       >
-                        {timeframe.label}
+                        {isActive && (
+                          <motion.div
+                            layoutId="timeframe-indicator"
+                            className="absolute inset-0 bg-white/10"
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        <span className="relative z-10">{timeframe.label}</span>
                       </motion.button>
                     );
                   })}
