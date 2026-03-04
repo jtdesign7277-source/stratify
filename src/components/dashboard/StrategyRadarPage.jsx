@@ -176,12 +176,15 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   const [results, setResults] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [highlightIdx, setHighlightIdx] = useState(-1);
+  const [searched, setSearched] = useState(false);
   const [recentSearches, setRecentSearches] = useState(loadRecentSearches);
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
   const containerRef = useRef(null);
 
+  // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
@@ -190,17 +193,29 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // Debounced search — 300ms after typing
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.length < 2) { setResults([]); setIsOpen(query.length > 0 || isFocused); return; }
+    if (query.length < 2) {
+      setResults([]);
+      setSearched(false);
+      setIsLoading(false);
+      setIsOpen(isFocused && recentSearches.length > 0);
+      return;
+    }
+    setIsLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/radar/search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
         setResults(Array.isArray(data) ? data : []);
-        setIsOpen(true);
-        setHighlightIdx(-1);
-      } catch { setResults([]); }
+      } catch {
+        setResults([]);
+      }
+      setSearched(true);
+      setIsLoading(false);
+      setIsOpen(true);
+      setHighlightIdx(-1);
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
@@ -211,6 +226,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
     setResults([]);
     setIsOpen(false);
     setIsFocused(false);
+    setSearched(false);
     saveRecentSearch(ticker);
     setRecentSearches(loadRecentSearches());
     if (inputRef.current) inputRef.current.blur();
@@ -218,25 +234,24 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   }
 
   function handleKeyDown(e) {
-    const totalItems = results.length + recentSearches.length;
+    const totalItems = results.length + (query.length < 2 ? recentSearches.length : 0);
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIdx(prev => (prev + 1) % (totalItems || 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIdx(prev => (prev - 1 + (totalItems || 1)) % (totalItems || 1)); }
     else if (e.key === 'Enter') {
       e.preventDefault();
       if (highlightIdx >= 0 && highlightIdx < results.length) selectTicker(results[highlightIdx].symbol);
-      else if (highlightIdx >= results.length && highlightIdx < totalItems) selectTicker(recentSearches[highlightIdx - results.length]);
+      else if (query.length < 2 && highlightIdx >= results.length && highlightIdx < totalItems) selectTicker(recentSearches[highlightIdx - results.length]);
       else if (results.length > 0) selectTicker(results[0].symbol);
       else if (query.trim().length > 0) selectTicker(query.trim().toUpperCase());
     } else if (e.key === 'Escape') { setIsOpen(false); inputRef.current?.blur(); }
   }
 
-  function getTypeColor(type) { const t = (type || '').toLowerCase(); if (t.includes('crypto')) return '#06b6d4'; if (t.includes('etf')) return '#7c3aed'; return '#34d399'; }
-  function getTypeLabel(type) { const t = (type || '').toLowerCase(); if (t.includes('crypto')) return 'Crypto'; if (t.includes('etf')) return 'ETF'; if (t.includes('index')) return 'Index'; return 'Stock'; }
-
-  const showDropdown = isOpen && (results.length > 0 || (query.length < 2 && recentSearches.length > 0));
+  const showRecents = query.length < 2 && recentSearches.length > 0;
+  const showNoResults = searched && query.length >= 2 && results.length === 0 && !isLoading;
+  const showDropdown = isOpen && (results.length > 0 || showRecents || showNoResults);
 
   return (
-    <div ref={containerRef} className="w-full max-w-md mx-4 relative flex-shrink min-w-0 overflow-hidden">
+    <div ref={containerRef} className="w-full max-w-md mx-4 relative flex-shrink min-w-0">
       <div className={`relative rounded-xl ${isFocused ? 'p-[1px] radar-rainbow-border' : ''}`}>
         <div className={`flex items-center gap-3 rounded-xl py-2.5 px-4 transition-all duration-200 ${isFocused ? 'bg-[#0a0a0f]' : 'bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12]'}`}>
           <Search size={16} className="text-gray-500 flex-shrink-0" />
@@ -247,8 +262,14 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
             onKeyDown={handleKeyDown}
             placeholder="Search any stock, ETF, crypto..."
             className="min-w-0 flex-1 bg-transparent text-base font-mono text-white placeholder:text-gray-600 placeholder:italic outline-none" />
-          {query && (
-            <button onClick={() => { setQuery(''); setResults([]); }} className="text-gray-600 hover:text-gray-400 transition-colors">
+          {isLoading && (
+            <svg className="w-4 h-4 animate-spin text-gray-500 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
+          {!isLoading && query && (
+            <button onClick={() => { setQuery(''); setResults([]); setSearched(false); }} className="text-gray-600 hover:text-gray-400 transition-colors">
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           )}
@@ -258,29 +279,31 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
       <AnimatePresence>
         {showDropdown && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-0 right-0 top-full mt-1 z-50 overflow-hidden rounded-xl bg-[#0a0a0f]/95 backdrop-blur-xl border border-white/[0.08] shadow-2xl"
+            className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl bg-[#0a0a0f] border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl max-h-80 overflow-y-auto"
           >
             {results.length > 0 && (
-              <div className="py-1">
+              <div>
                 {results.map((r, i) => (
                   <button key={r.symbol}
                     onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(r.symbol); }}
                     onMouseEnter={() => setHighlightIdx(i)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${highlightIdx === i ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer transition-all duration-150 ${highlightIdx === i ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]'}`}
                   >
-                    <span className="text-sm font-mono font-bold text-white w-20 flex-shrink-0">{r.symbol}</span>
+                    <span className="text-white font-semibold font-mono w-20 flex-shrink-0">{r.symbol}</span>
                     <span className="text-sm text-gray-400 flex-1 truncate">{r.name}</span>
-                    <span className="text-xs text-gray-600 flex-shrink-0">{r.exchange}</span>
-                    <span className="text-xs flex-shrink-0" style={{ color: getTypeColor(r.type) }}>{getTypeLabel(r.type)}</span>
+                    <span className="text-xs text-gray-500 flex-shrink-0">{r.exchange}</span>
                   </button>
                 ))}
               </div>
             )}
-            {recentSearches.length > 0 && (
+            {showNoResults && (
+              <div className="px-4 py-3 text-sm text-gray-500">No results found</div>
+            )}
+            {showRecents && (
               <div className={results.length > 0 ? 'border-t border-white/[0.06]' : ''}>
                 <div className="px-4 pt-2 pb-1"><span className="text-[10px] text-gray-600 uppercase tracking-widest">Recent</span></div>
                 <div className="flex flex-wrap gap-1 px-4 pb-2.5">
@@ -288,7 +311,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
                     <button key={t}
                       onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(t); }}
                       onMouseEnter={() => setHighlightIdx(results.length + i)}
-                      className={`px-2.5 py-1 text-xs font-mono transition-colors rounded-md ${highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'}`}
+                      className={`px-2.5 py-1 text-xs font-mono transition-all duration-150 rounded-md cursor-pointer ${highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'}`}
                     >{t}</button>
                   ))}
                 </div>
