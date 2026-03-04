@@ -588,20 +588,25 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
   const obOverlaySeriesRef = useRef([]);
   const drawingSeriesRef = useRef([]);
   const drawingPriceLinesRef = useRef([]);
-  const pendingPointRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef(null);
+  const previewSeriesRef = useRef([]);
+  const previewPriceLinesRef = useRef([]);
 
-  // Refs to avoid stale closures in subscribeClick
+  // Refs to avoid stale closures in event handlers
   const activeToolRef = useRef(activeTool);
   const activeColorRef = useRef(activeColor);
   const onAddDrawingRef = useRef(onAddDrawing);
   const onRemoveDrawingRef = useRef(onRemoveDrawing);
   const drawingsRef = useRef(drawings);
+  const candlesRef = useRef(candles);
 
-  useEffect(() => { activeToolRef.current = activeTool; pendingPointRef.current = null; }, [activeTool]);
+  useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
   useEffect(() => { activeColorRef.current = activeColor; }, [activeColor]);
   useEffect(() => { onAddDrawingRef.current = onAddDrawing; }, [onAddDrawing]);
   useEffect(() => { onRemoveDrawingRef.current = onRemoveDrawing; }, [onRemoveDrawing]);
   useEffect(() => { drawingsRef.current = drawings; }, [drawings]);
+  useEffect(() => { candlesRef.current = candles; }, [candles]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -648,53 +653,6 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
     });
     candleSeriesRef.current = candleSeries;
 
-    // Drawing click handler
-    chart.subscribeClick((param) => {
-      const tool = activeToolRef.current;
-      if (!tool || tool === 'crosshair') return;
-      if (!param.point || !param.time) return;
-
-      const price = candleSeries.coordinateToPrice(param.point.y);
-      if (!Number.isFinite(price)) return;
-      const time = param.time;
-
-      if (tool === 'eraser') {
-        const ds = drawingsRef.current;
-        let bestId = null, bestDist = Infinity;
-        ds.forEach(d => {
-          d.points.forEach(pt => {
-            const dist = Math.abs((pt.price || 0) - price);
-            if (dist < bestDist) { bestDist = dist; bestId = d.id; }
-          });
-        });
-        if (bestId != null) onRemoveDrawingRef.current?.(bestId);
-        return;
-      }
-
-      if (tool === 'hline') {
-        onAddDrawingRef.current?.({
-          id: Date.now(),
-          type: 'hline',
-          color: activeColorRef.current,
-          points: [{ price }],
-        });
-        return;
-      }
-
-      // Two-click tools: trendline, rectangle, fib
-      if (!pendingPointRef.current) {
-        pendingPointRef.current = { time, price };
-      } else {
-        onAddDrawingRef.current?.({
-          id: Date.now(),
-          type: tool,
-          color: activeColorRef.current,
-          points: [pendingPointRef.current, { time, price }],
-        });
-        pendingPointRef.current = null;
-      }
-    });
-
     // Resize handler
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -708,6 +666,12 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      previewPriceLinesRef.current.forEach(pl => {
+        try { candleSeries.removePriceLine(pl); } catch {}
+      });
+      previewSeriesRef.current.forEach(s => {
+        try { chart.removeSeries(s); } catch {}
+      });
       drawingPriceLinesRef.current.forEach(pl => {
         try { candleSeries.removePriceLine(pl); } catch {}
       });
@@ -720,9 +684,268 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
       obOverlaySeriesRef.current = [];
       drawingSeriesRef.current = [];
       drawingPriceLinesRef.current = [];
+      previewSeriesRef.current = [];
+      previewPriceLinesRef.current = [];
       chart.remove();
     };
   }, []);
+
+  // Toggle chart scroll/scale when drawing tool changes
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const isDrawing = activeTool !== 'crosshair';
+    chartRef.current.applyOptions({
+      handleScroll: isDrawing ? false : { vertTouchDrag: false },
+      handleScale: !isDrawing,
+    });
+  }, [activeTool]);
+
+  // Mouse-based drawing interaction (click-and-drag)
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    if (!container || !chart || !series) return;
+
+    function getTimeFromX(x) {
+      const ts = chart.timeScale();
+      if (typeof ts.coordinateToTime === 'function') {
+        return ts.coordinateToTime(x);
+      }
+      const logical = ts.coordinateToLogical(x);
+      if (logical == null) return null;
+      const idx = Math.round(logical);
+      const c = candlesRef.current;
+      if (idx >= 0 && idx < c.length) return c[idx].time;
+      return null;
+    }
+
+    function getXFromTime(time) {
+      const ts = chart.timeScale();
+      if (typeof ts.timeToCoordinate === 'function') {
+        return ts.timeToCoordinate(time);
+      }
+      const c = candlesRef.current;
+      const idx = c.findIndex(candle => candle.time === time);
+      if (idx < 0) return null;
+      return ts.logicalToCoordinate(idx);
+    }
+
+    function getCoords(e) {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const time = getTimeFromX(x);
+      const price = series.coordinateToPrice(y);
+      if (time == null || !Number.isFinite(price)) return null;
+      return { time, price, x, y };
+    }
+
+    function clearPreview() {
+      previewPriceLinesRef.current.forEach(pl => {
+        try { series.removePriceLine(pl); } catch {}
+      });
+      previewSeriesRef.current.forEach(s => {
+        try { chart.removeSeries(s); } catch {}
+      });
+      previewPriceLinesRef.current = [];
+      previewSeriesRef.current = [];
+    }
+
+    function renderPreview(start, end, tool, color) {
+      clearPreview();
+      if (!start || !end) return;
+
+      if (tool === 'trendline') {
+        const sorted = start.time <= end.time ? [start, end] : [end, start];
+        const line = addLineSeriesCompat(chart, {
+          color: hexToRgba(color, 0.5),
+          lineWidth: 2,
+          lineStyle: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        line.setData([
+          { time: sorted[0].time, value: sorted[0].price },
+          { time: sorted[1].time, value: sorted[1].price },
+        ]);
+        previewSeriesRef.current.push(line);
+      } else if (tool === 'rectangle') {
+        const top = Math.max(start.price, end.price);
+        const bottom = Math.min(start.price, end.price);
+        const t1 = Math.min(start.time, end.time);
+        const t2 = Math.max(start.time, end.time);
+        const fill = hexToRgba(color, 0.08);
+
+        const zone = addBaselineSeriesCompat(chart, {
+          baseValue: { type: 'price', price: bottom },
+          topFillColor1: fill, topFillColor2: fill,
+          topLineColor: 'rgba(0,0,0,0)',
+          bottomFillColor1: 'rgba(0,0,0,0)', bottomFillColor2: 'rgba(0,0,0,0)',
+          bottomLineColor: 'rgba(0,0,0,0)',
+          lineWidth: 0, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+        });
+        zone.setData([{ time: t1, value: top }, { time: t2, value: top }]);
+        previewSeriesRef.current.push(zone);
+
+        [top, bottom].forEach(price => {
+          const bdr = addLineSeriesCompat(chart, {
+            color: hexToRgba(color, 0.4), lineWidth: 1, lineStyle: 2,
+            lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+          });
+          bdr.setData([{ time: t1, value: price }, { time: t2, value: price }]);
+          previewSeriesRef.current.push(bdr);
+        });
+      } else if (tool === 'fib') {
+        const high = Math.max(start.price, end.price);
+        const low = Math.min(start.price, end.price);
+        const range = high - low;
+        if (range > 0) {
+          [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1].forEach(level => {
+            const pl = series.createPriceLine({
+              price: high - range * level,
+              color: hexToRgba(color, 0.4),
+              lineWidth: 1,
+              lineStyle: 2,
+              axisLabelVisible: false,
+              title: `${(level * 100).toFixed(1)}%`,
+            });
+            previewPriceLinesRef.current.push(pl);
+          });
+        }
+      }
+    }
+
+    function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+      const dx = x2 - x1, dy = y2 - y1;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq === 0) return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+      let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+      t = Math.max(0, Math.min(1, t));
+      const projX = x1 + t * dx, projY = y1 + t * dy;
+      return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+    }
+
+    function onMouseDown(e) {
+      const tool = activeToolRef.current;
+      if (!tool || tool === 'crosshair') return;
+      if (e.button !== 0) return;
+
+      const coords = getCoords(e);
+      if (!coords) return;
+
+      if (tool === 'eraser') {
+        const ds = drawingsRef.current;
+        let bestId = null, bestDist = Infinity;
+        ds.forEach(d => {
+          if (d.type === 'hline') {
+            const py = series.priceToCoordinate(d.points[0].price);
+            if (py != null) {
+              const dist = Math.abs(coords.y - py);
+              if (dist < bestDist) { bestDist = dist; bestId = d.id; }
+            }
+          } else if (d.type === 'rectangle') {
+            const [p1, p2] = d.points;
+            const topY = series.priceToCoordinate(Math.max(p1.price, p2.price));
+            const botY = series.priceToCoordinate(Math.min(p1.price, p2.price));
+            const x1 = getXFromTime(Math.min(p1.time, p2.time));
+            const x2 = getXFromTime(Math.max(p1.time, p2.time));
+            if (topY != null && botY != null && x1 != null && x2 != null) {
+              const insideX = coords.x >= Math.min(x1, x2) && coords.x <= Math.max(x1, x2);
+              const insideY = coords.y >= Math.min(topY, botY) && coords.y <= Math.max(topY, botY);
+              if (insideX && insideY) { bestDist = 0; bestId = d.id; }
+            }
+          } else if (d.type === 'trendline') {
+            const [p1, p2] = d.points;
+            const x1 = getXFromTime(p1.time), y1 = series.priceToCoordinate(p1.price);
+            const x2 = getXFromTime(p2.time), y2 = series.priceToCoordinate(p2.price);
+            if (x1 != null && y1 != null && x2 != null && y2 != null) {
+              const dist = pointToSegmentDist(coords.x, coords.y, x1, y1, x2, y2);
+              if (dist < bestDist) { bestDist = dist; bestId = d.id; }
+            }
+          } else if (d.type === 'fib') {
+            const [p1, p2] = d.points;
+            const high = Math.max(p1.price, p2.price);
+            const low = Math.min(p1.price, p2.price);
+            const range = high - low;
+            [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1].forEach(level => {
+              const py = series.priceToCoordinate(high - range * level);
+              if (py != null) {
+                const dist = Math.abs(coords.y - py);
+                if (dist < bestDist) { bestDist = dist; bestId = d.id; }
+              }
+            });
+          }
+        });
+        if (bestId != null && bestDist <= 10) {
+          onRemoveDrawingRef.current?.(bestId);
+        }
+        return;
+      }
+
+      if (tool === 'hline') {
+        onAddDrawingRef.current?.({
+          id: Date.now(),
+          type: 'hline',
+          color: activeColorRef.current,
+          points: [{ price: coords.price }],
+        });
+        return;
+      }
+
+      // Drag tools: trendline, rectangle, fib
+      isDraggingRef.current = true;
+      dragStartRef.current = coords;
+      e.preventDefault();
+    }
+
+    function onMouseMove(e) {
+      if (!isDraggingRef.current || !dragStartRef.current) return;
+      const coords = getCoords(e);
+      if (!coords) return;
+      renderPreview(dragStartRef.current, coords, activeToolRef.current, activeColorRef.current);
+    }
+
+    function onMouseUp(e) {
+      if (!isDraggingRef.current || !dragStartRef.current) {
+        isDraggingRef.current = false;
+        return;
+      }
+      isDraggingRef.current = false;
+      const start = dragStartRef.current;
+      dragStartRef.current = null;
+      clearPreview();
+
+      const coords = getCoords(e);
+      if (!coords) return;
+
+      // Require minimum drag distance (5 pixels)
+      if (Math.abs(coords.x - start.x) < 5 && Math.abs(coords.y - start.y) < 5) return;
+
+      onAddDrawingRef.current?.({
+        id: Date.now(),
+        type: activeToolRef.current,
+        color: activeColorRef.current,
+        points: [
+          { time: start.time, price: start.price },
+          { time: coords.time, price: coords.price },
+        ],
+      });
+    }
+
+    container.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      container.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      clearPreview();
+      isDraggingRef.current = false;
+      dragStartRef.current = null;
+    };
+  }, [activeTool]);
 
   // Update candle data + LuxAlgo-style OB/MSB overlays
   useEffect(() => {
@@ -1027,7 +1250,11 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
   }, [drawings]);
 
   return (
-    <div ref={chartContainerRef} className="w-full h-full" />
+    <div
+      ref={chartContainerRef}
+      className="w-full h-full"
+      style={{ cursor: activeTool !== 'crosshair' ? 'crosshair' : undefined }}
+    />
   );
 }
 
