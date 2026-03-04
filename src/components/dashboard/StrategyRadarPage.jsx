@@ -206,9 +206,14 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   }, [query]);
 
   function selectTicker(ticker) {
-    setQuery(''); setResults([]); setIsOpen(false);
+    console.log('TICKER SELECTED:', ticker);
+    setQuery('');
+    setResults([]);
+    setIsOpen(false);
+    setIsFocused(false);
     saveRecentSearch(ticker);
     setRecentSearches(loadRecentSearches());
+    if (inputRef.current) inputRef.current.blur();
     onSelect(ticker);
   }
 
@@ -264,7 +269,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
               <div className="py-1">
                 {results.map((r, i) => (
                   <button key={r.symbol}
-                    onMouseDown={(e) => { e.stopPropagation(); selectTicker(r.symbol); }}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(r.symbol); }}
                     onMouseEnter={() => setHighlightIdx(i)}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${highlightIdx === i ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]'}`}
                   >
@@ -282,7 +287,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
                 <div className="flex flex-wrap gap-1 px-4 pb-2.5">
                   {recentSearches.map((t, i) => (
                     <button key={t}
-                      onMouseDown={(e) => { e.stopPropagation(); selectTicker(t); }}
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(t); }}
                       onMouseEnter={() => setHighlightIdx(results.length + i)}
                       className={`px-2.5 py-1 text-xs font-mono transition-colors rounded-md ${highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'}`}
                     >{t}</button>
@@ -787,6 +792,7 @@ function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
 
 function StrategyRadarContent() {
   const [selectedTicker, setSelectedTicker] = useState('TSLA');
+  const [fetchKey, setFetchKey] = useState(0);
   const [candles, setCandles] = useState([]);
   const [signals, setSignals] = useState([]);
   const [orderBlocks, setOrderBlocks] = useState([]);
@@ -927,7 +933,7 @@ function StrategyRadarContent() {
 
     loadAndDetect();
     return () => { cancelled = true; if (wsRef.current) { wsRef.current.close(); wsRef.current = null; } };
-  }, [selectedTicker, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier, anyStrategyEnabled, enabledTypes]);
+  }, [selectedTicker, fetchKey, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier, anyStrategyEnabled, enabledTypes]);
 
   function connectWebSocket(ticker, timeframe) {
     if (wsRef.current) wsRef.current.close();
@@ -1075,7 +1081,7 @@ function StrategyRadarContent() {
 
         <RadarSearchBar
           selectedTicker={selectedTicker}
-          onSelect={(t) => { setSelectedTicker(t); setActiveSignalIdx(0); }}
+          onSelect={(t) => { setSelectedTicker(t); setActiveSignalIdx(0); setFetchKey(k => k + 1); }}
         />
 
         <div className="flex items-center gap-3 flex-shrink-0">
