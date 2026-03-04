@@ -637,7 +637,7 @@ export default function PortfolioDashboard() {
   // Buffer latest values into ref (no re-render)
   pricesRef.current = { totalValue, cashBalance, totalPnl, totalPnlPct };
 
-  // Throttled summary state — updates every 2s instead of every tick
+  // Throttled summary state — updates every 3s instead of every tick
   const [displaySummary, setDisplaySummary] = useState({ totalValue, cashBalance, totalPnl, totalPnlPct });
   useEffect(() => {
     const id = setInterval(() => {
@@ -647,7 +647,7 @@ export default function PortfolioDashboard() {
           && prev.totalPnl === next.totalPnl && prev.totalPnlPct === next.totalPnlPct) return prev;
         return { ...next };
       });
-    }, 2000);
+    }, 3000);
     return () => clearInterval(id);
   }, []);
 
@@ -2029,40 +2029,26 @@ export default function PortfolioDashboard() {
           )}
         </div>
 
-        <div className="mt-3 border-t-2 border-[#334155] pt-3">
+        <div className="mt-3 border-t-2 border-[#334155] pt-3" style={{ transition: 'all 0.6s ease' }}>
           <div className="flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Portfolio Value</span>
-            <AnimatedMoney
-              value={displaySummary.totalValue}
-              className="font-mono text-sm text-[#f8fbff]"
-              countKey={`portfolio-value-${displaySummary.totalValue}`}
-            />
+            <span className="font-mono text-sm text-[#f8fbff]" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(displaySummary.totalValue)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Buying Power</span>
-            <AnimatedMoney
-              value={displaySummary.cashBalance}
-              className="font-mono text-sm text-[#f8fbff]"
-              countKey={`buying-power-${displaySummary.cashBalance}`}
-            />
+            <span className="font-mono text-sm text-[#f8fbff]" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(displaySummary.cashBalance)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L</span>
-            <AnimatedMoney
-              value={displaySummary.totalPnl}
-              signed
-              className={`font-mono text-sm ${displaySummary.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-              countKey={`total-pnl-${displaySummary.totalPnl}`}
-              duration={0.7}
-            />
+            <span className={`font-mono text-sm ${displaySummary.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+              {displaySummary.totalPnl >= 0 ? '+' : ''}{fmtMoney(displaySummary.totalPnl)}
+            </span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L %</span>
-            <AnimatedPercent
-              value={displaySummary.totalPnlPct}
-              className={`font-mono text-sm ${displaySummary.totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-              countKey={`total-pnl-pct-${displaySummary.totalPnlPct}`}
-            />
+            <span className={`font-mono text-sm ${displaySummary.totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+              {fmtPct(displaySummary.totalPnlPct)}
+            </span>
           </div>
         </div>
       </motion.div>
