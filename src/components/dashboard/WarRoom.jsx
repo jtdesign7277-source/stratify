@@ -1130,10 +1130,10 @@ export default function WarRoom({ onClose }) {
   );
 
   return (
-    <div className={`h-full w-full bg-transparent relative overflow-hidden ${isGlitching ? 'warroom-glitch' : ''}`}>
+    <div className={`h-full w-full bg-transparent relative ${isGlitching ? 'warroom-glitch' : ''}`}>
       <style>{warRoomStyles}</style>
 
-      <div className="relative z-10 h-full flex flex-col gap-3 px-5 py-3 overflow-hidden">
+      <div className="relative z-10 h-full flex flex-col gap-3 px-5 py-3 overflow-y-auto">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-white font-bold text-base tracking-[0.2em] uppercase truncate">Deep Market Intelligence</h1>
