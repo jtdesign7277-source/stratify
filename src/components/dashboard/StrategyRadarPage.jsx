@@ -2018,10 +2018,9 @@ function StrategyRadarContent() {
       {/* ── Main Content ────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT — Chart */}
-        <motion.div
+        <div
           className="flex flex-col border-r border-white/6 min-w-0"
-          animate={{ flex: chartFullscreen ? 20 : 3 }}
-          transition={{ duration: 0.25, ease: 'easeInOut' }}
+          style={{ flex: chartFullscreen ? 20 : 3, transition: 'flex 0.25s ease-in-out' }}
         >
           {/* Chart header */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/6">
@@ -2107,13 +2106,17 @@ function StrategyRadarContent() {
               </>
             )}
           </div>
-        </motion.div>
+        </div>
 
         {/* RIGHT — Full panel or collapsed strip */}
-        <motion.div
+        <div
           className="min-h-0 overflow-hidden relative"
-          animate={{ flex: chartFullscreen ? 0 : 2, width: chartFullscreen ? 48 : 'auto', minWidth: chartFullscreen ? 48 : 0 }}
-          transition={{ duration: 0.25, ease: 'easeInOut' }}
+          style={{
+            flex: chartFullscreen ? 0 : 2,
+            width: chartFullscreen ? 48 : 'auto',
+            minWidth: chartFullscreen ? 48 : 0,
+            transition: 'flex 0.25s ease-in-out, width 0.25s ease-in-out, min-width 0.25s ease-in-out',
+          }}
         >
           {chartFullscreen ? (
             /* ── Collapsed strip ─────────────────────────────────── */
@@ -2252,7 +2255,7 @@ function StrategyRadarContent() {
               </AnimatePresence>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
     </div>
   );
