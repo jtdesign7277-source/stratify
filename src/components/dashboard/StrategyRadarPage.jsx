@@ -121,14 +121,14 @@ function QualityGauge({ score }) {
   const color = score >= 90 ? '#00C2FF' : score >= 80 ? '#1de9b6' : score >= 60 ? '#089981' : '#eab308';
 
   return (
-    <div className="relative w-[100px] h-[100px] flex-shrink-0">
+    <div className="relative w-11 h-11 flex-shrink-0">
       <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-        <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
         <motion.circle
           cx="50" cy="50" r={radius}
           fill="none"
           stroke={color}
-          strokeWidth="6"
+          strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
@@ -137,7 +137,7 @@ function QualityGauge({ score }) {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-2xl font-bold font-mono" style={{ color }}>{score}</span>
+        <span className="text-xs font-bold font-mono" style={{ color }}>{score}</span>
       </div>
     </div>
   );
@@ -146,8 +146,8 @@ function QualityGauge({ score }) {
 function RadarSweep({ disabled, statusText }) {
   const color = disabled ? '#666' : '#00C2FF';
   return (
-    <div className="flex flex-col items-center py-8">
-      <div className="relative w-32 h-32">
+    <div className="flex flex-col items-center py-4">
+      <div className="relative w-20 h-20">
         <svg viewBox="0 0 128 128" className="w-full h-full">
           <circle cx="64" cy="64" r="58" fill="none" stroke={color} strokeWidth="0.5" opacity="0.2" />
           <circle cx="64" cy="64" r="38" fill="none" stroke={color} strokeWidth="0.5" opacity="0.15" />
@@ -1043,7 +1043,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
       });
 
     // ── CHoCH overlays — level line + zone + text marker (Pine Script style)
-    chochEvents.slice(-15).forEach(ev => {
+    chochEvents.slice(-5).forEach(ev => {
       const evBar = Number(ev.bar);
       const evTime = Number(ev.time);
       const level = Number(ev.level);
@@ -1089,7 +1089,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents = []
     });
 
     // ── BOS overlays — level line + zone + text marker (Pine Script style)
-    bosEvents.slice(-15).forEach(ev => {
+    bosEvents.slice(-5).forEach(ev => {
       const evBar = Number(ev.bar);
       const evTime = Number(ev.time);
       const level = Number(ev.level);
@@ -1462,32 +1462,20 @@ function SignalCard({ signal, marketStatus }) {
     : '—';
 
   return (
-    <div className="border border-white/6 rounded-xl p-5 bg-white/[0.02]">
-      {/* Header: Gauge + Ticker Info */}
-      <div className="flex items-start gap-4">
+    <div className="border border-white/6 rounded-lg p-2 bg-white/[0.02]">
+      <div className="flex items-center gap-2">
         <QualityGauge score={signal.quality_score} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1">
-            <span className="text-2xl font-bold text-white font-mono">{signal.ticker}</span>
-            <span
-              className="text-lg font-semibold uppercase"
-              style={{
-                color: displayColor,
-                textShadow: `0 0 10px ${displayColor}40`,
-              }}
-            >
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-white font-mono">{signal.ticker}</span>
+            <span className="text-sm font-semibold uppercase" style={{ color: displayColor }}>
               {signal.direction === 'long' ? '▲ LONG' : '▼ SHORT'}
             </span>
-            {signal.is_hpz && (
-              <span className="text-xs font-bold" style={{ color: '#00C2FF' }}>
-                HPZ
-              </span>
-            )}
+            {signal.is_hpz && <span className="text-[10px] font-bold" style={{ color: '#00C2FF' }}>HPZ</span>}
           </div>
-          {signal.strategy_source && (
-            <p className="text-xs text-gray-500 mt-0.5">{signal.strategy_source}</p>
-          )}
-          <div className="flex items-center gap-3 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+            {signal.strategy_source && <span>{signal.strategy_source}</span>}
+            <span>·</span>
             <span className="font-mono">{signal.timeframe}</span>
             <span>·</span>
             <span>{timeAgo(signal.detected_at || signal.time)}</span>
@@ -1495,45 +1483,31 @@ function SignalCard({ signal, marketStatus }) {
         </div>
       </div>
 
-      {/* Visual Price Ladder */}
-      <div className="mt-4 py-3 space-y-2.5">
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-500 w-10 text-right">TP</span>
+      <div className="mt-1.5 space-y-0.5">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-500 w-7 text-right">TP</span>
           <div className="flex-1 border-t border-dashed" style={{ borderColor: BULL_COLOR }} />
-          <span className="text-base font-mono font-medium" style={{ color: BULL_COLOR }}>${signal.take_profit.toFixed(2)}</span>
+          <span className="text-xs font-mono" style={{ color: BULL_COLOR }}>${signal.take_profit.toFixed(2)}</span>
+          <span className="text-[10px] font-mono text-emerald-400 w-12 text-right">R:R {rr}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-white/60 w-10 text-right font-medium">Entry</span>
-          <div className="flex-1 border-t-2 border-white/70" />
-          <span className="text-base font-mono font-medium text-white">${signal.entry_price.toFixed(2)}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-white/60 w-7 text-right">Entry</span>
+          <div className="flex-1 border-t border-white/70" />
+          <span className="text-xs font-mono text-white">${signal.entry_price.toFixed(2)}</span>
+          <span className="w-12" />
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-500 w-10 text-right">SL</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-500 w-7 text-right">SL</span>
           <div className="flex-1 border-t border-dashed border-red-400" />
-          <span className="text-base font-mono font-medium text-red-400">${signal.stop_loss.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-end">
-          <span className="text-base font-mono font-semibold text-emerald-400">R:R {rr}</span>
+          <span className="text-xs font-mono text-red-400">${signal.stop_loss.toFixed(2)}</span>
+          <span className="w-12" />
         </div>
       </div>
 
-      {/* Always-visible Details */}
-      <div className="border-t border-white/5 pt-3 space-y-2.5">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-400">OB Zone</span>
-          <span className="text-white font-mono">${signal.ob_bottom.toFixed(2)} – ${signal.ob_top.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-400">MSB Level</span>
-          <span className="text-white font-mono">${signal.msb_level.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Momentum Z</span>
-          <span className="text-white font-mono">{signal.momentum_z}</span>
-        </div>
+      <div className="mt-1 pt-1 border-t border-white/5 text-[10px] text-gray-400 font-mono">
+        OB ${signal.ob_bottom.toFixed(2)}–${signal.ob_top.toFixed(2)} | MSB ${signal.msb_level.toFixed(2)} | Z {signal.momentum_z}
       </div>
 
-      {/* Premium Confirm Trade */}
       {(() => {
         const t = signal.detected_at || signal.time;
         let sigMs = 0;
@@ -1545,32 +1519,17 @@ function SignalCard({ signal, marketStatus }) {
         const extendedHours = ms.premarket || ms.afterhours;
 
         if (expired) return (
-          <button disabled className="w-full mt-4 py-2.5 text-xs font-semibold text-gray-500 rounded-lg bg-white/5 cursor-not-allowed">
-            Expired
-          </button>
+          <button disabled className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-gray-500 rounded bg-white/5 cursor-not-allowed">Expired</button>
         );
         if (marketClosed) return (
-          <button disabled className="w-full mt-4 py-2.5 text-xs font-semibold text-gray-500 rounded-lg bg-white/5 cursor-not-allowed">
-            Market Closed
-          </button>
+          <button disabled className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-gray-500 rounded bg-white/5 cursor-not-allowed">Market Closed</button>
         );
         if (extendedHours) return (
-          <button
-            onClick={(e) => e.stopPropagation()}
-            className="w-full mt-4 py-2.5 text-xs font-semibold text-orange-400 rounded-lg bg-white/5 transition-all hover:bg-white/10"
-          >
-            Extended Hours — Limited
-          </button>
+          <button onClick={(e) => e.stopPropagation()} className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-orange-400 rounded bg-white/5 transition-all hover:bg-white/10">Extended Hours</button>
         );
         return (
-          <button
-            onClick={(e) => e.stopPropagation()}
-            className="w-full mt-4 py-2.5 text-xs font-semibold text-white rounded-lg transition-all hover:brightness-110"
-            style={{
-              background: `linear-gradient(135deg, ${displayColor}, ${displayColor}90)`,
-              boxShadow: `0 0 20px ${displayColor}30`,
-            }}
-          >
+          <button onClick={(e) => e.stopPropagation()} className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-white rounded transition-all hover:brightness-110"
+            style={{ background: `linear-gradient(135deg, ${displayColor}, ${displayColor}90)`, boxShadow: `0 0 20px ${displayColor}30` }}>
             Confirm Trade
           </button>
         );
@@ -1585,46 +1544,29 @@ function SignalCard({ signal, marketStatus }) {
 
 function StrategyCard({ strategy, enabled, onToggle, onViewDetails }) {
   return (
-    <div className="border border-white/6 rounded-lg p-4">
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1">
-          <h3 className="text-base font-semibold text-white">{strategy.name}</h3>
-          <p className="text-sm text-gray-500 mt-0.5">{strategy.subtitle}</p>
+    <div className="border border-white/6 rounded-lg p-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-xs font-semibold text-white truncate">{strategy.name}</h3>
+            <span className="text-[10px] text-gray-600 truncate hidden sm:inline">{strategy.subtitle}</span>
+          </div>
         </div>
-        {/* Toggle switch */}
         <button
           onClick={() => onToggle(strategy.id)}
-          className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-emerald-500/30' : 'bg-white/10'}`}
+          className={`relative w-8 h-4 rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-emerald-500/30' : 'bg-white/10'}`}
         >
-          <div
-            className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${
-              enabled ? 'left-5 bg-emerald-400' : 'left-0.5 bg-gray-500'
-            }`}
-          />
+          <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${enabled ? 'left-4 bg-emerald-400' : 'left-0.5 bg-gray-500'}`} />
         </button>
       </div>
-
-      {/* Backtest Proof Stats */}
       {strategy.backtest_win_rate && (
-        <div className="flex items-center gap-4 mt-3 text-xs">
-          <span className="text-gray-500">
-            Win Rate <span style={{ color: BULL_COLOR }} className="font-mono">{strategy.backtest_win_rate}%</span>
-          </span>
-          <span className="text-gray-500">
-            Return <span style={{ color: BULL_COLOR }} className="font-mono">+{strategy.backtest_return}%</span>
-          </span>
-          <span className="text-gray-500">
-            PF <span className="text-gray-300 font-mono">{strategy.backtest_profit_factor}</span>
-          </span>
+        <div className="flex items-center gap-3 mt-1 text-[10px]">
+          <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{strategy.backtest_win_rate}%</span></span>
+          <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">+{strategy.backtest_return}%</span></span>
+          <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{strategy.backtest_profit_factor}</span></span>
+          <button onClick={() => onViewDetails(strategy)} className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
         </div>
       )}
-
-      <button
-        onClick={() => onViewDetails(strategy)}
-        className="text-sm text-gray-400 hover:text-gray-300 transition-colors mt-3"
-      >
-        View details
-      </button>
     </div>
   );
 }
@@ -1697,90 +1639,54 @@ function RadarSettings({ settings, onUpdate }) {
 
   const SLIDER_FILL = '#10b981';
 
+  const sliderClass = "relative w-full appearance-none bg-transparent cursor-pointer z-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer";
+
   return (
-    <div className="border border-white/6 rounded-xl p-5 space-y-5">
+    <div className="border border-white/6 rounded-lg p-2 space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs text-gray-500 uppercase tracking-widest font-medium">Settings</h3>
-        <span className="text-xs font-semibold" style={{ color: riskProfile.color }}>
-          {riskProfile.label}
-        </span>
+        <h3 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Settings</h3>
+        <span className="text-[10px] font-semibold" style={{ color: riskProfile.color }}>{riskProfile.label}</span>
       </div>
 
-      {/* Stop Loss */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          <label className="text-xs text-gray-400 flex-1">Stop Loss</label>
-          <span className="text-xs font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span>
+        <div className="flex items-center gap-1.5 mb-1">
+          <label className="text-[10px] text-gray-400 flex-1">Stop Loss</label>
+          <span className="text-[10px] font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span>
         </div>
-        <div className="relative h-6 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div className="relative h-4 flex items-center">
+          <div className="absolute w-full h-1 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-all duration-300" style={{ width: `${slPct * 100}%`, backgroundColor: SLIDER_FILL }} />
           </div>
-          <input
-            type="range" min="0.1" max="2.0" step="0.1"
-            value={settings.stop_loss_multiplier}
-            onChange={e => onUpdate({ stop_loss_multiplier: parseFloat(e.target.value) })}
-            className="relative w-full appearance-none bg-transparent cursor-pointer z-10
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2
-              [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer
-              [&::-webkit-slider-thumb]:transition-transform [&:hover::-webkit-slider-thumb]:scale-110"
-          />
+          <input type="range" min="0.1" max="2.0" step="0.1" value={settings.stop_loss_multiplier}
+            onChange={e => onUpdate({ stop_loss_multiplier: parseFloat(e.target.value) })} className={sliderClass} />
         </div>
       </div>
 
-      {/* Take Profit */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
-          </svg>
-          <label className="text-xs text-gray-400 flex-1">Take Profit</label>
-          <span className="text-xs font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span>
+        <div className="flex items-center gap-1.5 mb-1">
+          <label className="text-[10px] text-gray-400 flex-1">Take Profit</label>
+          <span className="text-[10px] font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span>
         </div>
-        <div className="relative h-6 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div className="relative h-4 flex items-center">
+          <div className="absolute w-full h-1 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-all duration-300" style={{ width: `${tpFillPct * 100}%`, backgroundColor: SLIDER_FILL }} />
           </div>
-          <input
-            type="range" min="1.0" max="5.0" step="0.5"
-            value={settings.take_profit_multiplier}
-            onChange={e => onUpdate({ take_profit_multiplier: parseFloat(e.target.value) })}
-            className="relative w-full appearance-none bg-transparent cursor-pointer z-10
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2
-              [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer
-              [&::-webkit-slider-thumb]:transition-transform [&:hover::-webkit-slider-thumb]:scale-110"
-          />
+          <input type="range" min="1.0" max="5.0" step="0.5" value={settings.take_profit_multiplier}
+            onChange={e => onUpdate({ take_profit_multiplier: parseFloat(e.target.value) })} className={sliderClass} />
         </div>
       </div>
 
-      {/* Risk Per Trade */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="19" y1="5" x2="5" y2="19" /><circle cx="6.5" cy="6.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" />
-          </svg>
-          <label className="text-xs text-gray-400 flex-1">Risk Per Trade</label>
-          <span className="text-xs font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span>
+        <div className="flex items-center gap-1.5 mb-1">
+          <label className="text-[10px] text-gray-400 flex-1">Risk Per Trade</label>
+          <span className="text-[10px] font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span>
         </div>
-        <div className="relative h-6 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div className="relative h-4 flex items-center">
+          <div className="absolute w-full h-1 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-all duration-300" style={{ width: `${riskPct * 100}%`, backgroundColor: SLIDER_FILL }} />
           </div>
-          <input
-            type="range" min="0.5" max="5.0" step="0.5"
-            value={settings.risk_per_trade * 100}
-            onChange={e => onUpdate({ risk_per_trade: parseFloat(e.target.value) / 100 })}
-            className="relative w-full appearance-none bg-transparent cursor-pointer z-10
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2
-              [&::-webkit-slider-thumb]:border-gray-600 [&::-webkit-slider-thumb]:cursor-pointer
-              [&::-webkit-slider-thumb]:transition-transform [&:hover::-webkit-slider-thumb]:scale-110"
-          />
+          <input type="range" min="0.5" max="5.0" step="0.5" value={settings.risk_per_trade * 100}
+            onChange={e => onUpdate({ risk_per_trade: parseFloat(e.target.value) / 100 })} className={sliderClass} />
         </div>
       </div>
     </div>
@@ -1794,35 +1700,22 @@ function RadarSettings({ settings, onUpdate }) {
 function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
   if (!trendDetails || trendDetails.length === 0) return null;
   return (
-    <div className="border border-white/6 rounded-xl p-4">
-      <h3 className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-3">Trend Strength</h3>
-      <div className="space-y-1.5">
+    <div className="border border-white/6 rounded-lg p-2">
+      <h3 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1">Trend Strength</h3>
+      <div className="flex items-center gap-2 text-xs font-mono">
         {trendDetails.map(({ label, direction }) => (
-          <div key={label} className="flex items-center justify-between text-sm">
-            <span className="text-gray-400 font-mono w-10">{label}</span>
-            <span
-              className="font-semibold"
-              style={{ color: direction === 1 ? '#34d399' : direction === -1 ? '#f87171' : '#666' }}
-            >
+          <span key={label} className="flex items-center gap-0.5">
+            <span className="text-gray-500">{label}</span>
+            <span style={{ color: direction === 1 ? '#34d399' : direction === -1 ? '#f87171' : '#666' }}>
               {direction === 1 ? '▲' : direction === -1 ? '▼' : '—'}
             </span>
-          </div>
+          </span>
         ))}
       </div>
-      <div className="border-t border-white/6 mt-3 pt-3 space-y-1.5">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Strength</span>
-          <span
-            className="font-mono font-semibold"
-            style={{ color: trendStrength >= 0 ? '#34d399' : '#f87171' }}
-          >
-            {trendStrength > 0 ? '+' : ''}{trendStrength}%
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Confidence</span>
-          <span className="font-mono font-semibold text-white">{confidence}%</span>
-        </div>
+      <div className="text-[10px] text-gray-400 mt-1">
+        Str: <span className="font-mono font-semibold" style={{ color: trendStrength >= 0 ? '#34d399' : '#f87171' }}>{trendStrength > 0 ? '+' : ''}{trendStrength}%</span>
+        {' · '}
+        Conf: <span className="font-mono font-semibold text-white">{confidence}%</span>
       </div>
     </div>
   );
@@ -1907,10 +1800,10 @@ function StrategyRadarContent() {
       const strats = await getVerifiedStrategies();
       setStrategies(strats);
 
-      // Default enable all strategies (persisted state overrides in the effect above)
+      // Default OFF — only enable if Supabase had them saved as ON
       setActiveStrategies(prev => {
         const merged = { ...prev };
-        strats.forEach(s => { if (!(s.id in merged)) merged[s.id] = true; });
+        strats.forEach(s => { if (!(s.id in merged)) merged[s.id] = false; });
         return merged;
       });
 
@@ -1919,27 +1812,35 @@ function StrategyRadarContent() {
     init();
   }, []);
 
-  // Fetch candles and run detection — gated on canScan
+  // Fetch candles always, run detection only when canScan
   useEffect(() => {
+    let cancelled = false;
+
+    // Close previous WS
+    if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+
     if (!canScan) {
-      // Scanning disabled: close WS, clear detection state, keep candles for chart
-      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
       detectorRef.current = null;
       smDetectorRef.current = null;
       setIsScanning(false);
-      setSignals(prev => prev.filter(s => s.ticker !== selectedTicker));
       setOrderBlocks([]);
       setMsbEvents([]);
       setSmResults({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 0, trendDetails: [], divergences: [], liquidityZones: [] });
-      return;
     }
 
     async function loadAndDetect() {
       setLoading(true);
-      setIsScanning(true);
 
       const candleData = await fetchCandles(selectedTicker, settings.timeframe);
+      if (cancelled) return;
       setCandles(candleData);
+
+      if (!canScan) {
+        setLoading(false);
+        return;
+      }
+
+      setIsScanning(true);
 
       let allTaggedSignals = [];
 
@@ -2016,6 +1917,7 @@ function StrategyRadarContent() {
     loadAndDetect();
 
     return () => {
+      cancelled = true;
       if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
     };
   }, [selectedTicker, settings.timeframe, settings.stop_loss_multiplier, settings.take_profit_multiplier, canScan, enabledTypes]);
@@ -2246,7 +2148,8 @@ function StrategyRadarContent() {
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-white font-mono">${selectedTicker}</span>
               <span className="text-xs text-gray-500">
-                {enabledTypes.has('smart_money') && enabledTypes.has('msb_ob') ? 'MSB + OB + CHoCH/BOS'
+                {enabledTypes.size === 0 ? ''
+                  : enabledTypes.has('smart_money') && enabledTypes.has('msb_ob') ? 'MSB + OB + CHoCH/BOS'
                   : enabledTypes.has('smart_money') ? 'CHoCH + BOS'
                   : 'MSB + Order Block'}
               </span>
@@ -2324,14 +2227,13 @@ function StrategyRadarContent() {
         {/* RIGHT — Signals + Strategies (40%) */}
         <div className="flex-[2] min-h-0 overflow-y-auto relative">
           {/* Active Signals */}
-          <div className="p-4 border-b border-white/6">
-            <h2 className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-3">
+          <div className="p-2 border-b border-white/6">
+            <h2 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1.5">
               Active Signals
             </h2>
             {currentTickerSignals.length > 0 ? (
               <>
-                {/* Signal Navigation Strip */}
-                <div className="flex gap-1 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
+                <div className="flex gap-0.5 mb-2 overflow-x-auto pb-0.5">
                   {currentTickerSignals.slice(0, 10).map((sig, i) => {
                     const isActive = activeSignalIdx === i;
                     const tabDirColor = sig.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
@@ -2339,7 +2241,7 @@ function StrategyRadarContent() {
                       <button
                         key={i}
                         onClick={() => setActiveSignalIdx(i)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all border-l-2 flex-shrink-0 ${
+                        className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] whitespace-nowrap transition-all border-l-2 flex-shrink-0 ${
                           isActive ? 'bg-white/[0.04]' : 'bg-transparent hover:bg-white/[0.02]'
                         }`}
                         style={{ borderColor: isActive ? tabDirColor : 'transparent' }}
@@ -2352,7 +2254,6 @@ function StrategyRadarContent() {
                   })}
                 </div>
 
-                {/* Signal Card with slide animation */}
                 <AnimatePresence mode="wait">
                   {currentTickerSignals[activeSignalIdx] && (
                     <motion.div
@@ -2371,7 +2272,7 @@ function StrategyRadarContent() {
               <RadarSweep
                 disabled={!canScan}
                 statusText={
-                  !anyStrategyEnabled ? 'Scanning disabled'
+                  !anyStrategyEnabled ? 'Toggle a strategy to start scanning'
                   : !marketStatus.open && !marketStatus.premarket && !marketStatus.afterhours
                     ? 'Market closed — signals update at next open'
                   : 'Scanning for setups...'
@@ -2380,9 +2281,9 @@ function StrategyRadarContent() {
             )}
           </div>
 
-          {/* Trend Strength Matrix — only when Smart Money engine is active */}
+          {/* Trend Strength Matrix */}
           {enabledTypes.has('smart_money') && smResults.trendDetails.length > 0 && (
-            <div className="p-4 border-b border-white/6">
+            <div className="p-2 border-b border-white/6">
               <TrendStrengthMatrix
                 trendStrength={smResults.trendStrength}
                 confidence={smResults.confidence}
@@ -2392,19 +2293,16 @@ function StrategyRadarContent() {
           )}
 
           {/* Settings */}
-          <div className="p-4 border-b border-white/6">
+          <div className="p-2 border-b border-white/6">
             <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
           </div>
 
           {/* Verified Strategies */}
-          <div className="p-4">
-            <div className="mb-3">
-              <h2 className="text-xs text-gray-500 uppercase tracking-widest font-medium">
-                Verified Strategies
-              </h2>
-              <p className="text-[10px] text-gray-700 mt-0.5">Backtested. Scored. Institutional-Grade.</p>
-            </div>
-            <div className="space-y-2">
+          <div className="p-2">
+            <h2 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1.5">
+              Verified Strategies
+            </h2>
+            <div className="space-y-1.5">
               {strategies.map(strategy => (
                 <StrategyCard
                   key={strategy.id}
