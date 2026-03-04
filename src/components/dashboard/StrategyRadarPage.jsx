@@ -153,17 +153,6 @@ function QualityGauge({ score }) {
   );
 }
 
-function ScanStatus({ scanning, preview, statusText }) {
-  return (
-    <div className="flex items-center gap-2 py-1">
-      {scanning && !preview && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
-      {preview && <span className="text-[10px] text-gray-600 flex-shrink-0">◎</span>}
-      {!scanning && !preview && <span className="w-1.5 h-1.5 rounded-full bg-gray-600 flex-shrink-0" />}
-      <span className="text-[10px] text-gray-500">{statusText}</span>
-    </div>
-  );
-}
-
 async function loadActiveStrategies(userId) {
   const { data } = await supabase
     .from('radar_active_strategies')
@@ -1750,9 +1739,6 @@ function StrategyRadarContent() {
   const [drawings, setDrawings] = useState([]);
   const [activeTool, setActiveTool] = useState('crosshair');
   const [activeColor, setActiveColor] = useState('#ffffff');
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [expandedSignalIdx, setExpandedSignalIdx] = useState(null);
-  const [marketTick, setMarketTick] = useState(0);
 
   const [smResults, setSmResults] = useState({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 0, trendDetails: [], divergences: [], liquidityZones: [] });
 
@@ -2278,15 +2264,21 @@ function StrategyRadarContent() {
                 </AnimatePresence>
               </>
             ) : (
-              <RadarSweep
-                disabled={!canScan}
-                statusText={
-                  !anyStrategyEnabled ? 'Toggle a strategy to start scanning'
-                  : !marketStatus.open && !marketStatus.premarket && !marketStatus.afterhours
-                    ? 'Market closed — signals update at next open'
-                  : 'Scanning for setups...'
-                }
-              />
+              anyStrategyEnabled ? (
+                <div className="flex items-center gap-2 py-2">
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    <div className="absolute inset-0 w-2 h-2 bg-emerald-500 rounded-full animate-ping opacity-50" />
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {!marketStatus.open && !marketStatus.premarket && !marketStatus.afterhours
+                      ? 'Market closed — signals update at next open'
+                      : 'Scanning for setups...'}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 py-2">Toggle a strategy to start scanning</p>
+              )
             )}
           </div>
 
