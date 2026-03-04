@@ -11,7 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MousePointer2, TrendingUp, Minus, MoveRight, Square, GitBranch, Eraser, Search, RotateCcw } from 'lucide-react';
+import { MousePointer2, TrendingUp, Minus, MoveRight, Square, GitBranch, Eraser, Search, RotateCcw, Maximize2, Minimize2 } from 'lucide-react';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -1239,6 +1239,8 @@ function StrategyRadarContent() {
   const startPointRef = useRef(null);
   const previewObjectsRef = useRef([]);
 
+  const [chartFullscreen, setChartFullscreen] = useState(false);
+
   const [smResults, setSmResults] = useState({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 0, trendDetails: [], divergences: [], liquidityZones: [] });
 
   const detectorRef = useRef(null);
@@ -1953,14 +1955,28 @@ function StrategyRadarContent() {
 
   if (loading && candles.length === 0) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="h-full bg-[#0a0a0f] flex items-center justify-center">
         <div className="text-gray-500 text-sm">Loading Strategy Radar...</div>
       </div>
     );
   }
 
+  // Resize chart after fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    setChartFullscreen(prev => !prev);
+    setTimeout(() => {
+      const inst = chartInstanceRef.current;
+      if (inst?.chart && inst?.container) {
+        inst.chart.applyOptions({
+          width: inst.container.clientWidth,
+          height: inst.container.clientHeight,
+        });
+      }
+    }, 100);
+  }, []);
+
   return (
-    <div className="h-screen overflow-hidden bg-[#0a0a0f] text-white flex flex-col">
+    <div className="h-full overflow-hidden bg-[#0a0a0f] text-white flex flex-col">
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-white/6">
         <div className="flex items-center gap-4">
@@ -1983,11 +1999,9 @@ function StrategyRadarContent() {
         <RadarSearchBar
           selectedTicker={selectedTicker}
           onSelect={(t) => {
-            // Reset drawing state to prevent chart freeze
             setDrawingTool('crosshair');
             isDrawingRef.current = false;
             startPointRef.current = null;
-            // Clear stale chart instance — new chart will call onChartReady
             chartInstanceRef.current = null;
             setSelectedTicker(t);
             setActiveSignalIdx(0);
@@ -2003,8 +2017,12 @@ function StrategyRadarContent() {
 
       {/* ── Main Content ────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* LEFT — Chart (60%) */}
-        <div className="flex-[3] flex flex-col border-r border-white/6">
+        {/* LEFT — Chart */}
+        <motion.div
+          className="flex flex-col border-r border-white/6 min-w-0"
+          animate={{ flex: chartFullscreen ? 20 : 3 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+        >
           {/* Chart header */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/6">
             <div className="flex items-center gap-3">
@@ -2030,6 +2048,16 @@ function StrategyRadarContent() {
                   {tf}
                 </button>
               ))}
+              <div className="w-px h-4 bg-white/10 mx-1" />
+              <button
+                onClick={toggleFullscreen}
+                title={chartFullscreen ? 'Exit fullscreen' : 'Fullscreen chart'}
+                className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                {chartFullscreen
+                  ? <Minimize2 size={14} strokeWidth={1.5} />
+                  : <Maximize2 size={14} strokeWidth={1.5} />}
+              </button>
             </div>
           </div>
 
@@ -2079,115 +2107,152 @@ function StrategyRadarContent() {
               </>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        {/* RIGHT — Signals + Strategies (40%) */}
-        <div className="flex-[2] min-h-0 overflow-y-auto relative">
-          {/* Active Signals */}
-          <div className="p-2 border-b border-white/6">
-            <h2 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1.5">
-              Active Signals
-            </h2>
-            {currentTickerSignals.length > 0 ? (
-              <>
-                <div className="flex gap-0.5 mb-2 overflow-x-auto pb-0.5">
-                  {currentTickerSignals.slice(0, 10).map((sig, i) => {
-                    const isActive = activeSignalIdx === i;
-                    const tabDirColor = sig.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => setActiveSignalIdx(i)}
-                        className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] whitespace-nowrap transition-all border-l-2 flex-shrink-0 ${
-                          isActive ? 'bg-white/[0.04]' : 'bg-transparent hover:bg-white/[0.02]'
-                        }`}
-                        style={{ borderColor: isActive ? tabDirColor : 'transparent' }}
-                      >
-                        <span style={{ color: tabDirColor }}>{sig.direction === 'long' ? '▲' : '▼'}</span>
-                        <span className={`font-mono ${isActive ? 'text-white' : 'text-gray-500'}`}>{sig.ticker}</span>
-                        <span className="font-mono text-gray-600">{sig.quality_score}%</span>
-                      </button>
-                    );
-                  })}
+        {/* RIGHT — Full panel or collapsed strip */}
+        <motion.div
+          className="min-h-0 overflow-hidden relative"
+          animate={{ flex: chartFullscreen ? 0 : 2, width: chartFullscreen ? 48 : 'auto', minWidth: chartFullscreen ? 48 : 0 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+        >
+          {chartFullscreen ? (
+            /* ── Collapsed strip ─────────────────────────────────── */
+            <div className="w-12 h-full flex flex-col items-center py-2 gap-2 border-l border-white/6">
+              <button
+                onClick={toggleFullscreen}
+                title="Restore panel"
+                className="p-1.5 text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                <Minimize2 size={14} strokeWidth={1.5} />
+              </button>
+              <div className="w-6 h-px bg-white/10" />
+              {/* Strategy toggles */}
+              {strategies.map(strategy => (
+                <button
+                  key={strategy.id}
+                  onClick={() => handleToggleStrategy(strategy.id)}
+                  title={strategy.name}
+                  className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
+                    activeStrategies[strategy.id] ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-gray-600'
+                  }`}
+                >
+                  <div className={`w-2 h-2 rounded-full ${activeStrategies[strategy.id] ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                </button>
+              ))}
+              <div className="w-6 h-px bg-white/10" />
+              {/* Signal count */}
+              <span className="text-[10px] font-mono text-gray-500">{activeSignalCount}</span>
+            </div>
+          ) : (
+            /* ── Full right panel ────────────────────────────────── */
+            <div className="h-full overflow-y-auto">
+              {/* Active Signals */}
+              <div className="p-2 border-b border-white/6">
+                <h2 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1.5">
+                  Active Signals
+                </h2>
+                {currentTickerSignals.length > 0 ? (
+                  <>
+                    <div className="flex gap-0.5 mb-2 overflow-x-auto pb-0.5">
+                      {currentTickerSignals.slice(0, 10).map((sig, i) => {
+                        const isActive = activeSignalIdx === i;
+                        const tabDirColor = sig.direction === 'long' ? BULL_COLOR : BEAR_COLOR;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => setActiveSignalIdx(i)}
+                            className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] whitespace-nowrap transition-all border-l-2 flex-shrink-0 ${
+                              isActive ? 'bg-white/[0.04]' : 'bg-transparent hover:bg-white/[0.02]'
+                            }`}
+                            style={{ borderColor: isActive ? tabDirColor : 'transparent' }}
+                          >
+                            <span style={{ color: tabDirColor }}>{sig.direction === 'long' ? '▲' : '▼'}</span>
+                            <span className={`font-mono ${isActive ? 'text-white' : 'text-gray-500'}`}>{sig.ticker}</span>
+                            <span className="font-mono text-gray-600">{sig.quality_score}%</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                      {currentTickerSignals[activeSignalIdx] && (
+                        <motion.div
+                          key={activeSignalIdx}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <SignalCard signal={currentTickerSignals[activeSignalIdx]} marketStatus={marketStatus} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </>
+                ) : (
+                  anyStrategyEnabled ? (
+                    <div className="flex items-center gap-2 py-2">
+                      <div className="relative">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                        <div className="absolute inset-0 w-2 h-2 bg-emerald-500 rounded-full animate-ping opacity-50" />
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {!marketStatus.open && !marketStatus.premarket && !marketStatus.afterhours
+                          ? 'Market closed — signals update at next open'
+                          : 'Scanning for setups...'}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 py-2">Toggle a strategy to start scanning</p>
+                  )
+                )}
+              </div>
+
+              {/* Trend Strength Matrix */}
+              {enabledTypes.has('smart_money') && smResults.trendDetails.length > 0 && (
+                <div className="p-2 border-b border-white/6">
+                  <TrendStrengthMatrix
+                    trendStrength={smResults.trendStrength}
+                    confidence={smResults.confidence}
+                    trendDetails={smResults.trendDetails}
+                  />
                 </div>
+              )}
 
-                <AnimatePresence mode="wait">
-                  {currentTickerSignals[activeSignalIdx] && (
-                    <motion.div
-                      key={activeSignalIdx}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.15 }}
-                    >
-                      <SignalCard signal={currentTickerSignals[activeSignalIdx]} marketStatus={marketStatus} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
-            ) : (
-              anyStrategyEnabled ? (
-                <div className="flex items-center gap-2 py-2">
-                  <div className="relative">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                    <div className="absolute inset-0 w-2 h-2 bg-emerald-500 rounded-full animate-ping opacity-50" />
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    {!marketStatus.open && !marketStatus.premarket && !marketStatus.afterhours
-                      ? 'Market closed — signals update at next open'
-                      : 'Scanning for setups...'}
-                  </span>
+              {/* Settings */}
+              <div className="p-2 border-b border-white/6">
+                <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
+              </div>
+
+              {/* Verified Strategies */}
+              <div className="p-2">
+                <h2 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1.5">
+                  Verified Strategies
+                </h2>
+                <div className="space-y-1.5">
+                  {strategies.map(strategy => (
+                    <StrategyCard
+                      key={strategy.id}
+                      strategy={strategy}
+                      enabled={activeStrategies[strategy.id] || false}
+                      onToggle={handleToggleStrategy}
+                      onViewDetails={setExpandedStrategy}
+                    />
+                  ))}
                 </div>
-              ) : (
-                <p className="text-xs text-gray-500 py-2">Toggle a strategy to start scanning</p>
-              )
-            )}
-          </div>
+              </div>
 
-          {/* Trend Strength Matrix */}
-          {enabledTypes.has('smart_money') && smResults.trendDetails.length > 0 && (
-            <div className="p-2 border-b border-white/6">
-              <TrendStrengthMatrix
-                trendStrength={smResults.trendStrength}
-                confidence={smResults.confidence}
-                trendDetails={smResults.trendDetails}
-              />
+              {/* Strategy Detail Overlay */}
+              <AnimatePresence>
+                {expandedStrategy && (
+                  <StrategyDetailOverlay
+                    strategy={expandedStrategy}
+                    onClose={() => setExpandedStrategy(null)}
+                  />
+                )}
+              </AnimatePresence>
             </div>
           )}
-
-          {/* Settings */}
-          <div className="p-2 border-b border-white/6">
-            <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
-          </div>
-
-          {/* Verified Strategies */}
-          <div className="p-2">
-            <h2 className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-1.5">
-              Verified Strategies
-            </h2>
-            <div className="space-y-1.5">
-              {strategies.map(strategy => (
-                <StrategyCard
-                  key={strategy.id}
-                  strategy={strategy}
-                  enabled={activeStrategies[strategy.id] || false}
-                  onToggle={handleToggleStrategy}
-                  onViewDetails={setExpandedStrategy}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Strategy Detail Overlay */}
-          <AnimatePresence>
-            {expandedStrategy && (
-              <StrategyDetailOverlay
-                strategy={expandedStrategy}
-                onClose={() => setExpandedStrategy(null)}
-              />
-            )}
-          </AnimatePresence>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

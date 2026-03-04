@@ -1093,7 +1093,7 @@ function StratifyAppContent() {
     } else if (nextPage === 'tokens') {
       nextPath = '/tokens';
     } else if (nextPage === 'radar') {
-      nextPath = '/radar';
+      nextPath = '/dashboard';
     } else if (nextPage === 'dashboard') {
       nextPath = '/dashboard';
     }
@@ -1610,12 +1610,9 @@ function StratifyAppContent() {
           ) : null}
         </div>
       </div>
-    ) : currentPage === 'radar' ? (
-      <RadarErrorBoundary>
-        <StrategyRadarPage />
-      </RadarErrorBoundary>
     ) : (
       <Dashboard
+        initialTab={currentPage === 'radar' ? 'radar' : undefined}
         setCurrentPage={navigateToPage}
         isSocialFeedOpen={isSocialFeedOpen}
         onToggleSocialFeed={() => setIsSocialFeedOpen((prev) => !prev)}
@@ -1656,7 +1653,7 @@ function StratifyAppContent() {
       }
 
       if (path === '/radar' || path === '/radar/') {
-        setCurrentPage('radar');
+        setCurrentPage('dashboard');
         return;
       }
 

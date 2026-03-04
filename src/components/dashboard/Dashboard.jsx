@@ -883,12 +883,13 @@ export default function Dashboard({
   isLiveScoresOpen = false,
   onToggleLiveScores = () => {},
   liveScoresUnread = false,
+  initialTab,
 }) {
   const savedState = loadDashboardState();
-  
+
   const [sidebarExpanded, setSidebarExpanded] = useState(() => getInitialSidebarExpanded(savedState));
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
-  const [activeTab, setActiveTab] = useState(() => sanitizeActiveTab(savedState?.activeTab));
+  const [activeTab, setActiveTab] = useState(() => initialTab || sanitizeActiveTab(savedState?.activeTab));
   const [hasMountedCryptoTab, setHasMountedCryptoTab] = useState(() => sanitizeActiveTab(savedState?.activeTab) === 'crypto');
   const [xraySymbol, setXraySymbol] = useState('TSLA');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
@@ -2463,7 +2464,7 @@ export default function Dashboard({
             }
 
             if (tabId === 'radar') {
-              setCurrentPage('radar');
+              setActiveTab('radar');
               return;
             }
           }}
