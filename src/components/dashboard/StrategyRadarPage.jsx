@@ -34,6 +34,17 @@ const BOS_COLOR = '#7B61FF';
 
 const CRYPTO_TICKERS = new Set(['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOGE/USD', 'LINK/USD', 'ADA/USD', 'AVAX/USD', 'DOT/USD']);
 
+const SIGNAL_DESCRIPTIONS = {
+  msb_ob: {
+    summary: 'Detects Market Structure Breaks — when price breaks through a previous pivot high or low with momentum confirmation. Order Blocks mark the origin candle of the break.',
+    triggers: 'BUY signals trigger when price breaks above a pivot high (bullish MSB) and revisits the order block zone. SELL signals trigger on bearish breaks below pivot lows.',
+  },
+  smart_money: {
+    summary: 'Identifies Change of Character (CHoCH) and Break of Structure (BOS) patterns used by institutional traders. Multi-timeframe trend alignment and RSI divergence filtering improve signal quality.',
+    triggers: 'BUY signals fire on bullish CHoCH (price reverses up through a pivot level) or bullish BOS (continuation break above previous structure). SELL signals fire on bearish equivalents.',
+  },
+};
+
 function isCryptoTicker(ticker) {
   return CRYPTO_TICKERS.has(ticker) || /\/(USD|USDT|BTC)$/.test(ticker);
 }
@@ -421,14 +432,15 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       });
     });
 
-    // Smart Money BUY/SELL markers
-    (Array.isArray(signals) ? signals : [])
-      .filter(s => s.strategy_source === 'Smart Money' && s.status === 'active')
-      .forEach(s => {
+    // BUY/SELL signal markers (both MSB/OB and Smart Money)
+    const activeTradeSignals = (Array.isArray(signals) ? signals : [])
+      .filter(s => s.status === 'active');
+    activeTradeSignals.forEach(s => {
         const time = Number(s.detected_at ?? s.time);
         if (!Number.isFinite(time)) return;
         const isLong = s.direction === 'long';
-        markers.push({ time, position: isLong ? 'belowBar' : 'aboveBar', color: isLong ? '#00E676' : '#FF1744', shape: isLong ? 'arrowUp' : 'arrowDown', text: isLong ? 'BUY' : 'SELL' });
+        const score = s.quality_score ? ` ${Math.round(s.quality_score)}` : '';
+        markers.push({ time, position: isLong ? 'belowBar' : 'aboveBar', color: isLong ? '#00E676' : '#FF1744', shape: 'square', text: isLong ? `BUY${score}` : `SELL${score}` });
       });
 
     // CHoCH markers
@@ -522,6 +534,32 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         obOverlaySeriesRef.current.push(msbLine);
       });
     }
+
+    // Entry / TP / SL horizontal dashed lines for active signals
+    activeTradeSignals.slice(0, 3).forEach(s => {
+      const sigTime = Number(s.detected_at ?? s.time);
+      if (!Number.isFinite(sigTime) || !Number.isFinite(chartNow)) return;
+      const entry = Number(s.entry_price);
+      const tp = Number(s.take_profit);
+      const sl = Number(s.stop_loss);
+      const startT = Math.min(sigTime, chartNow);
+      const endT = Math.max(sigTime, chartNow);
+      if (Number.isFinite(entry)) {
+        const entryLine = addLineSeriesCompat(chartRef.current, { color: 'rgba(255,255,255,0.6)', lineWidth: 1, lineStyle: 2, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
+        entryLine.setData([{ time: startT, value: entry }, { time: endT, value: entry }]);
+        obOverlaySeriesRef.current.push(entryLine);
+      }
+      if (Number.isFinite(tp)) {
+        const tpLine = addLineSeriesCompat(chartRef.current, { color: '#00E676', lineWidth: 1, lineStyle: 2, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
+        tpLine.setData([{ time: startT, value: tp }, { time: endT, value: tp }]);
+        obOverlaySeriesRef.current.push(tpLine);
+      }
+      if (Number.isFinite(sl)) {
+        const slLine = addLineSeriesCompat(chartRef.current, { color: '#FF1744', lineWidth: 1, lineStyle: 2, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
+        slLine.setData([{ time: startT, value: sl }, { time: endT, value: sl }]);
+        obOverlaySeriesRef.current.push(slLine);
+      }
+    });
 
     markers.sort((a, b) => a.time - b.time);
     if (markersRef.current) {
@@ -630,17 +668,30 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails }) {
           <span className="text-xs font-semibold text-white truncate">{String(strategy.name || '')}</span>
         </button>
         <button onClick={() => onToggle(strategy.id)}
-          className={`relative w-8 h-4 rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-emerald-500/30' : 'bg-white/10'}`}>
-          <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${enabled ? 'left-4 bg-emerald-400' : 'left-0.5 bg-gray-500'}`} />
+          className={`w-4 h-4 rounded-full border-2 transition-all flex-shrink-0 flex items-center justify-center ${enabled ? 'border-emerald-400' : 'border-white/20 hover:border-white/40'}`}>
+          {enabled && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
         </button>
       </div>
-      {expanded && strategy.backtest_win_rate && (
-        <div className="flex items-center gap-3 mt-1 text-[10px]">
-          <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(strategy.backtest_win_rate)}%</span></span>
-          <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">+{String(strategy.backtest_return)}%</span></span>
-          <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(strategy.backtest_profit_factor)}</span></span>
-          <button onClick={() => onViewDetails(strategy)} className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
-        </div>
+      {expanded && (
+        <>
+          {strategy.backtest_win_rate && (
+            <div className="flex items-center gap-3 mt-1 text-[10px]">
+              <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(strategy.backtest_win_rate)}%</span></span>
+              <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">+{String(strategy.backtest_return)}%</span></span>
+              <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(strategy.backtest_profit_factor)}</span></span>
+              <button onClick={() => onViewDetails(strategy)} className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors ml-auto">details</button>
+            </div>
+          )}
+          {SIGNAL_DESCRIPTIONS[strategy.strategy_type] && (
+            <div className="mt-1.5 space-y-1">
+              <p className="text-[11px] text-gray-400 leading-relaxed">{SIGNAL_DESCRIPTIONS[strategy.strategy_type].summary}</p>
+              <div>
+                <span className="text-[10px] text-gray-500 font-semibold">What triggers BUY/SELL?</span>
+                <p className="text-[11px] text-gray-400 leading-relaxed mt-0.5">{SIGNAL_DESCRIPTIONS[strategy.strategy_type].triggers}</p>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -946,9 +997,26 @@ function StrategyRadarContent() {
 
   const handleToggleStrategy = useCallback(async (strategyId) => {
     setActiveStrategies(prev => {
-      const next = { ...prev, [strategyId]: !prev[strategyId] };
-      supabase.auth.getUser().then(({ data: { user } }) => { if (user) saveActiveStrategy(user.id, strategyId, next[strategyId]); });
-      return next;
+      const wasActive = prev[strategyId];
+      if (wasActive) {
+        // Toggling OFF — just disable this one
+        const next = { ...prev, [strategyId]: false };
+        supabase.auth.getUser().then(({ data: { user } }) => { if (user) saveActiveStrategy(user.id, strategyId, false); });
+        return next;
+      } else {
+        // Toggling ON — disable all others first (radio behavior)
+        const next = {};
+        Object.keys(prev).forEach(k => { next[k] = false; });
+        next[strategyId] = true;
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            // Save all as disabled, then enable this one
+            Object.keys(prev).forEach(k => { if (k !== strategyId && prev[k]) saveActiveStrategy(user.id, k, false); });
+            saveActiveStrategy(user.id, strategyId, true);
+          }
+        });
+        return next;
+      }
     });
   }, []);
 
@@ -1052,7 +1120,7 @@ function StrategyRadarContent() {
             />
           </div>
 
-          <div className="flex items-center gap-6 px-4 py-2 border-t border-white/6 text-[10px]">
+          <div className="flex items-center gap-6 px-4 py-2 border-t border-white/6 text-[10px] flex-wrap">
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BULL_COLOR }} /><span className="text-gray-500">Bullish OB</span></span>
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BEAR_COLOR }} /><span className="text-gray-500">Bearish OB</span></span>
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: HPZ_BULL }} /><span className="text-gray-500">High Probability Zone</span></span>
@@ -1062,6 +1130,9 @@ function StrategyRadarContent() {
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BOS_COLOR }} /><span className="text-gray-500">BOS</span></span>
               </>
             )}
+            <span className="flex items-center gap-1.5"><span className="w-4 border-t border-dashed border-white/60" /><span className="text-gray-500">Entry</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-4 border-t border-dashed" style={{ borderColor: '#00E676' }} /><span className="text-gray-500">TP</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-4 border-t border-dashed" style={{ borderColor: '#FF1744' }} /><span className="text-gray-500">SL</span></span>
           </div>
         </div>
 
