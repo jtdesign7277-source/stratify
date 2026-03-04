@@ -10,6 +10,7 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MousePointer2, TrendingUp, Minus, Square, GitBranch, Eraser } from 'lucide-react';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -193,6 +194,72 @@ async function saveActiveStrategy(userId, strategyId, enabled) {
     .upsert({ user_id: userId, strategy_id: strategyId, enabled }, { onConflict: 'user_id,strategy_id' });
 }
 
+// ── Drawing Tools ────────────────────────────────────────────────────────────
+
+const DRAW_TOOLS = [
+  { id: 'crosshair', icon: MousePointer2, label: 'Crosshair' },
+  { id: 'trendline', icon: TrendingUp, label: 'Trendline' },
+  { id: 'hline', icon: Minus, label: 'Horizontal Line' },
+  { id: 'rectangle', icon: Square, label: 'Rectangle' },
+  { id: 'fib', icon: GitBranch, label: 'Fibonacci' },
+  { id: 'eraser', icon: Eraser, label: 'Eraser' },
+];
+
+const DRAW_COLORS = ['#ffffff', '#089981', '#f23645', '#2962FF', '#FF9800'];
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function loadDrawings(ticker) {
+  try {
+    const stored = localStorage.getItem(`radar_drawings_${ticker}`);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+function persistDrawings(ticker, drawings) {
+  try {
+    localStorage.setItem(`radar_drawings_${ticker}`, JSON.stringify(drawings));
+  } catch {}
+}
+
+function DrawingToolbar({ activeTool, activeColor, onToolChange, onColorChange }) {
+  return (
+    <div className="absolute left-2 top-2 z-10 flex flex-col gap-1 bg-[#0a0a0f]/90 border border-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+      {DRAW_TOOLS.map(tool => {
+        const Icon = tool.icon;
+        const isActive = activeTool === tool.id;
+        return (
+          <button
+            key={tool.id}
+            onClick={() => onToolChange(tool.id)}
+            title={tool.label}
+            className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
+              isActive ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+            }`}
+          >
+            <Icon size={16} strokeWidth={1.5} />
+          </button>
+        );
+      })}
+      <div className="border-t border-white/10 mt-1 pt-1 flex flex-col gap-1">
+        {DRAW_COLORS.map(color => (
+          <button
+            key={color}
+            onClick={() => onColorChange(color)}
+            className={`w-8 h-4 rounded-sm transition-all ${activeColor === color ? 'ring-1 ring-white/40 scale-110' : 'hover:scale-105'}`}
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Error Boundary ───────────────────────────────────────────────────────────
 class RadarErrorBoundary extends React.Component {
   constructor(props) {
@@ -295,12 +362,28 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART — TradingView Lightweight Charts with MSB/OB Overlays
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, drawings = [], activeTool = 'crosshair', activeColor = '#ffffff', onAddDrawing, onRemoveDrawing }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const markersRef = useRef(null);
   const obOverlaySeriesRef = useRef([]);
+  const drawingSeriesRef = useRef([]);
+  const drawingPriceLinesRef = useRef([]);
+  const pendingPointRef = useRef(null);
+
+  // Refs to avoid stale closures in subscribeClick
+  const activeToolRef = useRef(activeTool);
+  const activeColorRef = useRef(activeColor);
+  const onAddDrawingRef = useRef(onAddDrawing);
+  const onRemoveDrawingRef = useRef(onRemoveDrawing);
+  const drawingsRef = useRef(drawings);
+
+  useEffect(() => { activeToolRef.current = activeTool; pendingPointRef.current = null; }, [activeTool]);
+  useEffect(() => { activeColorRef.current = activeColor; }, [activeColor]);
+  useEffect(() => { onAddDrawingRef.current = onAddDrawing; }, [onAddDrawing]);
+  useEffect(() => { onRemoveDrawingRef.current = onRemoveDrawing; }, [onRemoveDrawing]);
+  useEffect(() => { drawingsRef.current = drawings; }, [drawings]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -347,6 +430,53 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
     });
     candleSeriesRef.current = candleSeries;
 
+    // Drawing click handler
+    chart.subscribeClick((param) => {
+      const tool = activeToolRef.current;
+      if (!tool || tool === 'crosshair') return;
+      if (!param.point || !param.time) return;
+
+      const price = candleSeries.coordinateToPrice(param.point.y);
+      if (!Number.isFinite(price)) return;
+      const time = param.time;
+
+      if (tool === 'eraser') {
+        const ds = drawingsRef.current;
+        let bestId = null, bestDist = Infinity;
+        ds.forEach(d => {
+          d.points.forEach(pt => {
+            const dist = Math.abs((pt.price || 0) - price);
+            if (dist < bestDist) { bestDist = dist; bestId = d.id; }
+          });
+        });
+        if (bestId != null) onRemoveDrawingRef.current?.(bestId);
+        return;
+      }
+
+      if (tool === 'hline') {
+        onAddDrawingRef.current?.({
+          id: Date.now(),
+          type: 'hline',
+          color: activeColorRef.current,
+          points: [{ price }],
+        });
+        return;
+      }
+
+      // Two-click tools: trendline, rectangle, fib
+      if (!pendingPointRef.current) {
+        pendingPointRef.current = { time, price };
+      } else {
+        onAddDrawingRef.current?.({
+          id: Date.now(),
+          type: tool,
+          color: activeColorRef.current,
+          points: [pendingPointRef.current, { time, price }],
+        });
+        pendingPointRef.current = null;
+      }
+    });
+
     // Resize handler
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -360,14 +490,18 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      drawingPriceLinesRef.current.forEach(pl => {
+        try { candleSeries.removePriceLine(pl); } catch {}
+      });
+      drawingSeriesRef.current.forEach(s => {
+        try { chart.removeSeries(s); } catch {}
+      });
       obOverlaySeriesRef.current.forEach((series) => {
-        try {
-          chart.removeSeries(series);
-        } catch {
-          // ignore stale handles on teardown
-        }
+        try { chart.removeSeries(series); } catch {}
       });
       obOverlaySeriesRef.current = [];
+      drawingSeriesRef.current = [];
+      drawingPriceLinesRef.current = [];
       chart.remove();
     };
   }, []);
@@ -560,6 +694,97 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals }) {
       chartRef.current.timeScale().fitContent();
     }
   }, [candles, orderBlocks, msbEvents, signals]);
+
+  // Render user drawings
+  useEffect(() => {
+    if (!chartRef.current || !candleSeriesRef.current) return;
+
+    // Clean up previous drawing overlays
+    drawingPriceLinesRef.current.forEach(pl => {
+      try { candleSeriesRef.current.removePriceLine(pl); } catch {}
+    });
+    drawingSeriesRef.current.forEach(s => {
+      try { chartRef.current.removeSeries(s); } catch {}
+    });
+    drawingPriceLinesRef.current = [];
+    drawingSeriesRef.current = [];
+
+    drawings.forEach(d => {
+      if (d.type === 'hline') {
+        const pl = candleSeriesRef.current.createPriceLine({
+          price: d.points[0].price,
+          color: d.color,
+          lineWidth: 1,
+          lineStyle: 0,
+          axisLabelVisible: true,
+        });
+        drawingPriceLinesRef.current.push(pl);
+      } else if (d.type === 'trendline') {
+        const [p1, p2] = d.points;
+        const sorted = p1.time <= p2.time ? [p1, p2] : [p2, p1];
+        const line = addLineSeriesCompat(chartRef.current, {
+          color: d.color,
+          lineWidth: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        line.setData([
+          { time: sorted[0].time, value: sorted[0].price },
+          { time: sorted[1].time, value: sorted[1].price },
+        ]);
+        drawingSeriesRef.current.push(line);
+      } else if (d.type === 'rectangle') {
+        const [p1, p2] = d.points;
+        const top = Math.max(p1.price, p2.price);
+        const bottom = Math.min(p1.price, p2.price);
+        const t1 = Math.min(p1.time, p2.time);
+        const t2 = Math.max(p1.time, p2.time);
+        const fill = hexToRgba(d.color, 0.15);
+
+        const zone = addBaselineSeriesCompat(chartRef.current, {
+          baseValue: { type: 'price', price: bottom },
+          topFillColor1: fill, topFillColor2: fill,
+          topLineColor: 'rgba(0,0,0,0)',
+          bottomFillColor1: 'rgba(0,0,0,0)', bottomFillColor2: 'rgba(0,0,0,0)',
+          bottomLineColor: 'rgba(0,0,0,0)',
+          lineWidth: 0, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+        });
+        zone.setData([{ time: t1, value: top }, { time: t2, value: top }]);
+        drawingSeriesRef.current.push(zone);
+
+        const topBdr = addLineSeriesCompat(chartRef.current, {
+          color: d.color, lineWidth: 1, lineStyle: 0,
+          lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+        });
+        topBdr.setData([{ time: t1, value: top }, { time: t2, value: top }]);
+        drawingSeriesRef.current.push(topBdr);
+
+        const botBdr = addLineSeriesCompat(chartRef.current, {
+          color: d.color, lineWidth: 1, lineStyle: 0,
+          lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+        });
+        botBdr.setData([{ time: t1, value: bottom }, { time: t2, value: bottom }]);
+        drawingSeriesRef.current.push(botBdr);
+      } else if (d.type === 'fib') {
+        const [p1, p2] = d.points;
+        const high = Math.max(p1.price, p2.price);
+        const low = Math.min(p1.price, p2.price);
+        const range = high - low;
+        [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1].forEach(level => {
+          const pl = candleSeriesRef.current.createPriceLine({
+            price: high - range * level,
+            color: d.color,
+            lineWidth: 1,
+            lineStyle: level === 0 || level === 1 ? 0 : 2,
+            axisLabelVisible: false,
+            title: `${(level * 100).toFixed(1)}%`,
+          });
+          drawingPriceLinesRef.current.push(pl);
+        });
+      }
+    });
+  }, [drawings]);
 
   return (
     <div ref={chartContainerRef} className="w-full h-full" />
@@ -925,6 +1150,10 @@ function StrategyRadarContent() {
     risk_per_trade: 0.02,
   });
 
+  const [drawings, setDrawings] = useState([]);
+  const [activeTool, setActiveTool] = useState('crosshair');
+  const [activeColor, setActiveColor] = useState('#ffffff');
+
   const detectorRef = useRef(null);
   const wsRef = useRef(null);
 
@@ -1122,6 +1351,27 @@ function StrategyRadarContent() {
     });
   }, []);
 
+  // Load drawings from localStorage when ticker changes
+  useEffect(() => {
+    setDrawings(loadDrawings(selectedTicker));
+  }, [selectedTicker]);
+
+  const handleAddDrawing = useCallback((drawing) => {
+    setDrawings(prev => {
+      const next = [...prev, drawing];
+      persistDrawings(selectedTicker, next);
+      return next;
+    });
+  }, [selectedTicker]);
+
+  const handleRemoveDrawing = useCallback((drawingId) => {
+    setDrawings(prev => {
+      const next = prev.filter(d => d.id !== drawingId);
+      persistDrawings(selectedTicker, next);
+      return next;
+    });
+  }, [selectedTicker]);
+
   // Filter signals for current ticker — only last 48 hours
   const currentTickerSignals = useMemo(() => {
     const cutoff48h = Date.now() - 48 * 60 * 60 * 1000;
@@ -1229,12 +1479,23 @@ function StrategyRadarContent() {
           </div>
 
           {/* Chart */}
-          <div className="flex-1 p-2">
+          <div className="flex-1 p-2 relative">
+            <DrawingToolbar
+              activeTool={activeTool}
+              activeColor={activeColor}
+              onToolChange={setActiveTool}
+              onColorChange={setActiveColor}
+            />
             <RadarChart
               candles={candles}
               orderBlocks={orderBlocks}
               msbEvents={msbEvents}
               signals={currentTickerSignals}
+              drawings={drawings}
+              activeTool={activeTool}
+              activeColor={activeColor}
+              onAddDrawing={handleAddDrawing}
+              onRemoveDrawing={handleRemoveDrawing}
             />
           </div>
 
