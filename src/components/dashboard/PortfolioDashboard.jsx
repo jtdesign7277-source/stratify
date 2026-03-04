@@ -2036,22 +2036,22 @@ export default function PortfolioDashboard() {
         <div className="mt-3 border-t-2 border-[#334155] pt-3" style={{ transition: 'all 0.6s ease' }}>
           <div className="flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Portfolio Value</span>
-            <span className="font-mono text-sm text-[#f8fbff]" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(displaySummary.totalValue)}</span>
+            <span className="font-mono text-sm text-[#f8fbff]" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(totalValue)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Buying Power</span>
-            <span className="font-mono text-sm text-[#f8fbff]" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(displaySummary.cashBalance)}</span>
+            <span className="font-mono text-sm text-[#f8fbff]" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(cashBalance)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L</span>
-            <span className={`font-mono text-sm ${displaySummary.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
-              {displaySummary.totalPnl >= 0 ? '+' : ''}{fmtMoney(displaySummary.totalPnl)}
+            <span className={`font-mono text-sm ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+              {totalPnl >= 0 ? '+' : ''}{fmtMoney(totalPnl)}
             </span>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L %</span>
-            <span className={`font-mono text-sm ${displaySummary.totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
-              {fmtPct(displaySummary.totalPnlPct)}
+            <span className={`font-mono text-sm ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+              {fmtPct(totalPnlPct)}
             </span>
           </div>
         </div>
