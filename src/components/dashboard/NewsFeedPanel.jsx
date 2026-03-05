@@ -241,20 +241,10 @@ export default function NewsFeedPanel({
         </div>
       </div>
 
-      {/* Content — scrollable list and article; visible scrollbar so user can scroll */}
-      <style>{`
-        .news-feed-scroll::-webkit-scrollbar { width: 8px; }
-        .news-feed-scroll::-webkit-scrollbar-track { background: transparent; }
-        .news-feed-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-        .news-feed-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-      `}</style>
+      {/* Content — scrollable list and article; no scrollbars, natural trackpad/wheel scroll */}
       <div
-        className="news-feed-scroll flex-1 min-h-0 overflow-hidden flex flex-col"
-        style={{
-          ...(activeArticle ? {} : { maxHeight: '400px' }),
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-        }}
+        className="flex flex-1 min-h-0 flex-col overflow-hidden"
+        style={activeArticle ? undefined : { maxHeight: '400px' }}
       >
         {activeTab === 'news' ? (
           <>
@@ -277,11 +267,8 @@ export default function NewsFeedPanel({
             ) : activeArticle ? (
               /* Split screen: list left, article right */
               <div className="flex flex-1 min-h-0 min-w-0">
-                {/* Left: article list */}
-                <div
-                  className="news-feed-scroll flex-shrink-0 w-[45%] min-w-0 border-r border-white/[0.06] overflow-y-auto"
-                  style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}
-                >
+                {/* Left: article list — natural scroll, no scrollbar */}
+                <div className="scrollbar-hide flex-shrink-0 w-[45%] min-w-0 border-r border-white/[0.06] overflow-y-auto overflow-x-hidden">
                   <div className="divide-y divide-white/[0.03]">
                     {filteredArticles.map((article) => (
                       <ArticleRow
@@ -292,11 +279,10 @@ export default function NewsFeedPanel({
                     ))}
                   </div>
                 </div>
-                {/* Right: selected article */}
+                {/* Right: selected article — natural scroll, no scrollbar */}
                 <div
                   key={articleKey}
-                  className="news-feed-scroll flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4"
-                  style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}
+                  className="scrollbar-hide flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4"
                 >
                   <div className="flex items-center justify-end gap-2 mb-3">
                     <button
@@ -351,7 +337,7 @@ export default function NewsFeedPanel({
                 </div>
               </div>
             ) : (
-              <div className="news-feed-scroll flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}>
+              <div className="scrollbar-hide flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                 <div className="divide-y divide-white/[0.03]">
                   {filteredArticles.map((article) => (
                     <ArticleRow key={article.uuid} article={article} onOpen={openArticle} />
