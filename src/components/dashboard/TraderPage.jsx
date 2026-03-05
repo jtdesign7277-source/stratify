@@ -1667,35 +1667,14 @@ export default function TraderPage({
       .filter((position) => position.symbol && position.quantity > 0)
       .sort((a, b) => (b.marketValue - a.marketValue));
   }, [paperPortfolio?.positions, watchlistNamesBySymbol]);
-  // Compute news panel height from 3-state cycle based on container size
-  const getNewsPanelHeight = useCallback(() => {
-    const containerHeight = chartAndNewsContainerRef.current?.getBoundingClientRect()?.height || 600;
-    if (newsPanelState === 'closed') return 0;
-    if (newsPanelState === 'peek') return Math.round(containerHeight * 0.33);
-    if (newsPanelState === 'open') return Math.round(containerHeight * 0.6);
-    return 0;
-  }, [newsPanelState]);
-
-  const [newsPanelHeight, setNewsPanelHeight] = useState(() => Math.round(600 * 0.33));
-
-  // Sync height when state or container changes
-  useEffect(() => {
-    setNewsPanelHeight(getNewsPanelHeight());
-  }, [getNewsPanelHeight]);
-
-  useEffect(() => {
-    if (!chartAndNewsContainerRef.current || typeof ResizeObserver === 'undefined') return undefined;
-    const container = chartAndNewsContainerRef.current;
-    const observer = new ResizeObserver(() => setNewsPanelHeight(getNewsPanelHeight()));
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [getNewsPanelHeight]);
+  // News panel: 3-state click cycle with fixed pixel heights
+  const newsPanelHeight = newsPanelState === 'closed' ? 0 : newsPanelState === 'peek' ? 180 : 340;
 
   const toggleNewsPanelCollapsed = useCallback(() => {
     setNewsPanelState((prev) => {
       if (prev === 'peek') return 'open';
       if (prev === 'open') return 'closed';
-      return 'peek'; // closed → peek
+      return 'peek';
     });
   }, []);
 
