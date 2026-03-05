@@ -4040,7 +4040,7 @@ export default function TraderPage({
             </div>
 
             <div ref={chartAndNewsContainerRef} className="flex min-h-0 flex-1 flex-col" style={{ minHeight: 0, overflow: 'hidden' }}>
-              <div className="relative overflow-hidden" style={{ flex: 1, minHeight: 0 }}>
+              <div className="relative overflow-hidden" style={{ height: isNewsOpen ? 'calc(100% - 332px)' : 'calc(100% - 32px)', minHeight: 0 }}>
                 <div ref={chartContainerRef} className="h-full w-full" />
 
                 {chartStatus.loading && (
