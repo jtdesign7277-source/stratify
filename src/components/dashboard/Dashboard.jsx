@@ -2539,7 +2539,7 @@ export default function Dashboard({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-                className="h-full min-h-0 w-full"
+                className="h-full min-h-0 w-full overflow-y-auto"
               >
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
@@ -2794,11 +2794,11 @@ export default function Dashboard({
             )}
           </AnimatePresence>
           {hasMountedCryptoTab ? (
-            <div className={activeTab === 'crypto' ? 'h-full w-full min-h-0' : 'hidden'} aria-hidden={activeTab !== 'crypto'}>
+            <div className={activeTab === 'crypto' ? 'h-full w-full min-h-0 overflow-y-auto' : 'hidden'} aria-hidden={activeTab !== 'crypto'}>
               <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />
             </div>
           ) : null}
-          <div className={activeTab === 'terminal' ? 'h-full w-full min-h-0' : 'hidden'} aria-hidden={activeTab !== 'terminal'}>
+          <div className={activeTab === 'terminal' ? 'h-full w-full min-h-0 overflow-y-auto' : 'hidden'} aria-hidden={activeTab !== 'terminal'}>
             <TerminalStrategyWorkspace
               savedStrategies={savedStrategies}
               deployedStrategies={deployedStrategies}
