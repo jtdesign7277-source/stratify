@@ -4044,9 +4044,9 @@ export default function TraderPage({
               className="flex min-h-0 flex-1 flex-col"
               style={{ minHeight: 0 }}
             >
-              {/* Chart — takes all remaining space above the news bar */}
+              {/* Chart — takes all remaining space above the news bar; z-0 so news bar stays on top and clickable in all browsers */}
               <div
-                className="relative min-h-0"
+                className="relative z-0 min-h-0"
                 style={{ flex: 1, overflow: 'hidden' }}
               >
                 <div ref={chartContainerRef} className="absolute inset-0" />
@@ -4064,11 +4064,11 @@ export default function TraderPage({
                 )}
               </div>
 
-              {/* News toggle bar — always pinned, never hidden */}
+              {/* News toggle bar — always pinned, never hidden; relative z-10 so it stays above chart canvas and is clickable in external browsers */}
               <button
                 type="button"
                 onClick={toggleNewsPanelCollapsed}
-                className="flex h-8 w-full shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer"
+                className="relative z-10 flex h-8 w-full shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer"
                 style={{ background: 'rgba(16,185,129,0.05)', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
               >
                 <div className="flex items-center gap-2">
@@ -4086,9 +4086,9 @@ export default function TraderPage({
                 />
               </button>
 
-              {/* News panel — collapses to 0 when closed */}
+              {/* News panel — collapses to 0 when closed; same stacking as bar so content is above chart */}
               <div
-                className="shrink-0 overflow-hidden"
+                className="relative z-10 shrink-0 overflow-hidden"
                 style={{
                   height: isNewsOpen ? '280px' : '0px',
                   transition: 'height 0.3s ease',
