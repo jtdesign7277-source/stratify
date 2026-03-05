@@ -1564,7 +1564,6 @@ export default function TraderPage({
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   // News panel: 3-state cycle — 'peek' (1/3) → 'open' (60%) → 'closed' → 'peek'
   const [newsPanelState, setNewsPanelState] = useState('peek');
-  const isNewsPanelCollapsed = newsPanelState === 'closed';
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [hoveredWatchlistSymbol, setHoveredWatchlistSymbol] = useState(null);
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -4062,37 +4061,22 @@ export default function TraderPage({
               </div>
 
               <div
-                role="button"
-                tabIndex={0}
-                onClick={toggleNewsPanelCollapsed}
-                className="relative z-10 flex h-[18px] shrink-0 cursor-pointer items-center justify-center bg-white/[0.07] transition hover:bg-white/[0.12]"
-                title={newsPanelState === 'closed' ? 'Show news' : newsPanelState === 'peek' ? 'Expand news' : 'Hide news'}
-              >
-                <div className="flex items-center gap-1">
-                  <span className="h-1 w-1 rounded-full bg-white/45" />
-                  <span className="h-1 w-1 rounded-full bg-white/45" />
-                  <span className="h-1 w-1 rounded-full bg-white/45" />
-                </div>
-
-                <div className={`absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors ${
-                  isNewsPanelCollapsed
-                    ? 'text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]'
-                    : 'text-emerald-300/70 hover:text-emerald-300'
-                }`}>
-                  {newsPanelState === 'closed' ? (
-                    <ChevronsUp className="h-3.5 w-3.5" strokeWidth={1.7} />
-                  ) : newsPanelState === 'peek' ? (
-                    <ChevronsUp className="h-3.5 w-3.5" strokeWidth={1.7} />
-                  ) : (
-                    <ChevronsDown className="h-3.5 w-3.5" strokeWidth={1.7} />
-                  )}
-                </div>
-              </div>
-
-              <div
-                className="min-h-0 shrink-0 overflow-hidden transition-[height] duration-200"
+                className="relative min-h-0 shrink-0 overflow-hidden transition-[height] duration-200"
                 style={{ height: `${newsPanelHeight}px` }}
               >
+                {/* Toggle button — top-right corner inside news panel */}
+                <button
+                  type="button"
+                  onClick={toggleNewsPanelCollapsed}
+                  className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-emerald-300 hover:bg-white/20 hover:text-emerald-200 transition-colors cursor-pointer"
+                  title={newsPanelState === 'peek' ? 'Expand news' : 'Collapse news'}
+                >
+                  {newsPanelState === 'peek' ? (
+                    <ChevronsUp className="h-4 w-4" strokeWidth={1.7} />
+                  ) : (
+                    <ChevronsDown className="h-4 w-4" strokeWidth={1.7} />
+                  )}
+                </button>
                 <div className="h-full overflow-y-auto">
                   <ErrorBoundary>
                     <NewsFeedPanel
@@ -4103,6 +4087,18 @@ export default function TraderPage({
                   </ErrorBoundary>
                 </div>
               </div>
+
+              {/* Show news button when panel is closed */}
+              {newsPanelState === 'closed' && (
+                <button
+                  type="button"
+                  onClick={toggleNewsPanelCollapsed}
+                  className="flex h-8 shrink-0 items-center justify-center gap-2 bg-white/[0.05] text-[11px] font-medium text-emerald-300 hover:bg-white/[0.10] transition-colors cursor-pointer"
+                >
+                  <ChevronsUp className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  Show News
+                </button>
+              )}
             </div>
           </div>
 
