@@ -1,18 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
 import OrderTicketPanel from './OrderTicketPanel';
 import useTradingMode from '../../hooks/useTradingMode';
-import { useSentiment } from '../../hooks/useMarketAux';
+import { useNews, useSentiment } from '../../hooks/useMarketAux';
 import { usePaperTrading } from '../../hooks/usePaperTrading';
 import SentimentBadge from './SentimentBadge';
-import NewsFeedPanel from './NewsFeedPanel';
 import ErrorBoundary from '../shared/AppErrorBoundary';
 import MiniGamePill from '../shared/MiniGamePill';
+
+function newsTimeAgo(dateStr) {
+  if (!dateStr) return '';
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = Math.floor((now - then) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function newsSourceLabel(source) {
+  if (!source) return '';
+  return source.replace(/^www\./, '').replace(/\.(com|org|net|co)$/, '').split('.').pop() || source;
+}
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
@@ -1565,6 +1581,9 @@ export default function TraderPage({
   // News panel: 3-state cycle — 'peek' (1/3) → 'open' (60%) → 'closed' → 'peek'
   const [isNewsOpen, setIsNewsOpen] = useState(true);
   const [newsArticleExpanded, setNewsArticleExpanded] = useState(false);
+  const [drawerArticle, setDrawerArticle] = useState(null);
+  const newsListScrollRef = useRef(null);
+  const articleBodyScrollRef = useRef(null);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [hoveredWatchlistSymbol, setHoveredWatchlistSymbol] = useState(null);
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -1643,6 +1662,7 @@ export default function TraderPage({
   const selectedTicker = selectedSymbol;
   const setSelectedTicker = setSelectedSymbol;
   const { sentimentMap } = useSentiment(watchlistSymbols);
+  const { articles: newsArticles, loading: newsLoading, error: newsError, refetch: refetchNews } = useNews(selectedSymbol, { limit: 15 });
   const [watchlistView, setWatchlistView] = useState('watchlist');
   const portfolioPositions = useMemo(() => {
     const positions = Array.isArray(paperPortfolio?.positions) ? paperPortfolio.positions : [];
@@ -4164,24 +4184,182 @@ export default function TraderPage({
                 />
               </button>
 
-              {/* News panel — collapses to 0 when closed; when article open, take ~50% so article is readable and chart shrinks */}
+              {/* News panel — list with scroll buttons; article drawer slides in from right (in-app only, no external links) */}
               <div
                 className="relative z-10 shrink-0 overflow-hidden"
                 style={{
-                  height: isNewsOpen ? (newsArticleExpanded ? 'min(520px, 50vh)' : '280px') : '0px',
+                  height: isNewsOpen ? (drawerArticle ? 'min(520px, 50vh)' : '280px') : '0px',
                   transition: 'height 0.35s ease',
                 }}
               >
-                <div className="h-full overflow-y-auto">
+                <div className="h-full min-h-0 overflow-hidden flex flex-col bg-[#0b0b0b] border-t border-white/[0.06]">
                   <ErrorBoundary>
-                    <NewsFeedPanel
-                      selectedSymbol={selectedTicker}
-                      onSymbolChange={setSelectedTicker}
-                      onArticleOpenChange={setNewsArticleExpanded}
-                      className="h-full min-h-0 overflow-hidden"
-                    />
+                    {/* Header */}
+                    <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06]">
+                      <span className="text-[11px] text-gray-500">
+                        News for <span className="text-blue-400 font-mono font-medium">${selectedTicker || '—'}</span>
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => newsListScrollRef.current?.scrollBy({ top: -120, behavior: 'smooth' })}
+                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                          aria-label="Scroll news up"
+                        >
+                          <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => newsListScrollRef.current?.scrollBy({ top: 120, behavior: 'smooth' })}
+                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                          aria-label="Scroll news down"
+                        >
+                          <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => refetchNews()}
+                          disabled={newsLoading}
+                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors disabled:opacity-50"
+                          aria-label="Refresh news"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Scrollable article list — no href / target _blank; click opens in-app drawer */}
+                    <div
+                      ref={newsListScrollRef}
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide"
+                    >
+                      {newsLoading && !newsArticles?.length ? (
+                        <div className="flex items-center justify-center py-8 gap-2">
+                          <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                          <span className="text-[11px] text-gray-600">Loading news...</span>
+                        </div>
+                      ) : newsError ? (
+                        <div className="flex flex-col items-center justify-center py-8 gap-2">
+                          <span className="text-[11px] text-red-400/70">Failed to load news</span>
+                          <button type="button" onClick={() => refetchNews()} className="text-[10px] text-blue-400 hover:underline">Try again</button>
+                        </div>
+                      ) : !newsArticles?.length ? (
+                        <div className="flex items-center justify-center py-8">
+                          <span className="text-[11px] text-gray-600">No articles for ${selectedTicker || '—'}</span>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-white/[0.03]">
+                          {newsArticles.map((article) => {
+                            const score = article.sentiment ?? article.sentiment_score ?? null;
+                            const timeAgo = newsTimeAgo(article.publishedAt ?? article.published_at);
+                            const sourceLabel = newsSourceLabel(article.source);
+                            return (
+                              <button
+                                key={article.uuid || article.url || article.title}
+                                type="button"
+                                onClick={() => {
+                                  setDrawerArticle(article);
+                                  setNewsArticleExpanded(true);
+                                }}
+                                className="w-full text-left group flex gap-3 p-3 rounded-none hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/[0.06] cursor-pointer"
+                              >
+                                <div
+                                  className="flex-shrink-0 w-1 rounded-full self-stretch mt-0.5"
+                                  style={{
+                                    backgroundColor: score >= 0.2 ? 'rgba(52, 211, 153, 0.6)' : score <= -0.2 ? 'rgba(248, 113, 113, 0.6)' : 'rgba(107, 114, 128, 0.3)',
+                                  }}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-[13px] font-medium text-gray-200 leading-snug group-hover:text-white transition-colors line-clamp-2">
+                                    {article.title}
+                                  </h4>
+                                  <div className="flex items-center gap-2 mt-1.5">
+                                    <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">{sourceLabel}</span>
+                                    <span className="text-gray-700">·</span>
+                                    <span className="text-[10px] text-gray-600">{timeAgo}</span>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </ErrorBoundary>
                 </div>
+
+                {/* In-app article drawer — no external URLs; slides in from right */}
+                <AnimatePresence>
+                  {drawerArticle ? (
+                    <motion.div
+                      initial={{ x: 40, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      exit={{ x: 40, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+                      className="fixed top-0 right-0 bottom-0 w-[480px] max-w-[100vw] bg-[#0a0a0f] backdrop-blur-xl z-[100] flex flex-col shadow-2xl"
+                      style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}
+                    >
+                      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                        <div className="flex shrink-0 items-center justify-end p-3 border-b border-white/[0.06]">
+                          <button
+                            type="button"
+                            onClick={() => { setDrawerArticle(null); setNewsArticleExpanded(false); }}
+                            className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            aria-label="Close article"
+                          >
+                            <X className="w-5 h-5" strokeWidth={1.8} />
+                          </button>
+                        </div>
+                        <div className="flex shrink-0 gap-2 px-4 pb-2">
+                          <button
+                            type="button"
+                            onClick={() => articleBodyScrollRef.current?.scrollBy({ top: -200, behavior: 'smooth' })}
+                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                            aria-label="Scroll article up"
+                          >
+                            <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => articleBodyScrollRef.current?.scrollBy({ top: 200, behavior: 'smooth' })}
+                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                            aria-label="Scroll article down"
+                          >
+                            <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
+                          </button>
+                        </div>
+                        <div
+                          ref={articleBodyScrollRef}
+                          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pb-8"
+                          style={{ fontSize: '15px', lineHeight: 1.8 }}
+                        >
+                          <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                            {newsSourceLabel(drawerArticle.source)} · {newsTimeAgo(drawerArticle.publishedAt ?? drawerArticle.published_at)}
+                          </p>
+                          <h2 className="mt-1.5 text-white font-bold" style={{ fontSize: '20px' }}>
+                            {drawerArticle.title}
+                          </h2>
+                          {(() => {
+                            const score = drawerArticle.sentiment ?? drawerArticle.sentiment_score ?? null;
+                            if (score === null || score === undefined) return null;
+                            const label = score >= 0.2 ? 'Bullish' : score <= -0.2 ? 'Bearish' : 'Neutral';
+                            const colorClass = score >= 0.2 ? 'text-emerald-400' : score <= -0.2 ? 'text-red-400' : 'text-gray-400';
+                            return <p className={`mt-2 text-sm ${colorClass}`}>{label}</p>;
+                          })()}
+                          {(drawerArticle.imageUrl || drawerArticle.image_url) ? (
+                            <img
+                              src={drawerArticle.imageUrl || drawerArticle.image_url}
+                              alt=""
+                              className="mt-3 w-full rounded-lg object-cover max-h-[220px]"
+                            />
+                          ) : null}
+                          <div className="mt-4 text-gray-300" style={{ fontSize: '15px', lineHeight: 1.8 }}>
+                            {drawerArticle.description ?? drawerArticle.content ?? drawerArticle.snippet ?? ''}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
             </div>
           </div>
