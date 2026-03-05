@@ -3418,7 +3418,7 @@ export default function TraderPage({
         className="flex flex-1 min-h-0 min-w-0 gap-2 overflow-x-auto overflow-y-hidden p-2"
       >
         <aside
-          className="flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl transition-[width] duration-200 ease-in-out backdrop-blur-xl"
+          className="flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl transition-[width] duration-200 ease-in-out"
           style={watchlistPanelStyle}
         >
           {isWatchlistCollapsed && (
@@ -3633,7 +3633,54 @@ export default function TraderPage({
                 <div className="h-0 min-h-0 flex-1 overflow-y-auto watchlist-scrollable">
                   {watchlistView === 'watchlist' ? (
                     <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
-                      <Droppable droppableId="watchlist">
+                      <Droppable
+                        droppableId="watchlist"
+                        getContainerForClone={() => document.body}
+                        renderClone={(provided, snapshot, rubric) => {
+                          const symbol = watchlist[rubric.source.index];
+                          if (!symbol) return null;
+                          const quote = quotesBySymbol[symbol] || {};
+                          const price = toNumber(quote?.price);
+                          const changePercent = toNumber(quote?.changePercent);
+                          const companyName = String(
+                            quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
+                          ).trim();
+                          const changeClass = Number.isFinite(changePercent) && changePercent >= 0 ? 'text-emerald-400' : 'text-red-400';
+                          return (
+                            <li
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              style={{
+                                ...provided.draggableProps.style,
+                                width: watchlistPanelWidth - 24,
+                                minWidth: 180,
+                              }}
+                              className="list-none flex items-stretch rounded-lg border border-white/10 bg-[#0f1419] shadow-xl"
+                            >
+                              <div className="mr-2 shrink-0 flex items-center justify-center self-stretch text-gray-400 py-2.5 pl-1">
+                                <GripVertical className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
+                              </div>
+                              <div className="flex flex-1 min-w-0 items-center justify-between py-2.5 pr-3 border-b border-white/[0.05]">
+                                <div className="flex-1 min-w-0 pr-2">
+                                  <div className="text-[13px] font-semibold text-white">${symbol}</div>
+                                  <div className="text-white/50 text-sm truncate">{companyName}</div>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <div className="text-[12px] font-mono font-semibold text-white">
+                                    {Number.isFinite(price) ? formatPrice(price) : '--'}
+                                  </div>
+                                  <div className={`text-xs font-semibold ${changeClass}`}>
+                                    {Number.isFinite(changePercent)
+                                      ? (changePercent >= 0 ? '+' : '') + formatPercent(changePercent, 2)
+                                      : '--'}
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        }}
+                      >
                         {(provided) => (
                           <ul
                             ref={provided.innerRef}
