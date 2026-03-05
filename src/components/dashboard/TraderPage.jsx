@@ -1666,7 +1666,7 @@ export default function TraderPage({
       .filter((position) => position.symbol && position.quantity > 0)
       .sort((a, b) => (b.marketValue - a.marketValue));
   }, [paperPortfolio?.positions, watchlistNamesBySymbol]);
-  const newsPanelHeight = isNewsOpen ? 420 : 0;
+  const newsPanelHeight = isNewsOpen ? 380 : 0;
 
   const toggleNewsPanelCollapsed = useCallback(() => {
     setIsNewsOpen(prev => !prev);
