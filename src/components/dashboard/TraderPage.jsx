@@ -3726,15 +3726,27 @@ export default function TraderPage({
                                       {...provided.draggableProps}
                                       style={getDragPreviewStyle(provided.draggableProps.style, snapshot.isDragging, symbol)}
                                       variants={watchlistRowItemMotion}
-                                      className="list-none"
+                                      className="list-none flex items-stretch"
                                     >
-                                      <motion.div
-                                        whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                                        whileTap={{ scale: 0.98 }}
-                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                        className={`group relative flex items-center justify-between cursor-pointer border-b border-white/[0.05] ${
+                                      {/* Drag handle first so it receives pointer events before any wrapper; no motion here so dnd can start drag */}
+                                      <div
+                                        {...provided.dragHandleProps}
+                                        data-drag-handle
+                                        className={`mr-2 shrink-0 flex items-center justify-center self-stretch text-gray-500 hover:text-gray-300 select-none ${
+                                          snapshot.isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                                        }`}
+                                        title="Drag to reorder"
+                                        aria-label="Drag to reorder"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <GripVertical className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
+                                      </div>
+                                      <div
+                                        role="button"
+                                        tabIndex={0}
+                                        className={`group relative flex flex-1 min-w-0 items-center justify-between cursor-pointer border-b border-white/[0.05] ${
                                           isSelected ? 'bg-emerald-500/10 border-l border-l-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.1)]' : ''
-                                        } px-3 py-2.5 ${
+                                        } px-2 py-2.5 hover:bg-white/[0.04] ${
                                           snapshot.isDragging ? 'bg-[rgba(20,20,20,0.7)] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
                                         } ${
                                           isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
@@ -3743,21 +3755,10 @@ export default function TraderPage({
                                           if (e.target.closest('[data-drag-handle]')) return;
                                           handleWatchlistSymbolSelect(symbol);
                                         }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleWatchlistSymbolSelect(symbol); } }}
                                         onMouseEnter={() => setHoveredWatchlistSymbol(symbol)}
                                         onMouseLeave={() => setHoveredWatchlistSymbol((current) => (current === symbol ? null : current))}
                                       >
-                                      <div
-                                        {...provided.dragHandleProps}
-                                        data-drag-handle
-                                        onClick={(e) => e.stopPropagation()}
-                                        className={`mr-2 shrink-0 touch-none text-gray-600 hover:text-gray-400 ${
-                                          snapshot.isDragging ? 'cursor-grabbing' : 'cursor-grab'
-                                        }`}
-                                        title="Drag to reorder"
-                                        aria-label="Drag to reorder"
-                                      >
-                                        <GripVertical className="w-4 h-4" />
-                                      </div>
 
                                       <div className="flex-1 min-w-0 pr-2">
                                         <div className="flex items-center">
@@ -3854,7 +3855,7 @@ export default function TraderPage({
                                           <Trash2 className="h-3 w-3" />
                                         </motion.button>
                                       </div>
-                                    </motion.div>
+                                    </div>
                                   </motion.li>
                                   )}
                                 </Draggable>
