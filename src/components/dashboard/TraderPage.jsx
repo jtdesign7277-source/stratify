@@ -3673,7 +3673,7 @@ export default function TraderPage({
                   )}
                 </div>
 
-                <div className="h-0 min-h-0 flex-1 overflow-y-auto watchlist-scrollable">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide watchlist-scrollable">
                   {watchlistView === 'watchlist' ? (
                     <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
                       <Droppable
@@ -4017,7 +4017,7 @@ export default function TraderPage({
               variants={watchlistRowContainerMotion}
               initial="hidden"
               animate="show"
-              className="h-0 min-h-0 flex-1 overflow-y-auto watchlist-scrollable px-1 py-2 space-y-1"
+              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide watchlist-scrollable px-1 py-2 space-y-1"
             >
               {watchlist.map((symbol) => {
                 const quote = quotesBySymbol[symbol] || {};
