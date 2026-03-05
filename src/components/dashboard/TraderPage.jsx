@@ -4162,11 +4162,11 @@ export default function TraderPage({
                 )}
               </div>
 
-              {/* News toggle bar — always pinned, never hidden; relative z-10 so it stays above chart canvas and is clickable in external browsers */}
+              {/* News toggle bar — above chart so it and the news panel are always clickable */}
               <button
                 type="button"
                 onClick={toggleNewsPanelCollapsed}
-                className="relative z-10 flex h-8 w-full shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer"
+                className="relative z-20 flex h-8 w-full shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer pointer-events-auto"
                 style={{ background: 'rgba(16,185,129,0.05)', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
               >
                 <div className="flex items-center gap-2">
@@ -4186,13 +4186,14 @@ export default function TraderPage({
 
               {/* News panel — list with scroll buttons; article drawer slides in from right (in-app only, no external links) */}
               <div
-                className="relative z-10 shrink-0 overflow-hidden"
+                className="relative z-20 shrink-0 overflow-hidden isolate"
                 style={{
                   height: isNewsOpen ? (drawerArticle ? 'min(520px, 50vh)' : '280px') : '0px',
                   transition: 'height 0.35s ease',
+                  pointerEvents: 'auto',
                 }}
               >
-                <div className="h-full min-h-0 overflow-hidden flex flex-col bg-[#0b0b0b] border-t border-white/[0.06]">
+                <div className="h-full min-h-0 overflow-hidden flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] pointer-events-auto">
                   <ErrorBoundary>
                     {/* Header */}
                     <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06]">
@@ -4230,7 +4231,8 @@ export default function TraderPage({
                     {/* Scrollable article list — no href / target _blank; click opens in-app drawer */}
                     <div
                       ref={newsListScrollRef}
-                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide"
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y"
+                      style={{ touchAction: 'pan-y' }}
                     >
                       {newsLoading && !newsArticles?.length ? (
                         <div className="flex items-center justify-center py-8 gap-2">
@@ -4329,8 +4331,8 @@ export default function TraderPage({
                         </div>
                         <div
                           ref={articleBodyScrollRef}
-                          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pb-8"
-                          style={{ fontSize: '15px', lineHeight: 1.8 }}
+                          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pb-8 pointer-events-auto touch-pan-y"
+                          style={{ fontSize: '15px', lineHeight: 1.8, touchAction: 'pan-y' }}
                         >
                           <p className="text-[11px] uppercase tracking-wide text-gray-500">
                             {newsSourceLabel(drawerArticle.source)} · {newsTimeAgo(drawerArticle.publishedAt ?? drawerArticle.published_at)}

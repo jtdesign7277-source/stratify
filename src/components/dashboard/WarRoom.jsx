@@ -1130,10 +1130,10 @@ export default function WarRoom({ onClose }) {
   );
 
   return (
-    <div className={`h-full w-full bg-transparent relative ${isGlitching ? 'warroom-glitch' : ''}`}>
+    <div className={`h-full w-full min-h-0 flex flex-col bg-transparent relative ${isGlitching ? 'warroom-glitch' : ''}`}>
       <style>{warRoomStyles}</style>
 
-      <div className="relative z-10 h-full flex flex-col gap-3 px-5 py-3 overflow-y-auto">
+      <div className="relative z-10 flex-1 min-h-0 flex flex-col gap-3 px-5 py-3 overflow-y-auto overflow-x-hidden scrollbar-hide">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-white font-bold text-base tracking-[0.2em] uppercase truncate">Deep Market Intelligence</h1>
@@ -1163,8 +1163,8 @@ export default function WarRoom({ onClose }) {
           </div>
         </header>
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-3">
-          <aside className="min-h-0 overflow-y-auto scrollbar-hide rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-2.5">
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-3 overflow-hidden">
+          <aside className="min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-2.5">
             <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">War Room Tabs</p>
             <div className="mt-2 space-y-1.5">
               {[
@@ -1235,7 +1235,7 @@ export default function WarRoom({ onClose }) {
             </div>
           </aside>
 
-          <div className="min-h-0 overflow-y-auto rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
+          <div className="min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
           {activeView === 'transcripts' ? (
             <div className="h-full flex flex-col gap-2">
               {/* Search bar + ticker buttons */}

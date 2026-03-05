@@ -174,7 +174,7 @@ export default function NewsFeedPanel({
   const articleKey = activeArticle ? (activeArticle.uuid || activeArticle.url || activeArticle.title || '') : '';
 
   return (
-    <div className={`soft-glass-surface flex flex-col min-h-0 bg-[#0b0b0b] border-t border-white/[0.06] ${className}`}>
+    <div className={`soft-glass-surface flex flex-col flex-1 min-h-0 bg-[#0b0b0b] border-t border-white/[0.06] ${className}`}>
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
