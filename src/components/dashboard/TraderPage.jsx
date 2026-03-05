@@ -3635,13 +3635,10 @@ export default function TraderPage({
                     <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
                       <Droppable droppableId="watchlist">
                         {(provided) => (
-                          <motion.ul
+                          <ul
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            variants={watchlistRowContainerMotion}
-                            initial="hidden"
-                            animate="show"
-                            className="min-h-full"
+                            className="min-h-full list-none p-0 m-0"
                           >
                             {watchlist.length === 0 ? (
                               <div className="px-4 py-6 text-center text-white/50 text-sm">
@@ -3721,11 +3718,10 @@ export default function TraderPage({
                               return (
                                 <Draggable key={symbol} draggableId={symbol} index={index}>
                                   {(provided, snapshot) => (
-                                    <motion.li
+                                    <li
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       style={getDragPreviewStyle(provided.draggableProps.style, snapshot.isDragging, symbol)}
-                                      variants={watchlistRowItemMotion}
                                       className="list-none flex items-stretch"
                                     >
                                       {/* Drag handle first so it receives pointer events before any wrapper; no motion here so dnd can start drag */}
@@ -3856,14 +3852,14 @@ export default function TraderPage({
                                         </motion.button>
                                       </div>
                                     </div>
-                                  </motion.li>
+                                  </li>
                                   )}
                                 </Draggable>
                               );
                               })
                             )}
                             {provided.placeholder}
-                          </motion.ul>
+                          </ul>
                         )}
                       </Droppable>
                     </DragDropContext>
