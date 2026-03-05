@@ -1676,7 +1676,7 @@ export default function TraderPage({
     return 0;
   }, [newsPanelState]);
 
-  const [newsPanelHeight, setNewsPanelHeight] = useState(280);
+  const [newsPanelHeight, setNewsPanelHeight] = useState(() => Math.round(600 * 0.33));
 
   // Sync height when state or container changes
   useEffect(() => {
@@ -4112,7 +4112,7 @@ export default function TraderPage({
 
               <div
                 className="min-h-0 shrink-0 overflow-hidden transition-[height] duration-200"
-                style={{ height: isNewsPanelCollapsed ? 0 : `${newsPanelHeight}px` }}
+                style={{ height: `${newsPanelHeight}px` }}
               >
                 <div className="h-full overflow-y-auto">
                   <ErrorBoundary>
