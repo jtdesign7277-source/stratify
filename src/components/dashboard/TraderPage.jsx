@@ -4335,7 +4335,7 @@ export default function TraderPage({
                       animate={{ x: 0, opacity: 1 }}
                       exit={{ x: 40, opacity: 0 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-                      className="fixed top-0 right-0 bottom-0 w-[480px] max-w-[100vw] bg-[#0a0a0f] backdrop-blur-xl z-[100] flex flex-col shadow-2xl"
+                      className="fixed top-0 right-0 bottom-0 w-[480px] max-w-[100vw] flex flex-col shadow-2xl z-[9999]" style={{ height: "100vh", overflow: "hidden", background: "rgba(10,10,15,0.92)", backdropFilter: "blur(32px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
                       style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}
                     >
                       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", height: "100%" }}>
