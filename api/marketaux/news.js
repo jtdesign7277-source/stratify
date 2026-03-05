@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (!symbols) return res.status(400).json({ error: 'symbols required' });
 
   try {
-    const url = `https://api.marketaux.com/v1/news/all?symbols=${symbols.toUpperCase()}&filter_entities=true&language=en&limit=${limit}&page=${page}&api_token=${MARKETAUX_KEY}`;
+    const url = `https://api.marketaux.com/v1/news/all?symbols=${symbols.toUpperCase()}&filter_entities=true&language=en&limit=${limit}&page=${page}&description_length=1000&api_token=${MARKETAUX_KEY}`;
     const response = await fetch(url);
     if (!response.ok) return res.status(response.status).json({ error: 'MarketAux error' });
 
