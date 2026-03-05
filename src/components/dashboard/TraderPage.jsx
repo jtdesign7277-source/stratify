@@ -1606,6 +1606,7 @@ export default function TraderPage({
   const dragPositionYRef = useRef(null);
   const dragPositionXRef = useRef(null);
   const chartAndNewsContainerRef = useRef(null);
+  const lastDragEndRef = useRef(0);
   const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
   const watchlistSymbols = useMemo(
     () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))],
@@ -2320,6 +2321,7 @@ export default function TraderPage({
   }, [cachePreviousCloseQuotes, stopRestFallbackPolling]);
 
   const handleWatchlistSymbolSelect = useCallback((symbolValue) => {
+    if (Date.now() - lastDragEndRef.current < 300) return;
     const normalized = normalizeSymbol(symbolValue);
     if (!normalized) return;
     selectedSymbolRef.current = normalized;
@@ -3205,6 +3207,7 @@ export default function TraderPage({
   }, [activeDragTicker, dragPreviewScale]);
 
   const handleDragEnd = useCallback((result) => {
+    lastDragEndRef.current = Date.now();
     const draggedSymbol = String(result?.draggableId || '').trim();
     const lastDragCenterY = Number(dragPositionYRef.current);
     const lastDragCenterX = Number(dragPositionXRef.current);
@@ -3697,7 +3700,10 @@ export default function TraderPage({
                                 : secondarySession === 'post-market'
                                   ? 'Post-market change (% / $)'
                                   : 'Live change (% / $)';
-                              const isSelected = selectedSymbol === symbol;
+                              const normalizedSymbol = normalizeSymbol(symbol);
+                              const isSelected =
+                                normalizeSymbol(selectedSymbol) === normalizedSymbol
+                                && watchlist.findIndex((s) => normalizeSymbol(s) === normalizedSymbol) === index;
                               const isPlaceholder = quote?.isPlaceholder === true;
                               const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
                               const isPriceLoading = valueLoading.price === true;
@@ -3733,12 +3739,17 @@ export default function TraderPage({
                                         } ${
                                           isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
                                         }`}
-                                        onClick={() => handleWatchlistSymbolSelect(symbol)}
+                                        onClick={(e) => {
+                                          if (e.target.closest('[data-drag-handle]')) return;
+                                          handleWatchlistSymbolSelect(symbol);
+                                        }}
                                         onMouseEnter={() => setHoveredWatchlistSymbol(symbol)}
                                         onMouseLeave={() => setHoveredWatchlistSymbol((current) => (current === symbol ? null : current))}
                                       >
                                       <div
                                         {...provided.dragHandleProps}
+                                        data-drag-handle
+                                        onClick={(e) => e.stopPropagation()}
                                         className={`mr-2 shrink-0 touch-none text-gray-600 hover:text-gray-400 ${
                                           snapshot.isDragging ? 'cursor-grabbing' : 'cursor-grab'
                                         }`}
@@ -3863,7 +3874,7 @@ export default function TraderPage({
                         </div>
                       ) : (
                         portfolioPositions.map((position) => {
-                          const isSelected = selectedSymbol === position.symbol;
+                          const isSelected = normalizeSymbol(selectedSymbol) === normalizeSymbol(position.symbol);
                           const pnlIsPositive = position.pnlPercent >= 0;
                           const isCryptoPosition = isCryptoPortfolioSymbol(position.symbol);
 
@@ -3927,7 +3938,7 @@ export default function TraderPage({
                 const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
                 const isDayLoading = valueLoading.day === true;
                 const isPositive = changePercent >= 0;
-                const isSelected = selectedSymbol === symbol;
+                const isSelected = normalizeSymbol(selectedSymbol) === normalizeSymbol(symbol);
 
                 return (
                   <motion.li key={symbol} variants={watchlistRowItemMotion} className="list-none">
