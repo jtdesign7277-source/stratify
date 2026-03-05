@@ -1,232 +1,392 @@
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { supabase } from '../../lib/supabaseClient'
 
-function Starfield() {
-  const canvasRef = useRef(null);
+// ── Animated line chart canvas for left panel ──────────────────
+function QuantChart() {
+  const canvasRef = useRef(null)
+
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let animId;
-    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
-    resize();
-    window.addEventListener('resize', resize);
-    const stars = Array.from({ length: 200 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 1.1 + 0.1,
-      o: Math.random() * 0.7 + 0.1,
-      speed: Math.random() * 0.12 + 0.02,
-    }));
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    let frame
+    let offset = 0
+
+    const W = canvas.width = canvas.offsetWidth
+    const H = canvas.height = canvas.offsetHeight
+
+    // Generate smooth price-like data
+    const makeData = (seed, len = 300) => {
+      let v = seed
+      return Array.from({ length: len }, () => {
+        v += (Math.random() - 0.49) * 8
+        v = Math.max(60, Math.min(H - 60, v))
+        return v
+      })
+    }
+
+    const lines = [
+      { data: makeData(H * 0.45), color: '#10b981', alpha: 0.7, width: 1.5 },
+      { data: makeData(H * 0.55), color: '#06b6d4', alpha: 0.4, width: 1 },
+      { data: makeData(H * 0.35), color: '#10b981', alpha: 0.2, width: 0.8 },
+      { data: makeData(H * 0.65), color: '#818cf8', alpha: 0.25, width: 1 },
+    ]
+
     const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Deep space bg
-      const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      bg.addColorStop(0, '#04080f');
-      bg.addColorStop(0.5, '#060d1a');
-      bg.addColorStop(1, '#04080f');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // Subtle blue nebula glow
-      const nebula = ctx.createRadialGradient(canvas.width * 0.5, canvas.height * 0.4, 0, canvas.width * 0.5, canvas.height * 0.4, canvas.width * 0.55);
-      nebula.addColorStop(0, 'rgba(37,99,235,0.09)');
-      nebula.addColorStop(0.6, 'rgba(30,58,138,0.04)');
-      nebula.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = nebula;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // Stars
-      stars.forEach(s => {
-        s.y -= s.speed;
-        if (s.y < 0) { s.y = canvas.height; s.x = Math.random() * canvas.width; }
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(210,225,255,${s.o})`;
-        ctx.fill();
-      });
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
-  }, []);
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
-}
+      ctx.clearRect(0, 0, W, H)
 
-export default function SignUpPage({ onSuccess, onBackToLanding }) {
-  const [mode, setMode] = useState('signup');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleGoogleAuth = async () => {
-    setError('');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
-    });
-    if (error) setError(error.message);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault(); setError(''); setMessage(''); setLoading(true);
-    try {
-      if (mode === 'forgot') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
-        if (error) throw error;
-        setMessage('Reset link sent — check your email.'); setLoading(false); return;
+      // Subtle grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)'
+      ctx.lineWidth = 1
+      for (let y = 0; y < H; y += 60) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
       }
-      if (mode === 'signup') {
-        if (password !== confirmPassword) throw new Error('Passwords do not match.');
-        if (password.length < 8) throw new Error('Password must be at least 8 characters.');
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setMessage('Check your email to confirm your account.'); setLoading(false); return;
+      for (let x = 0; x < W; x += 80) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke()
       }
-      if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        onSuccess?.(); return;
-      }
-    } catch (err) { setError(err.message); }
-    setLoading(false);
-  };
 
-  const switchMode = (next) => { setMode(next); setError(''); setMessage(''); };
+      lines.forEach(({ data, color, alpha, width }) => {
+        const visible = 120
+        const startIdx = Math.floor(offset) % data.length
 
-  const heading = { signup: 'Create account', login: 'Sign in', forgot: 'Reset password' }[mode];
-  const subtext = { signup: 'Trade smarter with AI-powered strategies.', login: 'Welcome back to Stratify.', forgot: "Enter your email and we'll send a reset link." }[mode];
-  const btnLabel = { signup: 'Sign up', login: 'Sign in', forgot: 'Send reset link' }[mode];
+        ctx.beginPath()
+        ctx.strokeStyle = color
+        ctx.globalAlpha = alpha
+        ctx.lineWidth = width
+        ctx.shadowColor = color
+        ctx.shadowBlur = 8
+
+        for (let i = 0; i < visible; i++) {
+          const idx = (startIdx + i) % data.length
+          const x = (i / visible) * W
+          const y = data[idx]
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+        }
+        ctx.stroke()
+
+        // Glow fill under the line
+        const gradIdx = (startIdx) % data.length
+        ctx.beginPath()
+        for (let i = 0; i < visible; i++) {
+          const idx = (startIdx + i) % data.length
+          const x = (i / visible) * W
+          const y = data[idx]
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+        }
+        ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath()
+        const grad = ctx.createLinearGradient(0, 0, 0, H)
+        grad.addColorStop(0, color + '22')
+        grad.addColorStop(1, 'transparent')
+        ctx.fillStyle = grad
+        ctx.globalAlpha = alpha * 0.4
+        ctx.fill()
+      })
+
+      ctx.globalAlpha = 1
+      ctx.shadowBlur = 0
+      offset += 0.4
+      frame = requestAnimationFrame(draw)
+    }
+
+    draw()
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
   return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full"
+      style={{ width: '100%', height: '100%' }}
+    />
+  )
+}
+
+// ── Floating stat pills ─────────────────────────────────────────
+const PILLS = [
+  { label: '$NVDA', val: '+4.2%', top: '18%', left: '8%', delay: 0 },
+  { label: '$SPY',  val: '+1.1%', top: '35%', left: '62%', delay: 0.8 },
+  { label: '$BTC',  val: '+7.3%', top: '58%', left: '15%', delay: 1.4 },
+  { label: '$TSLA', val: '+3.8%', top: '72%', left: '55%', delay: 0.4 },
+  { label: '$AAPL', val: '+2.6%', top: '82%', left: '28%', delay: 1.8 },
+]
+
+function FloatingPills() {
+  return (
     <>
-      <style>{`
-        @keyframes cardIn { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-        .card-in { animation: cardIn 0.45s cubic-bezier(0.16,1,0.3,1) both; }
-      `}</style>
+      {PILLS.map((p) => (
+        <motion.div
+          key={p.label}
+          className="absolute font-mono text-xs text-emerald-400 pointer-events-none"
+          style={{ top: p.top, left: p.left }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.6, 0.3, 0.6] }}
+          transition={{ delay: p.delay, duration: 4, repeat: Infinity, repeatType: 'mirror' }}
+        >
+          {p.label} <span className="text-emerald-300">{p.val}</span>
+        </motion.div>
+      ))}
+    </>
+  )
+}
 
-      <div className="min-h-screen relative flex items-center justify-center p-4" style={{ background: '#04080f' }}>
-        <Starfield />
+// ── Main Component ──────────────────────────────────────────────
+export default function SignUpPage({ onSuccess, onBackToLanding }) {
+  const [mode, setMode] = useState('login') // 'login' | 'signup' | 'forgot'
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
-        <div className="relative z-10 w-full max-w-[400px] card-in">
-          {/* Card */}
-          <div style={{
-            background: 'rgba(8,16,32,0.85)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '16px',
-            padding: '40px 36px',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
-          }}>
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    setMessage('')
 
-            {/* Logo */}
-            <div className="text-center mb-6">
-              <button onClick={onBackToLanding} className="inline-block">
-                <span style={{ color: '#fff', fontSize: '22px', fontWeight: '700', letterSpacing: '-0.3px' }}>Stratify</span>
-              </button>
-            </div>
+    try {
+      if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({ email, password })
+        if (error) throw error
+        setMessage('Check your email to confirm your account.')
+      } else if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+        if (onSuccess) onSuccess()
+      } else if (mode === 'forgot') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email)
+        if (error) throw error
+        setMessage('Password reset email sent.')
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-            {/* Heading */}
-            <div className="text-center mb-6">
-              <h1 style={{ color: '#fff', fontSize: '22px', fontWeight: '600', marginBottom: '6px' }}>{heading}</h1>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '14px' }}>{subtext}</p>
-            </div>
+  const handleGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' })
+    if (error) setError(error.message)
+  }
 
-            {/* Google */}
-            {mode !== 'forgot' && (
-              <>
-                <button
-                  onClick={handleGoogleAuth}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: '10px', background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '10px', padding: '11px 16px', fontSize: '14px', fontWeight: '500',
-                    color: '#1a1a2e', cursor: 'pointer', marginBottom: '16px', transition: 'opacity 0.15s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '0.92'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  Sign {mode === 'signup' ? 'up' : 'in'} with Google
-                </button>
+  const titles = {
+    login: 'Welcome back',
+    signup: 'Create your account',
+    forgot: 'Reset your password',
+  }
+  const subtitles = {
+    login: 'AI-powered trading. Built for the edge.',
+    signup: 'Join thousands of smarter traders.',
+    forgot: "We'll send a reset link to your email.",
+  }
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>or</span>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                </div>
-              </>
-            )}
+  return (
+    <div className="min-h-screen flex bg-[#0a0a0f] overflow-hidden">
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <input
-                type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="Email" required
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '11px 14px', color: '#fff', fontSize: '14px', outline: 'none', transition: 'border-color 0.15s' }}
-                onFocus={e => e.target.style.borderColor = 'rgba(59,130,246,0.6)'}
-                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-              />
+      {/* ── LEFT PANEL ─────────────────────────────────────────── */}
+      <div className="hidden lg:flex relative w-[58%] flex-col overflow-hidden">
+        {/* Deep space background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0f] via-[#060d18] to-[#0a0a0f]" />
 
-              {mode !== 'forgot' && (
-                <input
-                  type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  placeholder={mode === 'signup' ? 'Create password' : 'Password'} required
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '11px 14px', color: '#fff', fontSize: '14px', outline: 'none', transition: 'border-color 0.15s' }}
-                  onFocus={e => e.target.style.borderColor = 'rgba(59,130,246,0.6)'}
-                  onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                />
-              )}
+        {/* Radial glow */}
+        <div className="absolute inset-0"
+          style={{ background: 'radial-gradient(ellipse 80% 60% at 40% 50%, rgba(16,185,129,0.06) 0%, transparent 70%)' }}
+        />
 
-              {mode === 'signup' && (
-                <input
-                  type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm password" required
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '11px 14px', color: '#fff', fontSize: '14px', outline: 'none', transition: 'border-color 0.15s' }}
-                  onFocus={e => e.target.style.borderColor = 'rgba(59,130,246,0.6)'}
-                  onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                />
-              )}
+        {/* Animated chart */}
+        <QuantChart />
 
-              {/* Forgot password link - left aligned like TradeZella */}
-              {mode === 'login' && (
-                <div style={{ marginTop: '2px' }}>
-                  <button type="button" onClick={() => switchMode('forgot')} style={{ color: 'rgba(96,165,250,0.9)', fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    Forgot password?
-                  </button>
-                </div>
-              )}
+        {/* Floating stat pills */}
+        <FloatingPills />
 
-              {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', padding: '10px 14px', color: '#fca5a5', fontSize: '13px' }}>{error}</div>}
-              {message && <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '10px', padding: '10px 14px', color: '#6ee7b7', fontSize: '13px' }}>{message}</div>}
-
-              <button
-                type="submit" disabled={loading}
-                style={{ marginTop: '4px', background: loading ? 'rgba(37,99,235,0.6)' : '#2563eb', border: 'none', borderRadius: '10px', padding: '12px 16px', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'background 0.15s' }}
-                onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#1d4ed8'; }}
-                onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#2563eb'; }}
-              >
-                {loading ? <><div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Processing...</> : btnLabel}
-              </button>
-            </form>
-
-            {/* Footer */}
-            <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>
-              {mode === 'signup' && <span>Already have an account?{' '}<button onClick={() => switchMode('login')} style={{ color: 'rgba(96,165,250,0.9)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}>Sign in</button></span>}
-              {mode === 'login' && <span>Don't have an account?{' '}<button onClick={() => switchMode('signup')} style={{ color: 'rgba(96,165,250,0.9)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}>Sign up</button></span>}
-              {mode === 'forgot' && <button onClick={() => switchMode('login')} style={{ color: 'rgba(96,165,250,0.9)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}>Back to sign in</button>}
-            </div>
-
-          </div>
+        {/* Bottom branding */}
+        <div className="relative z-10 mt-auto p-12">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 200, damping: 25 }}
+          >
+            <div className="text-white text-2xl font-bold tracking-tight mb-2">Stratify</div>
+            <div className="text-gray-500 text-sm">AI-powered trading. Built for the edge.</div>
+          </motion.div>
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } input::placeholder { color: rgba(255,255,255,0.25) !important; }`}</style>
-    </>
-  );
+
+      {/* ── RIGHT PANEL ────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col justify-center px-8 md:px-16 py-12 relative bg-[#060d18]">
+
+        {/* Subtle glow behind form */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(16,185,129,0.04) 0%, transparent 70%)' }}
+        />
+
+        {/* Mobile logo */}
+        <div className="lg:hidden mb-10 text-white text-xl font-bold">Stratify</div>
+
+        <motion.div
+          key={mode}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="relative z-10 w-full max-w-sm mx-auto"
+        >
+          {/* Title */}
+          <div className="mb-8">
+            <h1 className="text-white text-2xl font-semibold tracking-tight mb-1">
+              {titles[mode]}
+            </h1>
+            <p className="text-gray-500 text-sm">{subtitles[mode]}</p>
+          </div>
+
+          {/* Google button — not on forgot */}
+          {mode !== 'forgot' && (
+            <motion.button
+              onClick={handleGoogle}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-800 font-medium rounded-xl px-4 py-3 text-sm transition-colors mb-5 shadow-[0_2px_12px_rgba(0,0,0,0.3)]"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
+            </motion.button>
+          )}
+
+          {/* Divider */}
+          {mode !== 'forgot' && (
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex-1 h-px bg-white/[0.06]" />
+              <span className="text-gray-600 text-xs uppercase tracking-widest">or</span>
+              <div className="flex-1 h-px bg-white/[0.06]" />
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="w-full bg-black/40 border border-white/[0.06] rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 outline-none focus:border-emerald-500/40 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.08)] transition-all"
+              style={{ boxShadow: 'inset 2px 2px 6px rgba(0,0,0,0.4)' }}
+            />
+
+            {mode !== 'forgot' && (
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                className="w-full bg-black/40 border border-white/[0.06] rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 outline-none focus:border-emerald-500/40 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.08)] transition-all"
+                style={{ boxShadow: 'inset 2px 2px 6px rgba(0,0,0,0.4)' }}
+              />
+            )}
+
+            {/* Forgot password link */}
+            {mode === 'login' && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setMode('forgot')}
+                  className="text-gray-500 text-xs hover:text-gray-400 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
+            {/* Error / Success */}
+            <AnimatePresence>
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="text-red-400 text-xs"
+                >
+                  {error}
+                </motion.p>
+              )}
+              {message && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="text-emerald-400 text-xs"
+                >
+                  {message}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            {/* Submit */}
+            <motion.button
+              type="submit"
+              disabled={loading}
+              whileHover={{ scale: loading ? 1 : 1.01 }}
+              whileTap={{ scale: loading ? 1 : 0.98 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/50 text-black font-semibold rounded-xl py-3 text-sm transition-colors shadow-[0_4px_20px_rgba(16,185,129,0.3)]"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  Processing...
+                </span>
+              ) : mode === 'login' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset link'}
+            </motion.button>
+          </form>
+
+          {/* Toggle mode */}
+          <div className="mt-6 text-center text-sm text-gray-500">
+            {mode === 'login' && (
+              <>Don't have an account?{' '}
+                <button onClick={() => { setMode('signup'); setError(''); setMessage('') }}
+                  className="text-emerald-400 hover:text-emerald-300 transition-colors">
+                  Sign up
+                </button>
+              </>
+            )}
+            {mode === 'signup' && (
+              <>Already have an account?{' '}
+                <button onClick={() => { setMode('login'); setError(''); setMessage('') }}
+                  className="text-emerald-400 hover:text-emerald-300 transition-colors">
+                  Sign in
+                </button>
+              </>
+            )}
+            {mode === 'forgot' && (
+              <button onClick={() => { setMode('login'); setError(''); setMessage('') }}
+                className="text-emerald-400 hover:text-emerald-300 transition-colors">
+                ← Back to sign in
+              </button>
+            )}
+          </div>
+
+          {/* Back to landing */}
+          {onBackToLanding && (
+            <div className="mt-4 text-center">
+              <button onClick={onBackToLanding}
+                className="text-gray-600 text-xs hover:text-gray-500 transition-colors">
+                ← Back to home
+              </button>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  )
 }
