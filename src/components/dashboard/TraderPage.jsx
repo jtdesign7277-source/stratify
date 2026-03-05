@@ -4262,7 +4262,7 @@ export default function TraderPage({
                     {/* Scrollable article list — no href / target _blank; click opens in-app drawer */}
                     <div
                       ref={newsListScrollRef}
-                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y"
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-show pointer-events-auto touch-pan-y"
                       style={{ touchAction: 'pan-y', flex: '1 1 0%', minHeight: 0 }}
                     >
                       {newsLoading && !newsArticles?.length ? (

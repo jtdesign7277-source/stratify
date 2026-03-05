@@ -1064,10 +1064,13 @@ function StratifyAppContent() {
   const authCheckStartedAtRef = useRef(null);
 
   useEffect(() => {
+    if (currentPage === 'dashboard') return undefined;
+
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
+      allowNestedScroll: true,
     });
 
     let rafId = 0;
@@ -1081,7 +1084,7 @@ function StratifyAppContent() {
       cancelAnimationFrame(rafId);
       lenis.destroy();
     };
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

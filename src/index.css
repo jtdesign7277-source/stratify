@@ -82,6 +82,31 @@ h1, h2, h3, h4, h5, h6 {
   display: none;
 }
 
+/* Force visible/native scroll behavior for critical panes (War Room, Calendar, News feed) */
+.scrollbar-show {
+  -ms-overflow-style: auto !important;
+  scrollbar-width: thin !important;
+}
+
+.scrollbar-show::-webkit-scrollbar {
+  display: block !important;
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-show::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-show::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+.scrollbar-show::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.55);
+}
+
 /* Keep watchlist scroll behavior but hide visible scrollbar chrome */
 .watchlist-scrollable {
   -ms-overflow-style: none;
