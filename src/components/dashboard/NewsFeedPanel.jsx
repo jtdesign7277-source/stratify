@@ -249,7 +249,7 @@ export default function NewsFeedPanel({
         .news-feed-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
       `}</style>
       <div
-        className="news-feed-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+        className="news-feed-scroll flex-1 min-h-0 overflow-hidden flex flex-col"
         style={{
           ...(activeArticle ? {} : { maxHeight: '400px' }),
           scrollbarWidth: 'thin',
@@ -258,97 +258,15 @@ export default function NewsFeedPanel({
       >
         {activeTab === 'news' ? (
           <>
-            {activeArticle ? (
-              <div
-                key={articleKey}
-                className="news-feed-scroll overflow-y-auto overflow-x-hidden p-4 h-full min-h-0"
-                style={{
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-                }}
-              >
-                {/* Back button + close */}
-                <div className="flex items-center justify-between gap-3 mb-4">
-                  <button
-                    type="button"
-                    onClick={closeArticle}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-                    aria-label="Back to news list"
-                  >
-                    <ArrowLeft className="w-4 h-4 shrink-0" strokeWidth={1.8} />
-                    Back to list
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeArticle}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
-                    title="Close article"
-                    aria-label="Close article"
-                  >
-                    <X className="h-4 w-4" strokeWidth={1.8} />
-                  </button>
-                </div>
-
-                <div className="mb-3">
-                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                    {formatSource(activeArticle.source)} · {getTimeAgo(activeArticle.publishedAt)}
-                  </p>
-                  <h3 className="mt-1.5 text-[17px] font-semibold leading-snug text-white">
-                    {activeArticle.title}
-                  </h3>
-                </div>
-
-                {activeArticle.imageUrl ? (
-                  <img
-                    key={`img-${articleKey}`}
-                    src={activeArticle.imageUrl}
-                    alt={activeArticle.title}
-                    className="mb-4 w-full rounded-lg object-cover max-h-[240px]"
-                  />
-                ) : null}
-
-                {activeArticle.description ? (
-                  <p className="text-gray-300 text-[15px] leading-relaxed mb-4">{activeArticle.description}</p>
-                ) : null}
-
-                {activeArticle.content ? (
-                  <>
-                    <div className="my-4 border-t border-white/[0.06]" />
-                    <p className="text-gray-300 text-[15px] leading-relaxed whitespace-pre-line">{activeArticle.content}</p>
-                  </>
-                ) : activeArticle.snippet ? (
-                  <>
-                    <div className="my-4 border-t border-white/[0.06]" />
-                    <p className="text-gray-300 text-[15px] leading-relaxed">{activeArticle.snippet}</p>
-                  </>
-                ) : null}
-
-                {activeArticle.url ? (
-                  <a
-                    href={activeArticle.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-blue-400 hover:text-blue-300"
-                  >
-                    Open source article
-                    <ExternalLink className="h-4 w-4" strokeWidth={1.7} />
-                  </a>
-                ) : null}
-              </div>
-            ) : (
-              loading && !articles.length ? (
+            {loading && !articles.length ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2">
-                <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500
-                                rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
                 <span className="text-[11px] text-gray-600">Loading news...</span>
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2">
                 <span className="text-[11px] text-red-400/70">Failed to load news</span>
-                <button onClick={refetch}
-                        className="text-[10px] text-blue-400 hover:underline">
-                  Try again
-                </button>
+                <button onClick={refetch} className="text-[10px] text-blue-400 hover:underline">Try again</button>
               </div>
             ) : filteredArticles.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
@@ -356,13 +274,90 @@ export default function NewsFeedPanel({
                   No {filter !== 'all' ? filter : ''} articles found for ${selectedSymbol}
                 </span>
               </div>
-            ) : (
-              <div className="divide-y divide-white/[0.03]">
-                {filteredArticles.map((article) => (
-                  <ArticleRow key={article.uuid} article={article} onOpen={openArticle} />
-                ))}
+            ) : activeArticle ? (
+              /* Split screen: list left, article right */
+              <div className="flex flex-1 min-h-0 min-w-0">
+                {/* Left: article list */}
+                <div
+                  className="news-feed-scroll flex-shrink-0 w-[45%] min-w-0 border-r border-white/[0.06] overflow-y-auto"
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}
+                >
+                  <div className="divide-y divide-white/[0.03]">
+                    {filteredArticles.map((article) => (
+                      <ArticleRow
+                        key={article.uuid}
+                        article={article}
+                        onOpen={openArticle}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {/* Right: selected article */}
+                <div
+                  key={articleKey}
+                  className="news-feed-scroll flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4"
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}
+                >
+                  <div className="flex items-center justify-end gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={closeArticle}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                      aria-label="Close article"
+                    >
+                      <X className="w-4 h-4 shrink-0" strokeWidth={1.8} />
+                      Close
+                    </button>
+                  </div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                    {formatSource(activeArticle.source)} · {getTimeAgo(activeArticle.publishedAt)}
+                  </p>
+                  <h3 className="mt-1.5 text-[17px] font-semibold leading-snug text-white">
+                    {activeArticle.title}
+                  </h3>
+                  {activeArticle.imageUrl ? (
+                    <img
+                      key={`img-${articleKey}`}
+                      src={activeArticle.imageUrl}
+                      alt={activeArticle.title}
+                      className="mt-3 mb-4 w-full rounded-lg object-cover max-h-[220px]"
+                    />
+                  ) : null}
+                  {activeArticle.description ? (
+                    <p className="text-gray-300 text-[15px] leading-relaxed mb-4">{activeArticle.description}</p>
+                  ) : null}
+                  {activeArticle.content ? (
+                    <>
+                      <div className="my-4 border-t border-white/[0.06]" />
+                      <p className="text-gray-300 text-[15px] leading-relaxed whitespace-pre-line">{activeArticle.content}</p>
+                    </>
+                  ) : activeArticle.snippet ? (
+                    <>
+                      <div className="my-4 border-t border-white/[0.06]" />
+                      <p className="text-gray-300 text-[15px] leading-relaxed">{activeArticle.snippet}</p>
+                    </>
+                  ) : null}
+                  {activeArticle.url ? (
+                    <a
+                      href={activeArticle.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-blue-400 hover:text-blue-300"
+                    >
+                      Open source article
+                      <ExternalLink className="h-4 w-4" strokeWidth={1.7} />
+                    </a>
+                  ) : null}
+                </div>
               </div>
-            )
+            ) : (
+              <div className="news-feed-scroll flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}>
+                <div className="divide-y divide-white/[0.03]">
+                  {filteredArticles.map((article) => (
+                    <ArticleRow key={article.uuid} article={article} onOpen={openArticle} />
+                  ))}
+                </div>
+              </div>
             )}
           </>
         ) : (
