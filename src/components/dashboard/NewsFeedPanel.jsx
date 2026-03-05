@@ -171,10 +171,12 @@ export default function NewsFeedPanel({
     onArticleOpenChange?.(false);
   }, [selectedSymbol, activeTab, onArticleOpenChange]);
 
+  const articleKey = activeArticle ? (activeArticle.uuid || activeArticle.url || activeArticle.title || '') : '';
+
   return (
-    <div className={`soft-glass-surface flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] ${className}`}>
+    <div className={`soft-glass-surface flex flex-col min-h-0 bg-[#0b0b0b] border-t border-white/[0.06] ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
+      <div className="flex shrink-0 items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
           {/* News / Trending toggle */}
           <div className="flex gap-1 p-0.5 bg-white/[0.03] rounded-lg">
@@ -239,15 +241,32 @@ export default function NewsFeedPanel({
         </div>
       </div>
 
-      {/* Content — no maxHeight when article open so panel can grow (parent controls height) */}
+      {/* Content — scrollable list and article; visible scrollbar so user can scroll */}
+      <style>{`
+        .news-feed-scroll::-webkit-scrollbar { width: 8px; }
+        .news-feed-scroll::-webkit-scrollbar-track { background: transparent; }
+        .news-feed-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+        .news-feed-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+      `}</style>
       <div
-        className="flex-1 overflow-y-auto custom-scrollbar min-h-0"
-        style={activeArticle ? undefined : { maxHeight: '400px' }}
+        className="news-feed-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+        style={{
+          ...(activeArticle ? {} : { maxHeight: '400px' }),
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+        }}
       >
         {activeTab === 'news' ? (
           <>
             {activeArticle ? (
-              <div className="overflow-y-auto p-4 h-full">
+              <div
+                key={articleKey}
+                className="news-feed-scroll overflow-y-auto overflow-x-hidden p-4 h-full min-h-0"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+                }}
+              >
                 {/* Back button + close */}
                 <div className="flex items-center justify-between gap-3 mb-4">
                   <button
@@ -281,6 +300,7 @@ export default function NewsFeedPanel({
 
                 {activeArticle.imageUrl ? (
                   <img
+                    key={`img-${articleKey}`}
                     src={activeArticle.imageUrl}
                     alt={activeArticle.title}
                     className="mb-4 w-full rounded-lg object-cover max-h-[240px]"
