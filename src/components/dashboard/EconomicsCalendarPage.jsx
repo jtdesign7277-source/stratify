@@ -166,17 +166,23 @@ const EconomicsCalendarPage = () => {
   }, [events, activeRegion, todayStr]);
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="min-h-full w-full bg-transparent text-white overflow-y-auto relative flex flex-col">
+    <motion.div
+      {...PAGE_TRANSITION}
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-white"
+      style={{
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a',
+      }}
+    >
       <div
-        className="pointer-events-none absolute inset-0 opacity-40"
+        className="pointer-events-none absolute inset-0 opacity-30"
         style={{
-          backgroundImage: 'linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(rgba(148,163,184,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.06) 1px, transparent 1px)',
           backgroundSize: '32px 32px',
         }}
       />
 
-      {/* Header */}
-      <motion.div {...sectionMotion(0)} className="relative z-10 px-6 pt-5 pb-3">
+      {/* Header — fixed at top so content scrolls below */}
+      <motion.div {...sectionMotion(0)} className="relative z-10 shrink-0 px-6 pt-5 pb-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <Calendar className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
@@ -232,8 +238,21 @@ const EconomicsCalendarPage = () => {
         </div>
       </motion.div>
 
-      {/* Content */}
-      <motion.div {...sectionMotion(1)} className="relative z-10 flex-1 overflow-y-auto px-6 pb-6" style={{ scrollbarWidth: 'thin' }}>
+      <style>{`
+        .econ-calendar-scroll::-webkit-scrollbar { width: 8px; }
+        .econ-calendar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .econ-calendar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+        .econ-calendar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+      `}</style>
+      {/* Content — scrollable; visible scrollbar */}
+      <motion.div
+        {...sectionMotion(1)}
+        className="econ-calendar-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-8"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+        }}
+      >
         {loading && events.length === 0 && (
           <div className="space-y-4 mt-4">
             {[1, 2, 3].map((i) => (
