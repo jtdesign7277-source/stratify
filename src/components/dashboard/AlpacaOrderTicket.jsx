@@ -162,11 +162,8 @@ export default function OrderTicketPanel({
   const panelSurfaceClass = isBlackSurface ? 'bg-[#0b0b0b]' : 'bg-[#0a1628]/95';
   const controlSurfaceClass = isBlackSurface ? 'bg-[#0b0b0b]' : 'bg-[#050b16]';
   const controlBorderClass = isBlackSurface ? 'border-[#1f1f1f] focus:border-emerald-500/60' : 'border-[#1f2a3a] focus:border-blue-500/60';
-  const accountBadgeToneClass = isLiveMode
-    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
-    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
-  const accountBadgeSizeClass = isCompactCryptoSticky ? 'px-2 py-0.5 text-[9px]' : 'px-2.5 py-1 text-[10px]';
-  const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
+  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-cyan-400';
+  const accountBadgeText = isLiveMode ? 'Live Account' : 'Paper Account';
   const sizeInputLabel = sizeMode === 'dollars' ? 'Dollars' : 'Quantity';
 
   return (
@@ -174,9 +171,7 @@ export default function OrderTicketPanel({
       className={`rounded-xl border border-white/10 ${panelSurfaceClass} ${panelPaddingClass} ${rootLayoutClass} text-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] backdrop-blur ${className}`}
     >
       <div className="mb-2.5 flex">
-        <span
-          className={`${accountBadgeSizeClass} inline-flex items-center rounded-md border font-bold uppercase tracking-[0.14em] ${accountBadgeToneClass}`}
-        >
+        <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
           {accountBadgeText}
         </span>
       </div>

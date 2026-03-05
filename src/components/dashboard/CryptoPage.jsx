@@ -389,10 +389,8 @@ function OrderEntry({
   const availableCash = Number(portfolio?.cash_balance || 0);
   const selectedPositionQtyOwned = Number(selectedPosition?.quantity || 0);
   const executionPrice = liveMarketPrice > 0 ? liveMarketPrice : referencePrice;
-  const accountBadgeToneClass = isLiveMode
-    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
-    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
-  const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
+  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-cyan-400';
+  const accountBadgeText = isLiveMode ? 'Live Account' : 'Paper Account';
 
   useEffect(() => {
     if (!successToast) return undefined;
@@ -776,7 +774,7 @@ function OrderEntry({
             >
             <div className="text-center">
               <div className="mb-2">
-                <span className={`inline-flex rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${accountBadgeToneClass}`}>
+                <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
                   {accountBadgeText}
                 </span>
               </div>

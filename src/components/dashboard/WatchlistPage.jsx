@@ -348,10 +348,8 @@ const WatchlistPage = ({
   const { tradingMode } = useTradingMode();
   const normalizedTradingMode = String(tradingMode || '').trim().toLowerCase() === 'live' ? 'live' : 'paper';
   const isLiveMode = normalizedTradingMode === 'live';
-  const accountBadgeToneClass = isLiveMode
-    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
-    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
-  const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
+  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-cyan-400';
+  const accountBadgeText = isLiveMode ? 'Live Account' : 'Paper Account';
   const [watchlistPanelState, setWatchlistPanelState] = useState(() => loadPanelState(WATCHLIST_PANEL_KEY, 'small'));
   const [orderPanelState, setOrderPanelState] = useState(() => {
     const saved = loadPanelState(ORDER_PANEL_KEY, 'closed');
@@ -1680,7 +1678,7 @@ const WatchlistPage = ({
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-white/60">Account</span>
-                          <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${accountBadgeToneClass}`}>
+                          <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
                             {accountBadgeText}
                           </span>
                         </div>
@@ -1773,7 +1771,7 @@ const WatchlistPage = ({
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-white/60">Account</span>
-                          <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${accountBadgeToneClass}`}>
+                          <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
                             {accountBadgeText}
                           </span>
                         </div>
