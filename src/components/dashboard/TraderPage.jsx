@@ -26,8 +26,6 @@ const ACTIVE_MARKET_STORAGE_KEY = 'stratify-trader-active-market';
 const CHART_TIMEFRAME_STORAGE_KEY = 'stratify-trader-chart-timeframe';
 const CHART_VIEWPORT_STORAGE_KEY = 'stratify-trader-chart-viewport';
 const PREVIOUS_CLOSE_CACHE_STORAGE_KEY = 'stratify-trader-prev-close-cache-v1';
-const NEWS_PANEL_HEIGHT_STORAGE_KEY = 'stratify-news-panel-height';
-const NEWS_PANEL_COLLAPSED_STORAGE_KEY = 'stratify-news-panel-collapsed';
 const PREVIOUS_CLOSE_CACHE_TTL_MS = 1000 * 60 * 60 * 48;
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
 const MAX_SYMBOL_SEARCH_RESULTS = 50;
@@ -120,7 +118,6 @@ const TRADER_ORDER_TYPE_OPTIONS = [
   { value: 'stop_limit', label: 'Stop Limit' },
   { value: 'trailing_stop', label: 'Trailing Stop' },
 ];
-const NEWS_PANEL_DEFAULT_HEIGHT = 280;
 const NEWS_PANEL_MIN_HEIGHT = 80;
 const NEWS_PANEL_MIN_CHART_SPACE = 60;
 const WATCHLIST_PANEL_OPEN_WIDTH = 240;
@@ -949,22 +946,6 @@ const loadInitialChartTimeframe = () => {
   return DEFAULT_CHART_TIMEFRAME;
 };
 
-const loadInitialNewsPanelHeight = () => {
-  if (typeof window === 'undefined') return NEWS_PANEL_DEFAULT_HEIGHT;
-  try {
-    const saved = Number(localStorage.getItem(NEWS_PANEL_HEIGHT_STORAGE_KEY));
-    if (Number.isFinite(saved) && saved > 0) return Math.round(saved);
-  } catch {}
-  return NEWS_PANEL_DEFAULT_HEIGHT;
-};
-
-const loadInitialNewsPanelCollapsed = () => {
-  if (typeof window === 'undefined') return false;
-  try {
-    return localStorage.getItem(NEWS_PANEL_COLLAPSED_STORAGE_KEY) === 'true';
-  } catch {}
-  return false;
-};
 
 function TraderOrderEntry({
   selectedSymbol,
@@ -1581,9 +1562,9 @@ export default function TraderPage({
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
-  const [newsPanelHeight, setNewsPanelHeight] = useState(() => loadInitialNewsPanelHeight());
-  const [isNewsPanelCollapsed, setIsNewsPanelCollapsed] = useState(() => loadInitialNewsPanelCollapsed());
-  const [isResizingNewsPanel, setIsResizingNewsPanel] = useState(false);
+  // News panel: 3-state cycle — 'peek' (1/3) → 'open' (60%) → 'closed' → 'peek'
+  const [newsPanelState, setNewsPanelState] = useState('peek');
+  const isNewsPanelCollapsed = newsPanelState === 'closed';
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [hoveredWatchlistSymbol, setHoveredWatchlistSymbol] = useState(null);
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -1626,10 +1607,6 @@ export default function TraderPage({
   const dragPositionYRef = useRef(null);
   const dragPositionXRef = useRef(null);
   const chartAndNewsContainerRef = useRef(null);
-  const newsPanelResizeStartYRef = useRef(0);
-  const newsPanelResizeStartHeightRef = useRef(NEWS_PANEL_DEFAULT_HEIGHT);
-  const newsPanelHeightRef = useRef(newsPanelHeight);
-  const lastExpandedNewsPanelHeightRef = useRef(newsPanelHeight);
   const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
   const watchlistSymbols = useMemo(
     () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))],
@@ -1690,110 +1667,37 @@ export default function TraderPage({
       .filter((position) => position.symbol && position.quantity > 0)
       .sort((a, b) => (b.marketValue - a.marketValue));
   }, [paperPortfolio?.positions, watchlistNamesBySymbol]);
-  const clampNewsPanelHeight = useCallback((nextHeight, containerHeight) => {
-    const safeContainerHeight = Number.isFinite(containerHeight) ? containerHeight : 0;
-    const maxPanelHeight = Math.max(
-      NEWS_PANEL_MIN_HEIGHT,
-      Math.floor(safeContainerHeight - NEWS_PANEL_MIN_CHART_SPACE)
-    );
-    const clamped = Math.min(Math.max(nextHeight, NEWS_PANEL_MIN_HEIGHT), maxPanelHeight);
-    return Math.round(clamped);
-  }, []);
+  // Compute news panel height from 3-state cycle based on container size
+  const getNewsPanelHeight = useCallback(() => {
+    const containerHeight = chartAndNewsContainerRef.current?.getBoundingClientRect()?.height || 600;
+    if (newsPanelState === 'closed') return 0;
+    if (newsPanelState === 'peek') return Math.round(containerHeight * 0.33);
+    if (newsPanelState === 'open') return Math.round(containerHeight * 0.6);
+    return 0;
+  }, [newsPanelState]);
 
+  const [newsPanelHeight, setNewsPanelHeight] = useState(280);
+
+  // Sync height when state or container changes
   useEffect(() => {
-    newsPanelHeightRef.current = newsPanelHeight;
-  }, [newsPanelHeight]);
-
-  useEffect(() => {
-    if (!isNewsPanelCollapsed) {
-      lastExpandedNewsPanelHeightRef.current = newsPanelHeight;
-    }
-  }, [isNewsPanelCollapsed, newsPanelHeight]);
-
-  const handleNewsPanelResizeStart = useCallback((event) => {
-    if (isNewsPanelCollapsed) return;
-    if (event.button !== 0) return;
-    event.preventDefault();
-    newsPanelResizeStartYRef.current = event.clientY;
-    newsPanelResizeStartHeightRef.current = newsPanelHeight;
-    setIsResizingNewsPanel(true);
-  }, [isNewsPanelCollapsed, newsPanelHeight]);
-
-  const toggleNewsPanelCollapsed = useCallback(() => {
-    if (isNewsPanelCollapsed) {
-      const containerHeight = chartAndNewsContainerRef.current?.getBoundingClientRect()?.height;
-      const restoredHeight = clampNewsPanelHeight(lastExpandedNewsPanelHeightRef.current || NEWS_PANEL_DEFAULT_HEIGHT, containerHeight);
-      setNewsPanelHeight(restoredHeight);
-      newsPanelHeightRef.current = restoredHeight;
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(NEWS_PANEL_HEIGHT_STORAGE_KEY, String(restoredHeight));
-        } catch {}
-      }
-      setIsNewsPanelCollapsed(false);
-      return;
-    }
-
-    lastExpandedNewsPanelHeightRef.current = newsPanelHeightRef.current || newsPanelHeight || NEWS_PANEL_DEFAULT_HEIGHT;
-    setIsResizingNewsPanel(false);
-    setIsNewsPanelCollapsed(true);
-  }, [clampNewsPanelHeight, isNewsPanelCollapsed, newsPanelHeight]);
-
-  useEffect(() => {
-    if (!isResizingNewsPanel) return undefined;
-
-    const handleMouseMove = (event) => {
-      const containerHeight = chartAndNewsContainerRef.current?.getBoundingClientRect()?.height;
-      if (!Number.isFinite(containerHeight) || containerHeight <= 0) return;
-
-      const deltaY = event.clientY - newsPanelResizeStartYRef.current;
-      const requestedHeight = newsPanelResizeStartHeightRef.current - deltaY;
-      const nextHeight = clampNewsPanelHeight(requestedHeight, containerHeight);
-      setNewsPanelHeight((previous) => (previous === nextHeight ? previous : nextHeight));
-    };
-
-    const handleMouseUp = () => {
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(NEWS_PANEL_HEIGHT_STORAGE_KEY, String(newsPanelHeightRef.current));
-        } catch {}
-      }
-      setIsResizingNewsPanel(false);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'row-resize';
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-  }, [clampNewsPanelHeight, isResizingNewsPanel]);
+    setNewsPanelHeight(getNewsPanelHeight());
+  }, [getNewsPanelHeight]);
 
   useEffect(() => {
     if (!chartAndNewsContainerRef.current || typeof ResizeObserver === 'undefined') return undefined;
-
     const container = chartAndNewsContainerRef.current;
-    const syncHeightWithinBounds = () => {
-      const containerHeight = container.getBoundingClientRect().height;
-      if (!Number.isFinite(containerHeight) || containerHeight <= 0) return;
-      setNewsPanelHeight((previous) => clampNewsPanelHeight(previous, containerHeight));
-    };
-
-    syncHeightWithinBounds();
-    const observer = new ResizeObserver(() => {
-      syncHeightWithinBounds();
-    });
+    const observer = new ResizeObserver(() => setNewsPanelHeight(getNewsPanelHeight()));
     observer.observe(container);
+    return () => observer.disconnect();
+  }, [getNewsPanelHeight]);
 
-    return () => {
-      observer.disconnect();
-    };
-  }, [clampNewsPanelHeight]);
+  const toggleNewsPanelCollapsed = useCallback(() => {
+    setNewsPanelState((prev) => {
+      if (prev === 'peek') return 'open';
+      if (prev === 'open') return 'closed';
+      return 'peek'; // closed → peek
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -2007,10 +1911,6 @@ export default function TraderPage({
     localStorage.setItem(WATCHLIST_COLLAPSED_STORAGE_KEY, isWatchlistCollapsed ? 'true' : 'false');
   }, [isWatchlistCollapsed]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(NEWS_PANEL_COLLAPSED_STORAGE_KEY, isNewsPanelCollapsed ? 'true' : 'false');
-  }, [isNewsPanelCollapsed]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -4183,45 +4083,31 @@ export default function TraderPage({
               </div>
 
               <div
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label={isNewsPanelCollapsed ? 'Expand news panel' : 'Resize news panel'}
-                onMouseDown={isNewsPanelCollapsed ? undefined : handleNewsPanelResizeStart}
-                className={`relative z-10 flex h-[18px] shrink-0 items-center justify-center ${
-                  isNewsPanelCollapsed ? '' : 'cursor-row-resize bg-white/[0.07] transition hover:bg-white/[0.12]'
-                }`}
+                role="button"
+                tabIndex={0}
+                onClick={toggleNewsPanelCollapsed}
+                className="relative z-10 flex h-[18px] shrink-0 cursor-pointer items-center justify-center bg-white/[0.07] transition hover:bg-white/[0.12]"
+                title={newsPanelState === 'closed' ? 'Show news' : newsPanelState === 'peek' ? 'Expand news' : 'Hide news'}
               >
-                {!isNewsPanelCollapsed && (
-                  <div className="flex items-center gap-1">
-                    <span className="h-1 w-1 rounded-full bg-white/45" />
-                    <span className="h-1 w-1 rounded-full bg-white/45" />
-                    <span className="h-1 w-1 rounded-full bg-white/45" />
-                  </div>
-                )}
+                <div className="flex items-center gap-1">
+                  <span className="h-1 w-1 rounded-full bg-white/45" />
+                  <span className="h-1 w-1 rounded-full bg-white/45" />
+                  <span className="h-1 w-1 rounded-full bg-white/45" />
+                </div>
 
-                <motion.button
-                  type="button"
-                  onMouseDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onClick={toggleNewsPanelCollapsed}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={interactiveTransition}
-                  className={`absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors ${
-                    isNewsPanelCollapsed
-                      ? 'text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]'
-                      : 'text-emerald-300/70 hover:text-emerald-300'
-                  }`}
-                  title={isNewsPanelCollapsed ? 'Expand news panel' : 'Collapse news panel'}
-                  aria-label={isNewsPanelCollapsed ? 'Expand news panel' : 'Collapse news panel'}
-                >
-                  {isNewsPanelCollapsed ? (
+                <div className={`absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors ${
+                  isNewsPanelCollapsed
+                    ? 'text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]'
+                    : 'text-emerald-300/70 hover:text-emerald-300'
+                }`}>
+                  {newsPanelState === 'closed' ? (
+                    <ChevronsUp className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  ) : newsPanelState === 'peek' ? (
                     <ChevronsUp className="h-3.5 w-3.5" strokeWidth={1.7} />
                   ) : (
                     <ChevronsDown className="h-3.5 w-3.5" strokeWidth={1.7} />
                   )}
-                </motion.button>
+                </div>
               </div>
 
               <div
