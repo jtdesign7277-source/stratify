@@ -2667,7 +2667,7 @@ export default function TraderPage({
         connected: false,
         connecting: false,
         retryCount: 0,
-        error: 'Missing VITE_TWELVE_DATA_API_KEY.',
+        error: 'Add VITE_TWELVE_DATA_API_KEY to .env for live prices',
       });
       return undefined;
     }
@@ -3412,7 +3412,7 @@ export default function TraderPage({
 
       <motion.div
         {...sectionMotion(0)}
-        className="flex flex-1 min-h-0 gap-2 overflow-hidden p-2"
+        className="flex flex-1 min-h-0 min-w-0 gap-2 overflow-x-auto overflow-y-hidden p-2"
       >
         <aside
           className="flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl transition-[width] duration-200 ease-in-out backdrop-blur-xl"
@@ -3609,16 +3609,16 @@ export default function TraderPage({
               </form>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex shrink-0 items-center justify-between border-b border-white/[0.09] px-4 py-2 text-xs">
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.09] px-4 py-2 text-xs">
                   {watchlistView === 'watchlist' ? (
-                    <>
-                      <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
-                      {streamStatus.error ? (
-                        <span className="text-red-400">{streamStatus.error}</span>
-                      ) : (
+                    streamStatus.error ? (
+                      <span className="text-red-400/90" title="Twelve Data API key required for live watchlist prices">{streamStatus.error}</span>
+                    ) : (
+                      <>
+                        <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
                         <span className="text-emerald-400">{activeStreamSymbolCount} symbols</span>
-                      )}
-                    </>
+                      </>
+                    )
                   ) : (
                     <>
                       <span className="text-[#9ca3af]">Paper Holdings</span>
@@ -3739,9 +3739,11 @@ export default function TraderPage({
                                       >
                                       <div
                                         {...provided.dragHandleProps}
-                                        className={`mr-2 text-gray-600 hover:text-gray-400 ${
+                                        className={`mr-2 shrink-0 touch-none text-gray-600 hover:text-gray-400 ${
                                           snapshot.isDragging ? 'cursor-grabbing' : 'cursor-grab'
                                         }`}
+                                        title="Drag to reorder"
+                                        aria-label="Drag to reorder"
                                       >
                                         <GripVertical className="w-4 h-4" />
                                       </div>
@@ -3983,8 +3985,8 @@ export default function TraderPage({
           )}
         </aside>
 
-        <section className="flex flex-1 min-h-0 gap-2 overflow-hidden">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl backdrop-blur-xl" style={chartPanelStyle}>
+        <section className="flex min-w-0 flex-1 min-h-0 gap-2 overflow-hidden">
+          <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden rounded-xl backdrop-blur-xl" style={chartPanelStyle}>
             <div className="shrink-0 border-b border-white/[0.09] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
