@@ -1163,7 +1163,7 @@ export default function WarRoom({ onClose }) {
           </div>
         </header>
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-3 overflow-hidden">
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-3">
           <aside className="min-h-0 overflow-y-auto scrollbar-hide rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-2.5">
             <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">War Room Tabs</p>
             <div className="mt-2 space-y-1.5">
@@ -1235,7 +1235,7 @@ export default function WarRoom({ onClose }) {
             </div>
           </aside>
 
-          <div className="min-h-0 overflow-hidden rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
+          <div className="min-h-0 overflow-y-auto rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
           {activeView === 'transcripts' ? (
             <div className="h-full flex flex-col gap-2">
               {/* Search bar + ticker buttons */}
