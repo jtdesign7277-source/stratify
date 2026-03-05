@@ -168,19 +168,8 @@ const EconomicsCalendarPage = () => {
   return (
     <motion.div
       {...PAGE_TRANSITION}
-      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-white"
-      style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a',
-      }}
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-white bg-[#0a0a0a]"
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-30"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(148,163,184,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.06) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }}
-      />
-
       {/* Header — fixed at top so content scrolls below */}
       <motion.div {...sectionMotion(0)} className="relative z-10 shrink-0 px-6 pt-5 pb-3">
         <div className="flex items-center justify-between mb-3">
@@ -244,11 +233,13 @@ const EconomicsCalendarPage = () => {
         .econ-calendar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
         .econ-calendar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
       `}</style>
-      {/* Content — scrollable; visible scrollbar */}
+      {/* Content — flex 1 1 0 so it shrinks and scrolls; visible scrollbar */}
       <motion.div
         {...sectionMotion(1)}
-        className="econ-calendar-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-8"
+        className="econ-calendar-scroll relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-8"
         style={{
+          minHeight: 0,
+          flex: '1 1 0%',
           scrollbarWidth: 'thin',
           scrollbarColor: 'rgba(255,255,255,0.2) transparent',
         }}

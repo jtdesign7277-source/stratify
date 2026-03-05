@@ -2781,7 +2781,11 @@ export default function Dashboard({
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
-          {activeTab === 'calendar' && <EconomicsCalendarPage />}
+          {activeTab === 'calendar' && (
+            <div className="h-full min-h-0 w-full overflow-hidden flex flex-col">
+              <EconomicsCalendarPage />
+            </div>
+          )}
           {activeTab === 'xray' && (
             <XRayPage
               initialSymbol={xraySymbol}
