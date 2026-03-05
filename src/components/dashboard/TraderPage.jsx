@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronDown, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -1584,6 +1584,28 @@ export default function TraderPage({
   const [drawerArticle, setDrawerArticle] = useState(null);
   const newsListScrollRef = useRef(null);
   const articleBodyScrollRef = useRef(null);
+
+  const scrollNewsList = useCallback((delta) => {
+    const el = newsListScrollRef.current;
+    if (el) {
+      el.scrollTop = Math.max(0, Math.min(el.scrollTop + delta, el.scrollHeight - el.clientHeight));
+    }
+  }, []);
+  const scrollArticleBody = useCallback((delta) => {
+    const el = articleBodyScrollRef.current;
+    if (el) {
+      el.scrollTop = Math.max(0, Math.min(el.scrollTop + delta, el.scrollHeight - el.clientHeight));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!drawerArticle) return;
+    const t = setTimeout(() => {
+      const el = articleBodyScrollRef.current;
+      if (el) el.scrollTop = 0;
+    }, 0);
+    return () => clearTimeout(t);
+  }, [drawerArticle]);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [hoveredWatchlistSymbol, setHoveredWatchlistSymbol] = useState(null);
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -4203,16 +4225,16 @@ export default function TraderPage({
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => newsListScrollRef.current?.scrollBy({ top: -120, behavior: 'smooth' })}
-                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(-120); }}
+                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
                           aria-label="Scroll news up"
                         >
                           <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
                         </button>
                         <button
                           type="button"
-                          onClick={() => newsListScrollRef.current?.scrollBy({ top: 120, behavior: 'smooth' })}
-                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(120); }}
+                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
                           aria-label="Scroll news down"
                         >
                           <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
@@ -4232,7 +4254,7 @@ export default function TraderPage({
                     <div
                       ref={newsListScrollRef}
                       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y"
-                      style={{ touchAction: 'pan-y' }}
+                      style={{ touchAction: 'pan-y', flex: '1 1 0%', minHeight: 0 }}
                     >
                       {newsLoading && !newsArticles?.length ? (
                         <div className="flex items-center justify-center py-8 gap-2">
@@ -4291,8 +4313,15 @@ export default function TraderPage({
 
                 {/* In-app article drawer — no external URLs; slides in from right */}
                 <AnimatePresence>
-                  {drawerArticle ? (
+                  {drawerArticle ? (() => {
+                    const articles = newsArticles || [];
+                    const drawerKey = (a) => a?.uuid || a?.url || a?.title || '';
+                    const currentIndex = articles.findIndex((a) => drawerKey(a) === drawerKey(drawerArticle));
+                    const prevArticle = currentIndex > 0 ? articles[currentIndex - 1] : null;
+                    const nextArticle = currentIndex >= 0 && currentIndex < articles.length - 1 ? articles[currentIndex + 1] : null;
+                    return (
                     <motion.div
+                      key={drawerKey(drawerArticle)}
                       initial={{ x: 40, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
                       exit={{ x: 40, opacity: 0 }}
@@ -4300,30 +4329,54 @@ export default function TraderPage({
                       className="fixed top-0 right-0 bottom-0 w-[480px] max-w-[100vw] bg-[#0a0a0f] backdrop-blur-xl z-[100] flex flex-col shadow-2xl"
                       style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}
                     >
-                      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                        <div className="flex shrink-0 items-center justify-end p-3 border-b border-white/[0.06]">
+                      <div className="flex-1 min-h-0 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+                        <div className="flex shrink-0 items-center justify-between gap-2 p-3 border-b border-white/[0.06]">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (prevArticle) setDrawerArticle(prevArticle); }}
+                              disabled={!prevArticle}
+                              className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                              aria-label="Previous article"
+                            >
+                              <ChevronLeft className="w-4 h-4" strokeWidth={1.8} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (nextArticle) setDrawerArticle(nextArticle); }}
+                              disabled={!nextArticle}
+                              className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                              aria-label="Next article"
+                            >
+                              <ChevronRight className="w-4 h-4" strokeWidth={1.8} />
+                            </button>
+                            <span className="text-[11px] text-gray-500 ml-1">
+                              {currentIndex >= 0 ? `${currentIndex + 1} / ${articles.length}` : '—'}
+                            </span>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => { setDrawerArticle(null); setNewsArticleExpanded(false); }}
-                            className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); }}
+                            className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
                             aria-label="Close article"
                           >
                             <X className="w-5 h-5" strokeWidth={1.8} />
                           </button>
                         </div>
-                        <div className="flex shrink-0 gap-2 px-4 pb-2">
+                        <div className="flex shrink-0 items-center gap-2 px-4 py-2 border-b border-white/[0.06]">
+                          <span className="text-[10px] text-gray-500 uppercase">Scroll article:</span>
                           <button
                             type="button"
-                            onClick={() => articleBodyScrollRef.current?.scrollBy({ top: -200, behavior: 'smooth' })}
-                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollArticleBody(-200); }}
+                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
                             aria-label="Scroll article up"
                           >
                             <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
                           </button>
                           <button
                             type="button"
-                            onClick={() => articleBodyScrollRef.current?.scrollBy({ top: 200, behavior: 'smooth' })}
-                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollArticleBody(200); }}
+                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
                             aria-label="Scroll article down"
                           >
                             <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
@@ -4332,7 +4385,7 @@ export default function TraderPage({
                         <div
                           ref={articleBodyScrollRef}
                           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pb-8 pointer-events-auto touch-pan-y"
-                          style={{ fontSize: '15px', lineHeight: 1.8, touchAction: 'pan-y' }}
+                          style={{ fontSize: '15px', lineHeight: 1.8, touchAction: 'pan-y', flex: '1 1 0%', minHeight: 0 }}
                         >
                           <p className="text-[11px] uppercase tracking-wide text-gray-500">
                             {newsSourceLabel(drawerArticle.source)} · {newsTimeAgo(drawerArticle.publishedAt ?? drawerArticle.published_at)}
@@ -4360,7 +4413,8 @@ export default function TraderPage({
                         </div>
                       </div>
                     </motion.div>
-                  ) : null}
+                    );
+                  })() : null}
                 </AnimatePresence>
               </div>
             </div>
