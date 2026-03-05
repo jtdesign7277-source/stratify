@@ -30,6 +30,15 @@ function newsSourceLabel(source) {
   return source.replace(/^www\./, '').replace(/\.(com|org|net|co)$/, '').split('.').pop() || source;
 }
 
+const GENERIC_IMAGE_PATTERNS = [
+  'investingcom_analysis_og',
+  'smw-icon',
+];
+function isGenericSourceImage(url) {
+  if (!url || typeof url !== 'string') return true;
+  return GENERIC_IMAGE_PATTERNS.some((pattern) => url.includes(pattern));
+}
+
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 const withApiBase = (path) => `${API_BASE}${path}`;
@@ -4218,7 +4227,7 @@ export default function TraderPage({
                 <div className="h-full min-h-0 overflow-hidden flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] pointer-events-auto">
                   <ErrorBoundary>
                     {/* Header */}
-                    <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06]">
+                    <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
                       <span className="text-[11px] text-gray-500">
                         News for <span className="text-blue-400 font-mono font-medium">${selectedTicker || '—'}</span>
                       </span>
@@ -4383,7 +4392,7 @@ export default function TraderPage({
                           </button>
                         </div>
                         <div
-                          ref={articleBodyScrollRef}
+                          ref={(el) => { if (el) articleBodyScrollRef.current = el; }}
                           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pb-8 pointer-events-auto touch-pan-y"
                           style={{ fontSize: '15px', lineHeight: 1.8, touchAction: 'pan-y', flex: '1 1 0%', minHeight: 0 }}
                         >
@@ -4400,13 +4409,17 @@ export default function TraderPage({
                             const colorClass = score >= 0.2 ? 'text-emerald-400' : score <= -0.2 ? 'text-red-400' : 'text-gray-400';
                             return <p className={`mt-2 text-sm ${colorClass}`}>{label}</p>;
                           })()}
-                          {(drawerArticle.imageUrl || drawerArticle.image_url) ? (
-                            <img
-                              src={drawerArticle.imageUrl || drawerArticle.image_url}
-                              alt=""
-                              className="mt-3 w-full rounded-lg object-cover max-h-[220px]"
-                            />
-                          ) : null}
+                          {(() => {
+                            const imgUrl = drawerArticle.imageUrl || drawerArticle.image_url;
+                            if (!imgUrl || isGenericSourceImage(imgUrl)) return null;
+                            return (
+                              <img
+                                src={imgUrl}
+                                alt=""
+                                className="mt-3 w-full rounded-lg object-cover max-h-[220px]"
+                              />
+                            );
+                          })()}
                           <div className="mt-4 text-gray-300" style={{ fontSize: '15px', lineHeight: 1.8 }}>
                             {drawerArticle.description ?? drawerArticle.content ?? drawerArticle.snippet ?? ''}
                           </div>
