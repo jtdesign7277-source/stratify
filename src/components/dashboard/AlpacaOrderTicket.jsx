@@ -159,9 +159,9 @@ export default function OrderTicketPanel({
   const contentLayoutClass = stickyReviewFooter
     ? `${contentTopClass} ${verticalGapClass} flex-1 min-h-0 overflow-y-auto pr-0.5`
     : `${contentTopClass} ${verticalGapClass}`;
-  const panelSurfaceClass = isBlackSurface ? 'bg-[#0b0b0b]' : 'bg-[#0a1628]/95';
-  const controlSurfaceClass = isBlackSurface ? 'bg-[#0b0b0b]' : 'bg-[#050b16]';
-  const controlBorderClass = isBlackSurface ? 'border-[#1f1f1f] focus:border-emerald-500/60' : 'border-[#1f2a3a] focus:border-blue-500/60';
+  const panelSurfaceClass = 'bg-[#0b0b0b]';
+  const controlSurfaceClass = 'bg-[#0b0b0b]';
+  const controlBorderClass = 'border-[#1f1f1f] focus:border-emerald-500/60';
   const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-cyan-400';
   const accountBadgeText = isLiveMode ? 'Live Account' : 'Paper Account';
   const sizeInputLabel = sizeMode === 'dollars' ? 'Dollars' : 'Quantity';

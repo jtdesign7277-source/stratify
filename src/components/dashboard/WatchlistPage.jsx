@@ -1265,7 +1265,7 @@ const WatchlistPage = ({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute left-3 right-3 top-[100%] mt-1 max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-[#060d18]/95 p-1 shadow-2xl shadow-black/30"
+                    className="absolute left-3 right-3 top-[100%] mt-1 max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-[#0a0a0f]/95 p-1 shadow-2xl shadow-black/30"
                     style={{ scrollbarWidth: 'none' }}
                   >
                     {searchLoading ? (
@@ -1557,7 +1557,7 @@ const WatchlistPage = ({
               </div>
 
               <div
-                className={`flex min-h-0 flex-col bg-[#0a0f1a] transition-all duration-300 overflow-hidden ${
+                className={`flex min-h-0 flex-col bg-[#0a0a0f] transition-all duration-300 overflow-hidden ${
                   isOrderPanelClosed
                     ? 'border-l border-transparent opacity-0 pointer-events-none'
                     : 'border-l border-white/10 opacity-100'
@@ -1624,7 +1624,7 @@ const WatchlistPage = ({
                                     clearOrderError();
                                     setLimitPrice(event.target.value);
                                   }}
-                                  className="h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
+                                  className="h-[36px] w-full rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
                                 />
                               </div>
                             )}
@@ -1640,7 +1640,7 @@ const WatchlistPage = ({
                                     clearOrderError();
                                     setStopPrice(event.target.value);
                                   }}
-                                  className="h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
+                                  className="h-[36px] w-full rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
                                 />
                               </div>
                             )}
@@ -1656,7 +1656,7 @@ const WatchlistPage = ({
                                     clearOrderError();
                                     setTrailAmount(event.target.value);
                                   }}
-                                  className="h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
+                                  className="h-[36px] w-full rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
                                 />
                               </div>
                             )}
