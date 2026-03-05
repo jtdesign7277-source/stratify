@@ -228,7 +228,7 @@ export default function NewsFeedPanel({
         {activeTab === 'news' ? (
           <>
             {activeArticle ? (
-              <div className="h-full p-4">
+              <div className="overflow-y-auto p-4" style={{ maxHeight: '80vh' }}>
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-wide text-gray-500">
@@ -257,16 +257,21 @@ export default function NewsFeedPanel({
                   />
                 ) : null}
 
-                <div className="space-y-2 text-[12px] leading-relaxed text-gray-300">
-                  {activeArticle.description ? <p>{activeArticle.description}</p> : null}
-                  {activeArticle.snippet ? <p>{activeArticle.snippet}</p> : null}
-                  {activeArticle.highlight ? (
-                    <p
-                      className="text-gray-400"
-                      dangerouslySetInnerHTML={{ __html: cleanHighlight(activeArticle.highlight) }}
-                    />
-                  ) : null}
-                </div>
+                {activeArticle.description ? (
+                  <p className="text-gray-300 text-sm leading-relaxed">{activeArticle.description}</p>
+                ) : null}
+
+                {activeArticle.content ? (
+                  <>
+                    <div className="my-3 border-t border-white/[0.06]" />
+                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{activeArticle.content}</p>
+                  </>
+                ) : activeArticle.snippet ? (
+                  <>
+                    <div className="my-3 border-t border-white/[0.06]" />
+                    <p className="text-gray-300 text-sm leading-relaxed">{activeArticle.snippet}</p>
+                  </>
+                ) : null}
 
                 {activeArticle.url ? (
                   <a

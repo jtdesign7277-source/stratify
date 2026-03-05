@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     const articles = (data.data || []).map(a => {
       const entity = a.entities?.find(e => symbols.toUpperCase().split(',').includes(e.symbol));
       return {
-        uuid: a.uuid, title: a.title, description: a.description, snippet: a.snippet,
+        uuid: a.uuid, title: a.title, description: a.description, content: a.content || null, snippet: a.snippet,
         url: a.url, imageUrl: a.image_url, source: a.source, publishedAt: a.published_at,
         sentiment: entity?.sentiment_score ?? null, matchScore: entity?.match_score ?? null,
         highlight: entity?.highlights?.[0]?.highlight ?? null,
