@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Pin, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -4018,24 +4018,44 @@ export default function TraderPage({
                     );
                   })}
                 </div>
-                <motion.button
-                  type="button"
-                  onClick={handleRefreshChart}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={interactiveTransition}
-                  disabled={chartStatus.loading || !selectedSymbol}
-                  className={`inline-flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
-                    chartStatus.loading || !selectedSymbol
-                      ? 'cursor-not-allowed border-white/[0.12] text-gray-500'
-                      : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
-                  }`}
-                  title="Refresh chart and reset viewport"
-                  aria-label="Refresh chart"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${chartStatus.loading ? 'animate-spin' : ''}`} strokeWidth={1.8} />
-                  Refresh
-                </motion.button>
+                <div className="flex items-center gap-1.5">
+                  <motion.button
+                    type="button"
+                    onClick={toggleNewsPanelCollapsed}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    className={`inline-flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
+                      isNewsOpen
+                        ? 'border-emerald-400/60 text-emerald-400 bg-emerald-500/10'
+                        : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                    }`}
+                    title={isNewsOpen ? 'Hide news panel' : 'Show news panel'}
+                    aria-label={isNewsOpen ? 'Hide news panel' : 'Show news panel'}
+                    aria-pressed={isNewsOpen}
+                  >
+                    <Newspaper className="h-3.5 w-3.5" strokeWidth={1.8} />
+                    News
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={handleRefreshChart}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    disabled={chartStatus.loading || !selectedSymbol}
+                    className={`inline-flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
+                      chartStatus.loading || !selectedSymbol
+                        ? 'cursor-not-allowed border-white/[0.12] text-gray-500'
+                        : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                    }`}
+                    title="Refresh chart and reset viewport"
+                    aria-label="Refresh chart"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${chartStatus.loading ? 'animate-spin' : ''}`} strokeWidth={1.8} />
+                    Refresh
+                  </motion.button>
+                </div>
               </div>
             </div>
 
