@@ -4422,6 +4422,13 @@ export default function TraderPage({
                           <div className="mt-4 text-gray-300" style={{ fontSize: '15px', lineHeight: 1.8 }}>
                             {drawerArticle.description ?? drawerArticle.content ?? drawerArticle.snippet ?? ''}
                           </div>
+                          {((drawerArticle.description ?? drawerArticle.content ?? drawerArticle.snippet ?? '').length < 200) && drawerArticle.url && (
+                            <a href={drawerArticle.url} target="_blank" rel="noopener noreferrer"
+                              className="mt-4 inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors"
+                              style={{ fontSize: '13px' }}>
+                              Read full article on {drawerArticle.source || 'source'} →
+                            </a>
+                          )}
                         </div>
                       </div>
                     </motion.div>
