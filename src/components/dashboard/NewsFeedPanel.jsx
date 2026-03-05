@@ -2,8 +2,8 @@
 // News feed panel for TradePage — shows sentiment-tagged articles for selected ticker
 // Sits below the chart or as a toggleable panel
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { ExternalLink, X } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { ArrowLeft, ExternalLink, RefreshCw, X } from 'lucide-react';
 import { useNews, useTrending, getSentimentColor, getSentimentLabel } from '../../hooks/useMarketAux';
 
 // ─── Single Article Row ─────────────────────────────────────
@@ -135,6 +135,7 @@ function FilterTabs({ active, onChange }) {
 export default function NewsFeedPanel({
   selectedSymbol = 'AAPL',
   onSymbolChange,
+  onArticleOpenChange,
   className = '',
 }) {
   const [filter, setFilter] = useState('all');
@@ -142,6 +143,20 @@ export default function NewsFeedPanel({
   const [activeArticle, setActiveArticle] = useState(null);
   const { articles, loading, error, refetch } = useNews(selectedSymbol, { limit: 15 });
   const { trending, loading: trendingLoading } = useTrending();
+
+  const openArticle = useCallback((article) => {
+    setActiveArticle(article);
+    onArticleOpenChange?.(true);
+  }, [onArticleOpenChange]);
+
+  const closeArticle = useCallback(() => {
+    setActiveArticle(null);
+    onArticleOpenChange?.(false);
+  }, [onArticleOpenChange]);
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   // Filter articles by sentiment
   const filteredArticles = useMemo(() => {
@@ -153,7 +168,8 @@ export default function NewsFeedPanel({
 
   useEffect(() => {
     setActiveArticle(null);
-  }, [selectedSymbol, activeTab]);
+    onArticleOpenChange?.(false);
+  }, [selectedSymbol, activeTab, onArticleOpenChange]);
 
   return (
     <div className={`soft-glass-surface flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] ${className}`}>
@@ -207,40 +223,45 @@ export default function NewsFeedPanel({
         <div className="flex items-center gap-2">
           {activeTab === 'news' && <FilterTabs active={filter} onChange={setFilter} />}
 
-          {/* Refresh button */}
-          <button
-            onClick={refetch}
-            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-gray-300
-                       transition-all duration-200"
-            title="Refresh news"
-          >
-            <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
-                 fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-            </svg>
-          </button>
+          {/* Refresh button — only when list is shown */}
+          {activeTab === 'news' && !activeArticle && (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRefresh(); }}
+              disabled={loading}
+              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-gray-300 disabled:opacity-50 transition-all duration-200"
+              title="Refresh news"
+              aria-label="Refresh news"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: '400px' }}>
+      {/* Content — no maxHeight when article open so panel can grow (parent controls height) */}
+      <div
+        className="flex-1 overflow-y-auto custom-scrollbar min-h-0"
+        style={activeArticle ? undefined : { maxHeight: '400px' }}
+      >
         {activeTab === 'news' ? (
           <>
             {activeArticle ? (
-              <div className="overflow-y-auto p-4" style={{ maxHeight: '80vh' }}>
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-wide text-gray-500">
-                      {formatSource(activeArticle.source)} · {getTimeAgo(activeArticle.publishedAt)}
-                    </p>
-                    <h3 className="mt-1 text-[14px] font-semibold leading-snug text-white">
-                      {activeArticle.title}
-                    </h3>
-                  </div>
+              <div className="overflow-y-auto p-4 h-full">
+                {/* Back button + close */}
+                <div className="flex items-center justify-between gap-3 mb-4">
                   <button
                     type="button"
-                    onClick={() => setActiveArticle(null)}
+                    onClick={closeArticle}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                    aria-label="Back to news list"
+                  >
+                    <ArrowLeft className="w-4 h-4 shrink-0" strokeWidth={1.8} />
+                    Back to list
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeArticle}
                     className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
                     title="Close article"
                     aria-label="Close article"
@@ -249,27 +270,36 @@ export default function NewsFeedPanel({
                   </button>
                 </div>
 
+                <div className="mb-3">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                    {formatSource(activeArticle.source)} · {getTimeAgo(activeArticle.publishedAt)}
+                  </p>
+                  <h3 className="mt-1.5 text-[17px] font-semibold leading-snug text-white">
+                    {activeArticle.title}
+                  </h3>
+                </div>
+
                 {activeArticle.imageUrl ? (
                   <img
                     src={activeArticle.imageUrl}
                     alt={activeArticle.title}
-                    className="mb-3 h-32 w-full rounded-lg object-cover"
+                    className="mb-4 w-full rounded-lg object-cover max-h-[240px]"
                   />
                 ) : null}
 
                 {activeArticle.description ? (
-                  <p className="text-gray-300 text-sm leading-relaxed">{activeArticle.description}</p>
+                  <p className="text-gray-300 text-[15px] leading-relaxed mb-4">{activeArticle.description}</p>
                 ) : null}
 
                 {activeArticle.content ? (
                   <>
-                    <div className="my-3 border-t border-white/[0.06]" />
-                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{activeArticle.content}</p>
+                    <div className="my-4 border-t border-white/[0.06]" />
+                    <p className="text-gray-300 text-[15px] leading-relaxed whitespace-pre-line">{activeArticle.content}</p>
                   </>
                 ) : activeArticle.snippet ? (
                   <>
-                    <div className="my-3 border-t border-white/[0.06]" />
-                    <p className="text-gray-300 text-sm leading-relaxed">{activeArticle.snippet}</p>
+                    <div className="my-4 border-t border-white/[0.06]" />
+                    <p className="text-gray-300 text-[15px] leading-relaxed">{activeArticle.snippet}</p>
                   </>
                 ) : null}
 
@@ -278,10 +308,10 @@ export default function NewsFeedPanel({
                     href={activeArticle.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-400 hover:text-blue-300"
+                    className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-blue-400 hover:text-blue-300"
                   >
                     Open source article
-                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.7} />
+                    <ExternalLink className="h-4 w-4" strokeWidth={1.7} />
                   </a>
                 ) : null}
               </div>
@@ -309,7 +339,7 @@ export default function NewsFeedPanel({
             ) : (
               <div className="divide-y divide-white/[0.03]">
                 {filteredArticles.map((article) => (
-                  <ArticleRow key={article.uuid} article={article} onOpen={setActiveArticle} />
+                  <ArticleRow key={article.uuid} article={article} onOpen={openArticle} />
                 ))}
               </div>
             )

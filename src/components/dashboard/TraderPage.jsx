@@ -1564,6 +1564,7 @@ export default function TraderPage({
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   // News panel: 3-state cycle — 'peek' (1/3) → 'open' (60%) → 'closed' → 'peek'
   const [isNewsOpen, setIsNewsOpen] = useState(true);
+  const [newsArticleExpanded, setNewsArticleExpanded] = useState(false);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [hoveredWatchlistSymbol, setHoveredWatchlistSymbol] = useState(null);
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -4163,12 +4164,12 @@ export default function TraderPage({
                 />
               </button>
 
-              {/* News panel — collapses to 0 when closed; same stacking as bar so content is above chart */}
+              {/* News panel — collapses to 0 when closed; when article open, take ~50% so article is readable and chart shrinks */}
               <div
                 className="relative z-10 shrink-0 overflow-hidden"
                 style={{
-                  height: isNewsOpen ? '280px' : '0px',
-                  transition: 'height 0.3s ease',
+                  height: isNewsOpen ? (newsArticleExpanded ? 'min(520px, 50vh)' : '280px') : '0px',
+                  transition: 'height 0.35s ease',
                 }}
               >
                 <div className="h-full overflow-y-auto">
@@ -4176,6 +4177,7 @@ export default function TraderPage({
                     <NewsFeedPanel
                       selectedSymbol={selectedTicker}
                       onSymbolChange={setSelectedTicker}
+                      onArticleOpenChange={setNewsArticleExpanded}
                       className="h-full min-h-0 overflow-hidden"
                     />
                   </ErrorBoundary>
