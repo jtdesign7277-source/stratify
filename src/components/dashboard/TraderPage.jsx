@@ -1213,7 +1213,7 @@ function TraderOrderEntry({
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="relative flex h-full min-h-0 flex-col overflow-y-auto">
       <OrderTicketPanel
         side={side}
         onSideChange={setSide}
@@ -1251,7 +1251,7 @@ function TraderOrderEntry({
           <div className="space-y-1">
             {(orderType === 'limit' || orderType === 'stop_limit') && (
               <div className="space-y-1">
-                <label className="block text-[12px] font-semibold text-slate-300">Limit Price</label>
+                <label className="block text-[13px] font-semibold text-slate-300">Limit Price</label>
                 <input
                   type="number"
                   step="any"
@@ -1265,7 +1265,7 @@ function TraderOrderEntry({
             )}
             {(orderType === 'stop' || orderType === 'stop_limit') && (
               <div className="space-y-1">
-                <label className="block text-[12px] font-semibold text-slate-300">Stop Price</label>
+                <label className="block text-[13px] font-semibold text-slate-300">Stop Price</label>
                 <input
                   type="number"
                   step="any"
@@ -1283,23 +1283,23 @@ function TraderOrderEntry({
                   <button
                     type="button"
                     onClick={() => setTrailType('dollars')}
-                    className={`py-1 text-[12px] font-semibold transition-colors ${
-                      trailType === 'dollars' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
-                    }`}
+className={`py-1 text-[13px] font-semibold transition-colors ${
+                    trailType === 'dollars' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
+                  }`}
                   >
                     $
                   </button>
                   <button
                     type="button"
                     onClick={() => setTrailType('percent')}
-                    className={`py-1 text-[12px] font-semibold transition-colors ${
-                      trailType === 'percent' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
-                    }`}
+className={`py-1 text-[13px] font-semibold transition-colors ${
+                    trailType === 'percent' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
+                  }`}
                   >
                     %
                   </button>
                 </div>
-                <label className="block text-[12px] font-semibold text-slate-300">
+                <label className="block text-[13px] font-semibold text-slate-300">
                   {trailType === 'percent' ? 'Trail Amount (%)' : 'Trail Amount ($)'}
                 </label>
                 <input
@@ -1314,7 +1314,7 @@ function TraderOrderEntry({
               </div>
             )}
             {sizeMode === 'dollars' && (
-              <div className="text-[12px] font-semibold text-slate-300">
+              <div className="text-[13px] font-semibold text-slate-300">
                 Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedSymbol || '--'}
               </div>
             )}
@@ -4252,7 +4252,7 @@ export default function TraderPage({
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                   <TraderOrderEntry
                     selectedSymbol={selectedSymbol}
                     lastPrice={selectedMarketPrice}

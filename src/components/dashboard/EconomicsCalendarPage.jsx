@@ -227,21 +227,13 @@ const EconomicsCalendarPage = () => {
         </div>
       </motion.div>
 
-      <style>{`
-        .econ-calendar-scroll::-webkit-scrollbar { width: 8px; }
-        .econ-calendar-scroll::-webkit-scrollbar-track { background: transparent; }
-        .econ-calendar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-        .econ-calendar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-      `}</style>
-      {/* Content — flex 1 1 0 so it shrinks and scrolls; visible scrollbar */}
+      {/* Content — flex 1 1 0 so it shrinks and scrolls; no scrollbar so user scrolls naturally with trackpad */}
       <motion.div
         {...sectionMotion(1)}
-        className="econ-calendar-scroll relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-8"
+        className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-8 scrollbar-hide"
         style={{
           minHeight: 0,
           flex: '1 1 0%',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255,255,255,0.2) transparent',
         }}
       >
         {loading && events.length === 0 && (

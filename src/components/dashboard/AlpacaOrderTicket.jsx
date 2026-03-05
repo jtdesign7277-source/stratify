@@ -121,27 +121,27 @@ export default function OrderTicketPanel({
   const isCompactCryptoSticky = isCryptoDensity && stickyReviewFooter;
   const isBlackSurface = surfaceTone === 'black';
 
-  const panelPaddingClass = isTradeDensity ? 'p-2.5' : isCompactCryptoSticky ? 'p-2' : isCryptoDensity ? 'p-2' : 'p-3';
-  const tabTextClass = isCompactCryptoSticky ? 'text-[13px]' : 'text-[14px]';
-  const tabPaddingClass = isCompactCryptoSticky ? 'h-8 py-0' : 'h-8 py-0.5';
-  const contentTopClass = isCompactCryptoSticky ? 'mt-1' : 'mt-2';
-  const verticalGapClass = isCompactCryptoSticky ? 'space-y-1' : isCryptoDensity ? 'space-y-1.5' : 'space-y-2';
-  const controlHeightClass = isTradeDensity ? 'h-[36px]' : isCompactCryptoSticky ? 'h-[36px]' : isCryptoDensity ? 'h-[36px]' : 'h-[38px]';
-  const controlTextClass = isCompactCryptoSticky ? 'text-[13px]' : 'text-[13px]';
-  const labelTextClass = isCompactCryptoSticky ? 'text-[12px]' : 'text-[12px]';
-  const valueTextClass = isCompactCryptoSticky ? 'text-[12px]' : 'text-[13px]';
+  const panelPaddingClass = isTradeDensity ? 'p-3' : isCompactCryptoSticky ? 'p-2.5' : isCryptoDensity ? 'p-2.5' : 'p-3';
+  const tabTextClass = isCompactCryptoSticky ? 'text-[14px]' : 'text-[15px]';
+  const tabPaddingClass = isCompactCryptoSticky ? 'h-9 py-0' : 'h-9 py-0.5';
+  const contentTopClass = isCompactCryptoSticky ? 'mt-1.5' : 'mt-2.5';
+  const verticalGapClass = isCompactCryptoSticky ? 'space-y-1.5' : isCryptoDensity ? 'space-y-2' : 'space-y-2';
+  const controlHeightClass = isTradeDensity ? 'h-[38px]' : isCompactCryptoSticky ? 'h-[38px]' : isCryptoDensity ? 'h-[38px]' : 'h-[40px]';
+  const controlTextClass = isCompactCryptoSticky ? 'text-[14px]' : 'text-[14px]';
+  const labelTextClass = isCompactCryptoSticky ? 'text-[13px]' : 'text-[13px]';
+  const valueTextClass = isCompactCryptoSticky ? 'text-[13px]' : 'text-[14px]';
   const searchIconClass = isCompactCryptoSticky ? 'h-3.5 w-3.5' : 'h-4 w-4';
   const searchIconLeftClass = isCompactCryptoSticky ? 'left-2.5' : 'left-3';
   const symbolInputPaddingClass = isCompactCryptoSticky ? 'pl-8 pr-2.5' : 'pl-9 pr-3';
   const labelSpacingClass = isCompactCryptoSticky ? 'mb-0.5' : 'mb-1';
   const sizeModeGapClass = isCompactCryptoSticky ? 'gap-2' : 'gap-4';
   const reviewButtonClass = isCompactCryptoSticky
-    ? 'py-2.5 text-[12px] leading-none'
+    ? 'py-2.5 text-[13px] leading-none'
     : isTradeDensity
-      ? 'h-[36px] text-[13px]'
+      ? 'h-[38px] text-[14px]'
       : isCryptoDensity
-        ? 'h-[36px] text-[13px]'
-        : 'h-[38px] text-[13px]';
+        ? 'h-[38px] text-[14px]'
+        : 'h-[40px] text-[14px]';
   const radioSizeClass = isCompactCryptoSticky ? 'h-3 w-3' : 'h-3.5 w-3.5';
   const reviewFooterClass = isCompactCryptoSticky
     ? 'mt-0.5 shrink-0 border-t border-white/10 pt-0.5'
