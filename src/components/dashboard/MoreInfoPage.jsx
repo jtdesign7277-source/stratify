@@ -323,7 +323,7 @@ export default function MoreInfoPage() {
   };
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="h-full bg-transparent p-4 flex flex-col overflow-hidden">
+    <motion.div {...PAGE_TRANSITION} className="h-full bg-transparent p-4 flex flex-col overflow-y-auto">
       <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-3 min-h-0">
         
         {/* Header Row */}

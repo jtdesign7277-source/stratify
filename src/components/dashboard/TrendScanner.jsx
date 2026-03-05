@@ -228,7 +228,7 @@ export default function TrendScanner() {
   };
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="h-full flex flex-col overflow-hidden">
+    <motion.div {...PAGE_TRANSITION} className="h-full flex flex-col overflow-y-auto">
       {/* Header */}
       <motion.div {...sectionMotion(0)} className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">

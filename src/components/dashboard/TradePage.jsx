@@ -25,7 +25,7 @@ export default function TradePage({
   const { tradingMode, isLive, canUseLiveTrading } = useTradingMode();
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="relative h-full min-h-0 w-full overflow-hidden">
+    <motion.div {...PAGE_TRANSITION} className="relative h-full min-h-0 w-full overflow-y-auto">
       <AnimatePresence initial={false}>
         {isLive && (
           <motion.div

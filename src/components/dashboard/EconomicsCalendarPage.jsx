@@ -166,7 +166,7 @@ const EconomicsCalendarPage = () => {
   }, [events, activeRegion, todayStr]);
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="h-full w-full bg-transparent text-white overflow-hidden relative flex flex-col">
+    <motion.div {...PAGE_TRANSITION} className="h-full w-full bg-transparent text-white overflow-y-auto relative flex flex-col">
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
