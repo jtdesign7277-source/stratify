@@ -4039,9 +4039,17 @@ export default function TraderPage({
               </div>
             </div>
 
-            <div ref={chartAndNewsContainerRef} className="flex min-h-0 flex-1 flex-col" style={{ minHeight: 0, overflow: 'hidden' }}>
-              <div className="relative overflow-hidden" style={{ height: isNewsOpen ? 'calc(100% - 332px)' : 'calc(100% - 32px)', minHeight: 0 }}>
-                <div ref={chartContainerRef} className="h-full w-full" />
+            <div
+              ref={chartAndNewsContainerRef}
+              className="flex min-h-0 flex-1 flex-col"
+              style={{ minHeight: 0 }}
+            >
+              {/* Chart — takes all remaining space above the news bar */}
+              <div
+                className="relative min-h-0"
+                style={{ flex: 1, overflow: 'hidden' }}
+              >
+                <div ref={chartContainerRef} className="absolute inset-0" />
 
                 {chartStatus.loading && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/55 text-sm text-[#9ca3af]">
@@ -4056,12 +4064,12 @@ export default function TraderPage({
                 )}
               </div>
 
-              {/* ── News toggle bar — always visible ── */}
+              {/* News toggle bar — always pinned, never hidden */}
               <button
                 type="button"
                 onClick={toggleNewsPanelCollapsed}
-                className="flex h-8 w-full shrink-0 items-center justify-between border-t border-white/[0.08] px-4 transition-colors hover:bg-white/[0.06] cursor-pointer"
-                style={{ background: 'rgba(16,185,129,0.06)' }}
+                className="flex h-8 w-full shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer"
+                style={{ background: 'rgba(16,185,129,0.05)', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">
@@ -4072,15 +4080,20 @@ export default function TraderPage({
                   </span>
                 </div>
                 <ChevronsDown
-                  className={`h-4 w-4 text-emerald-400 transition-transform duration-300 ${isNewsOpen ? 'rotate-0' : 'rotate-180'}`}
+                  className="h-4 w-4 text-emerald-400 transition-transform duration-300"
+                  style={{ transform: isNewsOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
                   strokeWidth={1.7}
                 />
               </button>
 
+              {/* News panel — collapses to 0 when closed */}
               <div
-                className="relative shrink-0 overflow-hidden" style={{ height: `${newsPanelHeight}px`, transition: 'height 0.3s ease' }}
+                className="shrink-0 overflow-hidden"
+                style={{
+                  height: isNewsOpen ? '280px' : '0px',
+                  transition: 'height 0.3s ease',
+                }}
               >
-
                 <div className="h-full overflow-y-auto">
                   <ErrorBoundary>
                     <NewsFeedPanel
@@ -4091,8 +4104,6 @@ export default function TraderPage({
                   </ErrorBoundary>
                 </div>
               </div>
-
-
             </div>
           </div>
 
