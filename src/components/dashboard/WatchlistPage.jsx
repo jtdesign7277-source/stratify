@@ -1265,7 +1265,7 @@ const WatchlistPage = ({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute left-3 right-3 top-[100%] mt-1 max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-[#0a0a0f]/95 p-1 shadow-2xl shadow-black/30"
+                    className="absolute left-3 right-3 top-[100%] mt-1 max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-[#0a0a0a]/95 p-1 shadow-2xl shadow-black/30"
                     style={{ scrollbarWidth: 'none' }}
                   >
                     {searchLoading ? (
@@ -1557,7 +1557,7 @@ const WatchlistPage = ({
               </div>
 
               <div
-                className={`flex min-h-0 flex-col bg-[#0a0a0f] transition-all duration-300 overflow-hidden ${
+                className={`flex min-h-0 flex-col bg-[#0a0a0a] transition-all duration-300 overflow-hidden ${
                   isOrderPanelClosed
                     ? 'border-l border-transparent opacity-0 pointer-events-none'
                     : 'border-l border-white/10 opacity-100'

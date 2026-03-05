@@ -669,8 +669,8 @@ const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false 
           })}
         </div>
       </div>
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#0a0f1a] to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#0a0f1a] to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#0a0a0a] to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#0a0a0a] to-transparent" />
     </div>
   );
 };
@@ -2398,7 +2398,7 @@ export default function Dashboard({
     <MotionConfig transition={{ type: 'spring', stiffness: 500, damping: 30 }}>
       <div
         ref={dashboardRootRef}
-        className={`soft-glass-theme h-screen h-[100dvh] w-screen flex flex-col bg-[#0a0a0f] ${themeClasses.text} overflow-hidden`}
+        className={`soft-glass-theme h-screen h-[100dvh] w-screen flex flex-col bg-[#0a0a0a] ${themeClasses.text} overflow-hidden`}
       >
       <style>{`
         .soft-glass-theme .soft-glass-surface,

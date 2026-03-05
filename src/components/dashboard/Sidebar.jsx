@@ -92,7 +92,7 @@ const Sidebar = ({
       initial={false}
       animate={{ width: collapsed ? 60 : 220 }}
       transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-      className="soft-glass-surface h-full bg-[#0a0a0f] border-r border-[#1f1f1f] flex flex-col flex-shrink-0"
+      className="soft-glass-surface h-full bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col flex-shrink-0"
     >
       {/* Main Navigation */}
       <nav className="flex-1 px-2 overflow-y-auto min-h-0 flex flex-col" style={{ scrollbarWidth: 'none' }}>

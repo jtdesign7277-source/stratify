@@ -157,9 +157,9 @@ const watchlistRowItemMotion = {
   show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 400, damping: 30 } },
 };
 const GLASS_SHELL_STYLE = {
-  background: 'linear-gradient(150deg, rgba(14,20,34,0.9) 0%, rgba(6,10,20,0.82) 100%)',
-  border: '1px solid rgba(148,163,184,0.16)',
-  boxShadow: '0 18px 42px rgba(2,6,23,0.55), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 28px rgba(56,189,248,0.08)',
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+  border: '1px solid rgba(255,255,255,0.06)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
 };
 const GLASS_TOPBAR_STYLE = {
   background: 'linear-gradient(150deg, rgba(10,16,28,0.9) 0%, rgba(6,10,20,0.82) 100%)',
@@ -1430,7 +1430,7 @@ function TraderOrderEntry({
           >
             <motion.div
               {...modalPanelMotion}
-              className="w-[280px] space-y-4 rounded-2xl border border-white/8 shadow-2xl shadow-black/30 bg-[rgba(10,22,40,0.98)] p-5"
+              className="w-[280px] space-y-4 rounded-2xl border border-white/8 shadow-2xl shadow-black/30 bg-[rgba(10,10,10,0.98)] p-5"
             >
             <div className="text-center">
               <div className="mb-1 text-sm font-bold" style={{ color: '#e2e8f0' }}>
@@ -1486,7 +1486,7 @@ function TraderOrderEntry({
           >
             <motion.div
               {...modalPanelMotion}
-              className="w-[280px] space-y-4 rounded-2xl border border-white/8 bg-[rgba(10,22,40,0.98)] p-5 shadow-2xl shadow-black/30"
+              className="w-[280px] space-y-4 rounded-2xl border border-white/8 bg-[rgba(10,10,10,0.98)] p-5 shadow-2xl shadow-black/30"
             >
               <div className="text-center">
                 <div className="mb-1 text-sm font-bold text-red-300">
