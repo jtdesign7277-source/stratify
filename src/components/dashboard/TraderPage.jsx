@@ -4225,7 +4225,7 @@ export default function TraderPage({
                 }}
               >
                 <div className="h-full min-h-0 overflow-hidden flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] pointer-events-auto">
-                  <ErrorBoundary>
+                  <ErrorBoundary><div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                     {/* Header */}
                     <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
                       <span className="text-[11px] text-gray-500">
@@ -4317,7 +4317,7 @@ export default function TraderPage({
                         </div>
                       )}
                     </div>
-                  </ErrorBoundary>
+                  </div></ErrorBoundary>
                 </div>
 
                 {/* In-app article drawer — no external URLs; slides in from right */}
