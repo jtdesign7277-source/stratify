@@ -195,7 +195,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       lines.push({ type: 'header', text: '║                              [ v2.0 CLASSIFIED ]                             ║', color: 'text-emerald-500/50' });
       lines.push({ type: 'header', text: '╚══════════════════════════════════════════════════════════════════════════════╝', color: 'text-emerald-500/50' });
       lines.push({ type: 'blank', text: '' });
-      lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Connection established to Alpaca Markets API`, color: 'text-white/50' });
+      lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Connection established to market data API`, color: 'text-white/50' });
       lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Initializing AI analysis module...`, color: 'text-white/50' });
       lines.push({ type: 'blank', text: '' });
       

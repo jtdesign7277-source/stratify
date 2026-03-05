@@ -70,7 +70,7 @@ When user clicks "Enter Challenge" for ANY period:
 - Must deploy at least $95,000 (max $5K left as cash)
 - Submissions lock at 9:29 AM ET (1 min before market open)
 - Once locked → NO changes until period ends
-- Performance tracked using REAL prices from Alpaca API
+- Performance tracked using REAL prices from Twelve Data API
 - Winner = highest portfolio value at period end
 
 ═══════════════════════════════════════════════════════════════
@@ -154,7 +154,7 @@ When triggered:
 7. DATA + API
 ═══════════════════════════════════════════════════════════════
 
-- Prices from Alpaca API (same as rest of Stratify)
+- Prices from Twelve Data API (same as rest of Stratify)
 - Portfolio values update real-time during market hours
 - Leaderboard rankings recalculate as prices change
 - Live feed connects to same social system as main Social tab
@@ -189,7 +189,7 @@ When triggered:
 [ ] Past Winners with Copy Picks buttons
 [ ] Copy Picks pre-fills the Enter Challenge form
 [ ] Share P&L Card button works
-[ ] All prices from Alpaca API
+[ ] All prices from Twelve Data API
 [ ] Matches Stratify dark theme
 [ ] Nothing existing is broken
 
@@ -200,7 +200,7 @@ AGENT INSTRUCTIONS:
 3. Wire Legend sidebar tab to render this in center panel
 4. Add gold trophy to top bar
 5. Make ALL tabs and interactions functional per spec above
-6. Connect to Alpaca API for real prices
+6. Connect to Twelve Data API for real prices
 7. git add . && git commit -m "feat: Legend challenge system" && git push
 ═══════════════════════════════════════════════════════════════
 */

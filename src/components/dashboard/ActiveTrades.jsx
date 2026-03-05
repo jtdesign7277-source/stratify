@@ -243,7 +243,7 @@ const ActiveTrades = ({
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Active Strategies</h1>
           <p className="text-xs text-white/45 mt-1">
-            Live paper-trading runtime with Alpaca market data and market-hours enforcement.
+            Live paper-trading runtime with real-time market data and market-hours enforcement.
           </p>
         </div>
         <div className="text-right">

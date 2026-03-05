@@ -161,7 +161,7 @@ export default function NewsletterModal({ isOpen, onClose }) {
             {/* Deployment */}
             <Section label="Go Live" title="🚀 One-Click Deployment">
               <p className="text-gray-400 text-sm leading-relaxed mb-5">
-                When you're confident in your strategy, deploy it to live markets with a single click. Stratify connects directly to your broker via the Alpaca API.
+                When you're confident in your strategy, deploy it to live markets with a single click. Stratify connects directly to your broker.
               </p>
               
               <div className="grid gap-3">
@@ -242,7 +242,7 @@ export default function NewsletterModal({ isOpen, onClose }) {
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
                 <h4 className="text-emerald-400 text-sm font-semibold mb-3">🚧 In Development</h4>
                 <ul className="text-sm text-gray-400 space-y-1">
-                  <li>→ Real Alpaca API integration for live trading</li>
+                  <li>→ Real broker API integration for live trading</li>
                   <li>→ User authentication & account management</li>
                   <li>→ Advanced backtesting engine with 10+ years of data</li>
                   <li>→ Mobile app for monitoring on the go</li>

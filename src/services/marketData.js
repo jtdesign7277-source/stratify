@@ -63,31 +63,31 @@ export async function getTrending() {
   }
 }
 
-// Get Alpaca quotes (requires server-side auth)
+// Get broker quotes (requires server-side auth)
 export async function getAlpacaQuotes() {
   try {
     const response = await fetch(`${API_BASE}/api/stocks`);
-    if (!response.ok) throw new Error('Failed to fetch Alpaca quotes');
+    if (!response.ok) throw new Error('Failed to fetch broker quotes');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching Alpaca quotes:', error);
+    console.error('Error fetching broker quotes:', error);
     return [];
   }
 }
 
-// Get Alpaca bars with change data
+// Get broker bars with change data
 export async function getAlpacaBars() {
   try {
     const response = await fetch(`${API_BASE}/api/stocks/bars`);
-    if (!response.ok) throw new Error('Failed to fetch Alpaca bars');
+    if (!response.ok) throw new Error('Failed to fetch broker bars');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching Alpaca bars:', error);
+    console.error('Error fetching broker bars:', error);
     return [];
   }
 }
 
-// Get Alpaca snapshot with change data (single symbol)
+// Get broker snapshot with change data (single symbol)
 export async function getSnapshot(symbol) {
   try {
     const response = await fetch(`${API_BASE}/api/snapshot/${symbol}`);
@@ -99,7 +99,7 @@ export async function getSnapshot(symbol) {
   }
 }
 
-// Get Alpaca snapshots for multiple symbols
+// Get broker snapshots for multiple symbols
 export async function getSnapshots(symbols) {
   const snapshots = await Promise.all(
     symbols.map(async (symbol) => {
@@ -110,26 +110,26 @@ export async function getSnapshots(symbols) {
   return snapshots.filter(s => s !== null);
 }
 
-// Get Alpaca account data (equity, buying power, etc.)
+// Get broker account data (equity, buying power, etc.)
 export async function getAlpacaAccount() {
   try {
     const response = await fetch(`${API_BASE}/api/stocks/account`);
-    if (!response.ok) throw new Error('Failed to fetch Alpaca account');
+    if (!response.ok) throw new Error('Failed to fetch broker account');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching Alpaca account:', error);
+    console.error('Error fetching broker account:', error);
     return null;
   }
 }
 
-// Get Alpaca positions (holdings)
+// Get broker positions (holdings)
 export async function getAlpacaPositions() {
   try {
     const response = await fetch(`${API_BASE}/api/stocks/positions`);
-    if (!response.ok) throw new Error('Failed to fetch Alpaca positions');
+    if (!response.ok) throw new Error('Failed to fetch broker positions');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching Alpaca positions:', error);
+    console.error('Error fetching broker positions:', error);
     return [];
   }
 }

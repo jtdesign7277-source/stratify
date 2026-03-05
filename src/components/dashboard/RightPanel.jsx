@@ -520,7 +520,7 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
       `# Target: $${ticker}\n`,
       `# Strategy: ${name}\n`,
       `# Backtest: ${timeframe}\n\n`,
-      `import alpaca_trade_api as tradeapi\n`,
+      `import requests\n`,
       `import pandas as pd\n`,
       `import numpy as np\n\n`,
       `# Analyzing market patterns...\n`,
@@ -602,7 +602,7 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
 # Strategy for $${ticker}
 # Edit this code before saving
 
-import alpaca_trade_api as tradeapi
+import requests
 import pandas as pd
 import numpy as np
 

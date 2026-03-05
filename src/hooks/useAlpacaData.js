@@ -41,12 +41,12 @@ export function useAlpacaData() {
         return;
       }
 
-      // Try Alpaca first, then Webull
+      // Try primary broker first, then Webull
       let acctRes = await fetch(`/api/account?mode=${mode}`, { headers });
       let posRes = await fetch(`/api/positions?mode=${mode}`, { headers });
       let broker = 'alpaca';
 
-      // If Alpaca not connected, try Webull
+      // If primary broker not connected, try Webull
       if (acctRes.status === 401 && mode === 'live') {
         const body = await acctRes.json().catch(() => ({}));
         if (body.error === 'not_connected') {

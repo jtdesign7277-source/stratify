@@ -246,7 +246,7 @@ const FAQ_ITEMS = [
   {
     question: 'What brokers do you support?',
     answer:
-      'Current support includes Alpaca, Tradier, and Webull, with additional integrations on the roadmap.',
+      'Current support includes leading brokers, with additional integrations on the roadmap.',
   },
 ];
 
@@ -262,7 +262,7 @@ const LANDING_WORKFLOW_STEPS = [
   {
     title: 'Connect Once',
     description:
-      'One Stratify API key replaces all your separate subscriptions. Alpaca, TradingView, AI, market data - unified.',
+      'One Stratify API key replaces all your separate subscriptions. Broker, TradingView, AI, market data - unified.',
   },
   {
     title: 'Build Your Strategy',
@@ -282,7 +282,7 @@ const LANDING_WORKFLOW_STEPS = [
 ];
 
 const LANDING_INTEGRATIONS = [
-  { name: 'Alpaca', glyph: '◈' },
+  { name: 'Broker Connect', glyph: '◈' },
   { name: 'Anthropic Claude', glyph: '◌' },
   { name: 'Twelve Data', glyph: '⚡' },
   { name: 'TradingView', glyph: '∿' },

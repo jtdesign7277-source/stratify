@@ -120,7 +120,7 @@ async function loadUserPreference(userId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ALPACA LEVEL 2 ORDERBOOK HOOK
+// LEVEL 2 ORDERBOOK HOOK
 // ═══════════════════════════════════════════════════════════════════════════════
 const normalizeCryptoSymbol = (symbol = '') => String(symbol || '')
   .trim()
@@ -289,7 +289,7 @@ function useCryptoOrderbook(tradeSymbol) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ALPACA-STYLE ORDER ENTRY
+// ORDER ENTRY
 // ═══════════════════════════════════════════════════════════════════════════════
 function OrderEntry({
   selectedCoin,

@@ -249,7 +249,7 @@ export default function WhitePaperPage({ onBackHome, onGetStarted }) {
                     {
                       step: '02',
                       title: 'Connect broker infrastructure',
-                      text: 'Securely connect Alpaca, Tradier, Webull, and additional broker integrations.',
+                      text: 'Securely connect your brokerage and additional broker integrations.',
                     },
                     {
                       step: '03',
@@ -322,7 +322,7 @@ export default function WhitePaperPage({ onBackHome, onGetStarted }) {
                     and synchronized strategy persistence.
                   </AMBER_BULLET>
                   <AMBER_BULLET>
-                    <strong className="text-white">Market Feeds:</strong> Alpaca SIP data and websocket stream handling for
+                    <strong className="text-white">Market Feeds:</strong> Real-time market data and websocket stream handling for
                     low-latency updates.
                   </AMBER_BULLET>
                   <AMBER_BULLET>

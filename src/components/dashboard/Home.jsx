@@ -12,7 +12,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
   const homeActiveButtonHover = 'hover:from-emerald-500/40 hover:via-emerald-400/30 hover:to-emerald-500/20 hover:border-emerald-400/50';
   // Home Disabled CTA style: same treatment with the existing blue palette.
   const homeDisabledButtonClass = 'bg-gradient-to-r from-[#162235] via-[#1b273a] to-[#162235] border border-[#25344d] text-[#8fa1b8] shadow-[0_0_12px_rgba(37,52,77,0.35)]';
-  // Alpaca Active CTA style: same treatment, but keep the existing blue palette.
+  // Broker Active CTA style: same treatment, but keep the existing blue palette.
   const alpacaActiveButtonClass = 'bg-gradient-to-r from-[#1a2438] via-[#243048] to-[#1a2438] border border-[#2b3b57] text-white shadow-[0_0_12px_rgba(43,59,87,0.4)]';
   const alpacaActiveButtonHover = 'hover:from-[#22304a] hover:via-[#2a3956] hover:to-[#22304a] hover:border-[#3a4f72]';
 

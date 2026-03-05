@@ -1096,7 +1096,7 @@ function StratifyAppContent() {
   const marketData = useMarketData();
   const alpaca = useAlpacaData();
 
-  // Use real Alpaca data when broker is connected
+  // Use real broker data when connected
   const hasAlpacaData = alpaca.account && !alpaca.error && alpaca.brokerConnected;
 
   const derivedPositions = hasAlpacaData ? alpaca.positions : [];

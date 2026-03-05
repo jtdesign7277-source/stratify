@@ -255,7 +255,7 @@ const detectBacktestRequest = (message, previousContext = null) => {
   return { ticker, period, timeframe, strategyType, stopLoss, positionSize, originalMessage: message };
 };
 
-// Run actual backtest with Alpaca data
+// Run actual backtest with market data
 const runRealBacktest = async (params) => {
   const { ticker, period, timeframe, strategyType, stopLoss, positionSize, originalMessage } = params;
   
@@ -310,7 +310,7 @@ const formatBacktestResults = (data, params) => {
     });
   }
   
-  result += `\n*Data powered by Alpaca Markets (Live Feed)*`;
+  result += `\n*Data powered by Twelve Data (Live Feed)*`;
   
   return result;
 };
@@ -765,7 +765,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
       setActiveSubTab('strategy');
       setIsChatLoading(true);
       setIsAwaitingFirstToken(true);
-      let contextMsg = userMsg + '\n\nGenerate a trading strategy with the following format:\n1. First provide a brief summary with these fields:\n   - Ticker(s): [symbols]\n   - Entry Condition: [when to enter]\n   - Exit Condition: [when to exit]\n   - Stop Loss: [stop loss rule]\n   - Position Size: [position sizing]\n\n2. Then provide the Python code using Alpaca API.';
+      let contextMsg = userMsg + '\n\nGenerate a trading strategy with the following format:\n1. First provide a brief summary with these fields:\n   - Ticker(s): [symbols]\n   - Entry Condition: [when to enter]\n   - Exit Condition: [when to exit]\n   - Stop Loss: [stop loss rule]\n   - Position Size: [position sizing]\n\n2. Then provide the Python code using market data API.';
       if (selectedTickers.length > 0) { contextMsg += '\n\nTickers: ' + selectedTickers.join(', '); }
       if (selectedStrategy) { const strat = STRATEGY_TYPES.find(s => s.id === selectedStrategy); contextMsg += '\nStrategy type: ' + (strat?.name || selectedStrategy); }
       if (selectedTimeframe) { const tf = TIMEFRAMES.find(t => t.id === selectedTimeframe); contextMsg += '\nTimeframe: ' + (tf?.label || selectedTimeframe); }
@@ -822,13 +822,13 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
       } catch (e) { setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: "Error generating strategy.", isTyping: false } : t)); }
       finally { setIsChatLoading(false); setIsAwaitingFirstToken(false); setStrategyName(''); setSelectedQuickStrategy(null); }
     } else {
-      // Check if this is a backtest request - run real Alpaca backtest instead of just chatting
+      // Check if this is a backtest request - run real backtest instead of just chatting
       const backtestParams = detectBacktestRequest(userMsg, lastBacktestContext);
       if (backtestParams) {
         const isFollowUp = lastBacktestContext && backtestParams.ticker === lastBacktestContext.ticker;
         const loadingMsg = isFollowUp 
           ? `🔄 Re-running ${backtestParams.ticker} backtest with ${backtestParams.stopLoss} stop loss...`
-          : `🔄 Running ${backtestParams.ticker} backtest with live Alpaca data...`;
+          : `🔄 Running ${backtestParams.ticker} backtest with live market data...`;
         
         setMessages(prev => [...prev, { role: 'user', content: userMsg }, { role: 'assistant', content: loadingMsg, isTyping: true }]);
         setIsChatLoading(true);

@@ -138,11 +138,11 @@ const avatarOptions = Object.values(avatarOptionsByStyle).flat();
 const faqs = [
   {
     q: "How do I connect my broker?",
-    a: "Go to Settings → Broker Connect and select Alpaca. You'll need your API Key and Secret from your Alpaca dashboard. We support both paper trading and live accounts. Once connected, you can execute trades directly from Stratify."
+    a: "Go to Settings → Broker Connect to link your brokerage account. We support both paper trading and live accounts. Once connected, you can execute trades directly from Stratify."
   },
   {
     q: "What markets does Stratify support?",
-    a: "Stratify currently supports US stocks and crypto through Alpaca. You can trade thousands of stocks during market hours (9:30 AM - 4 PM ET) and crypto 24/7. Options and futures support coming soon!"
+    a: "Stratify currently supports US stocks and crypto. You can trade thousands of stocks during market hours (9:30 AM - 4 PM ET) and crypto 24/7. Options and futures support coming soon!"
   },
   {
     q: "How does the AI strategy builder work?",
@@ -150,7 +150,7 @@ const faqs = [
   },
   {
     q: "Is my data and money safe?",
-    a: "Absolutely. We never store your broker credentials — they stay encrypted on your device. All connections use bank-level SSL encryption. Stratify can only execute trades you authorize, and you can revoke access anytime from your Alpaca dashboard."
+    a: "Absolutely. We never store your broker credentials — they stay encrypted on your device. All connections use bank-level SSL encryption. Stratify can only execute trades you authorize, and you can revoke access anytime from your broker dashboard."
   }
 ];
 
