@@ -1666,7 +1666,7 @@ export default function TraderPage({
       .filter((position) => position.symbol && position.quantity > 0)
       .sort((a, b) => (b.marketValue - a.marketValue));
   }, [paperPortfolio?.positions, watchlistNamesBySymbol]);
-  const newsPanelHeight = isNewsOpen ? 380 : 0;
+  const newsPanelHeight = isNewsOpen ? 360 : 0;
 
   const toggleNewsPanelCollapsed = useCallback(() => {
     setIsNewsOpen(prev => !prev);
@@ -3988,27 +3988,7 @@ export default function TraderPage({
             <div className="shrink-0 border-b border-white/[0.09] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                  <motion.button
-                    type="button"
-                    onClick={toggleNewsPanelCollapsed}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={interactiveTransition}
-                    className={`flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
-                      isNewsOpen
-                        ? 'border-emerald-400 text-emerald-400'
-                        : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
-                    }`}
-                    title={isNewsOpen ? 'Hide news' : 'Show news'}
-                  >
-                    <ChevronsDown
-                      className={`h-3.5 w-3.5 transition-transform duration-300 ${
-                        isNewsOpen ? 'rotate-0' : 'rotate-180'
-                      }`}
-                      strokeWidth={1.7}
-                    />
-                    News
-                  </motion.button>
+
                   {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
                     const isActive = chartTimeframe === timeframe.id;
                     return (
@@ -4076,8 +4056,29 @@ export default function TraderPage({
                 )}
               </div>
 
+              {/* ── News toggle bar — always visible ── */}
+              <button
+                type="button"
+                onClick={toggleNewsPanelCollapsed}
+                className="flex h-8 w-full shrink-0 items-center justify-between border-t border-white/[0.08] px-4 transition-colors hover:bg-white/[0.06] cursor-pointer"
+                style={{ background: 'rgba(16,185,129,0.06)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">
+                    News
+                  </span>
+                  <span className="text-[10px] text-gray-500 font-mono">
+                    {selectedTicker ? `$${selectedTicker}` : ''}
+                  </span>
+                </div>
+                <ChevronsDown
+                  className={`h-4 w-4 text-emerald-400 transition-transform duration-300 ${isNewsOpen ? 'rotate-0' : 'rotate-180'}`}
+                  strokeWidth={1.7}
+                />
+              </button>
+
               <div
-                className="relative min-h-0 shrink-0 overflow-hidden transition-[height] duration-200"
+                className="relative min-h-0 shrink-0 overflow-hidden transition-[height] duration-300"
                 style={{ height: `${newsPanelHeight}px` }}
               >
 
