@@ -4217,15 +4217,15 @@ export default function TraderPage({
 
               {/* News panel — list with scroll buttons; article drawer slides in from right (in-app only, no external links) */}
               <div
-                className="relative z-20 shrink-0 overflow-hidden isolate"
+                className="relative z-20 shrink-0 isolate"
                 style={{
                   height: isNewsOpen ? (drawerArticle ? 'min(520px, 50vh)' : '280px') : '0px',
                   transition: 'height 0.35s ease',
                   pointerEvents: 'auto',
                 }}
               >
-                <div className="h-full min-h-0 overflow-hidden flex flex-col bg-[#0b0b0b] border-t border-white/[0.06] pointer-events-auto">
-                  <ErrorBoundary><div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "#0b0b0b", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <ErrorBoundary><div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
                     {/* Header */}
                     <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
                       <span className="text-[11px] text-gray-500">
@@ -4338,7 +4338,7 @@ export default function TraderPage({
                       className="fixed top-0 right-0 bottom-0 w-[480px] max-w-[100vw] bg-[#0a0a0f] backdrop-blur-xl z-[100] flex flex-col shadow-2xl"
                       style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}
                     >
-                      <div className="flex-1 min-h-0 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+                      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", height: "100%" }}>
                         <div className="flex shrink-0 items-center justify-between gap-2 p-3 border-b border-white/[0.06]">
                           <div className="flex items-center gap-1">
                             <button
@@ -4393,8 +4393,7 @@ export default function TraderPage({
                         </div>
                         <div
                           ref={(el) => { if (el) articleBodyScrollRef.current = el; }}
-                          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pb-8 pointer-events-auto touch-pan-y"
-                          style={{ fontSize: '15px', lineHeight: 1.8, touchAction: 'pan-y', flex: '1 1 0%', minHeight: 0 }}
+                          style={{ flex: "1 1 0%", minHeight: 0, overflowY: "auto", overflowX: "hidden", padding: "0 16px 32px", fontSize: "15px", lineHeight: 1.8, touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
                         >
                           <p className="text-[11px] uppercase tracking-wide text-gray-500">
                             {newsSourceLabel(drawerArticle.source)} · {newsTimeAgo(drawerArticle.publishedAt ?? drawerArticle.published_at)}
