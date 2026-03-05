@@ -27,23 +27,18 @@ function GoogleGlyph() {
 }
 
 export default function SignUpPage({ onSuccess, onBackToLanding }) {
-  const [mode, setMode] = useState('signup');
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleGoogleAuth = async () => {
     setError('');
-    const { error: signInError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
-    });
+    const { error: signInError } = await supabase.auth.signInWithOAuth({ provider: 'google' });
     if (signInError) setError(signInError.message);
   };
 
@@ -55,17 +50,13 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
 
     try {
       if (mode === 'forgot') {
-        const { error: forgotError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
+        const { error: forgotError } = await supabase.auth.resetPasswordForEmail(email);
         if (forgotError) throw forgotError;
-        setMessage('Reset link sent. Check your email.');
+        setMessage('Password reset email sent.');
         return;
       }
 
       if (mode === 'signup') {
-        if (password !== confirmPassword) throw new Error('Passwords do not match.');
-        if (password.length < 8) throw new Error('Password must be at least 8 characters.');
         const { error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
         setMessage('Check your email to confirm your account.');
@@ -107,9 +98,9 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
   }[mode];
 
   const inputClassName =
-    'h-[56px] w-full rounded-[10px] border border-white/60 bg-black px-4 text-[clamp(1rem,1.06vw,1.18rem)] text-white outline-none transition-colors placeholder:text-white/25 focus:border-white';
+    'h-[48px] w-full rounded-[10px] border border-white/60 bg-black px-4 text-[clamp(0.94rem,0.98vw,1.06rem)] text-white outline-none transition-colors placeholder:text-white/25 focus:border-white';
   const outlineButtonClassName =
-    'h-[56px] w-full rounded-full border border-white/80 bg-transparent px-6 text-[clamp(1rem,1.12vw,1.28rem)] font-semibold text-white transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50';
+    'h-[48px] w-full rounded-full border border-white/80 bg-transparent px-6 text-[clamp(0.95rem,1vw,1.06rem)] font-semibold text-white transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -156,9 +147,9 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
           </div>
         </aside>
 
-        <main className="flex items-center justify-center px-6 py-10 sm:px-10 lg:px-16 xl:px-20">
-          <div className="w-full max-w-[920px]">
-            <div className="mb-10 flex items-center justify-between lg:mb-14">
+        <main className="flex max-h-screen items-start justify-center overflow-y-auto px-5 py-4 sm:px-8 lg:items-center lg:px-12 xl:px-14">
+          <div className="w-full max-w-[760px]">
+            <div className="mb-6 flex items-center justify-between lg:mb-8">
               <button
                 type="button"
                 onClick={onBackToLanding}
@@ -170,14 +161,14 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
               <div className="text-sm font-semibold tracking-wide text-white/75 lg:text-base">Stratify</div>
             </div>
 
-            <div className="mb-10 space-y-3 lg:mb-12">
-              <h1 className="text-[clamp(2rem,3.6vw,3.7rem)] font-semibold leading-[1.05]">{heading}</h1>
-              <p className="text-[clamp(0.98rem,1.04vw,1.16rem)] text-white/60">{subtext}</p>
+            <div className="mb-6 space-y-2 lg:mb-8">
+              <h1 className="text-[clamp(1.7rem,2.4vw,2.5rem)] font-semibold leading-[1.08]">{heading}</h1>
+              <p className="text-[clamp(0.9rem,0.96vw,1rem)] text-white/60">{subtext}</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-3">
-                <label className="block text-[clamp(1rem,1.06vw,1.2rem)] font-medium text-white">Email</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-[clamp(0.95rem,0.98vw,1.03rem)] font-medium text-white">Email</label>
                 <input
                   type="email"
                   value={email}
@@ -189,8 +180,8 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
               </div>
 
               {mode !== 'forgot' && (
-                <div className="space-y-3">
-                  <label className="block text-[clamp(1rem,1.06vw,1.2rem)] font-medium text-white">Password</label>
+                <div className="space-y-2">
+                  <label className="block text-[clamp(0.95rem,0.98vw,1.03rem)] font-medium text-white">Password</label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -212,32 +203,8 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 </div>
               )}
 
-              {mode === 'signup' && (
-                <div className="space-y-3">
-                  <label className="block text-[clamp(1rem,1.06vw,1.2rem)] font-medium text-white">Confirm password</label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                      placeholder="Confirm password"
-                      className={`${inputClassName} pr-12`}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((prev) => !prev)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/75 transition hover:text-white"
-                      aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-5 w-5" strokeWidth={1.5} /> : <Eye className="h-5 w-5" strokeWidth={1.5} />}
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {mode === 'login' && (
-                <label className="mt-1 inline-flex items-center gap-3 text-[clamp(0.96rem,1.02vw,1.12rem)] text-white/90">
+                <label className="mt-0.5 inline-flex items-center gap-2.5 text-[clamp(0.86rem,0.92vw,0.96rem)] text-white/90">
                   <input
                     type="checkbox"
                     checked={rememberMe}
@@ -252,24 +219,24 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 <button
                   type="button"
                   onClick={() => switchMode('forgot')}
-                  className="text-[clamp(0.95rem,0.98vw,1.05rem)] text-white/75 underline-offset-4 transition hover:text-white hover:underline"
+                  className="text-[clamp(0.86rem,0.9vw,0.95rem)] text-white/75 underline-offset-4 transition hover:text-white hover:underline"
                 >
                   Forgot password?
                 </button>
               )}
 
               {error ? (
-                <div className="border border-red-500/45 bg-red-500/8 px-4 py-3 text-sm text-red-300">
+                <div className="border border-red-500/45 bg-red-500/8 px-3 py-2 text-xs text-red-300">
                   {error}
                 </div>
               ) : null}
               {message ? (
-                <div className="border border-emerald-500/45 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-300">
+                <div className="border border-emerald-500/45 bg-emerald-500/8 px-3 py-2 text-xs text-emerald-300">
                   {message}
                 </div>
               ) : null}
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <button type="submit" disabled={loading} className={outlineButtonClassName}>
                   {loading ? 'Processing...' : submitLabel}
                 </button>
@@ -284,9 +251,9 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
 
               {mode !== 'forgot' && (
                 <>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-white/18" />
-                    <span className="text-lg text-white/50">or</span>
+                    <span className="text-base text-white/50">or</span>
                     <div className="h-px flex-1 bg-white/18" />
                   </div>
 
@@ -301,7 +268,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 </>
               )}
 
-              <div className="pt-2 text-[clamp(0.95rem,0.98vw,1.08rem)] text-white/75">
+              <div className="pt-1 text-[clamp(0.86rem,0.9vw,0.98rem)] text-white/75">
                 {mode === 'signup' ? (
                   <span>
                     Already have an account?{' '}
@@ -323,7 +290,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 )}
               </div>
 
-              <p className="text-[clamp(0.83rem,0.9vw,0.96rem)] leading-relaxed text-white/45">
+              <p className="text-[clamp(0.76rem,0.82vw,0.9rem)] leading-relaxed text-white/45">
                 This site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply.
               </p>
             </form>
