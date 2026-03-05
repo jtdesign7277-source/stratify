@@ -1563,7 +1563,7 @@ export default function TraderPage({
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   // News panel: 3-state cycle — 'peek' (1/3) → 'open' (60%) → 'closed' → 'peek'
-  const [newsPanelState, setNewsPanelState] = useState('peek');
+  const [isNewsOpen, setIsNewsOpen] = useState(true);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [hoveredWatchlistSymbol, setHoveredWatchlistSymbol] = useState(null);
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -1666,15 +1666,10 @@ export default function TraderPage({
       .filter((position) => position.symbol && position.quantity > 0)
       .sort((a, b) => (b.marketValue - a.marketValue));
   }, [paperPortfolio?.positions, watchlistNamesBySymbol]);
-  // News panel: 3-state click cycle with fixed pixel heights
-  const newsPanelHeight = newsPanelState === 'closed' ? 0 : newsPanelState === 'peek' ? 180 : 340;
+  const newsPanelHeight = isNewsOpen ? 280 : 0;
 
   const toggleNewsPanelCollapsed = useCallback(() => {
-    setNewsPanelState((prev) => {
-      if (prev === 'peek') return 'open';
-      if (prev === 'open') return 'closed';
-      return 'peek';
-    });
+    setIsNewsOpen(prev => !prev);
   }, []);
 
   useEffect(() => {
@@ -3993,6 +3988,27 @@ export default function TraderPage({
             <div className="shrink-0 border-b border-white/[0.09] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                  <motion.button
+                    type="button"
+                    onClick={toggleNewsPanelCollapsed}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    className={`flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
+                      isNewsOpen
+                        ? 'border-emerald-400 text-emerald-400'
+                        : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                    }`}
+                    title={isNewsOpen ? 'Hide news' : 'Show news'}
+                  >
+                    <ChevronsDown
+                      className={`h-3.5 w-3.5 transition-transform duration-300 ${
+                        isNewsOpen ? 'rotate-0' : 'rotate-180'
+                      }`}
+                      strokeWidth={1.7}
+                    />
+                    News
+                  </motion.button>
                   {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
                     const isActive = chartTimeframe === timeframe.id;
                     return (
@@ -4064,19 +4080,7 @@ export default function TraderPage({
                 className="relative min-h-0 shrink-0 overflow-hidden transition-[height] duration-200"
                 style={{ height: `${newsPanelHeight}px` }}
               >
-                {/* Toggle button — top-right corner inside news panel */}
-                <button
-                  type="button"
-                  onClick={toggleNewsPanelCollapsed}
-                  className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-emerald-300 hover:bg-white/20 hover:text-emerald-200 transition-colors cursor-pointer"
-                  title={newsPanelState === 'peek' ? 'Expand news' : 'Collapse news'}
-                >
-                  {newsPanelState === 'peek' ? (
-                    <ChevronsUp className="h-4 w-4" strokeWidth={1.7} />
-                  ) : (
-                    <ChevronsDown className="h-4 w-4" strokeWidth={1.7} />
-                  )}
-                </button>
+
                 <div className="h-full overflow-y-auto">
                   <ErrorBoundary>
                     <NewsFeedPanel
@@ -4088,17 +4092,7 @@ export default function TraderPage({
                 </div>
               </div>
 
-              {/* Show news button when panel is closed */}
-              {newsPanelState === 'closed' && (
-                <button
-                  type="button"
-                  onClick={toggleNewsPanelCollapsed}
-                  className="flex h-8 shrink-0 items-center justify-center gap-2 bg-white/[0.05] text-[11px] font-medium text-emerald-300 hover:bg-white/[0.10] transition-colors cursor-pointer"
-                >
-                  <ChevronsUp className="h-3.5 w-3.5" strokeWidth={1.7} />
-                  Show News
-                </button>
-              )}
+
             </div>
           </div>
 
