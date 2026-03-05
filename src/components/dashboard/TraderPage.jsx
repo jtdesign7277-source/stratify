@@ -1666,7 +1666,7 @@ export default function TraderPage({
       .filter((position) => position.symbol && position.quantity > 0)
       .sort((a, b) => (b.marketValue - a.marketValue));
   }, [paperPortfolio?.positions, watchlistNamesBySymbol]);
-  const newsPanelHeight = isNewsOpen ? 360 : 0;
+  const newsPanelHeight = isNewsOpen ? 300 : 0;
 
   const toggleNewsPanelCollapsed = useCallback(() => {
     setIsNewsOpen(prev => !prev);
@@ -4039,8 +4039,8 @@ export default function TraderPage({
               </div>
             </div>
 
-            <div ref={chartAndNewsContainerRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="relative flex-1 min-h-0 overflow-hidden">
+            <div ref={chartAndNewsContainerRef} className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ minHeight: 0 }}>
+              <div className="relative min-h-0 overflow-hidden" style={{ flex: 1 }}>
                 <div ref={chartContainerRef} className="h-full w-full" />
 
                 {chartStatus.loading && (
@@ -4078,7 +4078,7 @@ export default function TraderPage({
               </button>
 
               <div
-                className="relative min-h-0 shrink-0 overflow-hidden transition-[height] duration-300"
+                className="relative shrink-0 overflow-hidden" style={{ height: `${newsPanelHeight}px`, transition: 'height 0.3s ease' }}
                 style={{ height: `${newsPanelHeight}px` }}
               >
 
