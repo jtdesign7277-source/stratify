@@ -4170,13 +4170,13 @@ export default function TraderPage({
                 <div ref={chartContainerRef} className="h-full w-full" />
 
                 {chartStatus.loading && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#060b14]/55 text-sm text-[#9ca3af]">
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/55 text-sm text-[#9ca3af]">
                     Loading candles...
                   </div>
                 )}
 
                 {!chartStatus.loading && chartStatus.error && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#060b14]/65 px-6 text-center text-sm text-[#9ca3af]">
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/65 px-6 text-center text-sm text-[#9ca3af]">
                     {chartStatus.error}
                   </div>
                 )}
@@ -4187,7 +4187,7 @@ export default function TraderPage({
                 aria-orientation="horizontal"
                 aria-label={isNewsPanelCollapsed ? 'Expand news panel' : 'Resize news panel'}
                 onMouseDown={isNewsPanelCollapsed ? undefined : handleNewsPanelResizeStart}
-                className={`relative flex h-[12px] shrink-0 items-center justify-center ${
+                className={`relative z-10 flex h-[18px] shrink-0 items-center justify-center ${
                   isNewsPanelCollapsed ? '' : 'cursor-row-resize bg-white/[0.07] transition hover:bg-white/[0.12]'
                 }`}
               >
