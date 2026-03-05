@@ -104,7 +104,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto grid min-h-screen w-full lg:grid-cols-[0.95fr_1.05fr]">
+      <div className="mx-auto grid min-h-screen w-full lg:grid-cols-[1.08fr_0.92fr]">
         <aside className="hidden border-r border-white/10 px-14 py-16 lg:flex lg:flex-col lg:justify-between">
           <div className="space-y-12">
             <button
@@ -148,7 +148,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
         </aside>
 
         <main className="flex max-h-screen items-start justify-center overflow-y-auto px-5 py-4 sm:px-8 lg:items-center lg:px-12 xl:px-14">
-          <div className="w-full max-w-[760px]">
+          <div className="w-full max-w-[646px]">
             <div className="mb-6 flex items-center justify-between lg:mb-8">
               <button
                 type="button"
