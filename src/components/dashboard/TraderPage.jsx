@@ -162,13 +162,13 @@ const GLASS_SHELL_STYLE = {
   boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
 };
 const GLASS_TOPBAR_STYLE = {
-  background: 'linear-gradient(150deg, rgba(10,16,28,0.9) 0%, rgba(6,10,20,0.82) 100%)',
-  borderBottom: '1px solid rgba(148,163,184,0.16)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(2,6,23,0.35)',
+  background: 'rgba(10,10,10,0.95)',
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35)',
   backdropFilter: 'blur(16px)',
 };
-const GLASS_INSET_CARD_CLASS = 'rounded-lg border border-white/[0.12] bg-white/[0.035] px-2.5 py-2 text-[11px] backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_24px_rgba(2,6,23,0.32)]';
-const GLASS_INSET_INPUT_CLASS = 'h-[36px] w-full rounded-lg border border-white/[0.14] bg-[linear-gradient(150deg,rgba(15,23,42,0.72),rgba(6,10,20,0.7))] px-3 text-[13px] font-semibold text-white outline-none backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(15,23,42,0.45)] transition-colors focus:border-cyan-400/55';
+const GLASS_INSET_CARD_CLASS = 'rounded-lg border border-white/[0.12] bg-white/[0.035] px-2.5 py-2 text-[11px] backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_24px_rgba(0,0,0,0.32)]';
+const GLASS_INSET_INPUT_CLASS = 'h-[36px] w-full rounded-lg border border-white/[0.14] bg-[#0b0b0b] px-3 text-[13px] font-semibold text-white outline-none backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors focus:border-emerald-500/55';
 
 const modalBackdropMotion = {
   initial: { opacity: 0 },
@@ -3408,7 +3408,7 @@ export default function TraderPage({
   };
   const orderTicketStyle = {
     ...GLASS_SHELL_STYLE,
-    boxShadow: '0 20px 44px rgba(2,6,23,0.56), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px rgba(16,185,129,0.1)',
+    boxShadow: '0 20px 44px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px rgba(16,185,129,0.1)',
   };
 
   return (
@@ -3661,7 +3661,7 @@ export default function TraderPage({
                         <Pin className="h-3 w-3" />
                       </motion.button>
                       {isSearchDropdownOpen && symbolInput.trim() && (
-                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto rounded-xl border border-white/[0.14] bg-[rgba(10,16,30,0.93)] backdrop-blur-xl shadow-[0_16px_36px_rgba(2,6,23,0.5),0_0_18px_rgba(56,189,248,0.08)]">
+                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-[420px] overflow-y-auto rounded-xl border border-white/[0.14] bg-[rgba(10,10,10,0.95)] backdrop-blur-xl shadow-[0_16px_36px_rgba(0,0,0,0.5)]">
                           {isSearchLoading ? (
                             <div className="px-3 py-2 text-xs text-[#7c8087]">Searching...</div>
                           ) : searchResults.length === 0 ? (
@@ -3856,7 +3856,7 @@ export default function TraderPage({
                                         className={`group relative flex items-center justify-between cursor-pointer border-b border-white/[0.05] ${
                                           isSelected ? 'bg-emerald-500/10 border-l border-l-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.1)]' : ''
                                         } px-3 py-2.5 ${
-                                          snapshot.isDragging ? 'bg-[rgba(30,41,59,0.7)] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
+                                          snapshot.isDragging ? 'bg-[rgba(20,20,20,0.7)] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
                                         } ${
                                           isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
                                         }`}
