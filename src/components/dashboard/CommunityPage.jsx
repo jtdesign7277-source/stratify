@@ -1722,7 +1722,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, [saveTweetDraft]);
 
   return (
-    <div className="relative h-full w-full overflow-y-auto" style={{ backgroundColor: T.bg, color: T.text }}>
+    <div className="relative min-h-full w-full overflow-y-auto" style={{ backgroundColor: T.bg, color: T.text }}>
       <style>{COMMUNITY_PAGE_STYLES}</style>
 
       <div className="pointer-events-none absolute inset-0" style={{

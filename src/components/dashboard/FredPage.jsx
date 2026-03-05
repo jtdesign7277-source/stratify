@@ -942,7 +942,7 @@ const FredPage = () => {
   const macroCards = useMemo(() => buildMacroCards(seriesMap), [seriesMap]);
   return (
     <FredErrorBoundary>
-      <motion.div {...PAGE_TRANSITION} className="h-full w-full bg-transparent text-white overflow-y-auto relative">
+      <motion.div {...PAGE_TRANSITION} className="min-h-full w-full bg-transparent text-white overflow-y-auto relative">
         <div
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{
@@ -950,7 +950,7 @@ const FredPage = () => {
             backgroundSize: '32px 32px',
           }}
         />
-        <div className="relative z-10 h-full p-6 grid grid-rows-[minmax(86px,98px)_minmax(0,1fr)] gap-3">
+        <div className="relative z-10 min-h-full p-6 grid grid-rows-[minmax(86px,98px)_minmax(0,1fr)] gap-3">
           <motion.div {...sectionMotion(0)} className="h-full min-h-[86px]">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
           </motion.div>

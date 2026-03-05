@@ -1194,7 +1194,7 @@ const WatchlistPage = ({
   };
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="flex h-full flex-1 overflow-y-auto bg-transparent pb-10">
+    <motion.div {...PAGE_TRANSITION} className="flex min-h-full flex-1 overflow-y-auto bg-transparent pb-10">
       <motion.div
         {...sectionMotion(0)}
         className="relative z-10 flex flex-col border-r border-[#1f1f1f] transition-all duration-300"

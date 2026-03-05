@@ -572,7 +572,7 @@ function OrderEntry({
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-y-auto">
+    <div className="relative flex min-h-full flex-col overflow-y-auto">
       <AlpacaOrderTicket
         side={side}
         onSideChange={setSide}
