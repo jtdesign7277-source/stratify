@@ -162,7 +162,7 @@ const GLASS_SHELL_STYLE = {
   boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
 };
 const GLASS_TOPBAR_STYLE = {
-  background: 'rgba(10,10,10,1)',
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a',
   borderBottom: '1px solid rgba(255,255,255,0.06)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35)',
   backdropFilter: 'blur(16px)',
@@ -3414,7 +3414,7 @@ export default function TraderPage({
   return (
     <motion.div
       {...PAGE_TRANSITION}
-      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0a0a0a] text-[#e5e7eb]"
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-[#e5e7eb]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a' }}
     >
       <div className="flex h-[68px] shrink-0 items-center justify-between px-4 py-3 backdrop-blur-xl" style={GLASS_TOPBAR_STYLE}>
         <div className="flex items-center gap-2">
