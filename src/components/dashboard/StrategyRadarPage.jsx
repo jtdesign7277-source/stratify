@@ -11,9 +11,11 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import gsap from 'gsap';
 import CountUp from 'react-countup';
+import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
+import { normalizeSymbol as normalizeTicker } from '../../lib/twelvedata';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -482,14 +484,20 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     });
     candleSeriesRef.current = candleSeries;
 
-    const handleResize = () => {
+    const applySize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight });
       }
     };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', applySize);
+    // ResizeObserver: chart must adjust to container when right panel collapses/expands (no window resize)
+    const containerEl = chartContainerRef.current;
+    const ro = containerEl ? new ResizeObserver(() => applySize()) : null;
+    if (ro && containerEl) ro.observe(containerEl);
     return () => {
-      window.removeEventListener('resize', handleResize);
+      if (ro && containerEl) ro.unobserve(containerEl);
+      ro?.disconnect();
+      window.removeEventListener('resize', applySize);
       obOverlaySeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
       obOverlaySeriesRef.current = [];
       chart.remove();
@@ -1083,94 +1091,28 @@ function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// LIVE TICKER HEADER (WebSocket streaming price)
+// LIVE TICKER HEADER (Twelve Data WebSocket — price ticking next to ticker)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const TD_WS_KEY = import.meta.env.VITE_TWELVE_DATA_WS_KEY
-  || import.meta.env.VITE_TWELVE_DATA_API_KEY
-  || import.meta.env.VITE_TWELVEDATA_API_KEY;
-
-function LiveTickerHeader({ ticker }) {
-  const [price, setPrice] = useState(null);
-  const [prevClose, setPrevClose] = useState(null);
-  const [connected, setConnected] = useState(false);
-  const wsRef = useRef(null);
+function LiveTickerHeader({ ticker, priceData, connected }) {
   const prevPriceRef = useRef(null);
-  const renderPrevPriceRef = useRef(null);
-
-  useEffect(() => {
-    if (!ticker || !TD_WS_KEY) return;
-
-    setPrice(null);
-    setPrevClose(null);
-    setConnected(false);
-    prevPriceRef.current = null;
-
-    const ws = new WebSocket(`wss://ws.twelvedata.com/v1/quotes/price?apikey=${TD_WS_KEY}`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: ticker } }));
-      setConnected(true);
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.event === 'price' && msg.symbol === ticker) {
-          const p = parseFloat(msg.price);
-          if (!Number.isFinite(p)) return;
-
-          // Flash logic
-          if (prevPriceRef.current !== null) {
-            // price direction is consumed by renderPrevPriceRef for UI flash animation
-          }
-          prevPriceRef.current = p;
-          setPrice(p);
-
-          if (msg.day_change !== undefined) {
-            // Derive previous close from price and day_change
-            const dc = parseFloat(msg.day_change);
-            if (Number.isFinite(dc)) setPrevClose(p - dc);
-          } else if (prevClose === null) {
-            setPrevClose(p); // fallback: treat first price as baseline
-          }
-
-        }
-      } catch {}
-    };
-
-    ws.onerror = () => setConnected(false);
-    ws.onclose = () => setConnected(false);
-
-    return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: ticker } }));
-      }
-      ws.close();
-      wsRef.current = null;
-    };
-  }, [ticker]);
-
-  const change = price !== null && prevClose !== null ? price - prevClose : null;
-  const changePct = change !== null && prevClose > 0 ? (change / prevClose) * 100 : null;
+  const price = priceData?.price ?? null;
+  const change = priceData?.change ?? (price !== null && priceData?.previous_close != null ? price - priceData.previous_close : null);
+  const changePct = priceData?.change_percent ?? (change != null && priceData?.previous_close > 0 ? (change / priceData.previous_close) * 100 : null);
   const changeColor = change > 0 ? 'text-emerald-400' : change < 0 ? 'text-red-400' : 'text-gray-400';
 
-  const flashDirection = Number.isFinite(price) && Number.isFinite(renderPrevPriceRef.current)
-    ? (price > renderPrevPriceRef.current ? 'up' : price < renderPrevPriceRef.current ? 'down' : 'flat')
+  const flashDirection = Number.isFinite(price) && Number.isFinite(prevPriceRef.current)
+    ? (price > prevPriceRef.current ? 'up' : price < prevPriceRef.current ? 'down' : 'flat')
     : 'flat';
-
   useEffect(() => {
-    if (Number.isFinite(price)) {
-      renderPrevPriceRef.current = price;
-    }
+    if (Number.isFinite(price)) prevPriceRef.current = price;
   }, [price]);
 
   return (
-    <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-3">
+    <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-3 flex-wrap">
       <span className="text-white font-bold text-sm font-mono">${ticker}</span>
       {connected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
-      {price !== null && (
+      {price != null && Number.isFinite(price) && (
         <>
           <motion.span
             key={`${ticker}-${price}`}
@@ -1182,17 +1124,17 @@ function LiveTickerHeader({ ticker }) {
             transition={{ type: 'spring', stiffness: 220, damping: 26 }}
             className="font-mono font-semibold text-sm"
           >
-            ${price.toFixed(2)}
+            ${Number(price).toFixed(2)}
           </motion.span>
-          {change !== null && (
+          {(change != null || changePct != null) && (
             <span className={`text-sm font-mono ${changeColor}`}>
-              {change >= 0 ? '+' : ''}{change.toFixed(2)}
-              {changePct !== null && <span className="ml-1">{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>}
+              {change != null && <>{change >= 0 ? '+' : ''}{Number(change).toFixed(2)}</>}
+              {changePct != null && <span className={change != null ? 'ml-1' : ''}>{changePct >= 0 ? '+' : ''}{Number(changePct).toFixed(2)}%</span>}
             </span>
           )}
         </>
       )}
-      {price === null && connected && (
+      {connected && (price == null || !Number.isFinite(price)) && (
         <span className="text-sm text-gray-500 font-mono">streaming...</span>
       )}
     </div>
@@ -1217,6 +1159,7 @@ function StrategyRadarContent() {
   const [activeSignalIdx, setActiveSignalIdx] = useState(0);
   const [expandedStrategy, setExpandedStrategy] = useState(null);
   const [expandedCardId, setExpandedCardId] = useState(null);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [settings, setSettings] = useState({
     timeframe: '1H',
     stop_loss_multiplier: 0.5,
@@ -1229,6 +1172,25 @@ function StrategyRadarContent() {
   const detectorRef = useRef(null);
   const smDetectorRef = useRef(null);
   const wsRef = useRef(null);
+
+  // Twelve Data WebSocket: live price ticking next to ticker in signals window (ws-config API)
+  const { prices, connected, subscribe, unsubscribe } = useTwelveDataWS();
+  const prevTickerRef = useRef(null);
+  useEffect(() => {
+    const ticker = selectedTicker ? normalizeTicker(selectedTicker) : null;
+    if (prevTickerRef.current && prevTickerRef.current !== ticker) {
+      unsubscribe([prevTickerRef.current]);
+    }
+    prevTickerRef.current = ticker;
+    if (ticker) subscribe([ticker]);
+    return () => {
+      if (ticker) unsubscribe([ticker]);
+      prevTickerRef.current = null;
+    };
+  }, [selectedTicker, subscribe, unsubscribe]);
+
+  const normalizedTicker = selectedTicker ? normalizeTicker(selectedTicker) : '';
+  const tickerPriceData = normalizedTicker ? prices[normalizedTicker] : null;
 
   const enabledTypes = useMemo(() => {
     const types = new Set();
@@ -1451,6 +1413,12 @@ function StrategyRadarContent() {
     }).length;
   }, [signals]);
 
+  // Count of verified signals toggled ON (shown in top right: "1 active signal" / "2 active signals")
+  const enabledStrategyCount = useMemo(
+    () => strategies.filter(s => activeStrategies[s.id]).length,
+    [strategies, activeStrategies]
+  );
+
   if (loading && candles.length === 0) {
     return (
       <div className="h-full bg-[#0a0a0f] flex items-center justify-center">
@@ -1488,8 +1456,8 @@ function StrategyRadarContent() {
 
         <div className="flex items-center gap-3 flex-shrink-0">
           <span className="text-sm text-gray-500">
-            <CountUp key={`${selectedTicker}-${activeSignalCount}`} start={0} end={activeSignalCount} duration={0.9} useEasing />
-            {' '}active signals
+            <CountUp key={`enabled-${enabledStrategyCount}`} start={0} end={enabledStrategyCount} duration={0.9} useEasing />
+            {' '}active signal{enabledStrategyCount !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
@@ -1497,7 +1465,7 @@ function StrategyRadarContent() {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT — Chart */}
-        <div className="flex-[3] flex flex-col border-r border-white/6">
+        <div className="flex-1 flex flex-col border-r border-white/6 min-w-0">
           <div className="flex items-center justify-end px-4 py-2 border-b border-white/6">
             <div className="flex items-center gap-1">
               {TIMEFRAMES.map(tf => (
@@ -1544,10 +1512,39 @@ function StrategyRadarContent() {
           </div>
         </div>
 
-        {/* RIGHT — Signals + Strategies (one connected panel) */}
-        <div className="flex-[2] min-h-0 overflow-y-auto relative p-2">
-          <div className={`${SOFT_GLASS_CARD_CLASS} overflow-hidden flex flex-col min-h-0`}>
-            <LiveTickerHeader ticker={selectedTicker} />
+        {/* RIGHT — Signals + Strategies (collapsible, narrower).
+            NOTE: Trading View chart (left) uses flex-1 + ResizeObserver so it adjusts to screen
+            when this panel collapses/expands. NOTE: Chevron is green double-chevron to match site accent. */}
+        <div className="flex-shrink-0 flex items-stretch border-l border-white/6">
+          {rightPanelCollapsed ? (
+            <motion.button
+              type="button"
+              initial={false}
+              animate={{ width: 40 }}
+              onClick={() => setRightPanelCollapsed(false)}
+              className="flex flex-col items-center justify-center gap-1 min-h-0 py-4 text-emerald-400 hover:text-emerald-300 hover:bg-white/[0.04] transition-colors"
+              title="Expand panel"
+            >
+              <ChevronsLeft className="w-5 h-5" strokeWidth={2} />
+              <span className="text-[10px] uppercase tracking-wider rotate-0 hidden">Open</span>
+            </motion.button>
+          ) : (
+            <motion.div
+              initial={false}
+              animate={{ width: 300 }}
+              className="flex min-h-0 relative"
+            >
+              <button
+                type="button"
+                onClick={() => setRightPanelCollapsed(true)}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-12 flex items-center justify-center rounded-r border border-l-0 border-white/10 bg-[#0a0a0f]/90 text-emerald-400 hover:text-emerald-300 hover:bg-white/[0.06] transition-colors"
+                title="Collapse panel"
+              >
+                <ChevronsRight className="w-4 h-4" strokeWidth={2} />
+              </button>
+              <div className="w-full min-h-0 overflow-y-auto relative p-2 pl-3 scrollbar-hide">
+                <div className={`${SOFT_GLASS_CARD_CLASS} overflow-hidden flex flex-col min-h-0`}>
+                  <LiveTickerHeader ticker={selectedTicker} priceData={tickerPriceData} connected={connected} />
 
             <div className="p-3 border-b border-white/[0.06]">
               <h2 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
@@ -1619,12 +1616,15 @@ function StrategyRadarContent() {
               </div>
             </div>
           </div>
+              </div>
 
-          <AnimatePresence>
-            {expandedStrategy && (
-              <StrategyDetailOverlay strategy={expandedStrategy} onClose={() => setExpandedStrategy(null)} />
-            )}
-          </AnimatePresence>
+              <AnimatePresence>
+                {expandedStrategy && (
+                  <StrategyDetailOverlay strategy={expandedStrategy} onClose={() => setExpandedStrategy(null)} />
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

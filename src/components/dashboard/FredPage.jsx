@@ -15,6 +15,10 @@ import {
   Users
 } from 'lucide-react';
 
+// Stratify design system: soft glass card (from skills)
+const SOFT_GLASS_CARD =
+  'bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 hover:from-white/[0.06] hover:to-white/[0.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:border-white/[0.1]';
+
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
   animate: { opacity: 1, y: 0 },
@@ -217,7 +221,7 @@ const ErrorState = ({ onRetry }) => (
     <span>Data unavailable</span>
     <button
       onClick={onRetry}
-      className="px-3 py-1.5 rounded-lg border border-blue-500/30 bg-[rgba(6,13,24,0.6)] backdrop-blur-sm text-gray-300 hover:text-white hover:border-blue-400/70 transition"
+      className="px-3 py-1.5 rounded-lg border border-white/20 bg-white/[0.04] text-gray-300 hover:text-white hover:border-white/30 transition"
     >
       Retry
     </button>
@@ -248,15 +252,15 @@ class FredErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-full w-full bg-transparent text-white overflow-hidden relative flex items-center justify-center">
-          <div className="rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md px-6 py-5 text-center flex flex-col items-center gap-3">
-            <span className="text-[11px] uppercase tracking-[0.3em] text-gray-400">FRED failed to load</span>
+        <div className="h-full w-full bg-[#0a0a0f] text-white overflow-hidden relative flex items-center justify-center">
+          <div className={`rounded-2xl ${SOFT_GLASS_CARD} px-6 py-5 text-center flex flex-col items-center gap-3`}>
+            <span className="text-sm uppercase tracking-widest text-gray-400">FRED failed to load</span>
             {this.state.errorMessage ? (
-              <span className="text-[11px] text-gray-500">{this.state.errorMessage}</span>
+              <span className="text-sm text-gray-500">{this.state.errorMessage}</span>
             ) : null}
             <button
               onClick={this.handleReload}
-              className="px-4 py-2 rounded-lg border border-blue-500/30 bg-[rgba(6,13,24,0.6)] backdrop-blur-sm text-gray-200 hover:text-white hover:border-blue-400/70 transition"
+              className="px-4 py-2 rounded-lg border border-white/20 bg-white/[0.04] text-gray-200 hover:text-white hover:border-white/30 transition"
             >
               Reload
             </button>
@@ -330,12 +334,12 @@ const MiniChart = ({ symbol }) => {
 const MacroPulse = ({ cards, loading, error, onRetry }) => {
   if (loading) {
     return (
-      <div className="grid grid-cols-6 gap-3 h-full">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-2.5 h-full min-h-0">
-            <SkeletonBlock className="h-3 w-20 mb-2" />
-            <SkeletonBlock className="h-6 w-20 mb-1.5" />
-            <SkeletonBlock className="h-3 w-14" />
+          <div key={index} className={`${SOFT_GLASS_CARD} p-5 min-h-[120px]`}>
+            <SkeletonBlock className="h-4 w-24 mb-3" />
+            <SkeletonBlock className="h-8 w-28 mb-2" />
+            <SkeletonBlock className="h-4 w-20" />
           </div>
         ))}
       </div>
@@ -344,34 +348,35 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 h-full">
+      <div className={`${SOFT_GLASS_CARD} p-6 min-h-[140px] flex items-center justify-center`}>
         <ErrorState onRetry={onRetry} />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-6 gap-3 h-full">
-      {cards.map((card, index) => (
-        <motion.div
-          key={card.label}
-          {...listItemMotion(index)}
-          className="rounded-2xl border border-blue-500/25 shadow-lg shadow-black/30 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-2.5 flex flex-col justify-between h-full min-h-0"
-        >
-          <div className="flex items-center justify-between text-gray-400 text-[10px] uppercase tracking-[0.18em]">
-            <span>{card.label}</span>
-            {(() => {
-              const Icon = card.icon || LineChart;
-              return <Icon className="w-4 h-4" strokeWidth={1.5} fill="none" />;
-            })()}
-          </div>
-          <div className="mt-1.5 flex items-end justify-between gap-2">
-            <div>
-              <div className="text-blue-500 text-[30px] leading-none font-semibold">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      {cards.map((card, index) => {
+        const Icon = card.icon || LineChart;
+        return (
+          <motion.div
+            key={card.label}
+            {...listItemMotion(index)}
+            whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className={`${SOFT_GLASS_CARD} p-5 flex flex-col justify-between min-h-[120px]`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500 uppercase tracking-widest font-semibold">{card.label}</span>
+              <Icon className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-semibold font-mono text-emerald-400 leading-tight">
                 <CountUpValue value={card.value} format={card.format} />
               </div>
               {card.subline && (
-                <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
+                <div className="flex items-center gap-1.5 text-sm text-gray-400 mt-1">
                   {card.trend && (
                     <card.trend
                       className={`w-3.5 h-3.5 ${card.trendColor}`}
@@ -384,9 +389,9 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
                 </div>
               )}
             </div>
-          </div>
-        </motion.div>
-      ))}
+          </motion.div>
+        );
+      })}
     </div>
   );
 };
@@ -423,13 +428,13 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
   }), [activeSymbol]);
 
   return (
-    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 flex flex-col">
+    <div className={`h-full ${SOFT_GLASS_CARD} p-4 flex flex-col min-h-[320px]`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-          <span className="text-white text-sm font-semibold">{activeLabel || 'Treasury Yields'}</span>
+          <TrendingUp className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
+          <span className="text-sm font-semibold text-white tracking-tight">{activeLabel || 'Treasury Yields'}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {yieldTabs.map((tab, index) => (
             <motion.button
               key={tab.symbol}
@@ -437,11 +442,11 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
               {...listItemMotion(index)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
-              className={`px-2.5 py-1 rounded-full text-[10px] border ${
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className={`px-2.5 py-1.5 text-sm font-mono transition-colors ${
                 activeSymbol === tab.symbol
-                  ? 'border-blue-400/70 text-blue-200 bg-blue-500/15'
-                  : 'border-blue-500/25 text-gray-400 bg-[rgba(6,13,24,0.2)]'
+                  ? 'text-emerald-400 bg-white/[0.06]'
+                  : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               {tab.label}
@@ -449,7 +454,7 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
           ))}
         </div>
       </div>
-      <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
+      <div className="chart-container flex-1 min-h-[240px] rounded-xl bg-black/40 border border-white/[0.04] shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)] overflow-hidden">
         <TradingViewWidget scriptSrc={ADVANCED_CHART_SRC} config={config} />
       </div>
     </div>
@@ -469,18 +474,16 @@ const EconCalendar = ({ collapsed, onToggle }) => {
 
   return (
     <div
-      className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md flex flex-col ${
-        collapsed ? 'h-[64px] p-3' : 'h-full p-4'
-      }`}
+      className={`${SOFT_GLASS_CARD} flex flex-col ${collapsed ? 'h-[64px] p-3' : 'h-full p-4'}`}
     >
       <div className={`flex items-center justify-between gap-2 ${collapsed ? 'mb-0' : 'mb-3'}`}>
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-          <span className="text-white text-sm font-semibold">Economic Calendar</span>
+          <Calendar className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
+          <span className="text-sm font-semibold text-white tracking-tight">Economic Calendar</span>
         </div>
         <button
           onClick={onToggle}
-          className="p-1 rounded-md border border-blue-500/25 text-gray-400 hover:text-white transition"
+          className="p-1 rounded-md border border-white/10 text-gray-400 hover:text-white transition"
           aria-label={collapsed ? 'Expand calendar' : 'Collapse calendar'}
         >
           <ChevronDown
@@ -491,7 +494,7 @@ const EconCalendar = ({ collapsed, onToggle }) => {
         </button>
       </div>
       {!collapsed && (
-        <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
+        <div className="chart-container flex-1 min-h-0 rounded-xl bg-black/40 border border-white/[0.04] overflow-hidden">
           <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
         </div>
       )}
@@ -538,12 +541,12 @@ const HistoricalTrends = () => {
   }), []);
 
   return (
-    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 flex flex-col">
+    <div className={`h-full ${SOFT_GLASS_CARD} p-4 flex flex-col min-h-[320px]`}>
       <div className="flex items-center gap-2 mb-3">
-        <Activity className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-        <span className="text-white text-sm font-semibold">Trends</span>
+        <Activity className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
+        <span className="text-sm font-semibold text-white tracking-tight">Trends</span>
       </div>
-      <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
+      <div className="chart-container flex-1 min-h-[240px] rounded-xl bg-black/40 border border-white/[0.04] shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)] overflow-hidden">
         <TradingViewWidget scriptSrc={SYMBOL_OVERVIEW_SRC} config={config} />
       </div>
     </div>
@@ -595,13 +598,13 @@ const MarketOverviewPanel = () => {
   );
 
   return (
-    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 flex flex-col">
+    <div className={`h-full ${SOFT_GLASS_CARD} p-4 flex flex-col`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-          <span className="text-white text-sm font-semibold">Market Overview</span>
+          <BarChart3 className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
+          <span className="text-sm font-semibold text-white tracking-tight">Market Overview</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {MARKET_OVERVIEW_TABS.map((tab, index) => (
             <motion.button
               key={tab.id}
@@ -609,11 +612,9 @@ const MarketOverviewPanel = () => {
               {...listItemMotion(index)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
-              className={`px-2.5 py-1 rounded-full text-[10px] border transition ${
-                activeTab === tab.id
-                  ? 'border-blue-400/70 text-blue-200 bg-blue-500/15'
-                  : 'border-blue-500/25 text-gray-400 bg-[rgba(6,13,24,0.2)]'
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className={`px-2.5 py-1.5 text-sm font-mono transition-colors ${
+                activeTab === tab.id ? 'text-emerald-400 bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               {tab.label}
@@ -621,16 +622,16 @@ const MarketOverviewPanel = () => {
           ))}
         </div>
       </div>
-      <div className="mt-3 flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm p-2.5 grid grid-cols-5 gap-2.5 overflow-hidden">
+      <div className="mt-3 flex-1 min-h-0 rounded-xl bg-black/40 border border-white/[0.04] p-2.5 grid grid-cols-5 gap-2.5 overflow-hidden">
         {activeConfig.symbols.map(([label, symbol], index) => (
           <motion.div
             key={symbol}
             {...listItemMotion(index)}
-            className="rounded-xl border border-blue-500/20 shadow-lg shadow-black/20 bg-[rgba(6,13,24,0.22)] backdrop-blur-sm p-2 flex flex-col min-h-0"
+            className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2 flex flex-col min-h-0"
           >
-            <div className="text-[10px] font-semibold text-white/85 leading-tight truncate">{label}</div>
-            <div className="text-[10px] text-blue-300/70 mt-0.5">{symbol.replace(/^.*:/, '')}</div>
-            <div className="mt-2 flex-1 min-h-0 rounded-md border border-blue-500/15 bg-[rgba(6,13,24,0.08)] overflow-hidden">
+            <div className="text-sm font-semibold text-white leading-tight truncate">{label}</div>
+            <div className="text-sm text-gray-500 mt-0.5">{symbol.replace(/^.*:/, '')}</div>
+            <div className="mt-2 flex-1 min-h-0 rounded-md bg-black/40 overflow-hidden">
               <MiniChart symbol={symbol} />
             </div>
           </motion.div>
@@ -651,12 +652,12 @@ const ForexCrossRatesPanel = () => {
   }), []);
 
   return (
-    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 flex flex-col">
+    <div className={`h-full ${SOFT_GLASS_CARD} p-4 flex flex-col`}>
       <div className="flex items-center gap-2 mb-3">
-        <Percent className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-        <span className="text-white text-sm font-semibold">Forex Cross Rates</span>
+        <Percent className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
+        <span className="text-sm font-semibold text-white tracking-tight">Forex Cross Rates</span>
       </div>
-      <div className="flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
+      <div className="flex-1 min-h-0 rounded-xl bg-black/40 border border-white/[0.04] overflow-hidden">
         <TradingViewWidget scriptSrc={FOREX_CROSS_RATES_SRC} config={config} />
       </div>
     </div>
@@ -700,18 +701,16 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
 
   return (
     <div
-      className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md flex flex-col ${
-        collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'
-      }`}
+      className={`${SOFT_GLASS_CARD} flex flex-col ${collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'}`}
     >
       <div className={`flex items-center justify-between gap-2 ${collapsed ? 'mb-0' : 'mb-4'}`}>
         <div className="flex items-center gap-2">
-          <Search className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-          <span className="text-white text-sm font-semibold">Explore</span>
+          <Search className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
+          <span className="text-sm font-semibold text-white tracking-tight">Explore</span>
         </div>
         <button
           onClick={onToggle}
-          className="p-1 rounded-md border border-blue-500/25 text-gray-400 hover:text-white transition"
+          className="p-1 rounded-md border border-white/10 text-gray-400 hover:text-white transition"
           aria-label={collapsed ? 'Expand explore' : 'Collapse explore'}
         >
           <ChevronDown
@@ -723,7 +722,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
       </div>
       {!collapsed && (
         <>
-          <div className="flex items-center gap-2 bg-[rgba(8,20,38,0.18)] border border-blue-500/20 rounded-xl px-3 py-2 mb-3 backdrop-blur-sm">
+          <div className="flex items-center gap-2 bg-black/40 border border-white/[0.04] rounded-xl px-3 py-2 mb-3 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)]">
             <Search className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
             <input
               value={query}
@@ -731,9 +730,9 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
               placeholder="Search FRED series"
               className="flex-1 bg-transparent outline-none text-sm text-white placeholder-gray-500"
             />
-            <kbd className="text-[10px] text-gray-500 border border-gray-700/60 rounded px-1.5 py-0.5">CMD K</kbd>
+            <kbd className="text-sm text-gray-500">CMD K</kbd>
           </div>
-          <div className="flex-1 overflow-y-auto scrollbar-hide">
+          <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0">
             {loading ? (
               <div className="space-y-2">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -744,7 +743,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
               <ErrorState onRetry={() => runSearch(query)} />
             ) : results.length === 0 ? (
               <div className="space-y-3">
-                <div className="text-xs text-gray-500">Quick access to popular indicators:</div>
+                <div className="text-sm text-gray-500">Quick access to popular indicators:</div>
                 <div className="flex flex-wrap gap-2">
                   {QUICK_ACCESS_SERIES.map((item, index) => (
                     <motion.button
@@ -752,14 +751,14 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
                       {...listItemMotion(index)}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                       onClick={() => {
                         setQuery(item.keyword);
                         if (item.symbol) {
                           onSelectSymbol(item.symbol, item.label);
                         }
                       }}
-                      className="px-2.5 py-1.5 text-xs rounded-lg border border-blue-500/25 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm hover:bg-blue-500/20 hover:border-blue-400/60 transition-all text-gray-300 hover:text-blue-200"
+                      className="px-2.5 py-1.5 text-sm text-gray-400 hover:text-emerald-400 transition-colors"
                       title={item.description}
                     >
                       {item.label}
@@ -773,17 +772,17 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
                   <motion.button
                     key={item.id}
                     {...listItemMotion(index)}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
                     whileTap={{ scale: 0.98 }}
-                    transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                     onClick={() => onSelectSymbol(`FRED:${item.id}`, item.title || item.id)}
-                    className="w-full text-left px-3 py-2 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm hover:bg-[rgba(18,32,58,0.7)] transition"
+                    className="w-full text-left px-3 py-2 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition"
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-xs text-blue-400 font-semibold">{item.id}</div>
+                        <div className="text-sm text-emerald-400 font-semibold">{item.id}</div>
                         <div className="text-sm text-white truncate">{item.title}</div>
-                        <div className="text-[11px] text-gray-500">{item.frequency} - Updated {item.last_updated ? item.last_updated.split(' ')[0] : '--'}</div>
+                        <div className="text-sm text-gray-500">{item.frequency} - Updated {item.last_updated ? item.last_updated.split(' ')[0] : '--'}</div>
                       </div>
                     </div>
                   </motion.button>
@@ -942,27 +941,20 @@ const FredPage = () => {
   const macroCards = useMemo(() => buildMacroCards(seriesMap), [seriesMap]);
   return (
     <FredErrorBoundary>
-      <motion.div {...PAGE_TRANSITION} className="min-h-full w-full bg-transparent text-white overflow-y-auto relative">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-          }}
-        />
-        <div className="relative z-10 min-h-full p-6 grid grid-rows-[minmax(86px,98px)_minmax(0,1fr)] gap-3">
-          <motion.div {...sectionMotion(0)} className="h-full min-h-[86px]">
+      <motion.div {...PAGE_TRANSITION} className="h-full w-full bg-[#0a0a0f] text-white flex flex-col overflow-hidden relative">
+        <div className="relative z-10 flex flex-col flex-1 min-h-0 p-6 overflow-y-auto scrollbar-hide">
+          <motion.div {...sectionMotion(0)} className="flex-shrink-0 mb-6">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
           </motion.div>
-          <motion.div {...sectionMotion(1)} className="grid grid-cols-2 gap-3 min-h-0">
-            <motion.div {...sectionMotion(2)} className="min-h-0">
+          <motion.div {...sectionMotion(1)} className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-[320px]">
+            <motion.div {...sectionMotion(2)} className="min-h-[320px]">
               <YieldCurve
                 activeSymbol={activeSymbol}
                 activeLabel={activeLabel}
                 onSelectSymbol={handleSelectSymbol}
               />
             </motion.div>
-            <motion.div {...sectionMotion(3)} className="min-h-0">
+            <motion.div {...sectionMotion(3)} className="min-h-[320px]">
               <HistoricalTrends />
             </motion.div>
           </motion.div>
