@@ -1133,7 +1133,7 @@ export default function WarRoom({ onClose }) {
     <div className={`h-full w-full min-h-0 flex flex-col bg-transparent relative ${isGlitching ? 'warroom-glitch' : ''}`}>
       <style>{warRoomStyles}</style>
 
-      <div className="relative z-10 flex-1 min-h-0 flex flex-col gap-3 px-5 py-3 overflow-y-auto overflow-x-hidden scrollbar-hide">
+      <div className="relative z-10 flex-1 min-h-0 flex flex-col gap-3 px-5 py-3 overflow-y-auto overflow-x-hidden scrollbar-show">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-white font-bold text-base tracking-[0.2em] uppercase truncate">Deep Market Intelligence</h1>
@@ -1164,7 +1164,7 @@ export default function WarRoom({ onClose }) {
         </header>
 
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-3 overflow-hidden">
-          <aside className="min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-2.5">
+          <aside className="min-h-0 overflow-y-auto overflow-x-hidden scrollbar-show rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-2.5">
             <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">War Room Tabs</p>
             <div className="mt-2 space-y-1.5">
               {[
@@ -1235,7 +1235,7 @@ export default function WarRoom({ onClose }) {
             </div>
           </aside>
 
-          <div className="min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
+          <div className="min-h-0 overflow-y-auto overflow-x-hidden scrollbar-show rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
           {activeView === 'transcripts' ? (
             <div className="h-full flex flex-col gap-2">
               {/* Search bar + ticker buttons */}
@@ -1299,11 +1299,11 @@ export default function WarRoom({ onClose }) {
 
               {/* Top row: Financials left, SEC filings right */}
               {(transcriptData || secFilings || financials || financialsLoading) && (
-                <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto scrollbar-hide">
+                <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto scrollbar-show">
                   <div className="grid grid-cols-2 gap-3">
                     {/* Left: Financial Statements (loads fast) */}
                     <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
-                      <div className="flex-1 overflow-y-auto scrollbar-hide p-5 space-y-5">
+                      <div className="flex-1 overflow-y-auto scrollbar-show p-5 space-y-5">
                         {financialsLoading && (
                           <div className="flex items-center gap-3 py-3">
                             <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
@@ -1454,7 +1454,7 @@ export default function WarRoom({ onClose }) {
 
                     {/* Right: SEC Filings (10-Q, 10-K, 8-K) */}
                     <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
-                      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-3">
+                      <div className="flex-1 overflow-y-auto scrollbar-show p-4 space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold text-white">
                             SEC Filings{secFilings?.companyName ? ` — ${secFilings.companyName}` : ''}
@@ -1603,7 +1603,7 @@ export default function WarRoom({ onClose }) {
                 </div>
               )}
 
-              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide space-y-2 mt-1">
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-show space-y-2 mt-1">
                 {allSavedCount === 0 ? (
                   <p className="text-sm text-gray-600 py-4">No saved intel yet. Highlight text on any card and click Save Selection.</p>
                 ) : (
@@ -1701,7 +1701,7 @@ export default function WarRoom({ onClose }) {
               </div>
 
               {/* Multi-column folder grid */}
-              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-show">
                 <div className="grid grid-cols-3 gap-3">
                   {[...folders].sort((a, b) => {
                     if (a.name === 'AI Rewrites') return -1;
@@ -1769,7 +1769,7 @@ export default function WarRoom({ onClose }) {
                       )}
 
                       {/* Folder items */}
-                      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide space-y-2">
+                      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-show space-y-2">
                         {folder.items.length === 0 && composingFolderId !== folder.id ? (
                           <div className="flex items-center justify-center gap-3 py-4">
                             <button
@@ -1856,7 +1856,7 @@ export default function WarRoom({ onClose }) {
               </div>
             </div>
           ) : (
-            <div ref={liveFeedScrollRef} className="h-full overflow-y-auto scrollbar-hide space-y-4 pr-1">
+            <div ref={liveFeedScrollRef} className="h-full overflow-y-auto scrollbar-show space-y-4 pr-1">
               {error ? (
                 <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
               ) : null}
@@ -1934,7 +1934,7 @@ export default function WarRoom({ onClose }) {
                           className="absolute right-0 top-6 z-30 w-56 rounded-lg border border-gray-700 bg-[#0a0f14] shadow-xl p-2"
                         >
                           <div className="text-[11px] uppercase tracking-wide text-gray-500 px-2 py-1">Save to folder</div>
-                          <div className="max-h-44 overflow-y-auto scrollbar-hide">
+                          <div className="max-h-44 overflow-y-auto scrollbar-show">
                             {folders.map((folder) => (
                               <button
                                 key={`save-${card.id}-${folder.id}`}
@@ -2091,7 +2091,7 @@ export default function WarRoom({ onClose }) {
                 <div className="shrink-0 px-4 py-2 border-b border-gray-800/40">
                   <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">Your Script</span>
                 </div>
-                <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+                <div className="flex-1 overflow-y-auto scrollbar-show p-4">
                   <p className="text-sm text-white/85 whitespace-pre-wrap leading-relaxed">{rewriter.original}</p>
                 </div>
               </div>
@@ -2153,7 +2153,7 @@ export default function WarRoom({ onClose }) {
                 </div>
 
                 {/* Result area */}
-                <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+                <div className="flex-1 overflow-y-auto scrollbar-show p-4">
                   {rewriterResult ? (
                     <div className="space-y-4">
                       <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-1">

@@ -1591,8 +1591,14 @@ export default function TraderPage({
   const [isNewsOpen, setIsNewsOpen] = useState(true);
   const [newsArticleExpanded, setNewsArticleExpanded] = useState(false);
   const [drawerArticle, setDrawerArticle] = useState(null);
+  const [isArticleDrawerExtendedToChartTop, setIsArticleDrawerExtendedToChartTop] = useState(false);
+  const [chartViewportHeight, setChartViewportHeight] = useState(0);
+  const [hydratedArticlesByUrl, setHydratedArticlesByUrl] = useState({});
+  const [articleHydrationLoadingUrl, setArticleHydrationLoadingUrl] = useState('');
+  const [articleHydrationErrorsByUrl, setArticleHydrationErrorsByUrl] = useState({});
   const newsListScrollRef = useRef(null);
   const articleBodyScrollRef = useRef(null);
+  const articleHydrationInFlightRef = useRef(new Set());
 
   const scrollNewsList = useCallback((delta) => {
     const el = newsListScrollRef.current;
@@ -1615,6 +1621,60 @@ export default function TraderPage({
     }, 0);
     return () => clearTimeout(t);
   }, [drawerArticle]);
+
+  const hydrateArticleBody = useCallback(async (article) => {
+    const articleUrl = String(article?.url || '').trim();
+    if (!articleUrl) return;
+    if (hydratedArticlesByUrl[articleUrl]) return;
+    if (articleHydrationInFlightRef.current.has(articleUrl)) return;
+
+    articleHydrationInFlightRef.current.add(articleUrl);
+    setArticleHydrationLoadingUrl(articleUrl);
+
+    try {
+      const response = await fetch(`/api/article?url=${encodeURIComponent(articleUrl)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || `Article API ${response.status}`);
+      }
+
+      const normalized = {
+        title: String(payload?.title || article?.title || '').trim(),
+        source: String(payload?.source || article?.source || '').trim(),
+        publishedAt: payload?.publishedAt || article?.publishedAt || article?.published_at || null,
+        image: payload?.image || article?.imageUrl || article?.image_url || null,
+        content: String(payload?.content || '').trim(),
+        paragraphs: Array.isArray(payload?.paragraphs)
+          ? payload.paragraphs.map((paragraph) => String(paragraph || '').trim()).filter(Boolean)
+          : [],
+      };
+
+      setHydratedArticlesByUrl((previous) => ({
+        ...previous,
+        [articleUrl]: normalized,
+      }));
+      setArticleHydrationErrorsByUrl((previous) => {
+        if (!previous[articleUrl]) return previous;
+        const next = { ...previous };
+        delete next[articleUrl];
+        return next;
+      });
+    } catch (error) {
+      console.error('[TraderPage] Failed to hydrate article body:', error);
+      setArticleHydrationErrorsByUrl((previous) => ({
+        ...previous,
+        [articleUrl]: 'Could not load full article text. Showing preview content.',
+      }));
+    } finally {
+      articleHydrationInFlightRef.current.delete(articleUrl);
+      setArticleHydrationLoadingUrl((current) => (current === articleUrl ? '' : current));
+    }
+  }, [hydratedArticlesByUrl]);
+
+  useEffect(() => {
+    if (!drawerArticle) return;
+    hydrateArticleBody(drawerArticle);
+  }, [drawerArticle, hydrateArticleBody]);
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [hoveredWatchlistSymbol, setHoveredWatchlistSymbol] = useState(null);
   const [activeDragTicker, setActiveDragTicker] = useState('');
@@ -1657,6 +1717,7 @@ export default function TraderPage({
   const dragPositionYRef = useRef(null);
   const dragPositionXRef = useRef(null);
   const chartAndNewsContainerRef = useRef(null);
+  const chartViewportRef = useRef(null);
   const lastDragEndRef = useRef(0);
   const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
   const watchlistSymbols = useMemo(
@@ -1722,8 +1783,51 @@ export default function TraderPage({
   const newsPanelHeight = isNewsOpen ? 300 : 0;
 
   const toggleNewsPanelCollapsed = useCallback(() => {
+    if (drawerArticle && isNewsOpen) {
+      setIsArticleDrawerExtendedToChartTop((previous) => !previous);
+      return;
+    }
     setIsNewsOpen(prev => !prev);
+  }, [drawerArticle, isNewsOpen]);
+
+  useEffect(() => {
+    if (!drawerArticle) {
+      setIsArticleDrawerExtendedToChartTop(false);
+    }
+  }, [drawerArticle]);
+
+  useEffect(() => {
+    if (!isNewsOpen) {
+      setIsArticleDrawerExtendedToChartTop(false);
+    }
+  }, [isNewsOpen]);
+
+  useEffect(() => {
+    const node = chartViewportRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return undefined;
+
+    const updateHeight = () => {
+      setChartViewportHeight(node.getBoundingClientRect().height || 0);
+    };
+
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(node);
+    return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const shouldCompressChart = Boolean(drawerArticle && isNewsOpen && isArticleDrawerExtendedToChartTop);
+    if (!shouldCompressChart || !chartRef.current || typeof window === 'undefined') return undefined;
+
+    const timer = window.setTimeout(() => {
+      try {
+        chartRef.current?.timeScale().fitContent();
+      } catch {}
+    }, 240);
+
+    return () => window.clearTimeout(timer);
+  }, [drawerArticle, isNewsOpen, isArticleDrawerExtendedToChartTop]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -3338,12 +3442,14 @@ export default function TraderPage({
     ...GLASS_SHELL_STYLE,
     boxShadow: '0 20px 44px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px rgba(16,185,129,0.1)',
   };
+  const isMediumArticleDrawerLayout = Boolean(drawerArticle && isNewsOpen && !isArticleDrawerExtendedToChartTop);
 
   return (
     <motion.div
       {...PAGE_TRANSITION}
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-[#e5e7eb]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a' }}
     >
+      {!isMediumArticleDrawerLayout ? (
       <div className="flex h-[68px] shrink-0 items-center justify-between px-4 py-3 backdrop-blur-xl" style={GLASS_TOPBAR_STYLE}>
         <div className="flex items-center gap-2">
           <button
@@ -3464,6 +3570,7 @@ export default function TraderPage({
           </div>
         </div>
       </div>
+      ) : null}
 
       <motion.div
         {...sectionMotion(0)}
@@ -4093,7 +4200,7 @@ export default function TraderPage({
         </aside>
 
         <section className="flex min-w-0 flex-1 min-h-0 gap-2 overflow-hidden">
-          <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden rounded-xl backdrop-blur-xl" style={chartPanelStyle}>
+          <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-visible rounded-xl backdrop-blur-xl" style={chartPanelStyle}>
             <div className="shrink-0 border-b border-white/[0.09] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
@@ -4175,8 +4282,15 @@ export default function TraderPage({
             >
               {/* Chart — takes all remaining space above the news bar; z-0 so news bar stays on top and clickable in all browsers */}
               <div
+                ref={chartViewportRef}
                 className="relative z-0 min-h-0"
-                style={{ flex: 1, overflow: 'hidden' }}
+                style={{
+                  flex: 1,
+                  overflow: 'hidden',
+                  width: drawerArticle && isNewsOpen && isArticleDrawerExtendedToChartTop ? '50%' : '100%',
+                  alignSelf: 'flex-start',
+                  transition: 'width 220ms ease',
+                }}
               >
                 <div ref={chartContainerRef} className="absolute inset-0" />
 
@@ -4197,8 +4311,15 @@ export default function TraderPage({
               <button
                 type="button"
                 onClick={toggleNewsPanelCollapsed}
-                className="relative z-20 flex h-8 w-full shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer pointer-events-auto"
-                style={{ background: 'rgba(16,185,129,0.05)', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
+                className="relative z-[420] flex h-8 shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer pointer-events-auto"
+                style={{
+                  width: drawerArticle ? '50%' : '100%',
+                  background: 'rgba(11,11,11,0.97)',
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  borderRight: drawerArticle ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                  transition: 'width 220ms ease',
+                }}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">
@@ -4208,11 +4329,15 @@ export default function TraderPage({
                     {selectedTicker ? `$${selectedTicker}` : ''}
                   </span>
                 </div>
-                <ChevronsDown
-                  className="h-4 w-4 text-emerald-400 transition-transform duration-300"
-                  style={{ transform: isNewsOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
-                  strokeWidth={1.7}
-                />
+                {drawerArticle && isNewsOpen ? (
+                  <ChevronDown className="h-4 w-4 text-emerald-400" strokeWidth={1.9} />
+                ) : (
+                  <ChevronsDown
+                    className="h-4 w-4 text-emerald-400 transition-transform duration-300"
+                    style={{ transform: isNewsOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
+                    strokeWidth={1.7}
+                  />
+                )}
               </button>
 
               {/* News panel — list with scroll buttons; article drawer slides in from right (in-app only, no external links) */}
@@ -4224,7 +4349,20 @@ export default function TraderPage({
                   pointerEvents: 'auto',
                 }}
               >
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "#0b0b0b", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                    background: "#0b0b0b",
+                    borderTop: "1px solid rgba(255,255,255,0.06)",
+                    width: drawerArticle ? "50%" : "100%",
+                    borderRight: drawerArticle ? "1px solid rgba(255,255,255,0.08)" : "none",
+                    transition: "width 220ms ease",
+                  }}
+                >
                   <ErrorBoundary><div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
                     {/* Header */}
                     <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
@@ -4262,7 +4400,7 @@ export default function TraderPage({
                     {/* Scrollable article list — no href / target _blank; click opens in-app drawer */}
                     <div
                       ref={newsListScrollRef}
-                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y"
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-show pointer-events-auto touch-pan-y"
                       style={{ touchAction: 'pan-y', flex: '1 1 0%', minHeight: 0 }}
                     >
                       {newsLoading && !newsArticles?.length ? (
@@ -4302,7 +4440,7 @@ export default function TraderPage({
                                   }}
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-[13px] font-medium text-gray-200 leading-snug group-hover:text-white transition-colors line-clamp-2">
+                                  <h4 className={`font-medium text-gray-200 leading-snug group-hover:text-white transition-colors break-words ${drawerArticle ? 'text-[11px] line-clamp-3 pr-1.5' : 'text-[13px] line-clamp-2'}`}>
                                     {article.title}
                                   </h4>
                                   <div className="flex items-center gap-2 mt-1.5">
@@ -4328,6 +4466,28 @@ export default function TraderPage({
                     const currentIndex = articles.findIndex((a) => drawerKey(a) === drawerKey(drawerArticle));
                     const prevArticle = currentIndex > 0 ? articles[currentIndex - 1] : null;
                     const nextArticle = currentIndex >= 0 && currentIndex < articles.length - 1 ? articles[currentIndex + 1] : null;
+                    const drawerUrl = String(drawerArticle?.url || '').trim();
+                    const hydratedArticle = drawerUrl ? hydratedArticlesByUrl[drawerUrl] : null;
+                    const drawerSource = newsSourceLabel(hydratedArticle?.source || drawerArticle.source);
+                    const drawerPublishedAt = hydratedArticle?.publishedAt || drawerArticle.publishedAt || drawerArticle.published_at;
+                    const drawerTitle = hydratedArticle?.title || drawerArticle.title;
+                    const drawerImage = hydratedArticle?.image || drawerArticle.imageUrl || drawerArticle.image_url;
+                    const drawerParagraphs = Array.isArray(hydratedArticle?.paragraphs)
+                      ? hydratedArticle.paragraphs.filter(Boolean)
+                      : [];
+                    const drawerBody = String(
+                      hydratedArticle?.content
+                      || drawerArticle.description
+                      || drawerArticle.content
+                      || drawerArticle.snippet
+                      || ''
+                    ).trim();
+                    const drawerError = drawerUrl ? articleHydrationErrorsByUrl[drawerUrl] : '';
+                    const isHydrating = Boolean(drawerUrl && articleHydrationLoadingUrl === drawerUrl);
+                    const effectiveChartHeight = chartViewportHeight || chartViewportRef.current?.getBoundingClientRect?.().height || 0;
+                    const drawerTopOffset = isArticleDrawerExtendedToChartTop
+                      ? -Math.max(0, effectiveChartHeight + 32)
+                      : 0;
                     return (
                     <motion.div
                       key={drawerKey(drawerArticle)}
@@ -4335,8 +4495,25 @@ export default function TraderPage({
                       animate={{ x: 0, opacity: 1 }}
                       exit={{ x: 40, opacity: 0 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-                      style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: "58%", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
+                      style={{ position: "absolute", top: drawerTopOffset, right: 0, bottom: 0, width: "50%", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
                     >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsArticleDrawerExtendedToChartTop((previous) => !previous);
+                        }}
+                        className="absolute left-3 top-1/2 z-[260] -translate-y-1/2 text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+                        aria-label={isArticleDrawerExtendedToChartTop ? 'Return article to medium height' : 'Extend article to chart top'}
+                        title={isArticleDrawerExtendedToChartTop ? 'Return article to medium height' : 'Extend article to chart top'}
+                      >
+                        {isArticleDrawerExtendedToChartTop ? (
+                          <ChevronDown className="w-5 h-5" strokeWidth={1.9} />
+                        ) : (
+                          <ChevronUp className="w-5 h-5" strokeWidth={1.9} />
+                        )}
+                      </button>
                       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", height: "100%" }}>
                         <div className="flex shrink-0 items-center justify-between gap-2 p-3 border-b border-white/[0.06]">
                           <div className="flex items-center gap-1">
@@ -4364,7 +4541,7 @@ export default function TraderPage({
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); setIsArticleDrawerExtendedToChartTop(false); }}
                             className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
                             aria-label="Close article"
                           >
@@ -4395,10 +4572,10 @@ export default function TraderPage({
                           style={{ flex: "1 1 0%", minHeight: 0, overflowY: "auto", overflowX: "hidden", padding: "0 16px 32px", fontSize: "15px", lineHeight: 1.8, touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
                         >
                           <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                            {newsSourceLabel(drawerArticle.source)} · {newsTimeAgo(drawerArticle.publishedAt ?? drawerArticle.published_at)}
+                            {drawerSource} · {newsTimeAgo(drawerPublishedAt)}
                           </p>
-                          <h2 className="mt-1.5 text-white font-bold" style={{ fontSize: '20px' }}>
-                            {drawerArticle.title}
+                          <h2 className="mt-1.5 text-white font-bold whitespace-normal break-words leading-tight" style={{ fontSize: '20px', overflowWrap: 'anywhere' }}>
+                            {drawerTitle}
                           </h2>
                           {(() => {
                             const score = drawerArticle.sentiment ?? drawerArticle.sentiment_score ?? null;
@@ -4408,7 +4585,7 @@ export default function TraderPage({
                             return <p className={`mt-2 text-sm ${colorClass}`}>{label}</p>;
                           })()}
                           {(() => {
-                            const imgUrl = drawerArticle.imageUrl || drawerArticle.image_url;
+                            const imgUrl = drawerImage;
                             if (!imgUrl || isGenericSourceImage(imgUrl)) return null;
                             return (
                               <img
@@ -4418,9 +4595,26 @@ export default function TraderPage({
                               />
                             );
                           })()}
-                          <div className="mt-4 text-gray-300" style={{ fontSize: '15px', lineHeight: 1.8 }}>
-                            {drawerArticle.description ?? drawerArticle.content ?? drawerArticle.snippet ?? ''}
-                          </div>
+                          {isHydrating && !drawerParagraphs.length && !drawerBody ? (
+                            <div className="mt-4 flex items-center gap-2 text-sm text-gray-400">
+                              <div className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                              Loading full article...
+                            </div>
+                          ) : null}
+                          {drawerError ? (
+                            <p className="mt-3 text-xs text-amber-300/80">{drawerError}</p>
+                          ) : null}
+                          {drawerParagraphs.length > 0 ? (
+                            <div className="mt-4 space-y-4 text-gray-300 whitespace-pre-line break-words" style={{ fontSize: '15px', lineHeight: 1.8, overflowWrap: 'anywhere' }}>
+                              {drawerParagraphs.map((paragraph, index) => (
+                                <p key={`${drawerUrl || 'article'}-paragraph-${index}`}>{paragraph}</p>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-4 text-gray-300 whitespace-pre-line break-words" style={{ fontSize: '15px', lineHeight: 1.8, overflowWrap: 'anywhere' }}>
+                              {drawerBody || 'No additional article text available for this source.'}
+                            </div>
+                          )}
 
                         </div>
                       </div>
