@@ -477,6 +477,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
   const drawingDragStartedRef = useRef(false);
   const drawingJustFinishedViaMouseupRef = useRef(false);
   const selectedTickerRef = useRef(selectedTicker);
+  const lastCandlesFitKeyRef = useRef('');
   const [selectedDrawingTool, setSelectedDrawingTool] = useState(null);
 
   useEffect(() => {
@@ -1094,8 +1095,13 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       markersRef.current = createSeriesMarkers(candleSeriesRef.current, markers);
     }
 
-    if (chartRef.current) chartRef.current.timeScale().fitContent();
-  }, [candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents]);
+    // Only fit content when candle data changed (ticker/timeframe or new data), not when user toggles signals off/on
+    const candlesKey = candles.length ? `${selectedTicker}-${selectedTimeframe}-${candles.length}-${candles[0]?.time}-${candles[candles.length - 1]?.time}` : '';
+    if (chartRef.current && candlesKey && candlesKey !== lastCandlesFitKeyRef.current) {
+      lastCandlesFitKeyRef.current = candlesKey;
+      chartRef.current.timeScale().fitContent();
+    }
+  }, [candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe]);
 
   useEffect(() => {
     if (!chartContainerRef.current || !candles.length) return;
