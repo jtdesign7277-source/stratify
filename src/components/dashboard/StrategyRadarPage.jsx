@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   createChart,
   createSeriesMarkers,
@@ -54,8 +55,8 @@ const SIGNAL_DESCRIPTIONS = {
     stats: { win: '68', ret: '+28.7', pf: '1.9' },
   },
   smart_money: {
-    summary: 'Identifies Change of Character (CHoCH) and Break of Structure (BOS) patterns used by institutional traders. Multi-timeframe trend alignment and RSI divergence filtering improve signal quality.',
-    triggers: 'BUY signals fire on bullish CHoCH (price reverses up through a pivot level) or bullish BOS (continuation break above previous structure). SELL signals fire on bearish equivalents.',
+    summary: 'Professional-grade market structure and order-flow system that identifies institutional trading behavior through volatility-adaptive logic, multi-timeframe trend alignment, and volume-based confirmation. Uses original mathematical models to detect Change of Character (CHoCH), Break of Structure (BOS), cumulative volume dynamics, and trend convergence across seven timeframes to deliver high-probability signals with significantly reduced noise. Unlike basic indicator combinations, this is a unified framework: volatility adaptation, structure analysis, and volume confirmation continuously reinforce each other for precise, context-aware signals. Each component is mathematically linked so that volatility adjusts sensitivity in real time, multi-timeframe trends define directional bias, market structure determines timing, and volume confirms institutional participation while advanced filters eliminate low-quality setups.',
+    triggers: 'Volatility adjusts signal sensitivity in real time; multi-timeframe trends define directional bias; market structure determines timing; volume confirms institutional participation. BUY on bullish CHoCH (price reverses up through a pivot level) or bullish BOS (continuation break above previous structure) with alignment. SELL on bearish equivalents. Advanced filters remove low-quality setups.',
     stats: { win: '72', ret: '+22.4', pf: '1.7' },
   },
 };
@@ -76,11 +77,11 @@ const VERIFIED_SIGNALS = [
     id: 'smart_money',
     name: 'Smart Money',
     strategy_type: 'smart_money',
-    subtitle: 'CHoCH & BOS patterns',
+    subtitle: 'CHoCH & BOS · volatility-adaptive structure',
     description: SIGNAL_DESCRIPTIONS.smart_money.summary,
     entry_logic: SIGNAL_DESCRIPTIONS.smart_money.triggers,
-    exit_logic: 'Exit on structure invalidation or target.',
-    risk_management: 'Stop at recent structure; R-multiple targets.',
+    exit_logic: 'Exit on structure invalidation or when target is hit. Structure break against the trade invalidates the setup.',
+    risk_management: 'Stop at recent structure level; volatility-adaptive position sizing; R-multiple targets with multi-timeframe confirmation.',
   },
 ];
 
@@ -429,19 +430,23 @@ async function getUserSignals(userId, limit = 50) {
   return data || [];
 }
 
-// ── Fetch Candles ────────────────────────────────────────────────────────────
+// ── Fetch Candles (same pipeline as Trader chart for 5m and all timeframes) ───
 async function fetchCandles(ticker, timeframe) {
   try {
-    const res = await fetch(`/api/radar/candles?symbol=${ticker}&interval=${TIMEFRAME_MAP[timeframe]}`);
+    const interval = TIMEFRAME_MAP[timeframe] || '5min';
+    const outputsize = interval === '1day' ? 365 : 500;
+    const res = await fetch(`/api/chart/candles?symbol=${encodeURIComponent(ticker)}&interval=${interval}&outputsize=${outputsize}`);
     const data = await res.json();
-    if (!data.values) return [];
-    return data.values
+    const values = Array.isArray(data?.values) ? data.values : [];
+    if (values.length === 0) return [];
+    return values
       .map(v => ({
         time: Math.floor(new Date(v.datetime).getTime() / 1000),
         open: parseFloat(v.open), high: parseFloat(v.high),
         low: parseFloat(v.low), close: parseFloat(v.close),
-        volume: parseInt(v.volume || 0),
+        volume: parseInt(v.volume || 0, 10) || 0,
       }))
+      .filter(b => Number.isFinite(b.time) && Number.isFinite(b.close))
       .sort((a, b) => a.time - b.time);
   } catch (err) {
     console.error('Failed to fetch candles:', err);
@@ -869,7 +874,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       });
     });
 
-    // BUY/SELL signal markers (both MSB/OB and Smart Money)
+    // BUY/SELL signal markers (both MSB/OB and Smart Money) — green BUY below bar, red SELL above bar
     const activeTradeSignals = (Array.isArray(signals) ? signals : [])
       .filter(s => s.status === 'active');
     activeTradeSignals.forEach(s => {
@@ -880,15 +885,15 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         markers.push({ time, position: isLong ? 'belowBar' : 'aboveBar', color: isLong ? '#00E676' : '#FF1744', shape: 'square', text: isLong ? `BUY${score}` : `SELL${score}` });
       });
 
-    // CHoCH markers
-    (chochEvents || []).slice(-5).forEach(ev => {
+    // CHoCH markers (Smart Money) — show more when Smart Money is active
+    (chochEvents || []).slice(-20).forEach(ev => {
       const evTime = Number(ev.time);
       if (!Number.isFinite(evTime)) return;
       markers.push({ time: evTime, position: ev.direction === 'long' ? 'belowBar' : 'aboveBar', color: CHOCH_COLOR, shape: ev.direction === 'long' ? 'arrowUp' : 'arrowDown', text: 'CHoCH' });
     });
 
-    // BOS markers
-    (bosEvents || []).slice(-5).forEach(ev => {
+    // BOS markers (Smart Money)
+    (bosEvents || []).slice(-20).forEach(ev => {
       const evTime = Number(ev.time);
       if (!Number.isFinite(evTime)) return;
       markers.push({ time: evTime, position: ev.direction === 'long' ? 'belowBar' : 'aboveBar', color: BOS_COLOR, shape: ev.direction === 'long' ? 'arrowUp' : 'arrowDown', text: 'BOS' });
@@ -971,8 +976,8 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         obOverlaySeriesRef.current.push(msbLine);
       });
 
-      // CHoCH structure level lines (Smart Money)
-      (chochEvents || []).slice(-8).forEach(ev => {
+      // CHoCH structure level lines (Smart Money) — horizontal dashed at structure level
+      (chochEvents || []).slice(-15).forEach(ev => {
         const evBar = Number(ev.bar);
         const evTime = Number(ev.time);
         const level = Number(ev?.level);
@@ -992,8 +997,8 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         obOverlaySeriesRef.current.push(chochLine);
       });
 
-      // BOS structure level lines (Smart Money)
-      (bosEvents || []).slice(-8).forEach(ev => {
+      // BOS structure level lines (Smart Money) — horizontal dashed at structure level
+      (bosEvents || []).slice(-15).forEach(ev => {
         const evBar = Number(ev.bar);
         const evTime = Number(ev.time);
         const level = Number(ev?.level);
@@ -1012,10 +1017,52 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         bosLine.setData([{ time: startTime, value: level }, { time: evTime, value: level }]);
         obOverlaySeriesRef.current.push(bosLine);
       });
+
+      // Diagonal trend/speed lines: connect consecutive CHoCH events (cyan) and BOS events (purple)
+      const chochArr = (chochEvents || []).slice(-12);
+      for (let i = 0; i < chochArr.length - 1; i++) {
+        const a = chochArr[i];
+        const b = chochArr[i + 1];
+        const t1 = Number(a?.time);
+        const t2 = Number(b?.time);
+        const p1 = Number(a?.level);
+        const p2 = Number(b?.level);
+        if (!Number.isFinite(t1) || !Number.isFinite(t2) || !Number.isFinite(p1) || !Number.isFinite(p2)) continue;
+        const diag = addLineSeriesCompat(chartRef.current, {
+          color: CHOCH_COLOR,
+          lineWidth: 1,
+          lineStyle: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        diag.setData([{ time: t1, value: p1 }, { time: t2, value: p2 }]);
+        obOverlaySeriesRef.current.push(diag);
+      }
+      const bosArr = (bosEvents || []).slice(-12);
+      for (let i = 0; i < bosArr.length - 1; i++) {
+        const a = bosArr[i];
+        const b = bosArr[i + 1];
+        const t1 = Number(a?.time);
+        const t2 = Number(b?.time);
+        const p1 = Number(a?.level);
+        const p2 = Number(b?.level);
+        if (!Number.isFinite(t1) || !Number.isFinite(t2) || !Number.isFinite(p1) || !Number.isFinite(p2)) continue;
+        const diag = addLineSeriesCompat(chartRef.current, {
+          color: BOS_COLOR,
+          lineWidth: 1,
+          lineStyle: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        diag.setData([{ time: t1, value: p1 }, { time: t2, value: p2 }]);
+        obOverlaySeriesRef.current.push(diag);
+      }
     }
 
-    // Entry / TP / SL horizontal dashed lines for active signals
-    activeTradeSignals.slice(0, 3).forEach(s => {
+    // Entry / TP / SL horizontal dashed lines for active signals (more when Smart Money style)
+    activeTradeSignals.slice(0, 8).forEach(s => {
       const sigTime = Number(s.detected_at ?? s.time);
       if (!Number.isFinite(sigTime) || !Number.isFinite(chartNow)) return;
       const entry = Number(s.entry_price);
@@ -1272,11 +1319,11 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="overflow-hidden"
           >
-            {desc && (
-              <p className="text-sm text-gray-400 leading-relaxed mt-2">{desc.summary}</p>
+            {strategy.subtitle && (
+              <p className="text-sm text-gray-500 mt-2">{String(strategy.subtitle)}</p>
             )}
             {stats && (
-              <div className="flex items-center gap-3 mt-2 text-sm">
+              <div className="flex items-center gap-3 mt-2 text-sm flex-wrap">
                 <span className="text-gray-500">Win <span style={{ color: BULL_COLOR }} className="font-mono">{String(stats.win)}%</span></span>
                 <span className="text-gray-500">Ret <span style={{ color: BULL_COLOR }} className="font-mono">{String(stats.ret)}%</span></span>
                 <span className="text-gray-500">PF <span className="text-gray-300 font-mono">{String(stats.pf)}</span></span>
@@ -1286,9 +1333,9 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.96 }}
                   transition={BUTTON_SPRING}
-                  className="text-sm text-gray-600 hover:text-gray-400 transition-colors ml-auto"
+                  className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors ml-auto"
                 >
-                  details
+                  Read full description
                 </motion.button>
               </div>
             )}
@@ -1302,32 +1349,43 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
 function StrategyDetailOverlay({ strategy, onClose }) {
   return (
     <motion.div
-      initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-      className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      style={{ backgroundColor: 'rgba(6,13,24,0.92)' }}
     >
-      <div className="p-6">
-        <motion.button
-          type="button"
-          onClick={onClose}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.96 }}
-          transition={BUTTON_SPRING}
-          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
-        >
-          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </motion.button>
-        <h2 className="text-sm font-bold text-white">{String(strategy.name || '')}</h2>
-        <p className="text-sm text-gray-400 mt-1">{String(strategy.subtitle || '')}</p>
-        <div className="mt-6 space-y-6">
-          <p className="text-sm text-gray-300 leading-relaxed">{String(strategy.description || '')}</p>
-          {strategy.entry_logic && <div><span className="text-sm font-semibold text-emerald-400">Entry</span><p className="mt-2 text-sm text-gray-300 leading-relaxed">{String(strategy.entry_logic)}</p></div>}
-          {strategy.exit_logic && <div><span className="text-sm font-semibold text-emerald-400">Exit</span><p className="mt-2 text-sm text-gray-300 leading-relaxed">{String(strategy.exit_logic)}</p></div>}
-          {strategy.risk_management && <div><span className="text-sm font-semibold text-emerald-400">Risk</span><p className="mt-2 text-sm text-gray-300 leading-relaxed">{String(strategy.risk_management)}</p></div>}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 8 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto scrollbar-hide bg-white/[0.05] backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-[0_24px_64px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.4)]"
+      >
+        <div className="p-6 sm:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-white">{String(strategy.name || '')}</h2>
+              <p className="text-sm text-gray-400 mt-1">{String(strategy.subtitle || '')}</p>
+            </div>
+            <motion.button
+              type="button"
+              onClick={onClose}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              transition={BUTTON_SPRING}
+              className="text-gray-500 hover:text-white transition-colors flex-shrink-0"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </motion.button>
+          </div>
+          <div className="mt-6 space-y-6 text-base leading-relaxed">
+            <p className="text-gray-300">{String(strategy.description || '')}</p>
+            {strategy.entry_logic && <div><span className="text-sm font-semibold text-emerald-400">Entry</span><p className="mt-2 text-gray-300">{String(strategy.entry_logic)}</p></div>}
+            {strategy.exit_logic && <div><span className="text-sm font-semibold text-emerald-400">Exit</span><p className="mt-2 text-gray-300">{String(strategy.exit_logic)}</p></div>}
+            {strategy.risk_management && <div><span className="text-sm font-semibold text-emerald-400">Risk</span><p className="mt-2 text-gray-300">{String(strategy.risk_management)}</p></div>}
+          </div>
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -1558,7 +1616,7 @@ function StrategyRadarContent() {
   const [expandedCardId, setExpandedCardId] = useState(null);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [settings, setSettings] = useState({
-    timeframe: '1H',
+    timeframe: '1D',
     stop_loss_multiplier: 0.5,
     take_profit_multiplier: 2.5,
     risk_per_trade: 0.02,
@@ -1616,7 +1674,7 @@ function StrategyRadarContent() {
         const userSettings = await getUserSettings(user.id);
         if (userSettings) {
           setSettings({
-            timeframe: userSettings.timeframe || '1H',
+            timeframe: userSettings.timeframe || '1D',
             stop_loss_multiplier: parseFloat(userSettings.stop_loss_multiplier) || 0.5,
             take_profit_multiplier: parseFloat(userSettings.take_profit_multiplier) || 2.5,
             risk_per_trade: parseFloat(userSettings.risk_per_trade) || 0.02,
@@ -1631,8 +1689,6 @@ function StrategyRadarContent() {
       setActiveStrategies(prev => {
         const merged = { ...prev };
         VERIFIED_SIGNALS.forEach(s => { if (!(s.id in merged)) merged[s.id] = false; });
-        const anyEnabled = Object.values(merged).some(Boolean);
-        if (!anyEnabled && VERIFIED_SIGNALS.length > 0) merged[VERIFIED_SIGNALS[0].id] = true;
         return merged;
       });
       setLoading(false);
@@ -1893,6 +1949,12 @@ function StrategyRadarContent() {
               selectedTicker={selectedTicker}
               selectedTimeframe={settings.timeframe}
             />
+            {/* Trend Strength widget: only when Smart Money signal is activated; never for MSB/OB or other strategies */}
+            {activeStrategies['smart_money'] && smResults.trendDetails && smResults.trendDetails.length > 0 && (
+              <div className="absolute bottom-4 right-4 z-10 pointer-events-none">
+                <TrendStrengthMatrix trendStrength={smResults.trendStrength} confidence={smResults.confidence} trendDetails={smResults.trendDetails} />
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4 px-4 py-2 border-t border-white/6 text-sm flex-wrap">
@@ -1996,12 +2058,6 @@ function StrategyRadarContent() {
             )}
             </div>
 
-            {enabledTypes.has('smart_money') && smResults.trendDetails && smResults.trendDetails.length > 0 && (
-              <div className="p-3 border-b border-white/[0.04]">
-                <TrendStrengthMatrix trendStrength={smResults.trendStrength} confidence={smResults.confidence} trendDetails={smResults.trendDetails} />
-              </div>
-            )}
-
             <div className="p-3 border-b border-white/[0.04]">
               <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
             </div>
@@ -2017,11 +2073,14 @@ function StrategyRadarContent() {
           </div>
               </div>
 
-              <AnimatePresence>
-                {expandedStrategy && (
-                  <StrategyDetailOverlay strategy={expandedStrategy} onClose={() => setExpandedStrategy(null)} />
-                )}
-              </AnimatePresence>
+              {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                  {expandedStrategy && (
+                    <StrategyDetailOverlay strategy={expandedStrategy} onClose={() => setExpandedStrategy(null)} />
+                  )}
+                </AnimatePresence>,
+                document.body
+              )}
             </motion.div>
           )}
         </div>

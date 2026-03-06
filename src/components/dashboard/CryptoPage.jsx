@@ -377,14 +377,23 @@ function OrderEntry({
     [positionCandidates, positions]
   );
   const hasSelectedPosition = Number(selectedPosition?.quantity) > 0;
-  const recentTrades = useMemo(
-    () => (Array.isArray(trades) ? trades.slice(0, 5) : []),
-    [trades]
-  );
   const holdings = useMemo(
     () => (Array.isArray(positions) ? positions.slice(0, 5) : []),
     [positions]
   );
+  const { totalHoldingsValue, holdingsPercentOfAccount } = useMemo(() => {
+    let total = 0;
+    holdings.forEach((position) => {
+      const qty = Number(position.quantity) || 0;
+      const val = Number(position.market_value);
+      const price = Number(position.current_price) || Number(position.avg_cost_basis) || 0;
+      total += Number.isFinite(val) && val > 0 ? val : qty * price;
+    });
+    const cash = Number(portfolio?.cash_balance || 0);
+    const accountValue = total + cash;
+    const percent = accountValue > 0 ? (total / accountValue) * 100 : 0;
+    return { totalHoldingsValue: total, holdingsPercentOfAccount: percent };
+  }, [holdings, portfolio?.cash_balance]);
   const accountBuyingPowerDisplay = formatPaperCurrency(portfolio?.cash_balance);
   const availableCash = Number(portfolio?.cash_balance || 0);
   const selectedPositionQtyOwned = Number(selectedPosition?.quantity || 0);
@@ -716,49 +725,43 @@ function OrderEntry({
           </div>
         ) : null}
 
-        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
+        <div className="rounded-xl border border-white/[0.06] bg-black/40 px-3 py-2.5 backdrop-blur-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] transition-all duration-300">
           <div className="flex items-center justify-between">
-            <span className="uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
-            <span className="font-semibold text-white">{accountBuyingPowerDisplay}</span>
+            <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
+            <span className="text-[14px] font-mono font-semibold text-white">{accountBuyingPowerDisplay}</span>
           </div>
         </div>
 
-        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+        <div className="rounded-xl border border-white/[0.06] bg-black/40 px-3 py-2.5 backdrop-blur-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] transition-all duration-300">
+          <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
           </div>
           {holdings.length > 0 ? (
-            <div className="mt-0.5 space-y-0.5">
-              {holdings.map((position) => (
-                <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-300">
-                    {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
-                  </span>
-                  <span className={Number(position.pnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {formatPaperCurrency(position.pnl)}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-1 space-y-1">
+              {holdings.map((position) => {
+                const qty = Number(position.quantity) || 0;
+                const val = Number(position.market_value);
+                const price = Number(position.current_price) || Number(position.avg_cost_basis) || 0;
+                const currentValue = Number.isFinite(val) && val > 0 ? val : qty * price;
+                return (
+                  <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
+                    <span className="text-[14px] font-medium text-slate-300">
+                      {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
+                    </span>
+                    <span className="text-[14px] font-mono font-semibold text-emerald-400">
+                      {formatPaperCurrency(currentValue)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : null}
-        </div>
-
-        <div className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-[11px]">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
-            Recent Trades {recentTrades.length ? `(${recentTrades.length})` : '(0)'}
+          <div className="mt-1 pt-1.5 flex items-center justify-between gap-2 border-t border-white/[0.06]">
+            <span className="text-[13px] font-semibold text-slate-400">Total</span>
+            <span className="text-[14px] font-mono font-semibold text-emerald-400">
+              {formatPaperCurrency(totalHoldingsValue)} ({Number(holdingsPercentOfAccount).toFixed(1)}%)
+            </span>
           </div>
-          {recentTrades.length > 0 ? (
-            <div className="mt-0.5 space-y-0.5">
-              {recentTrades.map((trade) => (
-                <div key={`paper-trade-${trade.id}`} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-300">
-                    {trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}
-                  </span>
-                  <span className="text-slate-500">{formatPaperTimestamp(trade.created_at)}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
       </div>
 

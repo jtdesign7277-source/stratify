@@ -58,7 +58,7 @@ const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
 const MAX_SYMBOL_SEARCH_RESULTS = 50;
 const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'ASX', 'TSE', 'CRYPTO', 'INDEX'];
 const DEFAULT_ACTIVE_MARKET = 'us';
-const DEFAULT_CHART_TIMEFRAME = '5M';
+const DEFAULT_CHART_TIMEFRAME = '1D';
 const MAX_CHART_OUTPUTSIZE = '5000';
 const MARKET_FILTERS = [
   { id: 'us', label: '🇺🇸 NYSE', exchanges: ['NASDAQ', 'NYSE'] },
@@ -191,7 +191,9 @@ const GLASS_TOPBAR_STYLE = {
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35)',
   backdropFilter: 'blur(16px)',
 };
-const GLASS_INSET_CARD_CLASS = 'rounded-lg border border-white/[0.12] bg-white/[0.035] px-2.5 py-2 text-[11px] backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_24px_rgba(0,0,0,0.32)]';
+// Soft-glass inset cards (stratify-platform + soft-glass-ui): depth + subtle gradient
+const GLASS_INSET_CARD_CLASS =
+  'rounded-xl border border-white/[0.06] bg-black/40 px-3 py-2.5 backdrop-blur-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] transition-all duration-300';
 const GLASS_INSET_INPUT_CLASS = 'h-[36px] w-full rounded-lg border border-white/[0.14] bg-[#0b0b0b] px-3 text-[13px] font-semibold text-white outline-none backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors focus:border-emerald-500/55';
 
 const modalBackdropMotion = {
@@ -981,6 +983,7 @@ function TraderOrderEntry({
   onOrderPlaced,
   tradingMode: _tradingMode = 'paper',
   canUseLiveTrading: _canUseLiveTrading = true,
+  quotesBySymbol: quotesBySymbolProp = {},
 }) {
   const {
     portfolio,
@@ -1051,14 +1054,24 @@ function TraderOrderEntry({
     [positions, selectedSymbol]
   );
   const hasSelectedPosition = Number(selectedPosition?.quantity) > 0;
-  const recentTrades = useMemo(
-    () => (Array.isArray(trades) ? trades.slice(0, 5) : []),
-    [trades]
-  );
   const holdings = useMemo(
     () => (Array.isArray(positions) ? positions.slice(0, 5) : []),
     [positions]
   );
+  const { totalHoldingsValue, holdingsPercentOfAccount } = useMemo(() => {
+    let total = 0;
+    holdings.forEach((position) => {
+      const qty = Number(position.quantity) || 0;
+      const quote = quotesBySymbolProp[position.symbol] || quotesBySymbolProp[position.symbol?.trim?.()];
+      const livePrice = toNumber(quote?.price ?? quote?.last ?? quote?.close ?? quote?.ask ?? quote?.bid);
+      const price = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : (Number(position.current_price) || Number(position.avg_cost_basis) || 0);
+      total += qty * price;
+    });
+    const cash = toNumber(portfolio?.cash_balance, 0);
+    const accountValue = total + cash;
+    const percent = accountValue > 0 ? (total / accountValue) * 100 : 0;
+    return { totalHoldingsValue: total, holdingsPercentOfAccount: percent };
+  }, [holdings, portfolio?.cash_balance, quotesBySymbolProp]);
   const buyingPowerDisplay = formatPaperCurrency(portfolio?.cash_balance);
   const availableCash = toNumber(portfolio?.cash_balance, 0);
   const selectedPositionQtyOwned = toNumber(selectedPosition?.quantity, 0);
@@ -1240,7 +1253,7 @@ function TraderOrderEntry({
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-y-auto">
+    <div className="relative flex min-h-0 flex-col">
       <OrderTicketPanel
         side={side}
         onSideChange={setSide}
@@ -1386,47 +1399,42 @@ className={`py-1 text-[13px] font-semibold transition-colors ${
 
         <div className={GLASS_INSET_CARD_CLASS}>
           <div className="flex items-center justify-between">
-            <span className="uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
-            <span className="font-semibold text-white">{buyingPowerDisplay}</span>
+            <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
+            <span className="text-[14px] font-mono font-semibold text-white">{buyingPowerDisplay}</span>
           </div>
         </div>
 
         <div className={GLASS_INSET_CARD_CLASS}>
-          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+          <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
           </div>
           {holdings.length > 0 ? (
-            <div className="mt-0.5 space-y-0.5">
-              {holdings.map((position) => (
-                <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-300">
-                    {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
-                  </span>
-                  <span className={Number(position.pnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {formatPaperCurrency(position.pnl)}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-1 space-y-1">
+              {holdings.map((position) => {
+                const qty = Number(position.quantity) || 0;
+                const quote = quotesBySymbolProp[position.symbol] || quotesBySymbolProp[position.symbol?.trim?.()];
+                const livePrice = toNumber(quote?.price ?? quote?.last ?? quote?.close ?? quote?.ask ?? quote?.bid);
+                const price = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : (Number(position.current_price) || Number(position.avg_cost_basis) || 0);
+                const currentValue = qty * price;
+                return (
+                  <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
+                    <span className="text-[14px] font-medium text-slate-300">
+                      {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
+                    </span>
+                    <span className="text-[14px] font-mono font-semibold text-emerald-400">
+                      {formatPaperCurrency(currentValue)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : null}
-        </div>
-
-        <div className={GLASS_INSET_CARD_CLASS}>
-          <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
-            Recent Trades {recentTrades.length ? `(${recentTrades.length})` : '(0)'}
+          <div className="mt-1 pt-1.5 flex items-center justify-between gap-2 border-t border-white/[0.06]">
+            <span className="text-[13px] font-semibold text-slate-400">Total</span>
+            <span className="text-[14px] font-mono font-semibold text-emerald-400">
+              {formatPaperCurrency(totalHoldingsValue)} ({Number(holdingsPercentOfAccount).toFixed(1)}%)
+            </span>
           </div>
-          {recentTrades.length > 0 ? (
-            <div className="mt-0.5 space-y-0.5">
-              {recentTrades.map((trade) => (
-                <div key={`paper-trade-${trade.id}`} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-300">
-                    {trade.side === 'buy' ? 'B' : 'S'} {formatPaperSymbol(trade.symbol)} {formatPaperQuantity(trade.quantity)}
-                  </span>
-                  <span className="text-slate-500">{formatPaperTimestamp(trade.created_at)}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -1760,13 +1768,20 @@ export default function TraderPage({
     () => [...new Set(searchResults.map((result) => normalizeSymbol(result?.symbol)).filter(Boolean))],
     [searchResults]
   );
+  const { portfolio: paperPortfolio } = usePaperTrading();
   const streamSubscriptionSymbols = useMemo(() => {
     const next = [...watchlistSymbols];
     if (isSearchDropdownOpen) {
       next.push(...searchResultSymbols);
     }
+    // Include paper holdings so Order Entry holdings panel gets real-time values
+    const positions = Array.isArray(paperPortfolio?.positions) ? paperPortfolio.positions : [];
+    positions.forEach((p) => {
+      const sym = normalizeSymbol(p?.symbol);
+      if (sym) next.push(sym);
+    });
     return [...new Set(next)];
-  }, [isSearchDropdownOpen, searchResultSymbols, watchlistSymbols]);
+  }, [isSearchDropdownOpen, paperPortfolio?.positions, searchResultSymbols, watchlistSymbols]);
   const streamSubscriptionKey = useMemo(
     () => [...streamSubscriptionSymbols].sort().join(','),
     [streamSubscriptionSymbols]
@@ -1779,7 +1794,6 @@ export default function TraderPage({
     () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))].sort().join(','),
     [watchlist]
   );
-  const { portfolio: paperPortfolio } = usePaperTrading();
   const selectedTicker = selectedSymbol;
   const setSelectedTicker = setSelectedSymbol;
   const { sentimentMap } = useSentiment(watchlistSymbols);
@@ -4703,10 +4717,13 @@ export default function TraderPage({
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
-                    background: "#0b0b0b",
+                    background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)",
+                    backdropFilter: "blur(24px)",
+                    WebkitBackdropFilter: "blur(24px)",
                     borderTop: "1px solid rgba(255,255,255,0.06)",
                     width: drawerArticle ? "50%" : "100%",
                     borderRight: drawerArticle ? "1px solid rgba(255,255,255,0.08)" : "none",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)",
                     transition: "width 220ms ease",
                   }}
                 >
@@ -5054,12 +5071,13 @@ export default function TraderPage({
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide">
                   <TraderOrderEntry
                     selectedSymbol={selectedSymbol}
                     lastPrice={selectedMarketPrice}
                     tradingMode={resolvedTradingMode}
                     canUseLiveTrading={resolvedCanUseLiveTrading}
+                    quotesBySymbol={quotesBySymbol}
                     onSymbolChange={(symbolInput) => {
                       const normalized = normalizeSymbol(symbolInput);
                       if (!normalized) return;
