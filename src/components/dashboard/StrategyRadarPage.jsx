@@ -13,6 +13,7 @@ import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import FloatingDrawingToolbar from './FloatingDrawingToolbar';
+import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import gsap from 'gsap';
 import CountUp from 'react-countup';
 import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
@@ -466,8 +467,16 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
   const setSelectedDrawingToolRef = useRef(null);
   const draggingPriceLineRef = useRef(null);
   const drawingDragCleanupRef = useRef(null);
+  const drawingPreviewSeriesRef = useRef(null);
+  const drawingLastCrosshairRef = useRef(null);
+  const drawingDragStartedRef = useRef(false);
+  const drawingJustFinishedViaMouseupRef = useRef(false);
+  const selectedTickerRef = useRef(selectedTicker);
   const [selectedDrawingTool, setSelectedDrawingTool] = useState(null);
 
+  useEffect(() => {
+    selectedTickerRef.current = selectedTicker;
+  }, [selectedTicker]);
   useEffect(() => {
     selectedDrawingToolRef.current = selectedDrawingTool;
   }, [selectedDrawingTool]);
@@ -476,6 +485,10 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
   }, []);
   useEffect(() => {
     drawingPendingPointRef.current = null;
+    if (drawingDragCleanupRef.current) {
+      drawingDragCleanupRef.current();
+      drawingDragCleanupRef.current = null;
+    }
   }, [selectedDrawingTool]);
 
   useEffect(() => {
@@ -531,11 +544,11 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     };
   }, []);
 
-  const clearDrawingLines = useCallback(() => {
+  const clearDrawingLines = useCallback((opts) => {
+    const skipSave = opts?.skipSave === true;
     const chart = chartRef.current;
     const series = candleSeriesRef.current;
     if (!series) return;
-    // Remove every custom price line from the series (fixes stuck lines when our refs were lost)
     try {
       const allPriceLines = series.priceLines?.() ?? [];
       allPriceLines.forEach((line) => {
@@ -558,6 +571,10 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     });
     drawingRectanglesRef.current = [];
     drawingPendingPointRef.current = null;
+    if (!skipSave) {
+      const sym = selectedTickerRef.current;
+      if (sym) saveDrawings('radar', sym, { horizontal: [], trends: [], rectangles: [] });
+    }
   }, []);
 
   const LINE_SOLID = 0;
@@ -591,6 +608,12 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
           const onUp = () => {
             if (drawingDragCleanupRef.current) drawingDragCleanupRef.current();
             drawingDragCleanupRef.current = null;
+            const sym = selectedTickerRef.current;
+            if (sym) {
+              const prices = drawingPriceLinesRef.current.map((pl) => pl.options().price);
+              const stored = getStoredDrawings('radar', sym);
+              saveDrawings('radar', sym, { ...stored, horizontal: prices });
+            }
             draggingPriceLineRef.current = null;
           };
           chart.subscribeCrosshairMove(onMove);
@@ -605,25 +628,108 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       }
       const line = series.createPriceLine({
         price: numPrice,
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LINE_SOLID,
         axisLabelVisible: true,
         color: '#10b981',
       });
       drawingPriceLinesRef.current.push(line);
+      const sym = selectedTickerRef.current;
+      if (sym) {
+        const stored = getStoredDrawings('radar', sym);
+        saveDrawings('radar', sym, { ...stored, horizontal: [...stored.horizontal, numPrice] });
+      }
       setSelectedDrawingToolRef.current?.(null);
       return;
     }
 
     if (tool === 'trend' || tool === 'line-segment') {
+      if (drawingJustFinishedViaMouseupRef.current) {
+        drawingJustFinishedViaMouseupRef.current = false;
+        return;
+      }
       const pending = drawingPendingPointRef.current;
       if (!pending) {
         drawingPendingPointRef.current = { time, price: numPrice };
+        drawingLastCrosshairRef.current = { time, value: numPrice };
+        drawingDragStartedRef.current = false;
+        const previewOpts = {
+          color: '#10b981',
+          lineWidth: 1,
+          lineStyle: LINE_SOLID,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        };
+        const previewSeries = addLineSeriesCompat(chart, previewOpts);
+        previewSeries.setData([
+          { time, value: numPrice },
+          { time, value: numPrice },
+        ]);
+        drawingPreviewSeriesRef.current = previewSeries;
+        const container = chartContainerRef.current;
+        const onMove = (e) => {
+          const p = drawingPendingPointRef.current;
+          const s = candleSeriesRef.current;
+          const ts = chart.timeScale();
+          if (!p || !s || !container) return;
+          const rect = container.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const movePrice = s.coordinateToPrice(y);
+          const moveTime = ts.coordinateToTime(x);
+          if (movePrice == null || !Number.isFinite(movePrice) || moveTime == null) return;
+          drawingDragStartedRef.current = true;
+          drawingLastCrosshairRef.current = { time: moveTime, value: Number(movePrice) };
+          const prev = drawingPreviewSeriesRef.current;
+          if (prev) prev.setData([{ time: p.time, value: p.price }, { time: moveTime, value: Number(movePrice) }]);
+        };
+        const onUp = () => {
+          const cleanup = drawingDragCleanupRef.current;
+          if (cleanup) cleanup();
+          drawingDragCleanupRef.current = null;
+          const prev = drawingPreviewSeriesRef.current;
+          if (prev) {
+            try { chart.removeSeries(prev); } catch (_) {}
+            drawingPreviewSeriesRef.current = null;
+          }
+          const p = drawingPendingPointRef.current;
+          const last = drawingLastCrosshairRef.current;
+          if (drawingDragStartedRef.current && p && last) {
+            const lineSeries = addLineSeriesCompat(chart, {
+              color: '#10b981',
+              lineWidth: 1,
+              lineStyle: LINE_SOLID,
+              lastValueVisible: false,
+              priceLineVisible: false,
+              crosshairMarkerVisible: false,
+            });
+            lineSeries.setData([{ time: p.time, value: p.price }, { time: last.time, value: last.value }]);
+            drawingTrendLinesRef.current.push(lineSeries);
+            const symTrend = selectedTickerRef.current;
+            if (symTrend) {
+              const stored = getStoredDrawings('radar', symTrend);
+              saveDrawings('radar', symTrend, {
+                ...stored,
+                trends: [...stored.trends, { points: [{ time: p.time, value: p.price }, { time: last.time, value: last.value }] }],
+              });
+            }
+            setSelectedDrawingToolRef.current?.(null);
+            drawingJustFinishedViaMouseupRef.current = true;
+            drawingPendingPointRef.current = null;
+          }
+        };
+        window.addEventListener('mousemove', onMove, { passive: true });
+        window.addEventListener('mouseup', onUp, { once: true });
+        drawingDragCleanupRef.current = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+        };
         return;
       }
       const lineSeries = addLineSeriesCompat(chart, {
         color: '#10b981',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LINE_SOLID,
         lastValueVisible: false,
         priceLineVisible: false,
@@ -634,6 +740,14 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         { time, value: numPrice },
       ]);
       drawingTrendLinesRef.current.push(lineSeries);
+      const symTrend = selectedTickerRef.current;
+      if (symTrend) {
+        const stored = getStoredDrawings('radar', symTrend);
+        saveDrawings('radar', symTrend, {
+          ...stored,
+          trends: [...stored.trends, { points: [{ time: pending.time, value: pending.price }, { time, value: numPrice }] }],
+        });
+      }
       drawingPendingPointRef.current = null;
       setSelectedDrawingToolRef.current?.(null);
       return;
@@ -651,7 +765,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       const p2 = numPrice;
       const rectOpts = {
         color: '#10b981',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LINE_SOLID,
         lastValueVisible: false,
         priceLineVisible: false,
@@ -667,6 +781,14 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       const left = addLineSeriesCompat(chart, rectOpts);
       left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
       drawingRectanglesRef.current.push(top, right, bottom, left);
+      const symRect = selectedTickerRef.current;
+      if (symRect) {
+        const stored = getStoredDrawings('radar', symRect);
+        saveDrawings('radar', symRect, {
+          ...stored,
+          rectangles: [...stored.rectangles, { t1, t2, p1, p2 }],
+        });
+      }
       drawingPendingPointRef.current = null;
       setSelectedDrawingToolRef.current?.(null);
     }
@@ -683,6 +805,51 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       } catch (_) {}
     };
   }, [drawingClickHandler]);
+
+  // Restore persisted drawings when symbol or candles change
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    if (!chart || !series || !selectedTicker || !candles.length) return;
+    clearDrawingLines({ skipSave: true });
+    const stored = getStoredDrawings('radar', selectedTicker);
+    const lineOpts = {
+      lineWidth: 1,
+      lineStyle: LINE_SOLID,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+    };
+    (stored.horizontal || []).forEach((price) => {
+      const line = series.createPriceLine({
+        price: Number(price),
+        lineWidth: 1,
+        lineStyle: LINE_SOLID,
+        axisLabelVisible: true,
+        color: '#10b981',
+      });
+      drawingPriceLinesRef.current.push(line);
+    });
+    (stored.trends || []).forEach(({ points }) => {
+      if (!Array.isArray(points) || points.length < 2) return;
+      const lineSeries = addLineSeriesCompat(chart, { color: '#10b981', ...lineOpts });
+      lineSeries.setData(points.map((p) => ({ time: p.time, value: p.value })));
+      drawingTrendLinesRef.current.push(lineSeries);
+    });
+    (stored.rectangles || []).forEach(({ t1, t2, p1, p2 }) => {
+      const rectOpts = { color: '#10b981', ...lineOpts };
+      const top = addLineSeriesCompat(chart, rectOpts);
+      top.setData([{ time: t1, value: p1 }, { time: t2, value: p1 }]);
+      const bottom = addLineSeriesCompat(chart, rectOpts);
+      bottom.setData([{ time: t2, value: p2 }, { time: t1, value: p2 }]);
+      const tOff = typeof t1 === 'number' && typeof t2 === 'number' ? 1 : 0;
+      const right = addLineSeriesCompat(chart, rectOpts);
+      right.setData([{ time: t2, value: p1 }, { time: t2 + tOff, value: p2 }]);
+      const left = addLineSeriesCompat(chart, rectOpts);
+      left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
+      drawingRectanglesRef.current.push(top, right, bottom, left);
+    });
+  }, [selectedTicker, candles.length, clearDrawingLines]);
 
   useEffect(() => {
     if (!candleSeriesRef.current || !candles.length) return;
@@ -802,6 +969,48 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         });
         msbLine.setData([{ time: Math.min(pivotTime, msbTime), value: level }, { time: Math.max(pivotTime, msbTime), value: level }]);
         obOverlaySeriesRef.current.push(msbLine);
+      });
+
+      // CHoCH structure level lines (Smart Money)
+      (chochEvents || []).slice(-8).forEach(ev => {
+        const evBar = Number(ev.bar);
+        const evTime = Number(ev.time);
+        const level = Number(ev?.level);
+        if (!Number.isFinite(evBar) || !Number.isFinite(evTime) || !Number.isFinite(level)) return;
+        const startIdx = Math.max(0, evBar - 15);
+        const startTime = Number(candles[startIdx]?.time);
+        if (!Number.isFinite(startTime)) return;
+        const chochLine = addLineSeriesCompat(chartRef.current, {
+          color: CHOCH_COLOR,
+          lineWidth: 1,
+          lineStyle: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        chochLine.setData([{ time: startTime, value: level }, { time: evTime, value: level }]);
+        obOverlaySeriesRef.current.push(chochLine);
+      });
+
+      // BOS structure level lines (Smart Money)
+      (bosEvents || []).slice(-8).forEach(ev => {
+        const evBar = Number(ev.bar);
+        const evTime = Number(ev.time);
+        const level = Number(ev?.level);
+        if (!Number.isFinite(evBar) || !Number.isFinite(evTime) || !Number.isFinite(level)) return;
+        const startIdx = Math.max(0, evBar - 15);
+        const startTime = Number(candles[startIdx]?.time);
+        if (!Number.isFinite(startTime)) return;
+        const bosLine = addLineSeriesCompat(chartRef.current, {
+          color: BOS_COLOR,
+          lineWidth: 1,
+          lineStyle: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        bosLine.setData([{ time: startTime, value: level }, { time: evTime, value: level }]);
+        obOverlaySeriesRef.current.push(bosLine);
       });
     }
 
@@ -1567,13 +1776,15 @@ function StrategyRadarContent() {
     if (user) await upsertUserSettings(user.id, newSettings);
   }, [settings]);
 
-  const handleToggleStrategy = useCallback(async (strategyId) => {
+  const handleToggleStrategy = useCallback((strategyId) => {
+    const wasOff = !activeStrategies[strategyId];
     setActiveStrategies(prev => {
       const next = { ...prev, [strategyId]: !prev[strategyId] };
       supabase.auth.getUser().then(({ data: { user } }) => { if (user) saveActiveStrategy(user.id, strategyId, next[strategyId]); });
       return next;
     });
-  }, []);
+    if (wasOff) setFetchKey(k => k + 1);
+  }, [activeStrategies]);
 
   const currentTickerSignals = useMemo(() => {
     const cutoff7d = Date.now() - 7 * 24 * 60 * 60 * 1000;

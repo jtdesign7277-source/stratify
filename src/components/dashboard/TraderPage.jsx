@@ -13,6 +13,7 @@ import SentimentBadge from './SentimentBadge';
 import ErrorBoundary from '../shared/AppErrorBoundary';
 import MiniGamePill from '../shared/MiniGamePill';
 import FloatingDrawingToolbar from './FloatingDrawingToolbar';
+import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 
 function newsTimeAgo(dateStr) {
   if (!dateStr) return '';
@@ -1705,6 +1706,10 @@ export default function TraderPage({
   const setSelectedDrawingToolRef = useRef(null);
   const draggingPriceLineRef = useRef(null);
   const drawingDragCleanupRef = useRef(null);
+  const drawingPreviewSeriesRef = useRef(null);
+  const drawingLastCrosshairRef = useRef(null);
+  const drawingDragStartedRef = useRef(false);
+  const drawingJustFinishedViaMouseupRef = useRef(false);
   const [selectedDrawingTool, setSelectedDrawingTool] = useState(null);
 
   useEffect(() => {
@@ -1715,6 +1720,10 @@ export default function TraderPage({
   }, []);
   useEffect(() => {
     drawingPendingPointRef.current = null;
+    if (drawingDragCleanupRef.current) {
+      drawingDragCleanupRef.current();
+      drawingDragCleanupRef.current = null;
+    }
   }, [selectedDrawingTool]);
 
   const wsRef = useRef(null);
@@ -2663,7 +2672,8 @@ export default function TraderPage({
     };
   }, []);
 
-  const clearDrawingLines = useCallback(() => {
+  const clearDrawingLines = useCallback((opts) => {
+    const skipSave = opts?.skipSave === true;
     const chart = chartRef.current;
     const series = candleSeriesRef.current;
     if (!series) return;
@@ -2690,6 +2700,10 @@ export default function TraderPage({
     });
     drawingRectanglesRef.current = [];
     drawingPendingPointRef.current = null;
+    if (!skipSave) {
+      const sym = selectedSymbolRef.current;
+      if (sym) saveDrawings('trader', sym, { horizontal: [], trends: [], rectangles: [] });
+    }
   }, []);
 
   // Drawing tools: one stable handler reads current tool from ref so all tools work; proper unsubscribe
@@ -2721,6 +2735,12 @@ export default function TraderPage({
           const onUp = () => {
             if (drawingDragCleanupRef.current) drawingDragCleanupRef.current();
             drawingDragCleanupRef.current = null;
+            const sym = selectedSymbolRef.current;
+            if (sym) {
+              const prices = drawingPriceLinesRef.current.map((pl) => pl.options().price);
+              const stored = getStoredDrawings('trader', sym);
+              saveDrawings('trader', sym, { ...stored, horizontal: prices });
+            }
             draggingPriceLineRef.current = null;
           };
           chart.subscribeCrosshairMove(onMove);
@@ -2735,25 +2755,108 @@ export default function TraderPage({
       }
       const line = series.createPriceLine({
         price: numPrice,
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LineStyle.Solid,
         axisLabelVisible: true,
         color: '#10b981',
       });
       drawingPriceLinesRef.current.push(line);
+      const sym = selectedSymbolRef.current;
+      if (sym) {
+        const stored = getStoredDrawings('trader', sym);
+        saveDrawings('trader', sym, { ...stored, horizontal: [...stored.horizontal, numPrice] });
+      }
       setSelectedDrawingToolRef.current?.(null);
       return;
     }
 
     if (tool === 'trend' || tool === 'line-segment') {
+      if (drawingJustFinishedViaMouseupRef.current) {
+        drawingJustFinishedViaMouseupRef.current = false;
+        return;
+      }
       const pending = drawingPendingPointRef.current;
       if (!pending) {
         drawingPendingPointRef.current = { time, price: numPrice };
+        drawingLastCrosshairRef.current = { time, value: numPrice };
+        drawingDragStartedRef.current = false;
+        const previewOpts = {
+          color: '#10b981',
+          lineWidth: 1,
+          lineStyle: LineStyle.Solid,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        };
+        const previewSeries = chart.addSeries(LineSeries, previewOpts);
+        previewSeries.setData([
+          { time, value: numPrice },
+          { time, value: numPrice },
+        ]);
+        drawingPreviewSeriesRef.current = previewSeries;
+        const container = chartContainerRef.current;
+        const onMove = (e) => {
+          const p = drawingPendingPointRef.current;
+          const s = candleSeriesRef.current;
+          const ts = chart.timeScale();
+          if (!p || !s || !container) return;
+          const rect = container.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const movePrice = s.coordinateToPrice(y);
+          const moveTime = ts.coordinateToTime(x);
+          if (movePrice == null || !Number.isFinite(movePrice) || moveTime == null) return;
+          drawingDragStartedRef.current = true;
+          drawingLastCrosshairRef.current = { time: moveTime, value: Number(movePrice) };
+          const prev = drawingPreviewSeriesRef.current;
+          if (prev) prev.setData([{ time: p.time, value: p.price }, { time: moveTime, value: Number(movePrice) }]);
+        };
+        const onUp = () => {
+          const cleanup = drawingDragCleanupRef.current;
+          if (cleanup) cleanup();
+          drawingDragCleanupRef.current = null;
+          const prev = drawingPreviewSeriesRef.current;
+          if (prev) {
+            try { chart.removeSeries(prev); } catch (_) {}
+            drawingPreviewSeriesRef.current = null;
+          }
+          const p = drawingPendingPointRef.current;
+          const last = drawingLastCrosshairRef.current;
+          if (drawingDragStartedRef.current && p && last) {
+            const lineSeries = chart.addSeries(LineSeries, {
+              color: '#10b981',
+              lineWidth: 1,
+              lineStyle: LineStyle.Solid,
+              lastValueVisible: false,
+              priceLineVisible: false,
+              crosshairMarkerVisible: false,
+            });
+            lineSeries.setData([{ time: p.time, value: p.price }, { time: last.time, value: last.value }]);
+            drawingTrendLinesRef.current.push(lineSeries);
+            const symTrend = selectedSymbolRef.current;
+            if (symTrend) {
+              const stored = getStoredDrawings('trader', symTrend);
+              saveDrawings('trader', symTrend, {
+                ...stored,
+                trends: [...stored.trends, { points: [{ time: p.time, value: p.price }, { time: last.time, value: last.value }] }],
+              });
+            }
+            setSelectedDrawingToolRef.current?.(null);
+            drawingJustFinishedViaMouseupRef.current = true;
+            drawingPendingPointRef.current = null;
+          }
+        };
+        window.addEventListener('mousemove', onMove, { passive: true });
+        window.addEventListener('mouseup', onUp, { once: true });
+        drawingDragCleanupRef.current = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+        };
         return;
       }
       const lineSeries = chart.addSeries(LineSeries, {
         color: '#10b981',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LineStyle.Solid,
         lastValueVisible: false,
         priceLineVisible: false,
@@ -2764,6 +2867,14 @@ export default function TraderPage({
         { time, value: numPrice },
       ]);
       drawingTrendLinesRef.current.push(lineSeries);
+      const symTrend = selectedSymbolRef.current;
+      if (symTrend) {
+        const stored = getStoredDrawings('trader', symTrend);
+        saveDrawings('trader', symTrend, {
+          ...stored,
+          trends: [...stored.trends, { points: [{ time: pending.time, value: pending.price }, { time, value: numPrice }] }],
+        });
+      }
       drawingPendingPointRef.current = null;
       setSelectedDrawingToolRef.current?.(null);
       return;
@@ -2781,7 +2892,7 @@ export default function TraderPage({
       const p2 = numPrice;
       const rectOpts = {
         color: '#10b981',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LineStyle.Solid,
         lastValueVisible: false,
         priceLineVisible: false,
@@ -2797,6 +2908,14 @@ export default function TraderPage({
       const left = chart.addSeries(LineSeries, rectOpts);
       left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
       drawingRectanglesRef.current.push(top, right, bottom, left);
+      const symRect = selectedSymbolRef.current;
+      if (symRect) {
+        const stored = getStoredDrawings('trader', symRect);
+        saveDrawings('trader', symRect, {
+          ...stored,
+          rectangles: [...stored.rectangles, { t1, t2, p1, p2 }],
+        });
+      }
       drawingPendingPointRef.current = null;
       setSelectedDrawingToolRef.current?.(null);
     }
@@ -2812,6 +2931,54 @@ export default function TraderPage({
       } catch (_) {}
     };
   }, [chartReady, drawingClickHandler]);
+
+  // Restore persisted drawings when chart is ready or symbol changes
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    if (!chartReady || !chart || !series || !selectedSymbol) return;
+    clearDrawingLines({ skipSave: true });
+    const stored = getStoredDrawings('trader', selectedSymbol);
+    const lineOpts = {
+      lineWidth: 1,
+      lineStyle: LineStyle.Solid,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+    };
+    (stored.horizontal || []).forEach((price) => {
+      const line = series.createPriceLine({
+        price: Number(price),
+        lineWidth: 1,
+        lineStyle: LineStyle.Solid,
+        axisLabelVisible: true,
+        color: '#10b981',
+      });
+      drawingPriceLinesRef.current.push(line);
+    });
+    (stored.trends || []).forEach(({ points }) => {
+      if (!Array.isArray(points) || points.length < 2) return;
+      const lineSeries = chart.addSeries(LineSeries, {
+        color: '#10b981',
+        ...lineOpts,
+      });
+      lineSeries.setData(points.map((p) => ({ time: p.time, value: p.value })));
+      drawingTrendLinesRef.current.push(lineSeries);
+    });
+    (stored.rectangles || []).forEach(({ t1, t2, p1, p2 }) => {
+      const rectOpts = { color: '#10b981', ...lineOpts };
+      const top = chart.addSeries(LineSeries, rectOpts);
+      top.setData([{ time: t1, value: p1 }, { time: t2, value: p1 }]);
+      const bottom = chart.addSeries(LineSeries, rectOpts);
+      bottom.setData([{ time: t2, value: p2 }, { time: t1, value: p2 }]);
+      const tOff = typeof t1 === 'number' && typeof t2 === 'number' ? 1 : 0;
+      const right = chart.addSeries(LineSeries, rectOpts);
+      right.setData([{ time: t2, value: p1 }, { time: t2 + tOff, value: p2 }]);
+      const left = chart.addSeries(LineSeries, rectOpts);
+      left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
+      drawingRectanglesRef.current.push(top, right, bottom, left);
+    });
+  }, [chartReady, selectedSymbol, clearDrawingLines]);
 
   const resetChartSeries = useCallback(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
