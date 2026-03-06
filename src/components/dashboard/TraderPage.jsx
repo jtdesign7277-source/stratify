@@ -3442,12 +3442,14 @@ export default function TraderPage({
     ...GLASS_SHELL_STYLE,
     boxShadow: '0 20px 44px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px rgba(16,185,129,0.1)',
   };
+  const isMediumArticleDrawerLayout = Boolean(drawerArticle && isNewsOpen && !isArticleDrawerExtendedToChartTop);
 
   return (
     <motion.div
       {...PAGE_TRANSITION}
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-[#e5e7eb]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a' }}
     >
+      {!isMediumArticleDrawerLayout ? (
       <div className="flex h-[68px] shrink-0 items-center justify-between px-4 py-3 backdrop-blur-xl" style={GLASS_TOPBAR_STYLE}>
         <div className="flex items-center gap-2">
           <button
@@ -3568,6 +3570,7 @@ export default function TraderPage({
           </div>
         </div>
       </div>
+      ) : null}
 
       <motion.div
         {...sectionMotion(0)}
@@ -4284,7 +4287,7 @@ export default function TraderPage({
                 style={{
                   flex: 1,
                   overflow: 'hidden',
-                  width: drawerArticle && isNewsOpen && isArticleDrawerExtendedToChartTop ? '42%' : '100%',
+                  width: drawerArticle && isNewsOpen && isArticleDrawerExtendedToChartTop ? '50%' : '100%',
                   alignSelf: 'flex-start',
                   transition: 'width 220ms ease',
                 }}
@@ -4310,7 +4313,7 @@ export default function TraderPage({
                 onClick={toggleNewsPanelCollapsed}
                 className="relative z-[420] flex h-8 shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer pointer-events-auto"
                 style={{
-                  width: drawerArticle ? '42%' : '100%',
+                  width: drawerArticle ? '50%' : '100%',
                   background: 'rgba(11,11,11,0.97)',
                   borderTop: '1px solid rgba(255,255,255,0.08)',
                   borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none',
@@ -4355,7 +4358,7 @@ export default function TraderPage({
                     overflow: "hidden",
                     background: "#0b0b0b",
                     borderTop: "1px solid rgba(255,255,255,0.06)",
-                    width: drawerArticle ? "42%" : "100%",
+                    width: drawerArticle ? "50%" : "100%",
                     borderRight: drawerArticle ? "1px solid rgba(255,255,255,0.08)" : "none",
                     transition: "width 220ms ease",
                   }}
@@ -4492,7 +4495,7 @@ export default function TraderPage({
                       animate={{ x: 0, opacity: 1 }}
                       exit={{ x: 40, opacity: 0 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-                      style={{ position: "absolute", top: drawerTopOffset, right: 0, bottom: 0, width: "58%", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
+                      style={{ position: "absolute", top: drawerTopOffset, right: 0, bottom: 0, width: "50%", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
                     >
                       <button
                         type="button"
