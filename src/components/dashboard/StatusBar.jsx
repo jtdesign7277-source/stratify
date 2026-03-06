@@ -368,7 +368,7 @@ export default function StatusBar({
           <div className={`w-2 h-2 rounded-full ${status.color} ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} />
           <button
             onClick={handleOpenNewsletter}
-            className="relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 text-gray-400 hover:text-gray-300"
+            className="relative text-base font-medium transition-all flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-gray-300"
           >
             Newsletter
             {hasUnreadNewsletter && (
@@ -379,7 +379,7 @@ export default function StatusBar({
             <button
               onClick={handlePlaySophia}
               disabled={sophiaLoading}
-              className={`flex items-center justify-center w-6 h-6 transition-colors ${
+              className={`flex items-center justify-center w-8 h-8 transition-colors ${
                 sophiaPlaying
                   ? 'text-emerald-400/80 hover:text-emerald-300'
                   : sophiaLoading
@@ -389,16 +389,16 @@ export default function StatusBar({
               title={sophiaPlaying ? 'Stop Sophia' : 'Listen to Sophia'}
             >
               {sophiaLoading ? (
-                <Volume2 className="w-3 h-3 animate-pulse" />
+                <Volume2 className="w-5 h-5 animate-pulse" />
               ) : sophiaPlaying ? (
-                <Square className="w-2.5 h-2.5 fill-current" />
+                <Square className="w-4 h-4 fill-current" />
               ) : (
-                <Play className="w-3 h-3 fill-current" />
+                <Play className="w-5 h-5 fill-current" />
               )}
             </button>
             <button
               onClick={() => setCopilotOpen((prev) => !prev)}
-              className={`relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 ${
+              className={`relative text-base font-medium transition-all flex items-center gap-2 px-3 py-1.5 ${
                 copilotOpen
                   ? 'text-violet-300'
                   : hasNewInsight
@@ -409,7 +409,7 @@ export default function StatusBar({
               <img
                 src="https://assets.coingecko.com/coins/images/4128/small/solana.png"
                 alt="Solana logo"
-                className="w-3 h-3 object-contain"
+                className="w-5 h-5 object-contain"
                 loading="lazy"
               />
               Sophia

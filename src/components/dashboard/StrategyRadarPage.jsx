@@ -49,8 +49,33 @@ const SIGNAL_DESCRIPTIONS = {
   smart_money: {
     summary: 'Identifies Change of Character (CHoCH) and Break of Structure (BOS) patterns used by institutional traders. Multi-timeframe trend alignment and RSI divergence filtering improve signal quality.',
     triggers: 'BUY signals fire on bullish CHoCH (price reverses up through a pivot level) or bullish BOS (continuation break above previous structure). SELL signals fire on bearish equivalents.',
+    stats: { win: '72', ret: '+22.4', pf: '1.7' },
   },
 };
+
+// Built-in verified signals (always shown; toggle enables scanning)
+const VERIFIED_SIGNALS = [
+  {
+    id: 'msb_ob',
+    name: 'MSB / Order Block',
+    strategy_type: 'msb_ob',
+    subtitle: 'Order blocks + market structure breaks',
+    description: SIGNAL_DESCRIPTIONS.msb_ob.summary,
+    entry_logic: SIGNAL_DESCRIPTIONS.msb_ob.triggers,
+    exit_logic: 'Exit on invalidation of order block or target hit.',
+    risk_management: 'Stop loss below/above order block; position size from risk per trade.',
+  },
+  {
+    id: 'smart_money',
+    name: 'Smart Money',
+    strategy_type: 'smart_money',
+    subtitle: 'CHoCH & BOS patterns',
+    description: SIGNAL_DESCRIPTIONS.smart_money.summary,
+    entry_logic: SIGNAL_DESCRIPTIONS.smart_money.triggers,
+    exit_logic: 'Exit on structure invalidation or target.',
+    risk_management: 'Stop at recent structure; R-multiple targets.',
+  },
+];
 
 function isCryptoTicker(ticker) {
   return CRYPTO_TICKERS.has(ticker) || /\/(USD|USDT|BTC)$/.test(ticker);
@@ -139,7 +164,7 @@ function QualityGauge({ score }) {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-bold font-mono" style={{ color }}>{score}</span>
+        <span className="text-sm font-bold font-mono" style={{ color }}>{score}</span>
       </div>
     </div>
   );
@@ -275,7 +300,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
             onBlur={() => setTimeout(() => setIsFocused(false), 150)}
             onKeyDown={handleKeyDown}
             placeholder="Search any stock, ETF, crypto..."
-            className="min-w-0 flex-1 bg-transparent text-base font-mono text-white placeholder:text-gray-600 placeholder:italic outline-none" />
+            className="min-w-0 flex-1 bg-transparent text-sm font-mono text-white placeholder:text-gray-600 placeholder:italic outline-none" />
           {isLoading && (
             <div className="h-4 w-4 flex-shrink-0 rounded-full border-2 border-white/20 border-t-emerald-400 animate-spin" />
           )}
@@ -311,9 +336,9 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
                     onMouseEnter={() => setHighlightIdx(i)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer transition-all duration-150 ${highlightIdx === i ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]'}`}
                   >
-                    <span className="text-white font-semibold font-mono w-20 flex-shrink-0">{r.symbol}</span>
+                    <span className="text-sm text-white font-semibold font-mono w-20 flex-shrink-0">{r.symbol}</span>
                     <span className="text-sm text-gray-400 flex-1 truncate">{r.name}</span>
-                    <span className="text-xs text-gray-500 flex-shrink-0">{r.exchange}</span>
+                    <span className="text-sm text-gray-500 flex-shrink-0">{r.exchange}</span>
                   </button>
                 ))}
               </div>
@@ -323,13 +348,13 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
             )}
             {showRecents && (
               <div className={results.length > 0 ? 'border-t border-white/[0.06]' : ''}>
-                <div className="px-4 pt-2 pb-1"><span className="text-[10px] text-gray-600 uppercase tracking-widest">Recent</span></div>
+                <div className="px-4 pt-2 pb-1"><span className="text-sm text-gray-600 uppercase tracking-widest">Recent</span></div>
                 <div className="flex flex-wrap gap-1 px-4 pb-2.5">
                   {recentSearches.map((t, i) => (
                     <button key={t}
                       onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(t); }}
                       onMouseEnter={() => setHighlightIdx(results.length + i)}
-                      className={`px-2.5 py-1 text-xs font-mono transition-all duration-150 rounded-md cursor-pointer ${highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'}`}
+                      className={`px-2.5 py-1 text-sm font-mono transition-all duration-150 rounded-md cursor-pointer ${highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'}`}
                     >{t}</button>
                   ))}
                 </div>
@@ -351,7 +376,7 @@ class RadarErrorBoundary extends React.Component {
       return (
         <div className="h-full bg-[#0a0a0f] flex items-center justify-center">
           <div className="text-center">
-            <p className="text-red-400 text-lg mb-2">Strategy Radar encountered an error</p>
+            <p className="text-red-400 text-sm mb-2">Strategy Radar encountered an error</p>
             <p className="text-gray-500 text-sm">{String(this.state.error?.message || 'Unknown error')}</p>
             <motion.button
               type="button"
@@ -433,7 +458,11 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
-      layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#666', fontSize: 11 },
+      layout: {
+        background: { type: 'solid', color: '#0a0a0f' },
+        textColor: 'rgba(255,255,255,0.7)',
+        fontSize: 12,
+      },
       grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -688,13 +717,13 @@ function SignalCard({ signal, marketStatus }) {
         <QualityGauge score={signal.quality_score} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-white font-mono">{String(signal.ticker || '')}</span>
+            <span className="text-sm font-bold text-white font-mono">{String(signal.ticker || '')}</span>
             <span className="text-sm font-semibold uppercase" style={{ color: displayColor }}>
               {signal.direction === 'long' ? 'LONG' : 'SHORT'}
             </span>
-            {signal.is_hpz && <span className="text-[10px] font-bold text-emerald-400">HPZ</span>}
+            {signal.is_hpz && <span className="text-sm font-bold text-emerald-400">HPZ</span>}
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+          <div className="flex items-center gap-1.5 text-sm text-gray-500">
             {signal.strategy_source && <span>{String(signal.strategy_source)}</span>}
             <span>&middot;</span>
             <span className="font-mono">{String(signal.timeframe || '')}</span>
@@ -706,26 +735,26 @@ function SignalCard({ signal, marketStatus }) {
 
       <div className="mt-1.5 space-y-0.5">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-500 w-7 text-right">TP</span>
+          <span className="text-sm text-gray-500 w-10 text-right flex-shrink-0">TP</span>
           <div className="flex-1 border-t border-dashed" style={{ borderColor: BULL_COLOR }} />
-          <span className="text-xs font-mono" style={{ color: BULL_COLOR }}>${Number(signal.take_profit).toFixed(2)}</span>
-          <span className="text-[10px] font-mono text-emerald-400 w-12 text-right">R:R {rr}</span>
+          <span className="text-sm font-mono" style={{ color: BULL_COLOR }}>${Number(signal.take_profit).toFixed(2)}</span>
+          <span className="text-sm font-mono text-emerald-400 w-10 text-right flex-shrink-0">R:R {rr}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/60 w-7 text-right">Entry</span>
+          <span className="text-sm text-white/60 w-10 text-right flex-shrink-0">Entry</span>
           <div className="flex-1 border-t border-white/70" />
-          <span className="text-xs font-mono text-white">${Number(signal.entry_price).toFixed(2)}</span>
-          <span className="w-12" />
+          <span className="text-sm font-mono text-white">${Number(signal.entry_price).toFixed(2)}</span>
+          <span className="w-10 flex-shrink-0" />
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-500 w-7 text-right">SL</span>
+          <span className="text-sm text-gray-500 w-10 text-right flex-shrink-0">SL</span>
           <div className="flex-1 border-t border-dashed border-red-400" />
-          <span className="text-xs font-mono text-red-400">${Number(signal.stop_loss).toFixed(2)}</span>
-          <span className="w-12" />
+          <span className="text-sm font-mono text-red-400">${Number(signal.stop_loss).toFixed(2)}</span>
+          <span className="w-10 flex-shrink-0" />
         </div>
       </div>
 
-      <div className="mt-1 pt-1 border-t border-white/5 text-[10px] text-gray-400 font-mono">
+      <div className="mt-1 pt-1 border-t border-white/5 text-sm text-gray-400 font-mono">
         {'OB '}${Number(signal.ob_bottom).toFixed(2)}{'–'}${Number(signal.ob_top).toFixed(2)}{' | MSB '}${Number(signal.msb_level).toFixed(2)}{' | Z '}{String(signal.momentum_z)}
       </div>
 
@@ -746,7 +775,7 @@ function SignalCard({ signal, marketStatus }) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.96 }}
               transition={BUTTON_SPRING}
-              className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-gray-500 rounded cursor-not-allowed border border-white/10"
+              className="w-full mt-1.5 py-1.5 text-sm font-semibold text-gray-500 rounded cursor-not-allowed border border-white/10"
             >
               Expired
             </motion.button>
@@ -760,7 +789,7 @@ function SignalCard({ signal, marketStatus }) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.96 }}
               transition={BUTTON_SPRING}
-              className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-gray-500 rounded cursor-not-allowed border border-white/10"
+              className="w-full mt-1.5 py-1.5 text-sm font-semibold text-gray-500 rounded cursor-not-allowed border border-white/10"
             >
               Market Closed
             </motion.button>
@@ -773,7 +802,7 @@ function SignalCard({ signal, marketStatus }) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.96 }}
             transition={BUTTON_SPRING}
-            className="w-full mt-1.5 py-1.5 text-[10px] font-semibold text-white rounded transition-all hover:brightness-110"
+            className="w-full mt-1.5 py-1.5 text-sm font-semibold text-white rounded transition-all hover:brightness-110"
             style={{ background: `linear-gradient(135deg, ${displayColor}, ${displayColor}90)`, boxShadow: `0 0 20px ${displayColor}30` }}>
             Confirm Trade
           </motion.button>
@@ -807,7 +836,7 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
           transition={BUTTON_SPRING}
           className="flex-1 min-w-0 flex items-center gap-2 text-left"
         >
-          <span className="text-lg font-semibold text-white truncate">{String(strategy.name || '')}</span>
+          <span className="text-sm font-semibold text-white truncate">{String(strategy.name || '')}</span>
           <svg
             className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -835,7 +864,7 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
             className="overflow-hidden"
           >
             {desc && (
-              <p className="text-base text-gray-400 leading-relaxed mt-2">{desc.summary}</p>
+              <p className="text-sm text-gray-400 leading-relaxed mt-2">{desc.summary}</p>
             )}
             {stats && (
               <div className="flex items-center gap-3 mt-2 text-sm">
@@ -881,13 +910,13 @@ function StrategyDetailOverlay({ strategy, onClose }) {
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </motion.button>
-        <h2 className="text-xl font-bold text-white">{String(strategy.name || '')}</h2>
-        <p className="text-base text-gray-400 mt-1">{String(strategy.subtitle || '')}</p>
+        <h2 className="text-sm font-bold text-white">{String(strategy.name || '')}</h2>
+        <p className="text-sm text-gray-400 mt-1">{String(strategy.subtitle || '')}</p>
         <div className="mt-6 space-y-6">
-          <p className="text-base text-gray-300 leading-relaxed">{String(strategy.description || '')}</p>
-          {strategy.entry_logic && <div><span className="text-lg font-semibold text-emerald-400">Entry</span><p className="mt-2 text-base text-gray-300 leading-relaxed">{String(strategy.entry_logic)}</p></div>}
-          {strategy.exit_logic && <div><span className="text-lg font-semibold text-emerald-400">Exit</span><p className="mt-2 text-base text-gray-300 leading-relaxed">{String(strategy.exit_logic)}</p></div>}
-          {strategy.risk_management && <div><span className="text-lg font-semibold text-emerald-400">Risk</span><p className="mt-2 text-base text-gray-300 leading-relaxed">{String(strategy.risk_management)}</p></div>}
+          <p className="text-sm text-gray-300 leading-relaxed">{String(strategy.description || '')}</p>
+          {strategy.entry_logic && <div><span className="text-sm font-semibold text-emerald-400">Entry</span><p className="mt-2 text-sm text-gray-300 leading-relaxed">{String(strategy.entry_logic)}</p></div>}
+          {strategy.exit_logic && <div><span className="text-sm font-semibold text-emerald-400">Exit</span><p className="mt-2 text-sm text-gray-300 leading-relaxed">{String(strategy.exit_logic)}</p></div>}
+          {strategy.risk_management && <div><span className="text-sm font-semibold text-emerald-400">Risk</span><p className="mt-2 text-sm text-gray-300 leading-relaxed">{String(strategy.risk_management)}</p></div>}
         </div>
       </div>
     </motion.div>
@@ -954,11 +983,11 @@ function RadarSettings({ settings, onUpdate }) {
         }
       `}</style>
       <div className="flex items-center justify-between">
-        <h3 className="text-base text-gray-500 uppercase tracking-widest font-semibold">Settings</h3>
-        <span className="text-lg font-semibold" style={{ color: riskProfile.color }}>{riskProfile.label}</span>
+        <h3 className="text-sm text-gray-500 uppercase tracking-widest font-semibold">Settings</h3>
+        <span className="text-sm font-semibold" style={{ color: riskProfile.color }}>{riskProfile.label}</span>
       </div>
       <div>
-        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Stop Loss</label><span className="text-lg font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span></div>
+        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-sm text-gray-400 flex-1">Stop Loss</label><span className="text-sm font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span></div>
         <div className="relative h-5 flex items-center">
           <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${slPct * 100}%` }} />
@@ -978,7 +1007,7 @@ function RadarSettings({ settings, onUpdate }) {
         </div>
       </div>
       <div>
-        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Take Profit</label><span className="text-lg font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span></div>
+        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-sm text-gray-400 flex-1">Take Profit</label><span className="text-sm font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span></div>
         <div className="relative h-5 flex items-center">
           <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${tpFillPct * 100}%` }} />
@@ -998,7 +1027,7 @@ function RadarSettings({ settings, onUpdate }) {
         </div>
       </div>
       <div>
-        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-base text-gray-400 flex-1">Risk Per Trade</label><span className="text-lg font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span></div>
+        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-sm text-gray-400 flex-1">Risk Per Trade</label><span className="text-sm font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span></div>
         <div className="relative h-5 flex items-center">
           <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${riskPct * 100}%` }} />
@@ -1034,7 +1063,7 @@ function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       className={`${SOFT_GLASS_CARD_CLASS} p-3`}
     >
-      <h3 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-1.5">Trend Strength</h3>
+      <h3 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-1.5">Trend Strength</h3>
       <div className="flex items-center gap-2 text-sm font-mono">
         {trendDetails.map((td, i) => (
           <span key={String(td.label || i)} className="flex items-center gap-0.5">
@@ -1045,7 +1074,7 @@ function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
           </span>
         ))}
       </div>
-      <div className="text-[10px] text-gray-400 mt-1">
+      <div className="text-sm text-gray-400 mt-1">
         {'Str: '}<span className="font-mono font-semibold" style={{ color: trendStrength >= 0 ? '#34d399' : '#f87171' }}>{trendStrength > 0 ? '+' : ''}{String(trendStrength)}%</span>
         {' · Conf: '}<span className="font-mono font-semibold text-white">{String(confidence)}%</span>
       </div>
@@ -1138,8 +1167,8 @@ function LiveTickerHeader({ ticker }) {
   }, [price]);
 
   return (
-    <div className={`${SOFT_GLASS_CARD_CLASS} rounded-none px-5 py-3 border-b border-white/6 flex items-center gap-3`}>
-      <span className="text-white font-bold text-lg font-mono">${ticker}</span>
+    <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-3">
+      <span className="text-white font-bold text-sm font-mono">${ticker}</span>
       {connected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
       {price !== null && (
         <>
@@ -1151,7 +1180,7 @@ function LiveTickerHeader({ ticker }) {
             }}
             animate={{ color: '#ffffff', scale: 1 }}
             transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-            className="font-mono font-semibold text-xl"
+            className="font-mono font-semibold text-sm"
           >
             ${price.toFixed(2)}
           </motion.span>
@@ -1239,14 +1268,12 @@ function StrategyRadarContent() {
         const saved = await loadActiveStrategies(user.id);
         if (saved && Object.keys(saved).length > 0) setActiveStrategies(prev => ({ ...prev, ...saved }));
       }
-      const strats = await getVerifiedStrategies();
-      setStrategies(strats);
+      setStrategies(VERIFIED_SIGNALS);
       setActiveStrategies(prev => {
         const merged = { ...prev };
-        strats.forEach(s => { if (!(s.id in merged)) merged[s.id] = false; });
-        // Auto-enable first strategy if none are enabled
+        VERIFIED_SIGNALS.forEach(s => { if (!(s.id in merged)) merged[s.id] = false; });
         const anyEnabled = Object.values(merged).some(Boolean);
-        if (!anyEnabled && strats.length > 0) merged[strats[0].id] = true;
+        if (!anyEnabled && VERIFIED_SIGNALS.length > 0) merged[VERIFIED_SIGNALS[0].id] = true;
         return merged;
       });
       setLoading(false);
@@ -1392,26 +1419,9 @@ function StrategyRadarContent() {
 
   const handleToggleStrategy = useCallback(async (strategyId) => {
     setActiveStrategies(prev => {
-      const wasActive = prev[strategyId];
-      if (wasActive) {
-        // Toggling OFF — just disable this one
-        const next = { ...prev, [strategyId]: false };
-        supabase.auth.getUser().then(({ data: { user } }) => { if (user) saveActiveStrategy(user.id, strategyId, false); });
-        return next;
-      } else {
-        // Toggling ON — disable all others first (radio behavior)
-        const next = {};
-        Object.keys(prev).forEach(k => { next[k] = false; });
-        next[strategyId] = true;
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user) {
-            // Save all as disabled, then enable this one
-            Object.keys(prev).forEach(k => { if (k !== strategyId && prev[k]) saveActiveStrategy(user.id, k, false); });
-            saveActiveStrategy(user.id, strategyId, true);
-          }
-        });
-        return next;
-      }
+      const next = { ...prev, [strategyId]: !prev[strategyId] };
+      supabase.auth.getUser().then(({ data: { user } }) => { if (user) saveActiveStrategy(user.id, strategyId, next[strategyId]); });
+      return next;
     });
   }, []);
 
@@ -1462,7 +1472,7 @@ function StrategyRadarContent() {
               : anyStrategyEnabled ? 'bg-emerald-400'
               : String(marketStatus.dotColor || 'bg-gray-600')
             }`} />
-            <span className="text-xs text-gray-500">
+            <span className="text-sm text-gray-500">
               {!anyStrategyEnabled ? 'Disabled'
                 : isScanning && marketStatus.open ? 'Scanning'
                 : anyStrategyEnabled && !marketStatus.open ? `Analyzed · ${String(marketStatus.label || '')}`
@@ -1477,7 +1487,7 @@ function StrategyRadarContent() {
         />
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="text-xs text-gray-500">
+          <span className="text-sm text-gray-500">
             <CountUp key={`${selectedTicker}-${activeSignalCount}`} start={0} end={activeSignalCount} duration={0.9} useEasing />
             {' '}active signals
           </span>
@@ -1497,7 +1507,7 @@ function StrategyRadarContent() {
                   onClick={() => handleSettingsUpdate({ timeframe: tf })}
                   whileTap={{ scale: 0.92 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className={`px-1 py-0.5 text-[11px] font-mono transition-colors ${settings.timeframe === tf ? 'text-[#00C2FF]' : 'text-gray-600 hover:text-gray-400'}`}>
+                  className={`px-1 py-0.5 text-sm font-mono transition-colors ${settings.timeframe === tf ? 'text-[#00C2FF]' : 'text-gray-600 hover:text-gray-400'}`}>
                   {tf}
                 </motion.button>
               ))}
@@ -1518,28 +1528,29 @@ function StrategyRadarContent() {
             />
           </div>
 
-          <div className="flex items-center gap-6 px-4 py-2 border-t border-white/6 text-[10px] flex-wrap">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BULL_COLOR }} /><span className="text-gray-500">Bullish OB</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BEAR_COLOR }} /><span className="text-gray-500">Bearish OB</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: HPZ_BULL }} /><span className="text-gray-500">High Probability Zone</span></span>
+          <div className="flex items-center gap-4 px-4 py-2 border-t border-white/6 text-sm flex-wrap">
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: BULL_COLOR }} /><span className="text-gray-500">Bullish OB</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: BEAR_COLOR }} /><span className="text-gray-500">Bearish OB</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: HPZ_BULL }} /><span className="text-gray-500">High Probability Zone</span></span>
             {enabledTypes.has('smart_money') && (
               <>
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: CHOCH_COLOR }} /><span className="text-gray-500">CHoCH</span></span>
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BOS_COLOR }} /><span className="text-gray-500">BOS</span></span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: CHOCH_COLOR }} /><span className="text-gray-500">CHoCH</span></span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: BOS_COLOR }} /><span className="text-gray-500">BOS</span></span>
               </>
             )}
-            <span className="flex items-center gap-1.5"><span className="w-4 border-t border-dashed border-white/60" /><span className="text-gray-500">Entry</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-4 border-t border-dashed" style={{ borderColor: '#00E676' }} /><span className="text-gray-500">TP</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-4 border-t border-dashed" style={{ borderColor: '#FF1744' }} /><span className="text-gray-500">SL</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-5 border-t border-dashed border-white/60 flex-shrink-0" /><span className="text-gray-500">Entry</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-5 border-t border-dashed flex-shrink-0" style={{ borderColor: '#00E676' }} /><span className="text-gray-500">TP</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-5 border-t border-dashed flex-shrink-0" style={{ borderColor: '#FF1744' }} /><span className="text-gray-500">SL</span></span>
           </div>
         </div>
 
-        {/* RIGHT — Signals + Strategies */}
-        <div className="flex-[2] min-h-0 overflow-y-auto relative">
-          <LiveTickerHeader ticker={selectedTicker} />
+        {/* RIGHT — Signals + Strategies (one connected panel) */}
+        <div className="flex-[2] min-h-0 overflow-y-auto relative p-2">
+          <div className={`${SOFT_GLASS_CARD_CLASS} overflow-hidden flex flex-col min-h-0`}>
+            <LiveTickerHeader ticker={selectedTicker} />
 
-          <div className={`${SOFT_GLASS_CARD_CLASS} p-3 border-b border-white/6`}>
-            <h2 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
+            <div className="p-3 border-b border-white/[0.06]">
+              <h2 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
             {currentTickerSignals.length > 0 ? (
               <>
                 <div className="flex gap-0.5 mb-2 overflow-x-auto pb-0.5">
@@ -1551,7 +1562,7 @@ function StrategyRadarContent() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.96 }}
                         transition={BUTTON_SPRING}
-                        className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] whitespace-nowrap transition-all border-l-2 flex-shrink-0 ${isActive ? 'bg-white/[0.04]' : 'bg-transparent hover:bg-white/[0.02]'}`}
+                        className={`flex items-center gap-1 px-1.5 py-1 rounded text-sm whitespace-nowrap transition-all border-l-2 flex-shrink-0 ${isActive ? 'bg-white/[0.04]' : 'bg-transparent hover:bg-white/[0.02]'}`}
                         style={{ borderColor: isActive ? tabDirColor : 'transparent' }}>
                         <span style={{ color: tabDirColor }}>{sig.direction === 'long' ? '▲' : '▼'}</span>
                         <span className={`font-mono ${isActive ? 'text-white' : 'text-gray-500'}`}>{String(sig.ticker || '')}</span>
@@ -1577,34 +1588,35 @@ function StrategyRadarContent() {
                     <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                     <div className="absolute inset-0 w-2 h-2 bg-emerald-500 rounded-full animate-ping opacity-50" />
                   </div>
-                  <span className="text-base text-gray-500">
+                  <span className="text-sm text-gray-500">
                     {!marketStatus.open && !marketStatus.premarket && !marketStatus.afterhours
                       ? 'Market closed — signals update at next open'
                       : 'Scanning for setups...'}
                   </span>
                 </div>
               ) : (
-                <p className="text-base text-gray-500 py-3">Toggle a strategy to start scanning</p>
+                <p className="text-sm text-gray-500 py-3">Toggle a strategy to start scanning</p>
               )
             )}
-          </div>
-
-          {enabledTypes.has('smart_money') && smResults.trendDetails && smResults.trendDetails.length > 0 && (
-            <div className={`${SOFT_GLASS_CARD_CLASS} p-3 border-b border-white/6`}>
-              <TrendStrengthMatrix trendStrength={smResults.trendStrength} confidence={smResults.confidence} trendDetails={smResults.trendDetails} />
             </div>
-          )}
 
-          <div className={`${SOFT_GLASS_CARD_CLASS} p-3 border-b border-white/6`}>
-            <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
-          </div>
+            {enabledTypes.has('smart_money') && smResults.trendDetails && smResults.trendDetails.length > 0 && (
+              <div className="p-3 border-b border-white/[0.06]">
+                <TrendStrengthMatrix trendStrength={smResults.trendStrength} confidence={smResults.confidence} trendDetails={smResults.trendDetails} />
+              </div>
+            )}
 
-          <div className={`${SOFT_GLASS_CARD_CLASS} p-3`}>
-            <h2 className="text-base text-gray-500 uppercase tracking-widest font-semibold mb-2">Verified Strategies</h2>
-            <div className="space-y-2">
-              {strategies.map(strategy => (
-                <StrategyCard key={strategy.id} strategy={strategy} enabled={activeStrategies[strategy.id] || false} onToggle={handleToggleStrategy} onViewDetails={setExpandedStrategy} isExpanded={expandedCardId === strategy.id} onExpandToggle={() => setExpandedCardId(prev => prev === strategy.id ? null : strategy.id)} />
-              ))}
+            <div className="p-3 border-b border-white/[0.06]">
+              <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
+            </div>
+
+            <div className="p-3">
+              <h2 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Verified Signals</h2>
+              <div className="space-y-2">
+                {strategies.map(strategy => (
+                  <StrategyCard key={strategy.id} strategy={strategy} enabled={activeStrategies[strategy.id] || false} onToggle={handleToggleStrategy} onViewDetails={setExpandedStrategy} isExpanded={expandedCardId === strategy.id} onExpandToggle={() => setExpandedCardId(prev => prev === strategy.id ? null : strategy.id)} />
+                ))}
+              </div>
             </div>
           </div>
 
