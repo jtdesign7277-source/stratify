@@ -4364,43 +4364,45 @@ export default function TraderPage({
                   }}
                 >
                   <ErrorBoundary><div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-                    {/* Header */}
+                    {/* Header — scroll/refresh controls live in the article drawer (right panel) when open */}
                     <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
                       <span className="text-[11px] text-gray-500">
                         News for <span className="text-blue-400 font-mono font-medium">${selectedTicker || '—'}</span>
                       </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(-120); }}
-                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                          aria-label="Scroll news up"
-                        >
-                          <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(120); }}
-                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                          aria-label="Scroll news down"
-                        >
-                          <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => refetchNews()}
-                          disabled={newsLoading}
-                          className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors disabled:opacity-50"
-                          aria-label="Refresh news"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-                        </button>
-                      </div>
+                      {!drawerArticle ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(-120); }}
+                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
+                            aria-label="Scroll news up"
+                          >
+                            <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(120); }}
+                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
+                            aria-label="Scroll news down"
+                          >
+                            <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => refetchNews()}
+                            disabled={newsLoading}
+                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors disabled:opacity-50"
+                            aria-label="Refresh news"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                     {/* Scrollable article list — no href / target _blank; click opens in-app drawer */}
                     <div
                       ref={newsListScrollRef}
-                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-show pointer-events-auto touch-pan-y"
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y"
                       style={{ touchAction: 'pan-y', flex: '1 1 0%', minHeight: 0 }}
                     >
                       {newsLoading && !newsArticles?.length ? (
@@ -4440,13 +4442,13 @@ export default function TraderPage({
                                   }}
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <h4 className={`font-medium text-gray-200 leading-snug group-hover:text-white transition-colors break-words ${drawerArticle ? 'text-[11px] line-clamp-3 pr-1.5' : 'text-[13px] line-clamp-2'}`}>
+                                  <h4 className={`font-medium text-gray-200 leading-snug group-hover:text-white transition-colors break-words ${drawerArticle ? 'text-[15px] line-clamp-3 pr-1.5' : 'text-[15px] line-clamp-2'}`}>
                                     {article.title}
                                   </h4>
                                   <div className="flex items-center gap-2 mt-1.5">
-                                    <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">{sourceLabel}</span>
+                                    <span className="text-[13px] text-gray-500 font-medium uppercase tracking-wide">{sourceLabel}</span>
                                     <span className="text-gray-700">·</span>
-                                    <span className="text-[10px] text-gray-600">{timeAgo}</span>
+                                    <span className="text-[13px] text-gray-600">{timeAgo}</span>
                                   </div>
                                 </div>
                               </button>
@@ -4497,23 +4499,6 @@ export default function TraderPage({
                       transition={{ type: 'spring', stiffness: 320, damping: 34 }}
                       style={{ position: "absolute", top: drawerTopOffset, right: 0, bottom: 0, width: "50%", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
                     >
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsArticleDrawerExtendedToChartTop((previous) => !previous);
-                        }}
-                        className="absolute left-3 top-1/2 z-[260] -translate-y-1/2 text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
-                        aria-label={isArticleDrawerExtendedToChartTop ? 'Return article to medium height' : 'Extend article to chart top'}
-                        title={isArticleDrawerExtendedToChartTop ? 'Return article to medium height' : 'Extend article to chart top'}
-                      >
-                        {isArticleDrawerExtendedToChartTop ? (
-                          <ChevronDown className="w-5 h-5" strokeWidth={1.9} />
-                        ) : (
-                          <ChevronUp className="w-5 h-5" strokeWidth={1.9} />
-                        )}
-                      </button>
                       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", height: "100%" }}>
                         <div className="flex shrink-0 items-center justify-between gap-2 p-3 border-b border-white/[0.06]">
                           <div className="flex items-center gap-1">
@@ -4548,24 +4533,54 @@ export default function TraderPage({
                             <X className="w-5 h-5" strokeWidth={1.8} />
                           </button>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2 px-4 py-2 border-b border-white/[0.06]">
-                          <span className="text-[10px] text-gray-500 uppercase">Scroll article:</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollArticleBody(-200); }}
-                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                            aria-label="Scroll article up"
-                          >
-                            <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollArticleBody(200); }}
-                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                            aria-label="Scroll article down"
-                          >
-                            <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
-                          </button>
+                        <div className="flex shrink-0 flex-wrap items-center gap-3 px-4 py-2 border-b border-white/[0.06]">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-500 uppercase">Scroll list:</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(-120); }}
+                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
+                              aria-label="Scroll news list up"
+                            >
+                              <ChevronUp className="w-4 h-4 text-emerald-400" strokeWidth={1.8} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(120); }}
+                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
+                              aria-label="Scroll news list down"
+                            >
+                              <ChevronDown className="w-4 h-4 text-emerald-400" strokeWidth={1.8} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => refetchNews()}
+                              disabled={newsLoading}
+                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors disabled:opacity-50"
+                              aria-label="Refresh news"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-500 uppercase">Scroll article:</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollArticleBody(-200); }}
+                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
+                              aria-label="Scroll article up"
+                            >
+                              <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollArticleBody(200); }}
+                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
+                              aria-label="Scroll article down"
+                            >
+                              <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
+                            </button>
+                          </div>
                         </div>
                         <div
                           ref={(el) => { if (el) articleBodyScrollRef.current = el; }}
