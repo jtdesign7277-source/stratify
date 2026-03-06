@@ -2395,18 +2395,23 @@ export default function Dashboard({
   }, [activeTab]);
 
   return (
-    <MotionConfig transition={{ type: 'spring', stiffness: 500, damping: 30 }}>
+    <MotionConfig transition={{ type: 'spring', stiffness: 400, damping: 32 }}>
       <div
         ref={dashboardRootRef}
-        className={`soft-glass-theme h-screen h-[100dvh] w-screen flex flex-col bg-[#0a0a0a] ${themeClasses.text} overflow-hidden`}
+        className={`soft-glass-theme linear-app h-screen h-[100dvh] w-screen flex flex-col bg-linear-bg ${themeClasses.text} overflow-hidden font-linear`}
       >
       <style>{`
+        .linear-app {
+          --linear-bg: #0D0D0D;
+          --linear-surface: #1A1A1A;
+          --linear-border: rgba(255,255,255,0.06);
+        }
         .soft-glass-theme .soft-glass-surface,
         .soft-glass-theme .dashboard-card {
-          background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%) !important;
+          background: var(--linear-surface, #1A1A1A) !important;
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          border-radius: 16px;
+          border-radius: 12px;
           border: 1px solid rgba(255,255,255,0.06) !important;
           box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05) !important;
           transition: background 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
@@ -2426,7 +2431,7 @@ export default function Dashboard({
       `}</style>
       <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
       <motion.div
-        className="relative z-20 overflow-visible"
+        className="relative z-20 overflow-visible bg-linear-canvas border-b border-[rgba(255,255,255,0.06)]"
         initial={false}
         animate={{ height: isTopBarCollapsed ? TOPBAR_COLLAPSED_HEIGHT : 'auto' }}
         transition={{ height: TOPBAR_ANIMATION }}
@@ -2467,7 +2472,7 @@ export default function Dashboard({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={TOPBAR_ANIMATION}
-              className="absolute inset-x-0 top-0 h-[56px] border-b border-[rgba(255,255,255,0.06)] bg-transparent"
+              className="absolute inset-x-0 top-0 h-[56px] border-b border-[rgba(255,255,255,0.06)] bg-linear-canvas/80"
             >
               <div className="relative h-full w-full">
                 <div className="h-full pr-28 pb-4 box-border">
@@ -2499,7 +2504,8 @@ export default function Dashboard({
           <ChevronsUp className="h-4 w-4" strokeWidth={1.5} />
         </motion.button>
       </motion.div>
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      {/* Linear-style app window: one rounded panel containing sidebar + content */}
+      <div className="flex-1 flex flex-row min-h-0 mx-3 mb-3 rounded-xl bg-linear-canvas border border-[rgba(255,255,255,0.06)] shadow-linear-window overflow-hidden">
         <Sidebar
           expanded={sidebarExpanded}
           onToggle={(val) => setSidebarExpanded(val)}
@@ -2525,20 +2531,20 @@ export default function Dashboard({
           onLogout={() => setCurrentPage('landing')}
         />
         
-        {/* Main Content Area - Three Collapsible Panels */}
+        {/* Main Content Area — content pane inside window */}
         <div 
           id="main-content-area" 
-          className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
+          className="flex-1 flex flex-col min-w-0 bg-linear-canvas overflow-hidden relative border-l border-[rgba(255,255,255,0.06)]"
         >
-          {/* Tab-based Views */}
+          {/* Tab-based Views — Linear enter/exit: scale + opacity */}
           <AnimatePresence mode="wait">
             {activeTab !== 'crypto' && activeTab !== 'terminal' && (
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
                 className="h-full min-h-0 w-full overflow-hidden"
               >
           {activeTab === 'trader' && (

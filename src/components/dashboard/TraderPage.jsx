@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
-import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
+import { createChart, CandlestickSeries, ColorType, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
@@ -12,6 +12,7 @@ import { usePaperTrading } from '../../hooks/usePaperTrading';
 import SentimentBadge from './SentimentBadge';
 import ErrorBoundary from '../shared/AppErrorBoundary';
 import MiniGamePill from '../shared/MiniGamePill';
+import FloatingDrawingToolbar from './FloatingDrawingToolbar';
 
 function newsTimeAgo(dateStr) {
   if (!dateStr) return '';
@@ -1696,6 +1697,25 @@ export default function TraderPage({
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const lastBarRef = useRef(null);
+  const drawingPriceLinesRef = useRef([]);
+  const drawingTrendLinesRef = useRef([]);
+  const drawingRectanglesRef = useRef([]);
+  const drawingPendingPointRef = useRef(null);
+  const selectedDrawingToolRef = useRef(null);
+  const setSelectedDrawingToolRef = useRef(null);
+  const draggingPriceLineRef = useRef(null);
+  const drawingDragCleanupRef = useRef(null);
+  const [selectedDrawingTool, setSelectedDrawingTool] = useState(null);
+
+  useEffect(() => {
+    selectedDrawingToolRef.current = selectedDrawingTool;
+  }, [selectedDrawingTool]);
+  useEffect(() => {
+    setSelectedDrawingToolRef.current = setSelectedDrawingTool;
+  }, []);
+  useEffect(() => {
+    drawingPendingPointRef.current = null;
+  }, [selectedDrawingTool]);
 
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
@@ -2636,8 +2656,162 @@ export default function TraderPage({
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
       lastBarRef.current = null;
+      drawingPriceLinesRef.current = [];
+      drawingTrendLinesRef.current = [];
+      drawingRectanglesRef.current = [];
+      drawingPendingPointRef.current = null;
     };
   }, []);
+
+  const clearDrawingLines = useCallback(() => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    if (!series) return;
+    // Remove every custom price line from the series (fixes stuck lines when our refs were lost)
+    try {
+      const allPriceLines = series.priceLines?.() ?? [];
+      allPriceLines.forEach((line) => {
+        try {
+          series.removePriceLine(line);
+        } catch (_) {}
+      });
+    } catch (_) {}
+    drawingPriceLinesRef.current = [];
+    drawingTrendLinesRef.current.forEach((s) => {
+      try {
+        if (chart) chart.removeSeries(s);
+      } catch (_) {}
+    });
+    drawingTrendLinesRef.current = [];
+    drawingRectanglesRef.current.forEach((s) => {
+      try {
+        if (chart) chart.removeSeries(s);
+      } catch (_) {}
+    });
+    drawingRectanglesRef.current = [];
+    drawingPendingPointRef.current = null;
+  }, []);
+
+  // Drawing tools: one stable handler reads current tool from ref so all tools work; proper unsubscribe
+  const drawingClickHandler = useCallback((param) => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    const tool = selectedDrawingToolRef.current;
+    if (!chart || !series || !tool || !param?.point) return;
+    const timeScale = chart.timeScale();
+    const price = series.coordinateToPrice(param.point.y);
+    const time = timeScale.coordinateToTime(param.point.x);
+    if (price == null || !Number.isFinite(price) || time == null) return;
+    const numPrice = Number(price);
+
+    if (tool === 'horizontal') {
+      const lines = drawingPriceLinesRef.current;
+      const hitPx = 10;
+      for (let i = 0; i < lines.length; i++) {
+        const pl = lines[i];
+        const linePrice = pl.options().price;
+        const lineY = series.priceToCoordinate(linePrice);
+        if (lineY != null && Math.abs(lineY - param.point.y) <= hitPx) {
+          draggingPriceLineRef.current = pl;
+          const onMove = (moveParam) => {
+            if (!draggingPriceLineRef.current || !moveParam?.point) return;
+            const p = candleSeriesRef.current?.coordinateToPrice(moveParam.point.y);
+            if (p != null && Number.isFinite(p)) draggingPriceLineRef.current.applyOptions({ price: Number(p) });
+          };
+          const onUp = () => {
+            if (drawingDragCleanupRef.current) drawingDragCleanupRef.current();
+            drawingDragCleanupRef.current = null;
+            draggingPriceLineRef.current = null;
+          };
+          chart.subscribeCrosshairMove(onMove);
+          const removeListeners = () => {
+            try { chart.unsubscribeCrosshairMove(onMove); } catch (_) {}
+            window.removeEventListener('mouseup', onUp);
+          };
+          drawingDragCleanupRef.current = removeListeners;
+          window.addEventListener('mouseup', onUp, { once: true });
+          return;
+        }
+      }
+      const line = series.createPriceLine({
+        price: numPrice,
+        lineWidth: 2,
+        lineStyle: LineStyle.Solid,
+        axisLabelVisible: true,
+        color: '#10b981',
+      });
+      drawingPriceLinesRef.current.push(line);
+      setSelectedDrawingToolRef.current?.(null);
+      return;
+    }
+
+    if (tool === 'trend' || tool === 'line-segment') {
+      const pending = drawingPendingPointRef.current;
+      if (!pending) {
+        drawingPendingPointRef.current = { time, price: numPrice };
+        return;
+      }
+      const lineSeries = chart.addSeries(LineSeries, {
+        color: '#10b981',
+        lineWidth: 2,
+        lineStyle: LineStyle.Solid,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      lineSeries.setData([
+        { time: pending.time, value: pending.price },
+        { time, value: numPrice },
+      ]);
+      drawingTrendLinesRef.current.push(lineSeries);
+      drawingPendingPointRef.current = null;
+      setSelectedDrawingToolRef.current?.(null);
+      return;
+    }
+
+    if (tool === 'rectangle') {
+      const pending = drawingPendingPointRef.current;
+      if (!pending) {
+        drawingPendingPointRef.current = { time, price: numPrice };
+        return;
+      }
+      const t1 = pending.time;
+      const t2 = time;
+      const p1 = pending.price;
+      const p2 = numPrice;
+      const rectOpts = {
+        color: '#10b981',
+        lineWidth: 2,
+        lineStyle: LineStyle.Solid,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+      };
+      const top = chart.addSeries(LineSeries, rectOpts);
+      top.setData([{ time: t1, value: p1 }, { time: t2, value: p1 }]);
+      const bottom = chart.addSeries(LineSeries, rectOpts);
+      bottom.setData([{ time: t2, value: p2 }, { time: t1, value: p2 }]);
+      const tOff = typeof t1 === 'number' && typeof t2 === 'number' ? 1 : 0;
+      const right = chart.addSeries(LineSeries, rectOpts);
+      right.setData([{ time: t2, value: p1 }, { time: t2 + tOff, value: p2 }]);
+      const left = chart.addSeries(LineSeries, rectOpts);
+      left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
+      drawingRectanglesRef.current.push(top, right, bottom, left);
+      drawingPendingPointRef.current = null;
+      setSelectedDrawingToolRef.current?.(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !chartReady) return;
+    chart.subscribeClick(drawingClickHandler);
+    return () => {
+      try {
+        chart.unsubscribeClick(drawingClickHandler);
+      } catch (_) {}
+    };
+  }, [chartReady, drawingClickHandler]);
 
   const resetChartSeries = useCallback(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
@@ -4293,6 +4467,12 @@ export default function TraderPage({
                 }}
               >
                 <div ref={chartContainerRef} className="absolute inset-0" />
+
+                <FloatingDrawingToolbar
+                  onSelectTool={setSelectedDrawingTool}
+                  onClear={clearDrawingLines}
+                  selectedToolId={selectedDrawingTool}
+                />
 
                 {chartStatus.loading && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/55 text-sm text-[#9ca3af]">

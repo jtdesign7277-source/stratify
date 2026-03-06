@@ -90,13 +90,13 @@ const Sidebar = ({
   return (
     <motion.div
       initial={false}
-      animate={{ width: collapsed ? 60 : 220 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-      className="soft-glass-surface h-full bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col flex-shrink-0"
+      animate={{ width: collapsed ? 56 : 220 }}
+      transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="h-full bg-linear-surface border-r border-[rgba(255,255,255,0.06)] flex flex-col flex-shrink-0"
     >
-      {/* Main Navigation */}
-      <nav className="flex-1 px-2 overflow-y-auto min-h-0 flex flex-col" style={{ scrollbarWidth: 'none' }}>
-        <ul className="flex flex-col flex-1 justify-evenly space-y-2 py-2">
+      {/* Main Navigation — Linear-style spacing and hierarchy */}
+      <nav className="flex-1 px-1.5 overflow-y-auto min-h-0 flex flex-col pt-1" style={{ scrollbarWidth: 'none' }}>
+        <ul className="flex flex-col flex-1 space-y-0.5 py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -105,32 +105,28 @@ const Sidebar = ({
               <li key={item.id}>
                 <motion.button
                   onClick={() => handleTabClick(item.id)}
-                  whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  className={`relative w-full flex items-center gap-2.5 px-2.5 py-2 min-h-[36px] rounded-lg text-[13px] tracking-wide border border-transparent ${
-                    isActive ? 'text-emerald-300' : 'text-white/85'
-                  } ${collapsed ? 'justify-center px-2' : ''}`}
+                  whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+                  whileTap={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+                  transition={{ duration: 0.15 }}
+                  className={`relative w-full flex items-center gap-3 px-2.5 py-2.5 min-h-[36px] rounded-md text-linear-sm font-medium border border-transparent ${
+                    isActive ? 'text-linear-text bg-linear-surface-hover' : 'text-linear-text-secondary hover:text-linear-text'
+                  } ${collapsed ? 'justify-center px-0' : ''}`}
                   title={collapsed ? item.label : undefined}
                 >
                   {isActive && (
-                    <motion.div
-                      layoutId="tab-indicator"
-                      className="absolute inset-0 rounded-lg bg-white/10"
-                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-linear-accent rounded-r-full" aria-hidden />
                   )}
                   <Icon 
-                    className={`relative z-10 w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-emerald-400' : 'text-white/65'}`}
+                    className={`relative z-10 w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-linear-accent' : 'text-linear-text-muted'}`}
                     strokeWidth={1.5}
                     fill="none"
                   />
                   {!collapsed && (
                     <div className="relative z-10 flex items-center gap-2 overflow-hidden">
-                      <span className="whitespace-nowrap font-medium">{item.label}</span>
-                      {item.badge ? <span className="text-[10px] text-emerald-400">{item.badge}</span> : null}
+                      <span className="whitespace-nowrap">{item.label}</span>
+                      {item.badge ? <span className="text-linear-xs text-linear-accent">{item.badge}</span> : null}
                       {item.isNew && (
-                        <span className="text-[10px] uppercase tracking-[0.12em] text-emerald-400">new</span>
+                        <span className="text-linear-xs uppercase tracking-wider text-linear-accent">new</span>
                       )}
                     </div>
                   )}
@@ -143,23 +139,23 @@ const Sidebar = ({
       </nav>
 
       {/* Bottom Section */}
-      <div className="flex-shrink-0 px-2 pb-3">
-        <div className="h-px bg-white/10 mx-2 mb-2" />
+      <div className="flex-shrink-0 px-1.5 pb-3">
+        <div className="h-px bg-[rgba(255,255,255,0.06)] mx-2 mb-2" />
         
-        <ul className="space-y-px mb-2">
+        <ul className="space-y-0.5 mb-2">
           {/* More info button */}
           <li>
             <motion.button
               onClick={() => handleTabClick('more')}
-              whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-white ${
-                collapsed ? 'justify-center px-2' : ''
+              whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+              whileTap={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+              transition={{ duration: 0.15 }}
+              className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-linear-sm font-medium text-linear-text-secondary ${
+                collapsed ? 'justify-center px-0' : ''
               }`}
               title={collapsed ? 'More info' : undefined}
             >
-              <MoreHorizontal className="w-[18px] h-[18px] flex-shrink-0 text-emerald-400" strokeWidth={1.5} />
+              <MoreHorizontal className="w-[18px] h-[18px] flex-shrink-0 text-linear-text-muted" strokeWidth={1.5} />
               {!collapsed && (
                 <span className="whitespace-nowrap overflow-hidden">More info</span>
               )}
@@ -173,11 +169,11 @@ const Sidebar = ({
                   await signOut();
                   if (onLogout) onLogout();
                 }}
-                whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-emerald-300 ${
-                  collapsed ? 'justify-center px-2' : ''
+                whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+                whileTap={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+                transition={{ duration: 0.15 }}
+                className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-linear-sm font-medium text-linear-accent ${
+                  collapsed ? 'justify-center px-0' : ''
                 }`}
                 title={collapsed ? 'Log out' : undefined}
               >
@@ -190,26 +186,22 @@ const Sidebar = ({
           )}
         </ul>
 
-        <div className="h-px bg-white/10 mx-2 mb-2" />
+        <div className="h-px bg-[rgba(255,255,255,0.06)] mx-2 mb-2" />
 
         <motion.button
           onClick={() => setCollapsed(!collapsed)}
-          whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-          whileTap={{ scale: 0.98 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide ${
-            collapsed
-              ? 'text-emerald-300 hover:text-emerald-200'
-              : 'text-emerald-300/70 hover:text-emerald-300'
-          } ${
-            collapsed ? 'justify-center px-2' : ''
+          whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+          whileTap={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+          transition={{ duration: 0.15 }}
+          className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-linear-sm font-medium text-linear-text-muted hover:text-linear-text-secondary ${
+            collapsed ? 'justify-center px-0' : ''
           }`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
-            <ChevronsRight className="w-[18px] h-[18px] flex-shrink-0 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" strokeWidth={1.5} />
+            <ChevronsRight className="w-[18px] h-[18px] flex-shrink-0 text-linear-accent" strokeWidth={1.5} />
           ) : (
-            <ChevronsLeft className="w-[18px] h-[18px] flex-shrink-0 text-emerald-300/70" strokeWidth={1.5} />
+            <ChevronsLeft className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
           )}
           {!collapsed && (
             <span className="whitespace-nowrap overflow-hidden">

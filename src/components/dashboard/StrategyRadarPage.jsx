@@ -12,6 +12,7 @@ import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import FloatingDrawingToolbar from './FloatingDrawingToolbar';
 import gsap from 'gsap';
 import CountUp from 'react-countup';
 import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
@@ -36,6 +37,9 @@ const HPZ_BEAR = '#ff5252';
 const CHOCH_COLOR = '#00C2FF';
 const BOS_COLOR = '#7B61FF';
 const SOFT_GLASS_CARD_CLASS = 'dashboard-card bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 hover:from-white/[0.06] hover:to-white/[0.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:border-white/[0.1]';
+const SIGNAL_PANEL_BLEND_CLASS = 'bg-[#0a0a0f] overflow-hidden flex flex-col min-h-0';
+const SIGNAL_CARD_BLEND_CLASS = 'border border-white/[0.03] rounded py-3 px-3 transition-colors';
+const SIGNAL_CARD_BLEND_ACTIVE_CLASS = 'border-emerald-500/20 bg-emerald-500/5';
 const SOFT_GLASS_ACCENT_CLASS = 'dashboard-card bg-gradient-to-br from-emerald-500/[0.08] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-emerald-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgba(16,185,129,0.1)]';
 const SOFT_GLASS_INSET_CLASS = 'bg-black/40 rounded-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] border border-white/[0.04]';
 const BUTTON_SPRING = { type: 'spring', stiffness: 500, damping: 30 };
@@ -285,7 +289,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   const showDropdown = isOpen && (results.length > 0 || showRecents || showNoResults);
 
   return (
-    <div ref={containerRef} className="w-full max-w-md mx-4 relative flex-shrink min-w-0">
+    <div ref={containerRef} className="w-full max-w-[22rem] mx-4 relative flex-shrink min-w-0">
       <motion.div
         className="relative rounded-xl border bg-white/[0.03] px-4 py-2.5"
         animate={{
@@ -454,6 +458,25 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
   const candleSeriesRef = useRef(null);
   const markersRef = useRef(null);
   const obOverlaySeriesRef = useRef([]);
+  const drawingPriceLinesRef = useRef([]);
+  const drawingTrendLinesRef = useRef([]);
+  const drawingRectanglesRef = useRef([]);
+  const drawingPendingPointRef = useRef(null);
+  const selectedDrawingToolRef = useRef(null);
+  const setSelectedDrawingToolRef = useRef(null);
+  const draggingPriceLineRef = useRef(null);
+  const drawingDragCleanupRef = useRef(null);
+  const [selectedDrawingTool, setSelectedDrawingTool] = useState(null);
+
+  useEffect(() => {
+    selectedDrawingToolRef.current = selectedDrawingTool;
+  }, [selectedDrawingTool]);
+  useEffect(() => {
+    setSelectedDrawingToolRef.current = setSelectedDrawingTool;
+  }, []);
+  useEffect(() => {
+    drawingPendingPointRef.current = null;
+  }, [selectedDrawingTool]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -500,9 +523,166 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       window.removeEventListener('resize', applySize);
       obOverlaySeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
       obOverlaySeriesRef.current = [];
+      drawingPriceLinesRef.current = [];
+      drawingTrendLinesRef.current = [];
+      drawingRectanglesRef.current = [];
+      drawingPendingPointRef.current = null;
       chart.remove();
     };
   }, []);
+
+  const clearDrawingLines = useCallback(() => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    if (!series) return;
+    // Remove every custom price line from the series (fixes stuck lines when our refs were lost)
+    try {
+      const allPriceLines = series.priceLines?.() ?? [];
+      allPriceLines.forEach((line) => {
+        try {
+          series.removePriceLine(line);
+        } catch (_) {}
+      });
+    } catch (_) {}
+    drawingPriceLinesRef.current = [];
+    drawingTrendLinesRef.current.forEach((s) => {
+      try {
+        if (chart) chart.removeSeries(s);
+      } catch (_) {}
+    });
+    drawingTrendLinesRef.current = [];
+    drawingRectanglesRef.current.forEach((s) => {
+      try {
+        if (chart) chart.removeSeries(s);
+      } catch (_) {}
+    });
+    drawingRectanglesRef.current = [];
+    drawingPendingPointRef.current = null;
+  }, []);
+
+  const LINE_SOLID = 0;
+  const drawingClickHandler = useCallback((param) => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    const tool = selectedDrawingToolRef.current;
+    if (!chart || !series || !tool || !param?.point) return;
+    const timeScale = chart.timeScale();
+    const price = series.coordinateToPrice(param.point.y);
+    const time = timeScale.coordinateToTime(param.point.x);
+    if (price == null || !Number.isFinite(price) || time == null) return;
+    const numPrice = Number(price);
+
+    if (tool === 'horizontal') {
+      const lines = drawingPriceLinesRef.current;
+      const hitPx = 10;
+      for (let i = 0; i < lines.length; i++) {
+        const pl = lines[i];
+        const linePrice = pl.options().price;
+        const lineY = series.priceToCoordinate(linePrice);
+        if (lineY != null && Math.abs(lineY - param.point.y) <= hitPx) {
+          draggingPriceLineRef.current = pl;
+          const onMove = (moveParam) => {
+            if (!draggingPriceLineRef.current || !moveParam?.point) return;
+            const s = candleSeriesRef.current;
+            if (!s) return;
+            const p = s.coordinateToPrice(moveParam.point.y);
+            if (p != null && Number.isFinite(p)) draggingPriceLineRef.current.applyOptions({ price: Number(p) });
+          };
+          const onUp = () => {
+            if (drawingDragCleanupRef.current) drawingDragCleanupRef.current();
+            drawingDragCleanupRef.current = null;
+            draggingPriceLineRef.current = null;
+          };
+          chart.subscribeCrosshairMove(onMove);
+          const removeListeners = () => {
+            try { chart.unsubscribeCrosshairMove(onMove); } catch (_) {}
+            window.removeEventListener('mouseup', onUp);
+          };
+          drawingDragCleanupRef.current = removeListeners;
+          window.addEventListener('mouseup', onUp, { once: true });
+          return;
+        }
+      }
+      const line = series.createPriceLine({
+        price: numPrice,
+        lineWidth: 2,
+        lineStyle: LINE_SOLID,
+        axisLabelVisible: true,
+        color: '#10b981',
+      });
+      drawingPriceLinesRef.current.push(line);
+      setSelectedDrawingToolRef.current?.(null);
+      return;
+    }
+
+    if (tool === 'trend' || tool === 'line-segment') {
+      const pending = drawingPendingPointRef.current;
+      if (!pending) {
+        drawingPendingPointRef.current = { time, price: numPrice };
+        return;
+      }
+      const lineSeries = addLineSeriesCompat(chart, {
+        color: '#10b981',
+        lineWidth: 2,
+        lineStyle: LINE_SOLID,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      lineSeries.setData([
+        { time: pending.time, value: pending.price },
+        { time, value: numPrice },
+      ]);
+      drawingTrendLinesRef.current.push(lineSeries);
+      drawingPendingPointRef.current = null;
+      setSelectedDrawingToolRef.current?.(null);
+      return;
+    }
+
+    if (tool === 'rectangle') {
+      const pending = drawingPendingPointRef.current;
+      if (!pending) {
+        drawingPendingPointRef.current = { time, price: numPrice };
+        return;
+      }
+      const t1 = pending.time;
+      const t2 = time;
+      const p1 = pending.price;
+      const p2 = numPrice;
+      const rectOpts = {
+        color: '#10b981',
+        lineWidth: 2,
+        lineStyle: LINE_SOLID,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+      };
+      const top = addLineSeriesCompat(chart, rectOpts);
+      top.setData([{ time: t1, value: p1 }, { time: t2, value: p1 }]);
+      const bottom = addLineSeriesCompat(chart, rectOpts);
+      bottom.setData([{ time: t2, value: p2 }, { time: t1, value: p2 }]);
+      const tOff = typeof t1 === 'number' && typeof t2 === 'number' ? 1 : 0;
+      const right = addLineSeriesCompat(chart, rectOpts);
+      right.setData([{ time: t2, value: p1 }, { time: t2 + tOff, value: p2 }]);
+      const left = addLineSeriesCompat(chart, rectOpts);
+      left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
+      drawingRectanglesRef.current.push(top, right, bottom, left);
+      drawingPendingPointRef.current = null;
+      setSelectedDrawingToolRef.current?.(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    if (!chart || !series) return;
+    chart.subscribeClick(drawingClickHandler);
+    return () => {
+      try {
+        chart.unsubscribeClick(drawingClickHandler);
+      } catch (_) {}
+    };
+  }, [drawingClickHandler]);
 
   useEffect(() => {
     if (!candleSeriesRef.current || !candles.length) return;
@@ -699,7 +879,16 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     return () => cancelAnimationFrame(raf);
   }, [selectedTicker, selectedTimeframe, candles.length]);
 
-  return <div ref={chartContainerRef} className="w-full h-full" />;
+  return (
+    <div className="relative w-full h-full">
+      <div ref={chartContainerRef} className="absolute inset-0" />
+      <FloatingDrawingToolbar
+        onSelectTool={setSelectedDrawingTool}
+        onClear={clearDrawingLines}
+        selectedToolId={selectedDrawingTool}
+      />
+    </div>
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -824,16 +1013,19 @@ function SignalCard({ signal, marketStatus }) {
 // STRATEGY CARD
 // ══════════════════════════════════════════════════════════════════════════════
 
-function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, onExpandToggle }) {
+function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, onExpandToggle, blend }) {
   const desc = SIGNAL_DESCRIPTIONS[strategy.strategy_type];
   const stats = desc?.stats || (strategy.backtest_win_rate ? { win: strategy.backtest_win_rate, ret: `+${strategy.backtest_return}`, pf: strategy.backtest_profit_factor } : null);
+  const cardClass = blend
+    ? `${SIGNAL_CARD_BLEND_CLASS} ${enabled ? SIGNAL_CARD_BLEND_ACTIVE_CLASS : ''}`
+    : `${enabled ? SOFT_GLASS_ACCENT_CLASS : SOFT_GLASS_CARD_CLASS} p-3`;
 
   return (
     <motion.div
-      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={blend ? undefined : { y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+      whileTap={{ scale: blend ? 1 : 0.98 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      className={`${enabled ? SOFT_GLASS_ACCENT_CLASS : SOFT_GLASS_CARD_CLASS} p-3`}
+      className={cardClass}
     >
       <div className="flex items-center justify-between gap-2">
         <motion.button
@@ -945,60 +1137,55 @@ function RadarSettings({ settings, onUpdate }) {
   const sliderClass = 'radar-soft-slider relative w-full appearance-none bg-transparent cursor-pointer z-10';
 
   return (
-    <motion.div
-      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      className={`${SOFT_GLASS_CARD_CLASS} p-3 space-y-3`}
-    >
+    <div className="space-y-4">
       <style>{`
         .radar-soft-slider::-webkit-slider-runnable-track {
-          height: 6px;
+          height: 5px;
           border-radius: 9999px;
-          background: linear-gradient(to right, rgba(16,185,129,0.45), rgba(52,211,153,0.45));
+          background: rgba(255,255,255,0.06);
         }
         .radar-soft-slider::-moz-range-track {
-          height: 6px;
+          height: 5px;
           border-radius: 9999px;
-          background: linear-gradient(to right, rgba(16,185,129,0.45), rgba(52,211,153,0.45));
+          background: rgba(255,255,255,0.06);
         }
         .radar-soft-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 14px;
-          height: 14px;
+          width: 12px;
+          height: 12px;
           border-radius: 9999px;
           background: #ffffff;
-          border: 2px solid rgba(255,255,255,0.2);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-          margin-top: -4px;
-          transition: transform 220ms cubic-bezier(0.22,1,0.36,1);
+          border: 1px solid rgba(255,255,255,0.15);
+          margin-top: -3.5px;
+          transition: transform 150ms ease, box-shadow 150ms ease;
         }
         .radar-soft-slider::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
+          width: 12px;
+          height: 12px;
           border-radius: 9999px;
           background: #ffffff;
-          border: 2px solid rgba(255,255,255,0.2);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-          transition: transform 220ms cubic-bezier(0.22,1,0.36,1);
+          border: 1px solid rgba(255,255,255,0.15);
+          transition: transform 150ms ease, box-shadow 150ms ease;
         }
         .radar-soft-slider:active::-webkit-slider-thumb,
         .radar-soft-slider.is-dragging::-webkit-slider-thumb,
         .radar-soft-slider:active::-moz-range-thumb,
         .radar-soft-slider.is-dragging::-moz-range-thumb {
-          transform: scale(1.2);
+          transform: scale(1.15);
+          box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
         }
       `}</style>
       <div className="flex items-center justify-between">
         <h3 className="text-sm text-gray-500 uppercase tracking-widest font-semibold">Settings</h3>
-        <span className="text-sm font-semibold" style={{ color: riskProfile.color }}>{riskProfile.label}</span>
+        <span className="text-sm font-medium text-emerald-400/90">{riskProfile.label}</span>
       </div>
-      <div>
-        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-sm text-gray-400 flex-1">Stop Loss</label><span className="text-sm font-mono font-semibold text-emerald-400">{settings.stop_loss_multiplier}x</span></div>
-        <div className="relative h-5 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${slPct * 100}%` }} />
+      <div className="space-y-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5"><label className="text-sm text-gray-500 flex-1">Stop Loss</label><span className="text-sm font-mono font-medium text-emerald-400/90">{settings.stop_loss_multiplier}x</span></div>
+          <div className="relative h-5 flex items-center">
+          <div className="absolute w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-emerald-500/80 transition-all duration-200" style={{ width: `${slPct * 100}%` }} />
           </div>
           <input
             type="range"
@@ -1012,13 +1199,13 @@ function RadarSettings({ settings, onUpdate }) {
             onChange={e => onUpdate({ stop_loss_multiplier: parseFloat(e.target.value) })}
             className={`${sliderClass} ${activeSlider === 'sl' ? 'is-dragging' : ''}`}
           />
+          </div>
         </div>
-      </div>
-      <div>
-        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-sm text-gray-400 flex-1">Take Profit</label><span className="text-sm font-mono font-semibold text-emerald-400">{settings.take_profit_multiplier}x</span></div>
-        <div className="relative h-5 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${tpFillPct * 100}%` }} />
+        <div>
+          <div className="flex items-center gap-2 mb-1.5"><label className="text-sm text-gray-500 flex-1">Take Profit</label><span className="text-sm font-mono font-medium text-emerald-400/90">{settings.take_profit_multiplier}x</span></div>
+          <div className="relative h-5 flex items-center">
+          <div className="absolute w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-emerald-500/80 transition-all duration-200" style={{ width: `${tpFillPct * 100}%` }} />
           </div>
           <input
             type="range"
@@ -1032,13 +1219,13 @@ function RadarSettings({ settings, onUpdate }) {
             onChange={e => onUpdate({ take_profit_multiplier: parseFloat(e.target.value) })}
             className={`${sliderClass} ${activeSlider === 'tp' ? 'is-dragging' : ''}`}
           />
+          </div>
         </div>
-      </div>
-      <div>
-        <div className="flex items-center gap-1.5 mb-1.5"><label className="text-sm text-gray-400 flex-1">Risk Per Trade</label><span className="text-sm font-mono font-semibold text-emerald-400">{(settings.risk_per_trade * 100).toFixed(1)}%</span></div>
-        <div className="relative h-5 flex items-center">
-          <div className="absolute w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300" style={{ width: `${riskPct * 100}%` }} />
+        <div>
+          <div className="flex items-center gap-2 mb-1.5"><label className="text-sm text-gray-500 flex-1">Risk Per Trade</label><span className="text-sm font-mono font-medium text-emerald-400/90">{(settings.risk_per_trade * 100).toFixed(1)}%</span></div>
+          <div className="relative h-5 flex items-center">
+          <div className="absolute w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-emerald-500/80 transition-all duration-200" style={{ width: `${riskPct * 100}%` }} />
           </div>
           <input
             type="range"
@@ -1052,9 +1239,10 @@ function RadarSettings({ settings, onUpdate }) {
             onChange={e => onUpdate({ risk_per_trade: parseFloat(e.target.value) / 100 })}
             className={`${sliderClass} ${activeSlider === 'risk' ? 'is-dragging' : ''}`}
           />
+          </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -1109,7 +1297,7 @@ function LiveTickerHeader({ ticker, priceData, connected }) {
   }, [price]);
 
   return (
-    <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-3 flex-wrap">
+    <div className="px-5 py-3 border-b border-white/[0.04] flex items-center gap-3 flex-wrap">
       <span className="text-white font-bold text-sm font-mono">${ticker}</span>
       {connected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
       {price != null && Number.isFinite(price) && (
@@ -1543,10 +1731,10 @@ function StrategyRadarContent() {
                 <ChevronsRight className="w-4 h-4" strokeWidth={2} />
               </button>
               <div className="w-full min-h-0 overflow-y-auto relative p-2 pl-3 scrollbar-hide">
-                <div className={`${SOFT_GLASS_CARD_CLASS} overflow-hidden flex flex-col min-h-0`}>
+                <div className={SIGNAL_PANEL_BLEND_CLASS}>
                   <LiveTickerHeader ticker={selectedTicker} priceData={tickerPriceData} connected={connected} />
 
-            <div className="p-3 border-b border-white/[0.06]">
+            <div className="p-3 border-b border-white/[0.04]">
               <h2 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
             {currentTickerSignals.length > 0 ? (
               <>
@@ -1598,12 +1786,12 @@ function StrategyRadarContent() {
             </div>
 
             {enabledTypes.has('smart_money') && smResults.trendDetails && smResults.trendDetails.length > 0 && (
-              <div className="p-3 border-b border-white/[0.06]">
+              <div className="p-3 border-b border-white/[0.04]">
                 <TrendStrengthMatrix trendStrength={smResults.trendStrength} confidence={smResults.confidence} trendDetails={smResults.trendDetails} />
               </div>
             )}
 
-            <div className="p-3 border-b border-white/[0.06]">
+            <div className="p-3 border-b border-white/[0.04]">
               <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
             </div>
 
@@ -1611,7 +1799,7 @@ function StrategyRadarContent() {
               <h2 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Verified Signals</h2>
               <div className="space-y-2">
                 {strategies.map(strategy => (
-                  <StrategyCard key={strategy.id} strategy={strategy} enabled={activeStrategies[strategy.id] || false} onToggle={handleToggleStrategy} onViewDetails={setExpandedStrategy} isExpanded={expandedCardId === strategy.id} onExpandToggle={() => setExpandedCardId(prev => prev === strategy.id ? null : strategy.id)} />
+                  <StrategyCard key={strategy.id} strategy={strategy} enabled={activeStrategies[strategy.id] || false} onToggle={handleToggleStrategy} onViewDetails={setExpandedStrategy} isExpanded={expandedCardId === strategy.id} onExpandToggle={() => setExpandedCardId(prev => prev === strategy.id ? null : strategy.id)} blend />
                 ))}
               </div>
             </div>

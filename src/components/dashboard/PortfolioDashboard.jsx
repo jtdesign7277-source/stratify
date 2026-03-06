@@ -2149,18 +2149,18 @@ export default function PortfolioDashboard() {
         >
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-500">AI Opportunity Radar</div>
-              <div className="mt-1 text-[11px] text-gray-400">
+              <div className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-500">AI Opportunity Radar</div>
+              <div className="mt-1 text-sm text-gray-400">
                 {aiIdeas.summary || 'Personalized ideas based on your current holdings and strategy exposure.'}
               </div>
               {aiIdeasUpdatedLabel ? (
-                <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-gray-500">Updated {aiIdeasUpdatedLabel}</div>
+                <div className="mt-1 text-sm uppercase tracking-[0.14em] text-gray-500">Updated {aiIdeasUpdatedLabel}</div>
               ) : null}
             </div>
           </div>
 
           {aiIdeas.error ? (
-            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-200">
+            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-sm text-amber-200">
               {aiIdeas.error}
             </div>
           ) : null}
@@ -2203,15 +2203,15 @@ export default function PortfolioDashboard() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <div className="font-mono text-sm text-[#f8fbff]">${symbol || '--'}</div>
-                        {isSelected ? <span className="text-[10px] uppercase tracking-[0.12em] text-blue-400/80">Selected</span> : null}
+                        {isSelected ? <span className="text-sm uppercase tracking-[0.12em] text-blue-400/80">Selected</span> : null}
                       </div>
-                      <div className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                      <div className="mt-1 text-sm leading-relaxed text-gray-400">
                         {String(idea?.rationale || 'Monitor this setup for momentum continuation and portfolio diversification.')}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono text-xs text-[#f8fbff]">{hasPrice ? fmtMoney(price) : '—'}</div>
-                      <div className={`font-mono text-xs ${hasChange ? (isGain ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
+                      <div className="font-mono text-sm text-[#f8fbff]">{hasPrice ? fmtMoney(price) : '—'}</div>
+                      <div className={`font-mono text-sm ${hasChange ? (isGain ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
                         {hasChange ? fmtPct(change) : 'n/a'}
                       </div>
                     </div>
@@ -2224,18 +2224,18 @@ export default function PortfolioDashboard() {
           <div className="mt-4 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]/70 p-3">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-500">Radar Watchlist Simulator</div>
-                <div className="mt-1 text-[11px] text-gray-400">
+                <div className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-500">Radar Watchlist Simulator</div>
+                <div className="mt-1 text-sm text-gray-400">
                   Pick symbols, set fake capital, and run 3/6/9/12-month close-price what-if returns.
                 </div>
               </div>
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-blue-300">
+              <span className="font-mono text-sm uppercase tracking-[0.12em] text-blue-300">
                 {activeScenarioSymbols.length} tickers
               </span>
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-2">
-              <label className="text-[10px] uppercase tracking-[0.14em] text-gray-500">
+              <label className="text-sm uppercase tracking-[0.14em] text-gray-500">
                 Watchlist Name
                 <input
                   value={scenarioNameInput}
@@ -2245,7 +2245,7 @@ export default function PortfolioDashboard() {
                   maxLength={40}
                 />
               </label>
-              <label className="text-[10px] uppercase tracking-[0.14em] text-gray-500">
+              <label className="text-sm uppercase tracking-[0.14em] text-gray-500">
                 Total Capital (Paper)
                 <input
                   value={scenarioCapitalInput}
@@ -2257,7 +2257,7 @@ export default function PortfolioDashboard() {
               </label>
             </div>
 
-            <div className="mt-2 text-[11px] text-gray-400">
+            <div className="mt-2 text-sm text-gray-400">
               Buy date auto-fills from each timeframe anchor (3/6/9/12 months back); weekend dates roll to the previous Friday close.
             </div>
 
@@ -2265,7 +2265,7 @@ export default function PortfolioDashboard() {
               <button
                 type="button"
                 onClick={handleCreateScenario}
-                className="rounded-md border border-[#1f1f1f] bg-[#0b0b0b] px-2.5 py-1.5 text-xs text-[#f8fbff] transition hover:border-blue-500/40 hover:text-blue-300"
+                className="rounded-md border border-[#1f1f1f] bg-[#0b0b0b] px-2.5 py-1.5 text-sm text-[#f8fbff] transition hover:border-blue-500/40 hover:text-blue-300"
               >
                 Save Watchlist
               </button>
@@ -2273,7 +2273,7 @@ export default function PortfolioDashboard() {
                 type="button"
                 onClick={runWhatIfSimulation}
                 disabled={whatIfLoading || activeScenarioSymbols.length === 0}
-                className="rounded-md border border-blue-500/40 bg-blue-500/12 px-2.5 py-1.5 text-xs text-blue-300 transition hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-md border border-blue-500/40 bg-blue-500/12 px-2.5 py-1.5 text-sm text-blue-300 transition hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {whatIfLoading ? 'Running...' : 'Run Simulation'}
               </button>
@@ -2284,7 +2284,7 @@ export default function PortfolioDashboard() {
                     setActiveScenarioId('');
                     setWhatIfResults([]);
                   }}
-                  className="rounded-md border border-[#1f1f1f] bg-[#0b0b0b] px-2.5 py-1.5 text-xs text-gray-300 transition hover:text-[#f8fbff]"
+                  className="rounded-md border border-[#1f1f1f] bg-[#0b0b0b] px-2.5 py-1.5 text-sm text-gray-300 transition hover:text-[#f8fbff]"
                 >
                   Clear Loaded Watchlist
                 </button>
@@ -2293,7 +2293,7 @@ export default function PortfolioDashboard() {
 
             {portfolioScenarios.length > 0 ? (
               <div className="mt-3 space-y-1.5">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Saved Watchlists</div>
+                <div className="text-sm uppercase tracking-[0.14em] text-gray-500">Saved Watchlists</div>
                 {portfolioScenarios.map((scenario) => {
                   const active = scenario.id === activeScenarioId;
                   return (
@@ -2308,15 +2308,15 @@ export default function PortfolioDashboard() {
                         onClick={() => handleSelectScenario(scenario.id)}
                         className="min-w-0 flex-1 text-left"
                       >
-                        <div className="truncate text-xs text-[#f8fbff]">{scenario.name}</div>
-                        <div className="text-[10px] text-gray-500">
+                        <div className="truncate text-sm text-[#f8fbff]">{scenario.name}</div>
+                        <div className="text-sm text-gray-500">
                           {scenario.symbols.length} symbols · {fmtMoney(scenario.capital || STARTING_BALANCE, 0)}
                         </div>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteScenario(scenario.id)}
-                        className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-300 transition hover:bg-red-500/20"
+                        className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-sm text-red-300 transition hover:bg-red-500/20"
                         title="Delete watchlist"
                       >
                         Delete
@@ -2333,7 +2333,7 @@ export default function PortfolioDashboard() {
                   key={`what-if-months-${months}`}
                   type="button"
                   onClick={() => setSelectedWhatIfMonths(months)}
-                  className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.14em] transition ${
+                  className={`rounded-full border px-2 py-1 text-sm uppercase tracking-[0.14em] transition ${
                     selectedWhatIfMonths === months
                       ? 'border-blue-500/40 bg-blue-500/14 text-blue-300'
                       : 'border-[#1f1f1f] bg-[#090909] text-gray-400 hover:text-gray-200'
@@ -2345,7 +2345,7 @@ export default function PortfolioDashboard() {
             </div>
 
             {whatIfError ? (
-              <div className="mt-3 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[11px] text-red-200">
+              <div className="mt-3 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-sm text-red-200">
                 {whatIfError}
               </div>
             ) : null}
@@ -2376,11 +2376,11 @@ export default function PortfolioDashboard() {
                           selected ? 'border-blue-500/40 bg-blue-500/10' : 'border-[#1f1f1f] bg-[#080808]'
                         }`}
                       >
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">{result.months}M</div>
+                        <div className="text-sm uppercase tracking-[0.14em] text-gray-500">{result.months}M</div>
                         <div className={`mt-1 font-mono text-sm ${pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                           {fmtMoney(result.valueNow || 0)}
                         </div>
-                        <div className="text-[10px] text-gray-500">Buy {result.targetDate || '—'}</div>
+                        <div className="text-sm text-gray-500">Buy {result.targetDate || '—'}</div>
                       </button>
                     );
                   })}
@@ -2390,22 +2390,22 @@ export default function PortfolioDashboard() {
                   <div className="rounded-md border border-[#1f1f1f] bg-[#080808] p-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">
+                        <div className="text-sm uppercase tracking-[0.14em] text-gray-500">
                           {whatIfSelectedResult.months}M Result · Buy {whatIfSelectedResult.targetDate || '—'}
                         </div>
                         <div className="mt-1 font-mono text-sm text-[#f8fbff]">
                           {fmtMoney(whatIfSelectedResult.valueNow || 0)}
                         </div>
                       </div>
-                      <div className={`font-mono text-xs ${Number(whatIfSelectedResult?.pnl || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                      <div className={`font-mono text-sm ${Number(whatIfSelectedResult?.pnl || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                         {fmtPct(whatIfSelectedResult?.pnlPct || 0)}
                       </div>
                     </div>
 
                     <div className="mt-2 overflow-x-auto rounded-md border border-[#1f1f1f]">
-                      <table className="min-w-full text-[11px]">
+                      <table className="min-w-full text-sm">
                         <thead>
-                          <tr className="border-b border-[#1f1f1f] text-[10px] uppercase tracking-[0.14em] text-gray-500">
+                          <tr className="border-b border-[#1f1f1f] text-sm uppercase tracking-[0.14em] text-gray-500">
                             <th className="px-2 py-1.5 text-left">Symbol</th>
                             <th className="px-2 py-1.5 text-right" title="Closing price on the simulated buy date">Buy Price</th>
                             <th className="px-2 py-1.5 text-right">Now</th>
@@ -2427,7 +2427,7 @@ export default function PortfolioDashboard() {
                       </table>
                     </div>
                     {whatIfGeneratedLabel ? (
-                      <div className="mt-2 text-[10px] uppercase tracking-[0.14em] text-gray-500">Updated {whatIfGeneratedLabel}</div>
+                      <div className="mt-2 text-sm uppercase tracking-[0.14em] text-gray-500">Updated {whatIfGeneratedLabel}</div>
                     ) : null}
                   </div>
                 ) : null}
