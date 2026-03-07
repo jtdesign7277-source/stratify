@@ -14,6 +14,7 @@ import ErrorBoundary from '../shared/AppErrorBoundary';
 import MiniGamePill from '../shared/MiniGamePill';
 import FloatingDrawingToolbar from './FloatingDrawingToolbar';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
+import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 
 function newsTimeAgo(dateStr) {
   if (!dateStr) return '';
@@ -212,6 +213,8 @@ const modalPanelMotion = {
 
 const UP_COLOR = '#34d399';
 const DOWN_COLOR = '#ef4444';
+const TRADER_CANDLE_PALETTE_KEY = 'stratify-trader-candle-palette';
+const TRADER_CHART_DISPLAY_KEY = 'stratify-trader-chart-display';
 const VOLUME_UP = 'rgba(52, 211, 153, 0.3)';
 const VOLUME_DOWN = 'rgba(239, 68, 68, 0.3)';
 const DRAG_PREVIEW_SCALE_BY_DISTANCE = [
@@ -951,7 +954,9 @@ const loadInitialWatchlist = () => {
 const loadInitialWatchlistCollapsed = () => {
   if (typeof window === 'undefined') return false;
   try {
-    return localStorage.getItem(WATCHLIST_COLLAPSED_STORAGE_KEY) === 'true';
+    // Default to open (false) so watchlist is visible when user lands on Trader page
+    const saved = localStorage.getItem(WATCHLIST_COLLAPSED_STORAGE_KEY);
+    return saved === 'true';
   } catch {
     return false;
   }
@@ -1594,8 +1599,34 @@ export default function TraderPage({
   });
   const [chartReady, setChartReady] = useState(false);
   const [chartTimeframe, setChartTimeframe] = useState(() => loadInitialChartTimeframe());
+  const [candlePaletteId, setCandlePaletteId] = useState(() => {
+    if (typeof window === 'undefined') return 'classic';
+    try {
+      const saved = window.localStorage.getItem(TRADER_CANDLE_PALETTE_KEY);
+      return CANDLE_PALETTES.some(p => p.id === saved) ? saved : 'classic';
+    } catch { return 'classic'; }
+  });
+  const [chartDisplayMode, setChartDisplayMode] = useState(() => {
+    if (typeof window === 'undefined') return 'solid';
+    try {
+      const saved = window.localStorage.getItem(TRADER_CHART_DISPLAY_KEY);
+      return CHART_DISPLAY_OPTIONS.some(o => o.id === saved) ? saved : 'solid';
+    } catch { return 'solid'; }
+  });
+  const candleColors = useMemo(() => {
+    const p = CANDLE_PALETTES.find(pa => pa.id === candlePaletteId) || CANDLE_PALETTES[0];
+    return { up: p.up, down: p.down };
+  }, [candlePaletteId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(TRADER_CANDLE_PALETTE_KEY, candlePaletteId);
+      window.localStorage.setItem(TRADER_CHART_DISPLAY_KEY, chartDisplayMode);
+    } catch {}
+  }, [candlePaletteId, chartDisplayMode]);
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
-  const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
+  // Watchlist starts open by default when user lands on Trader page (saved preference still applied on load via effect)
+  const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(false);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   // News panel: 3-state cycle — 'peek' (1/3) → 'open' (60%) → 'closed' → 'peek'
   const [isNewsOpen, setIsNewsOpen] = useState(true);
@@ -1704,8 +1735,10 @@ export default function TraderPage({
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
+  const lineSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const lastBarRef = useRef(null);
+  const lastCandleDataRef = useRef([]);
   const drawingPriceLinesRef = useRef([]);
   const drawingTrendLinesRef = useRef([]);
   const drawingRectanglesRef = useRef([]);
@@ -1859,18 +1892,46 @@ export default function TraderPage({
     return () => observer.disconnect();
   }, []);
 
+  // When article drawer opens (chart compressed to 50%), resize chart to fill the left half so it doesn't hug the right
   useEffect(() => {
     const shouldCompressChart = Boolean(drawerArticle && isNewsOpen && isArticleDrawerExtendedToChartTop);
-    if (!shouldCompressChart || !chartRef.current || typeof window === 'undefined') return undefined;
+    if (!shouldCompressChart || !chartRef.current || !chartContainerRef.current || typeof window === 'undefined') return undefined;
 
     const timer = window.setTimeout(() => {
       try {
-        chartRef.current?.timeScale().fitContent();
+        const container = chartContainerRef.current;
+        const chart = chartRef.current;
+        if (!container || !chart) return;
+        const { width, height } = container.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          chart.resize(width, height);
+          chart.timeScale().fitContent();
+        }
       } catch {}
-    }, 240);
+    }, 280);
 
     return () => window.clearTimeout(timer);
   }, [drawerArticle, isNewsOpen, isArticleDrawerExtendedToChartTop]);
+
+  // When article drawer closes, force chart to resize and restore view so it returns to the same state as before opening
+  useEffect(() => {
+    if (drawerArticle != null || !chartRef.current || !chartContainerRef.current) return undefined;
+
+    const timer = window.setTimeout(() => {
+      try {
+        const container = chartContainerRef.current;
+        const chart = chartRef.current;
+        if (!container || !chart) return;
+        const { width, height } = container.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          chart.resize(width, height);
+          chart.timeScale().fitContent();
+        }
+      } catch {}
+    }, 280);
+
+    return () => window.clearTimeout(timer);
+  }, [drawerArticle]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -2643,6 +2704,16 @@ export default function TraderPage({
       borderDownColor: DOWN_COLOR,
     });
 
+    const lineSeries = chart.addSeries(LineSeries, {
+      color: UP_COLOR,
+      lineWidth: 2,
+      lastValueVisible: true,
+      priceLineVisible: true,
+      crosshairMarkerVisible: true,
+      visible: false,
+    });
+    lineSeriesRef.current = lineSeries;
+
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
@@ -2677,6 +2748,7 @@ export default function TraderPage({
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
+      lineSeriesRef.current = null;
       volumeSeriesRef.current = null;
       lastBarRef.current = null;
       drawingPriceLinesRef.current = [];
@@ -2685,6 +2757,31 @@ export default function TraderPage({
       drawingPendingPointRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const candleSeries = candleSeriesRef.current;
+    const lineSeries = lineSeriesRef.current;
+    if (!candleSeries) return;
+    const up = candleColors?.up ?? UP_COLOR;
+    const down = candleColors?.down ?? DOWN_COLOR;
+    const isHollow = chartDisplayMode === 'hollow';
+    const isLineMode = chartDisplayMode === 'line';
+    candleSeries.applyOptions({
+      upColor: isHollow ? 'rgba(11,11,11,0)' : up,
+      downColor: isHollow ? 'rgba(11,11,11,0)' : down,
+      borderUpColor: up,
+      borderDownColor: down,
+      wickUpColor: up,
+      wickDownColor: down,
+      visible: !isLineMode,
+    });
+    if (lineSeries) {
+      lineSeries.applyOptions({ color: up, visible: isLineMode });
+      if (isLineMode && lastCandleDataRef.current.length > 0) {
+        lineSeries.setData(lastCandleDataRef.current.map((bar) => ({ time: bar.time, value: bar.close })));
+      }
+    }
+  }, [candleColors?.up, candleColors?.down, chartDisplayMode]);
 
   const clearDrawingLines = useCallback((opts) => {
     const skipSave = opts?.skipSave === true;
@@ -3072,6 +3169,9 @@ export default function TraderPage({
         return;
       }
 
+      const isLineMode = chartDisplayMode === 'line';
+      const lineData = deduped.map((bar) => ({ time: bar.time, value: bar.close }));
+
       candleSeriesRef.current.setData(
         deduped.map((bar) => ({
           time: bar.time,
@@ -3081,6 +3181,13 @@ export default function TraderPage({
           close: bar.close,
         }))
       );
+
+      lastCandleDataRef.current = deduped;
+      if (lineSeriesRef.current) {
+        lineSeriesRef.current.setData(lineData);
+        lineSeriesRef.current.applyOptions({ visible: isLineMode });
+      }
+      candleSeriesRef.current.applyOptions({ visible: !isLineMode });
 
       volumeSeriesRef.current.setData(
         deduped.map((bar) => ({
@@ -4558,8 +4665,46 @@ export default function TraderPage({
           <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-visible rounded-xl backdrop-blur-xl" style={chartPanelStyle}>
             <div className="shrink-0 border-b border-white/[0.09] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-
+                <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500 mr-0.5">Candles</span>
+                    {CANDLE_PALETTES.map((pal) => {
+                      const isActive = candlePaletteId === pal.id;
+                      return (
+                        <motion.button
+                          key={pal.id}
+                          type="button"
+                          onClick={() => setCandlePaletteId(pal.id)}
+                          whileTap={{ scale: 0.96 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                          className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
+                          title={pal.name}
+                        >
+                          <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.up }} />
+                          <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.down }} />
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {CHART_DISPLAY_OPTIONS.map((opt) => {
+                      const isActive = chartDisplayMode === opt.id;
+                      const Icon = opt.Icon;
+                      return (
+                        <motion.button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setChartDisplayMode(opt.id)}
+                          whileTap={{ scale: 0.96 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                          className={`rounded-md border p-1 transition-colors ${isActive ? 'border-white/20 bg-white/10 text-white' : 'border-white/[0.06] bg-transparent text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'}`}
+                          title={opt.name}
+                        >
+                          <Icon className="h-5 w-5 shrink-0" />
+                        </motion.button>
+                      );
+                    })}
+                  </div>
                   {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
                     const isActive = chartTimeframe === timeframe.id;
                     return (
@@ -4705,7 +4850,7 @@ export default function TraderPage({
               <div
                 className="relative z-20 shrink-0 isolate"
                 style={{
-                  height: isNewsOpen ? (drawerArticle ? 'min(520px, 50vh)' : '280px') : '0px',
+                  height: isNewsOpen ? (drawerArticle ? 'min(520px, 50vh)' : '200px') : '0px',
                   transition: 'height 0.35s ease',
                   pointerEvents: 'auto',
                 }}
@@ -4785,7 +4930,7 @@ export default function TraderPage({
                         </div>
                       ) : (
                         <div className="divide-y divide-white/[0.03]">
-                          {newsArticles.map((article) => {
+                          {(newsArticles || []).map((article) => {
                             const score = article.sentiment ?? article.sentiment_score ?? null;
                             const timeAgo = newsTimeAgo(article.publishedAt ?? article.published_at);
                             const sourceLabel = newsSourceLabel(article.source);

@@ -20,7 +20,7 @@ const TOOLS = [
   { id: 'rectangle', label: 'Rectangle', icon: Square },
 ];
 
-export default function FloatingDrawingToolbar({ onSelectTool, onClear, selectedToolId = null }) {
+export default function FloatingDrawingToolbar({ onSelectTool, onClear, onClearAll, selectedToolId = null }) {
   const barRef = useRef(null);
   const positionRef = useRef({ x: 24, y: 120 });
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -147,7 +147,7 @@ export default function FloatingDrawingToolbar({ onSelectTool, onClear, selected
       <div className="h-5 w-px bg-white/10" />
       <button
         type="button"
-        title="Clear all drawings"
+        title="Remove last drawing"
         onClick={() => onClear?.()}
         className="flex items-center justify-center rounded p-2 text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
       >
@@ -156,7 +156,7 @@ export default function FloatingDrawingToolbar({ onSelectTool, onClear, selected
       <button
         type="button"
         title="Refresh chart — clear all drawing lines (use if any line is stuck)"
-        onClick={() => onClear?.()}
+        onClick={() => onClearAll?.()}
         className="flex items-center justify-center rounded p-2 text-gray-400 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors"
       >
         <RefreshCw className="h-4 w-4" strokeWidth={2} />

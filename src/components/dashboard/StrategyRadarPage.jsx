@@ -12,7 +12,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronsLeft, ChevronsRight, Check } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 import FloatingDrawingToolbar from './FloatingDrawingToolbar';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import gsap from 'gsap';
@@ -37,21 +38,23 @@ const BEAR_COLOR = '#f23645';
 const HPZ_BULL = '#1de9b6';
 
 const CANDLE_PALETTE_STORAGE_KEY = 'stratify-strategy-radar-candle-palette';
-const CANDLE_PALETTES = [
-  { id: 'classic', name: 'Classic', up: '#089981', down: '#f23645' },
-  { id: 'ocean', name: 'Ocean', up: '#00C2FF', down: '#FF6B9D' },
-  { id: 'forest', name: 'Forest', up: '#22c55e', down: '#f97316' },
-];
+const CHART_DISPLAY_STORAGE_KEY = 'stratify-strategy-radar-chart-display';
 const HPZ_BEAR = '#ff5252';
 const CHOCH_COLOR = '#00C2FF';
 const BOS_COLOR = '#7B61FF';
 const SOFT_GLASS_CARD_CLASS = 'dashboard-card bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 hover:from-white/[0.06] hover:to-white/[0.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:border-white/[0.1]';
-const SIGNAL_PANEL_BLEND_CLASS = 'bg-[#0b0b0b] overflow-hidden flex flex-col min-h-0';
+const SIGNAL_PANEL_BLEND_CLASS = 'overflow-hidden flex flex-col min-h-0 rounded-r-xl bg-[linear-gradient(135deg,rgba(255,255,255,0.02)_0%,rgba(255,255,255,0)_100%),#0b0b0b]';
 const SIGNAL_CARD_BLEND_CLASS = 'border border-white/[0.03] rounded py-3 px-3 transition-colors';
 const SIGNAL_CARD_BLEND_ACTIVE_CLASS = 'border-emerald-500/20 bg-emerald-500/5';
 const SOFT_GLASS_ACCENT_CLASS = 'dashboard-card bg-gradient-to-br from-emerald-500/[0.08] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-emerald-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgba(16,185,129,0.1)]';
 const SOFT_GLASS_INSET_CLASS = 'bg-black/40 rounded-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] border border-white/[0.04]';
 const BUTTON_SPRING = { type: 'spring', stiffness: 500, damping: 30 };
+const GLASS_TOPBAR_STYLE = {
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a',
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35)',
+  backdropFilter: 'blur(16px)',
+};
 
 const CRYPTO_TICKERS = new Set(['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOGE/USD', 'LINK/USD', 'ADA/USD', 'AVAX/USD', 'DOT/USD']);
 
@@ -465,15 +468,17 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors, chartDisplayMode = 'solid' }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
+  const lineSeriesRef = useRef(null);
   const markersRef = useRef(null);
   const obOverlaySeriesRef = useRef([]);
   const drawingPriceLinesRef = useRef([]);
   const drawingTrendLinesRef = useRef([]);
   const drawingRectanglesRef = useRef([]);
+  const drawingOrderRef = useRef([]);
   const drawingPendingPointRef = useRef(null);
   const selectedDrawingToolRef = useRef(null);
   const setSelectedDrawingToolRef = useRef(null);
@@ -535,6 +540,16 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     });
     candleSeriesRef.current = candleSeries;
 
+    const lineSeries = addLineSeriesCompat(chart, {
+      color: up,
+      lineWidth: 2,
+      lastValueVisible: true,
+      priceLineVisible: true,
+      crosshairMarkerVisible: true,
+      visible: false,
+    });
+    lineSeriesRef.current = lineSeries;
+
     const applySize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight });
@@ -560,54 +575,94 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
   }, []);
 
   useEffect(() => {
-    const series = candleSeriesRef.current;
-    if (!series || !candleColors) return;
+    const candleSeries = candleSeriesRef.current;
+    const lineSeries = lineSeriesRef.current;
+    if (!candleColors) return;
     const up = candleColors.up ?? BULL_COLOR;
     const down = candleColors.down ?? BEAR_COLOR;
-    series.applyOptions({
-      upColor: up,
-      downColor: down,
-      borderUpColor: up,
-      borderDownColor: down,
-      wickUpColor: up,
-      wickDownColor: down,
-    });
-  }, [candleColors?.up, candleColors?.down]);
+    const isHollow = chartDisplayMode === 'hollow';
+    if (candleSeries) {
+      candleSeries.applyOptions({
+        upColor: isHollow ? 'rgba(10,10,15,0)' : up,
+        downColor: isHollow ? 'rgba(10,10,15,0)' : down,
+        borderUpColor: up,
+        borderDownColor: down,
+        wickUpColor: up,
+        wickDownColor: down,
+      });
+    }
+    if (lineSeries) {
+      lineSeries.applyOptions({ color: up });
+    }
+  }, [candleColors?.up, candleColors?.down, chartDisplayMode]);
 
   const clearDrawingLines = useCallback((opts) => {
     const skipSave = opts?.skipSave === true;
+    const clearAll = opts?.all === true;
     const chart = chartRef.current;
     const series = candleSeriesRef.current;
     if (!series) return;
-    try {
-      const allPriceLines = series.priceLines?.() ?? [];
-      allPriceLines.forEach((line) => {
-        try {
-          series.removePriceLine(line);
-        } catch (_) {}
+    const order = drawingOrderRef.current;
+    if (skipSave || clearAll || order.length === 0) {
+      try {
+        const allPriceLines = series.priceLines?.() ?? [];
+        allPriceLines.forEach((line) => {
+          try { series.removePriceLine(line); } catch (_) {}
+        });
+      } catch (_) {}
+      drawingPriceLinesRef.current = [];
+      drawingTrendLinesRef.current.forEach((s) => {
+        try { if (chart) chart.removeSeries(s); } catch (_) {}
       });
-    } catch (_) {}
-    drawingPriceLinesRef.current = [];
-    drawingTrendLinesRef.current.forEach((s) => {
-      try {
-        if (chart) chart.removeSeries(s);
-      } catch (_) {}
-    });
-    drawingTrendLinesRef.current = [];
-    drawingRectanglesRef.current.forEach((s) => {
-      try {
-        if (chart) chart.removeSeries(s);
-      } catch (_) {}
-    });
-    drawingRectanglesRef.current = [];
-    drawingPendingPointRef.current = null;
-    if (!skipSave) {
+      drawingTrendLinesRef.current = [];
+      drawingRectanglesRef.current.forEach((s) => {
+        try { if (chart) chart.removeSeries(s); } catch (_) {}
+      });
+      drawingRectanglesRef.current = [];
+      drawingOrderRef.current = [];
+      drawingPendingPointRef.current = null;
+      if (!skipSave && (clearAll || order.length === 0)) {
+        const sym = selectedTickerRef.current;
+        if (sym) saveDrawings('radar', sym, { horizontal: [], trends: [], rectangles: [] });
+      }
+      return;
+    }
+    const last = order.pop();
+    if (last.type === 'horizontal' && last.line) {
+      try { series.removePriceLine(last.line); } catch (_) {}
+      drawingPriceLinesRef.current = drawingPriceLinesRef.current.filter((l) => l !== last.line);
       const sym = selectedTickerRef.current;
-      if (sym) saveDrawings('radar', sym, { horizontal: [], trends: [], rectangles: [] });
+      if (sym) {
+        const stored = getStoredDrawings('radar', sym);
+        const horizontal = Array.isArray(stored.horizontal) ? stored.horizontal.slice(0, -1) : [];
+        saveDrawings('radar', sym, { ...stored, horizontal });
+      }
+    } else if (last.type === 'trend' && last.series) {
+      try { if (chart) chart.removeSeries(last.series); } catch (_) {}
+      drawingTrendLinesRef.current = drawingTrendLinesRef.current.filter((s) => s !== last.series);
+      const sym = selectedTickerRef.current;
+      if (sym) {
+        const stored = getStoredDrawings('radar', sym);
+        const trends = Array.isArray(stored.trends) ? stored.trends.slice(0, -1) : [];
+        saveDrawings('radar', sym, { ...stored, trends });
+      }
+    } else if (last.type === 'rectangle' && last.seriesList) {
+      last.seriesList.forEach((s) => {
+        try { if (chart) chart.removeSeries(s); } catch (_) {}
+      });
+      drawingRectanglesRef.current = drawingRectanglesRef.current.filter((s) => !last.seriesList.includes(s));
+      const sym = selectedTickerRef.current;
+      if (sym) {
+        const stored = getStoredDrawings('radar', sym);
+        const rectangles = Array.isArray(stored.rectangles) ? stored.rectangles.slice(0, -1) : [];
+        saveDrawings('radar', sym, { ...stored, rectangles });
+      }
     }
   }, []);
 
   const LINE_SOLID = 0;
+  const DRAWING_COLOR = '#10b981';
+  const DRAWING_LINE_WIDTH = 2;
   const drawingClickHandler = useCallback((param) => {
     const chart = chartRef.current;
     const series = candleSeriesRef.current;
@@ -658,12 +713,13 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       }
       const line = series.createPriceLine({
         price: numPrice,
-        lineWidth: 1,
+        lineWidth: DRAWING_LINE_WIDTH,
         lineStyle: LINE_SOLID,
         axisLabelVisible: true,
-        color: '#10b981',
+        color: DRAWING_COLOR,
       });
       drawingPriceLinesRef.current.push(line);
+      drawingOrderRef.current.push({ type: 'horizontal', line });
       const sym = selectedTickerRef.current;
       if (sym) {
         const stored = getStoredDrawings('radar', sym);
@@ -684,8 +740,8 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         drawingLastCrosshairRef.current = { time, value: numPrice };
         drawingDragStartedRef.current = false;
         const previewOpts = {
-          color: '#10b981',
-          lineWidth: 1,
+          color: DRAWING_COLOR,
+          lineWidth: DRAWING_LINE_WIDTH,
           lineStyle: LINE_SOLID,
           lastValueVisible: false,
           priceLineVisible: false,
@@ -727,8 +783,8 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
           const last = drawingLastCrosshairRef.current;
           if (drawingDragStartedRef.current && p && last) {
             const lineSeries = addLineSeriesCompat(chart, {
-              color: '#10b981',
-              lineWidth: 1,
+              color: DRAWING_COLOR,
+              lineWidth: DRAWING_LINE_WIDTH,
               lineStyle: LINE_SOLID,
               lastValueVisible: false,
               priceLineVisible: false,
@@ -736,6 +792,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
             });
             lineSeries.setData([{ time: p.time, value: p.price }, { time: last.time, value: last.value }]);
             drawingTrendLinesRef.current.push(lineSeries);
+            drawingOrderRef.current.push({ type: 'trend', series: lineSeries });
             const symTrend = selectedTickerRef.current;
             if (symTrend) {
               const stored = getStoredDrawings('radar', symTrend);
@@ -758,8 +815,8 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         return;
       }
       const lineSeries = addLineSeriesCompat(chart, {
-        color: '#10b981',
-        lineWidth: 1,
+        color: DRAWING_COLOR,
+        lineWidth: DRAWING_LINE_WIDTH,
         lineStyle: LINE_SOLID,
         lastValueVisible: false,
         priceLineVisible: false,
@@ -770,6 +827,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         { time, value: numPrice },
       ]);
       drawingTrendLinesRef.current.push(lineSeries);
+      drawingOrderRef.current.push({ type: 'trend', series: lineSeries });
       const symTrend = selectedTickerRef.current;
       if (symTrend) {
         const stored = getStoredDrawings('radar', symTrend);
@@ -794,8 +852,8 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       const p1 = pending.price;
       const p2 = numPrice;
       const rectOpts = {
-        color: '#10b981',
-        lineWidth: 1,
+        color: DRAWING_COLOR,
+        lineWidth: DRAWING_LINE_WIDTH,
         lineStyle: LINE_SOLID,
         lastValueVisible: false,
         priceLineVisible: false,
@@ -811,6 +869,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       const left = addLineSeriesCompat(chart, rectOpts);
       left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
       drawingRectanglesRef.current.push(top, right, bottom, left);
+      drawingOrderRef.current.push({ type: 'rectangle', seriesList: [top, right, bottom, left] });
       const symRect = selectedTickerRef.current;
       if (symRect) {
         const stored = getStoredDrawings('radar', symRect);
@@ -844,7 +903,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     clearDrawingLines({ skipSave: true });
     const stored = getStoredDrawings('radar', selectedTicker);
     const lineOpts = {
-      lineWidth: 1,
+      lineWidth: DRAWING_LINE_WIDTH,
       lineStyle: LINE_SOLID,
       lastValueVisible: false,
       priceLineVisible: false,
@@ -853,21 +912,23 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     (stored.horizontal || []).forEach((price) => {
       const line = series.createPriceLine({
         price: Number(price),
-        lineWidth: 1,
+        lineWidth: DRAWING_LINE_WIDTH,
         lineStyle: LINE_SOLID,
         axisLabelVisible: true,
-        color: '#10b981',
+        color: DRAWING_COLOR,
       });
       drawingPriceLinesRef.current.push(line);
+      drawingOrderRef.current.push({ type: 'horizontal', line });
     });
     (stored.trends || []).forEach(({ points }) => {
       if (!Array.isArray(points) || points.length < 2) return;
-      const lineSeries = addLineSeriesCompat(chart, { color: '#10b981', ...lineOpts });
+      const lineSeries = addLineSeriesCompat(chart, { color: DRAWING_COLOR, ...lineOpts });
       lineSeries.setData(points.map((p) => ({ time: p.time, value: p.value })));
       drawingTrendLinesRef.current.push(lineSeries);
+      drawingOrderRef.current.push({ type: 'trend', series: lineSeries });
     });
     (stored.rectangles || []).forEach(({ t1, t2, p1, p2 }) => {
-      const rectOpts = { color: '#10b981', ...lineOpts };
+      const rectOpts = { color: DRAWING_COLOR, ...lineOpts };
       const top = addLineSeriesCompat(chart, rectOpts);
       top.setData([{ time: t1, value: p1 }, { time: t2, value: p1 }]);
       const bottom = addLineSeriesCompat(chart, rectOpts);
@@ -878,12 +939,27 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       const left = addLineSeriesCompat(chart, rectOpts);
       left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
       drawingRectanglesRef.current.push(top, right, bottom, left);
+      drawingOrderRef.current.push({ type: 'rectangle', seriesList: [top, right, bottom, left] });
     });
   }, [selectedTicker, candles.length, clearDrawingLines]);
 
   useEffect(() => {
-    if (!candleSeriesRef.current || !candles.length) return;
-    candleSeriesRef.current.setData(candles);
+    const candleSeries = candleSeriesRef.current;
+    const lineSeries = lineSeriesRef.current;
+    if (!candleSeries || !candles.length) return;
+
+    const isLineMode = chartDisplayMode === 'line';
+    const lineData = candles.map(c => ({ time: c.time, value: Number(c.close) }));
+
+    if (isLineMode && lineSeries) {
+      lineSeries.setData(lineData);
+      lineSeries.applyOptions({ visible: true });
+      candleSeries.applyOptions({ visible: false });
+    } else {
+      candleSeries.setData(candles);
+      candleSeries.applyOptions({ visible: true });
+      if (lineSeries) lineSeries.applyOptions({ visible: false });
+    }
 
     const chartNow = Number(candles[candles.length - 1]?.time);
     const markers = [];
@@ -1113,11 +1189,8 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     });
 
     markers.sort((a, b) => a.time - b.time);
-    if (markersRef.current) {
-      markersRef.current.setMarkers(markers);
-    } else {
-      markersRef.current = createSeriesMarkers(candleSeriesRef.current, markers);
-    }
+    const activeSeries = isLineMode && lineSeries ? lineSeries : candleSeries;
+    markersRef.current = createSeriesMarkers(activeSeries, markers);
 
     // Only fit content when candle data changed (ticker/timeframe or new data), not when user toggles signals off/on
     const candlesKey = candles.length ? `${selectedTicker}-${selectedTimeframe}-${candles.length}-${candles[0]?.time}-${candles[candles.length - 1]?.time}` : '';
@@ -1125,7 +1198,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       lastCandlesFitKeyRef.current = candlesKey;
       chartRef.current.timeScale().fitContent();
     }
-  }, [candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe]);
+  }, [candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, chartDisplayMode]);
 
   useEffect(() => {
     if (!chartContainerRef.current || !candles.length) return;
@@ -1171,6 +1244,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       <FloatingDrawingToolbar
         onSelectTool={setSelectedDrawingTool}
         onClear={clearDrawingLines}
+        onClearAll={() => clearDrawingLines({ all: true })}
         selectedToolId={selectedDrawingTool}
       />
     </div>
@@ -1544,33 +1618,118 @@ function RadarSettings({ settings, onUpdate }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// TREND STRENGTH MATRIX
+// TREND STRENGTH MATRIX — pixel-accurate to reference (2×7 grid, purple grid, crystal ball)
+// Colors: #1A1B24 bg, #5C2D70 grid, #BF5FFF TREND, #E0E0E0 timeframes/Predict, #FF3B30 down, #D4AF37 flat
 // ══════════════════════════════════════════════════════════════════════════════
+
+const TREND_PANEL_BG = '#1A1B24';
+const TREND_GRID = '#5C2D70';
+const TREND_HEADER_PURPLE = '#BF5FFF';
+const TREND_TEXT_OFFWHITE = '#E0E0E0';
+const TREND_DOWN = '#FF3B30';
+const TREND_FLAT = '#D4AF37';
+const TREND_UP = '#34d399';
+
+function CrystalBallIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="trend-crystal-shine" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#E9D5FF" />
+          <stop offset="50%" stopColor="#BF5FFF" />
+          <stop offset="100%" stopColor="#9333EA" />
+        </linearGradient>
+        <linearGradient id="trend-crystal-base" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#FCD34D" />
+          <stop offset="100%" stopColor="#D4AF37" />
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="10" r="7" fill="url(#trend-crystal-shine)" stroke="#BF5FFF" strokeWidth="0.4" opacity={0.95} />
+      <ellipse cx="12" cy="16.5" rx="5" ry="1.5" fill="url(#trend-crystal-base)" />
+      <path d="M9 17 L15 17 L14 19 L10 19 Z" fill="url(#trend-crystal-base)" />
+    </svg>
+  );
+}
 
 function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
   if (!trendDetails || trendDetails.length === 0) return null;
+  // Use trendDetails in API order (5m, 15m, 30m, 1H, 4H, 1D) so each arrow lines up under its header
+  const displayLabels = ['5M', '15M', '30M', '1H', '4H', '1D'];
+  const colWidth = 32;
+  const labelColWidth = 72;
   return (
     <motion.div
-      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      className={`${SOFT_GLASS_CARD_CLASS} p-3`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
+      className="overflow-hidden rounded shadow-[0_8px_24px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-300"
+      style={{
+        background: TREND_PANEL_BG,
+        border: `1px solid ${TREND_GRID}`,
+        fontSize: '11px',
+      }}
     >
-      <h3 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-1.5">Trend Strength</h3>
-      <div className="flex items-center gap-2 text-sm font-mono">
-        {trendDetails.map((td, i) => (
-          <span key={String(td.label || i)} className="flex items-center gap-0.5">
-            <span className="text-gray-500">{String(td.label || '')}</span>
-            <span style={{ color: td.direction === 1 ? '#34d399' : td.direction === -1 ? '#f87171' : '#666' }}>
-              {td.direction === 1 ? '▲' : td.direction === -1 ? '▼' : '—'}
-            </span>
-          </span>
-        ))}
-      </div>
-      <div className="text-sm text-gray-400 mt-1">
-        {'Str: '}<span className="font-mono font-semibold" style={{ color: trendStrength >= 0 ? '#34d399' : '#f87171' }}>{trendStrength > 0 ? '+' : ''}{String(trendStrength)}%</span>
-        {' · Conf: '}<span className="font-mono font-semibold text-white">{String(confidence)}%</span>
-      </div>
+      <table
+        className="border-collapse"
+        style={{ fontSize: 'inherit', borderColor: TREND_GRID, tableLayout: 'fixed', width: labelColWidth + 6 * colWidth }}
+      >
+        <colgroup>
+          <col style={{ width: labelColWidth }} />
+          {displayLabels.map((lbl) => (
+            <col key={lbl} style={{ width: colWidth }} />
+          ))}
+        </colgroup>
+        <tbody>
+          <tr>
+            <td
+              className="py-1 pl-2 pr-2.5 font-semibold uppercase tracking-wide border-r border-b whitespace-nowrap align-middle overflow-hidden"
+              style={{ color: TREND_HEADER_PURPLE, borderColor: TREND_GRID }}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <CrystalBallIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>TREND</span>
+              </span>
+            </td>
+            {displayLabels.map((lbl) => (
+              <td
+                key={lbl}
+                className="px-1 py-1 font-medium uppercase tracking-wide text-center border-r border-b align-middle"
+                style={{ color: TREND_TEXT_OFFWHITE, borderColor: TREND_GRID }}
+              >
+                {lbl}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td
+              className="px-2 py-1 font-medium border-r whitespace-nowrap align-middle"
+              style={{ color: TREND_TEXT_OFFWHITE, borderColor: TREND_GRID }}
+            >
+              Predict
+            </td>
+            {trendDetails.map((d, i) => {
+              const dir = d?.direction ?? 0;
+              return (
+                <td
+                  key={d.label ?? i}
+                  className="px-1 py-1 border-r last:border-r-0 text-center align-middle"
+                  style={{ borderColor: TREND_GRID }}
+                >
+                  {dir === 1 && (
+                    <ChevronUp className="w-3 h-3 inline-block" style={{ color: TREND_UP }} strokeWidth={2.5} />
+                  )}
+                  {dir === -1 && (
+                    <ChevronDown className="w-3 h-3 inline-block" style={{ color: TREND_DOWN }} strokeWidth={2.5} />
+                  )}
+                  {dir === 0 && (
+                    <span className="w-3 h-0.5 rounded-full inline-block align-middle" style={{ backgroundColor: TREND_FLAT }} />
+                  )}
+                </td>
+              );
+            })}
+          </tr>
+        </tbody>
+      </table>
     </motion.div>
   );
 }
@@ -1579,22 +1738,9 @@ function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
 // LIVE TICKER HEADER (Twelve Data WebSocket — price ticking next to ticker)
 // ══════════════════════════════════════════════════════════════════════════════
 
-function LiveTickerHeader({ ticker, priceData, connected, onCollapse }) {
-  const prevPriceRef = useRef(null);
-  const price = priceData?.price ?? null;
-  const change = priceData?.change ?? (price !== null && priceData?.previous_close != null ? price - priceData.previous_close : null);
-  const changePct = priceData?.change_percent ?? (change != null && priceData?.previous_close > 0 ? (change / priceData.previous_close) * 100 : null);
-  const changeColor = change > 0 ? 'text-emerald-400' : change < 0 ? 'text-red-400' : 'text-gray-400';
-
-  const flashDirection = Number.isFinite(price) && Number.isFinite(prevPriceRef.current)
-    ? (price > prevPriceRef.current ? 'up' : price < prevPriceRef.current ? 'down' : 'flat')
-    : 'flat';
-  useEffect(() => {
-    if (Number.isFinite(price)) prevPriceRef.current = price;
-  }, [price]);
-
+function LiveTickerHeader({ ticker, connected, onCollapse }) {
   return (
-    <div className="pl-2 pr-5 py-3 border-b border-white/[0.04] flex items-center gap-3 flex-wrap">
+    <div className="pl-2 pr-5 py-3 border-b border-white/[0.06] flex items-center gap-3 flex-wrap bg-[rgba(255,255,255,0.02)]">
       <button
         type="button"
         onClick={() => onCollapse?.()}
@@ -1604,33 +1750,8 @@ function LiveTickerHeader({ ticker, priceData, connected, onCollapse }) {
       >
         <ChevronsRight className="w-5 h-5" strokeWidth={2} />
       </button>
-      <span className="text-white font-bold text-sm font-mono">${ticker}</span>
+      <span className="text-white font-semibold text-sm">${ticker}</span>
       {connected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
-      {price != null && Number.isFinite(price) && (
-        <>
-          <motion.span
-            key={`${ticker}-${price}`}
-            initial={{
-              color: flashDirection === 'up' ? '#10b981' : flashDirection === 'down' ? '#ef4444' : '#ffffff',
-              scale: 1.05,
-            }}
-            animate={{ color: '#ffffff', scale: 1 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-            className="font-mono font-semibold text-sm"
-          >
-            ${Number(price).toFixed(2)}
-          </motion.span>
-          {(change != null || changePct != null) && (
-            <span className={`text-sm font-mono ${changeColor}`}>
-              {change != null && <>{change >= 0 ? '+' : ''}{Number(change).toFixed(2)}</>}
-              {changePct != null && <span className={change != null ? 'ml-1' : ''}>{changePct >= 0 ? '+' : ''}{Number(changePct).toFixed(2)}%</span>}
-            </span>
-          )}
-        </>
-      )}
-      {connected && (price == null || !Number.isFinite(price)) && (
-        <span className="text-sm text-gray-500 font-mono">streaming...</span>
-      )}
     </div>
   );
 }
@@ -1682,6 +1803,23 @@ function StrategyRadarContent() {
       window.localStorage.setItem(CANDLE_PALETTE_STORAGE_KEY, candlePaletteId);
     } catch {}
   }, [candlePaletteId]);
+
+  const [chartDisplayMode, setChartDisplayMode] = useState(() => {
+    if (typeof window === 'undefined') return 'solid';
+    try {
+      const saved = window.localStorage.getItem(CHART_DISPLAY_STORAGE_KEY);
+      return CHART_DISPLAY_OPTIONS.some(o => o.id === saved) ? saved : 'solid';
+    } catch {
+      return 'solid';
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(CHART_DISPLAY_STORAGE_KEY, chartDisplayMode);
+    } catch {}
+  }, [chartDisplayMode]);
 
   const [smResults, setSmResults] = useState({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 50, trendDetails: [], divergences: [], liquidityZones: [] });
 
@@ -1943,12 +2081,20 @@ function StrategyRadarContent() {
     );
   }
 
+  const lastCandle = candles.length > 0 ? candles[candles.length - 1] : null;
+  const prevClose = tickerPriceData?.previous_close ?? (candles.length > 1 ? candles[candles.length - 2]?.close : lastCandle?.close);
+  const displayPrice = tickerPriceData?.price ?? lastCandle?.close;
+  const changePct = tickerPriceData?.change_percent ?? (Number.isFinite(displayPrice) && Number.isFinite(prevClose) && prevClose > 0
+    ? ((displayPrice - prevClose) / prevClose) * 100
+    : null);
+  const timeframeLabel = settings.timeframe || '1D';
+
   return (
     <div className="h-full overflow-hidden bg-[#0a0a0f] text-white flex flex-col">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-white/6 bg-[#0b0b0b]">
+      {/* Top Bar — same look as Trader page: glass bar + ticker / Candlestick chart · timeframe / price / % */}
+      <div className="flex h-[68px] shrink-0 items-center justify-between px-4 py-3 backdrop-blur-xl" style={GLASS_TOPBAR_STYLE}>
         <div className="flex items-center gap-4">
-          <h1 className="text-sm font-semibold tracking-wide">Strategy Radar</h1>
+          <h1 className="text-sm font-semibold tracking-wide text-white">Strategy Radar</h1>
           <div className="flex items-center gap-2">
             <span className={`w-1.5 h-1.5 rounded-full ${
               !anyStrategyEnabled ? 'bg-gray-600'
@@ -1956,7 +2102,7 @@ function StrategyRadarContent() {
               : anyStrategyEnabled ? 'bg-emerald-400'
               : String(marketStatus.dotColor || 'bg-gray-600')
             }`} />
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-[#7c8087]">
               {!anyStrategyEnabled ? 'Disabled'
                 : isScanning && marketStatus.open ? 'Scanning'
                 : anyStrategyEnabled && !marketStatus.open ? `Analyzed · ${String(marketStatus.label || '')}`
@@ -1970,11 +2116,35 @@ function StrategyRadarContent() {
           onSelect={(t) => { setSelectedTicker(t); setActiveSignalIdx(0); setFetchKey(k => k + 1); }}
         />
 
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="text-sm text-gray-500">
-            <CountUp key={`enabled-${enabledStrategyCount}`} start={0} end={enabledStrategyCount} duration={0.9} useEasing />
-            {' '}active signal{enabledStrategyCount !== 1 ? 's' : ''}
-          </span>
+        <div className="flex items-center gap-4 text-right flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">
+              <CountUp key={`enabled-${enabledStrategyCount}`} start={0} end={enabledStrategyCount} duration={0.9} useEasing />
+              {' '}active signal{enabledStrategyCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div>
+            <h2 className="text-sm font-medium text-white">{selectedTicker || 'Select a symbol'}</h2>
+            <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {timeframeLabel}</p>
+          </div>
+          <div>
+            <div className="flex items-center justify-end gap-1">
+              <div className="text-lg font-semibold tabular-nums text-white">
+                {Number.isFinite(displayPrice) ? `$${Number(displayPrice).toFixed(2)}` : '—'}
+              </div>
+            </div>
+            <div
+              className={`flex items-center justify-end gap-1 text-xs font-medium tabular-nums ${
+                Number.isFinite(changePct)
+                  ? changePct >= 0
+                    ? 'text-emerald-400'
+                    : 'text-red-400'
+                  : 'text-[#6b7280]'
+              }`}
+            >
+              <span>{Number.isFinite(changePct) ? (changePct >= 0 ? '+' : '') + Number(changePct).toFixed(2) + '%' : '—'}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1983,25 +2153,46 @@ function StrategyRadarContent() {
         {/* LEFT — Chart */}
         <div className="flex-1 flex flex-col border-r border-white/6 min-w-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/6">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase tracking-wider text-gray-500 mr-0.5">Candles</span>
-              {CANDLE_PALETTES.map(pal => {
-                const isActive = candlePaletteId === pal.id;
-                return (
-                  <motion.button
-                    key={pal.id}
-                    type="button"
-                    onClick={() => setCandlePaletteId(pal.id)}
-                    whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
-                    title={pal.name}
-                  >
-                    <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.up }} />
-                    <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.down }} />
-                  </motion.button>
-                );
-              })}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-gray-500 mr-0.5">Candles</span>
+                {CANDLE_PALETTES.map(pal => {
+                  const isActive = candlePaletteId === pal.id;
+                  return (
+                    <motion.button
+                      key={pal.id}
+                      type="button"
+                      onClick={() => setCandlePaletteId(pal.id)}
+                      whileTap={{ scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
+                      title={pal.name}
+                    >
+                      <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.up }} />
+                      <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.down }} />
+                    </motion.button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-1">
+                {CHART_DISPLAY_OPTIONS.map(opt => {
+                  const isActive = chartDisplayMode === opt.id;
+                  const Icon = opt.Icon;
+                  return (
+                    <motion.button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setChartDisplayMode(opt.id)}
+                      whileTap={{ scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      className={`rounded-md border p-1 transition-colors ${isActive ? 'border-white/20 bg-white/10 text-white' : 'border-white/[0.06] bg-transparent text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'}`}
+                      title={opt.name}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
             <div className="flex items-center gap-1">
               {TIMEFRAMES.map(tf => (
@@ -2030,10 +2221,11 @@ function StrategyRadarContent() {
               selectedTicker={selectedTicker}
               selectedTimeframe={settings.timeframe}
               candleColors={candleColors}
+              chartDisplayMode={chartDisplayMode}
             />
             {/* Trend Strength widget: only when Smart Money signal is activated; never for MSB/OB or other strategies */}
             {activeStrategies['smart_money'] && smResults.trendDetails && smResults.trendDetails.length > 0 && (
-              <div className="absolute bottom-4 right-4 z-10 pointer-events-none">
+              <div className="absolute bottom-10 right-20 z-10 pointer-events-none">
                 <TrendStrengthMatrix trendStrength={smResults.trendStrength} confidence={smResults.confidence} trendDetails={smResults.trendDetails} />
               </div>
             )}
@@ -2079,10 +2271,14 @@ function StrategyRadarContent() {
             >
               <div className="w-full min-h-0 overflow-y-auto relative p-2 pl-3 scrollbar-hide bg-[#0b0b0b]">
                 <div className={SIGNAL_PANEL_BLEND_CLASS}>
-                  <LiveTickerHeader ticker={selectedTicker} priceData={tickerPriceData} connected={connected} onCollapse={() => setRightPanelCollapsed(true)} />
+                  <LiveTickerHeader
+                    ticker={selectedTicker}
+                    connected={connected}
+                    onCollapse={() => setRightPanelCollapsed(true)}
+                  />
 
-            <div className="p-3 border-b border-white/[0.04]">
-              <h2 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
+            <div className="p-3 border-b border-white/[0.06]">
+              <h2 className="text-sm text-[#7c8087] uppercase tracking-widest font-semibold mb-2">Active Signals</h2>
             {currentTickerSignals.length > 0 ? (
               <>
                 <div className="flex gap-0.5 mb-2 overflow-x-auto pb-0.5">
@@ -2132,12 +2328,12 @@ function StrategyRadarContent() {
             )}
             </div>
 
-            <div className="p-3 border-b border-white/[0.04]">
+            <div className="p-3 border-b border-white/[0.06]">
               <RadarSettings settings={settings} onUpdate={handleSettingsUpdate} />
             </div>
 
             <div className="p-3">
-              <h2 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Verified Signals</h2>
+              <h2 className="text-sm text-[#7c8087] uppercase tracking-widest font-semibold mb-2">Verified Signals</h2>
               <div className="space-y-2">
                 {strategies.map(strategy => (
                   <StrategyCard key={strategy.id} strategy={strategy} enabled={activeStrategies[strategy.id] || false} onToggle={handleToggleStrategy} onViewDetails={setExpandedStrategy} isExpanded={expandedCardId === strategy.id} onExpandToggle={() => setExpandedCardId(prev => prev === strategy.id ? null : strategy.id)} blend />

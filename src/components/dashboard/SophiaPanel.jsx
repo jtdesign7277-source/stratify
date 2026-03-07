@@ -374,11 +374,17 @@ const SophiaPanel = ({
     });
   };
 
+  const glassPanelStyle = {
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+    borderLeft: '1px solid rgba(255,255,255,0.06)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+  };
+
   if (panelState === 'closed') {
     return (
       <div
-        style={{ width: PANEL_WIDTHS.closed }}
-        className="h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col items-center py-2"
+        style={{ width: PANEL_WIDTHS.closed, ...glassPanelStyle }}
+        className="h-full flex flex-col items-center py-2"
       >
         <button
           onClick={cyclePanel}
@@ -393,8 +399,8 @@ const SophiaPanel = ({
 
   return (
     <div
-      style={{ width: PANEL_WIDTHS[panelState] }}
-      className="h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col overflow-hidden"
+      style={{ width: PANEL_WIDTHS[panelState], ...glassPanelStyle }}
+      className="h-full flex flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#1f1f1f]">
         <div className="flex items-center gap-2">
