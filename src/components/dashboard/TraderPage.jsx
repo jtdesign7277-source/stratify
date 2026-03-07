@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -18,6 +18,7 @@ import { LineToolRectangle } from 'lightweight-charts-line-tools-rectangle';
 import { LineToolFibRetracement } from 'lightweight-charts-line-tools-fib-retracement';
 import { LineToolParallelChannel } from 'lightweight-charts-line-tools-parallel-channel';
 import DrawingToolbar from '../chart/DrawingToolbar';
+import { VolumeProfilePlugin } from '../../plugins/VolumeProfilePlugin';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 
@@ -1801,6 +1802,8 @@ export default function TraderPage({
   const [selectedDrawingTool, setSelectedDrawingTool] = useState(null);
   const lineToolsRef = useRef(null);
   const [activeTool, setActiveTool] = useState('cursor');
+  const volumeProfileRef = useRef(null);
+  const [volumeProfileVisible, setVolumeProfileVisible] = useState(false);
 
   useEffect(() => {
     selectedDrawingToolRef.current = selectedDrawingTool;
@@ -2789,6 +2792,12 @@ export default function TraderPage({
     volumeSeriesRef.current = volumeSeries;
     setChartReady(true);
 
+    const vp = new VolumeProfilePlugin(candleSeries, []);
+    try {
+      if (chart.panes && chart.panes()[0]) chart.panes()[0].attachPrimitive(vp);
+    } catch (_) {}
+    volumeProfileRef.current = vp;
+
     const timeScale = chart.timeScale();
     const handleVisibleRangeChange = () => {
       const visibleRange = timeScale.getVisibleRange();
@@ -2806,6 +2815,7 @@ export default function TraderPage({
       setChartReady(false);
       timeScale.unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
       lineToolsPlugin.removeAllLineTools?.();
+      volumeProfileRef.current = null;
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
@@ -3261,6 +3271,10 @@ export default function TraderPage({
         lineSeriesRef.current.applyOptions({ visible: isLineMode });
       }
       candleSeriesRef.current.applyOptions({ visible: !isLineMode });
+
+      if (volumeProfileRef.current && deduped.length > 0) {
+        volumeProfileRef.current.updateData(deduped);
+      }
 
       volumeSeriesRef.current.setData(
         deduped.map((bar) => ({
@@ -4807,6 +4821,21 @@ export default function TraderPage({
                       );
                     })}
                   </div>
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      const next = !volumeProfileVisible;
+                      setVolumeProfileVisible(next);
+                      volumeProfileRef.current?.setVisible(next);
+                    }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className={`flex flex-col items-center justify-center shrink-0 transition-colors ${volumeProfileVisible ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
+                    title="Volume Profile"
+                  >
+                    <BarChart2 className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                    <span className="text-[10px] mt-0.5">Vol Profile</span>
+                  </motion.button>
                   {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
                     const isActive = chartTimeframe === timeframe.id;
                     return (
