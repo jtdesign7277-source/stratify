@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { BarChart2, Bell, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -20,6 +20,7 @@ import { LineToolParallelChannel } from 'lightweight-charts-line-tools-parallel-
 import DrawingToolbar from '../chart/DrawingToolbar';
 import { VolumeProfilePlugin } from '../../plugins/VolumeProfilePlugin';
 import { SessionHighlightPlugin } from '../../plugins/SessionHighlightPlugin';
+import { PriceAlertsPlugin } from '../../plugins/PriceAlertsPlugin';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 
@@ -1807,6 +1808,10 @@ export default function TraderPage({
   const [volumeProfileVisible, setVolumeProfileVisible] = useState(false);
   const sessionHighlightRef = useRef(null);
   const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
+  const priceAlertsRef = useRef(null);
+  const [alertPrice, setAlertPrice] = useState('');
+  const [alertDirection, setAlertDirection] = useState('above');
+  const [hasAlerts, setHasAlerts] = useState(false);
 
   useEffect(() => {
     selectedDrawingToolRef.current = selectedDrawingTool;
@@ -2680,6 +2685,9 @@ export default function TraderPage({
         value: 0,
         color: VOLUME_UP,
       });
+      if (priceAlertsRef.current) {
+        priceAlertsRef.current.updatePrice(price);
+      }
       return;
     }
 
@@ -2700,6 +2708,9 @@ export default function TraderPage({
         value: 0,
         color: nextBar.close >= nextBar.open ? VOLUME_UP : VOLUME_DOWN,
       });
+      if (priceAlertsRef.current) {
+        priceAlertsRef.current.updatePrice(price);
+      }
       return;
     }
 
@@ -2719,6 +2730,9 @@ export default function TraderPage({
       value: Number.isFinite(updatedBar.volume) ? updatedBar.volume : 0,
       color: updatedBar.close >= updatedBar.open ? VOLUME_UP : VOLUME_DOWN,
     });
+    if (priceAlertsRef.current) {
+      priceAlertsRef.current.updatePrice(price);
+    }
   }, []);
 
   useEffect(() => {
@@ -2807,6 +2821,17 @@ export default function TraderPage({
     } catch (_) {}
     sessionHighlightRef.current = sh;
 
+    const pa = new PriceAlertsPlugin(selectedSymbolRef.current, {
+      persist: true,
+      onTriggered: (alert) => {
+        console.log(`[Stratify] Alert triggered: ${alert.direction} ${alert.price}`);
+      },
+    });
+    try {
+      if (chart.panes && chart.panes()[0]) chart.panes()[0].attachPrimitive(pa);
+    } catch (_) {}
+    priceAlertsRef.current = pa;
+
     const timeScale = chart.timeScale();
     const handleVisibleRangeChange = () => {
       const visibleRange = timeScale.getVisibleRange();
@@ -2826,6 +2851,7 @@ export default function TraderPage({
       lineToolsPlugin.removeAllLineTools?.();
       volumeProfileRef.current = null;
       if (sessionHighlightRef.current) sessionHighlightRef.current = null;
+      priceAlertsRef.current = null;
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
@@ -4861,6 +4887,51 @@ export default function TraderPage({
                     <Clock className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                     <span className="text-[10px] mt-0.5">Sessions</span>
                   </motion.button>
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <input
+                      type="text"
+                      value={alertPrice}
+                      onChange={(e) => setAlertPrice(e.target.value)}
+                      placeholder="Alert price"
+                      className="bg-transparent border border-white/10 rounded text-xs text-white px-2 py-1 w-24 focus:outline-none focus:border-emerald-400/50"
+                    />
+                    <select
+                      value={alertDirection}
+                      onChange={(e) => setAlertDirection(e.target.value)}
+                      className="bg-[#0a0a0f] border border-white/10 rounded text-xs text-gray-400 px-2 py-1"
+                    >
+                      <option value="above">Above</option>
+                      <option value="below">Below</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const price = parseFloat(alertPrice);
+                        if (!isNaN(price) && priceAlertsRef.current) {
+                          priceAlertsRef.current.addAlert(price, alertDirection, 24);
+                          setAlertPrice('');
+                          setHasAlerts(true);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+                    >
+                      <Bell className="w-4 h-4" strokeWidth={1.5} />
+                      Set Alert
+                    </button>
+                    {hasAlerts && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          priceAlertsRef.current?.clearAlerts();
+                          setHasAlerts(false);
+                        }}
+                        className="text-gray-500 hover:text-red-400"
+                        title="Clear all alerts"
+                      >
+                        <X className="w-4 h-4" strokeWidth={1.5} />
+                      </button>
+                    )}
+                  </span>
                   {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
                     const isActive = chartTimeframe === timeframe.id;
                     return (

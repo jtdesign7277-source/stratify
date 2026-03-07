@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart2, Clock, Search, ChevronsLeft, ChevronsRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { BarChart2, Bell, Clock, Search, ChevronsLeft, ChevronsRight, Check, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 import { createLineToolsPlugin } from 'lightweight-charts-line-tools-core';
 import { LineToolTrendLine, LineToolHorizontalLine, LineToolVerticalLine, LineToolRay } from 'lightweight-charts-line-tools-lines';
@@ -22,6 +22,7 @@ import { LineToolParallelChannel } from 'lightweight-charts-line-tools-parallel-
 import DrawingToolbar from '../chart/DrawingToolbar';
 import { VolumeProfilePlugin } from '../../plugins/VolumeProfilePlugin';
 import { SessionHighlightPlugin } from '../../plugins/SessionHighlightPlugin';
+import { PriceAlertsPlugin } from '../../plugins/PriceAlertsPlugin';
 import gsap from 'gsap';
 import CountUp from 'react-countup';
 import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
@@ -474,7 +475,7 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors, chartDisplayMode = 'solid', volumeProfileRef, sessionHighlightRef }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors, chartDisplayMode = 'solid', volumeProfileRef, sessionHighlightRef, priceAlertsRef }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -554,6 +555,17 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     } catch (_) {}
     if (sessionHighlightRef) sessionHighlightRef.current = sh;
 
+    const pa = new PriceAlertsPlugin(selectedTicker, {
+      persist: true,
+      onTriggered: (alert) => {
+        console.log(`[Stratify] Alert triggered: ${alert.direction} ${alert.price}`);
+      },
+    });
+    try {
+      if (chart.panes && chart.panes()[0]) chart.panes()[0].attachPrimitive(pa);
+    } catch (_) {}
+    if (priceAlertsRef) priceAlertsRef.current = pa;
+
     const lineSeries = addLineSeriesCompat(chart, {
       color: up,
       lineWidth: 2,
@@ -581,6 +593,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       lineToolsPlugin.removeAllLineTools?.();
       if (volumeProfileRef) volumeProfileRef.current = null;
       if (sessionHighlightRef) sessionHighlightRef.current = null;
+      if (priceAlertsRef) priceAlertsRef.current = null;
       obOverlaySeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
       obOverlaySeriesRef.current = [];
       drawingPriceLinesRef.current = [];
@@ -1496,6 +1509,10 @@ function StrategyRadarContent() {
   const volumeProfileRef = useRef(null);
   const sessionHighlightRef = useRef(null);
   const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
+  const priceAlertsRef = useRef(null);
+  const [alertPrice, setAlertPrice] = useState('');
+  const [alertDirection, setAlertDirection] = useState('above');
+  const [hasAlerts, setHasAlerts] = useState(false);
   const [settings, setSettings] = useState({
     timeframe: '1D',
     stop_loss_multiplier: 0.5,
@@ -1566,6 +1583,13 @@ function StrategyRadarContent() {
 
   const normalizedTicker = selectedTicker ? normalizeTicker(selectedTicker) : '';
   const tickerPriceData = normalizedTicker ? prices[normalizedTicker] : null;
+
+  useEffect(() => {
+    const price = tickerPriceData?.price;
+    if (price != null && Number.isFinite(price) && priceAlertsRef.current) {
+      priceAlertsRef.current.updatePrice(price);
+    }
+  }, [tickerPriceData?.price]);
 
   const enabledTypes = useMemo(() => {
     const types = new Set();
@@ -1706,6 +1730,9 @@ function StrategyRadarContent() {
         const msg = JSON.parse(event.data);
         if (msg.event === 'price' && msg.symbol === ticker) {
           const price = parseFloat(msg.price);
+          if (priceAlertsRef?.current) {
+            priceAlertsRef.current.updatePrice(price);
+          }
           if (price > 0) {
             let allNewSignals = [];
             if (detectorRef.current) {
@@ -1944,6 +1971,51 @@ function StrategyRadarContent() {
                 <Clock className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                 <span className="text-[10px] mt-0.5">Sessions</span>
               </motion.button>
+              <span className="flex items-center gap-1.5 shrink-0">
+                <input
+                  type="text"
+                  value={alertPrice}
+                  onChange={(e) => setAlertPrice(e.target.value)}
+                  placeholder="Alert price"
+                  className="bg-transparent border border-white/10 rounded text-xs text-white px-2 py-1 w-24 focus:outline-none focus:border-emerald-400/50"
+                />
+                <select
+                  value={alertDirection}
+                  onChange={(e) => setAlertDirection(e.target.value)}
+                  className="bg-[#0a0a0f] border border-white/10 rounded text-xs text-gray-400 px-2 py-1"
+                >
+                  <option value="above">Above</option>
+                  <option value="below">Below</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const price = parseFloat(alertPrice);
+                    if (!isNaN(price) && priceAlertsRef.current) {
+                      priceAlertsRef.current.addAlert(price, alertDirection, 24);
+                      setAlertPrice('');
+                      setHasAlerts(true);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+                >
+                  <Bell className="w-4 h-4" strokeWidth={1.5} />
+                  Set Alert
+                </button>
+                {hasAlerts && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      priceAlertsRef.current?.clearAlerts();
+                      setHasAlerts(false);
+                    }}
+                    className="text-gray-500 hover:text-red-400"
+                    title="Clear all alerts"
+                  >
+                    <X className="w-4 h-4" strokeWidth={1.5} />
+                  </button>
+                )}
+              </span>
             </div>
             <div className="flex items-center gap-1">
               {TIMEFRAMES.map(tf => (
@@ -1975,6 +2047,7 @@ function StrategyRadarContent() {
               chartDisplayMode={chartDisplayMode}
               volumeProfileRef={volumeProfileRef}
               sessionHighlightRef={sessionHighlightRef}
+              priceAlertsRef={priceAlertsRef}
             />
             {/* Trend Strength widget: only when Smart Money signal is activated; never for MSB/OB or other strategies */}
             {activeStrategies['smart_money'] && smResults.trendDetails && smResults.trendDetails.length > 0 && (
