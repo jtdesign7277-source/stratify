@@ -19,7 +19,7 @@ export class PriceAlertsPlugin {
     this._currentPrice = null;
     this._chart = null;
     this._requestUpdate = null;
-    this._series = null;
+    this._series = options.series || null;
     this._load();
     const self = this;
     this._paneView = {
@@ -34,7 +34,7 @@ export class PriceAlertsPlugin {
             const now = Date.now();
             const toRemove = [];
             self._alerts.forEach((a) => {
-              const expiresAt = a.expiresAt || now + 86400000;
+              const expiresAt = a.expiresAt ?? now + 86400000;
               if (now >= expiresAt) {
                 toRemove.push(a);
                 return;
@@ -103,12 +103,23 @@ export class PriceAlertsPlugin {
     this._requestUpdate?.();
   }
 
-  addAlert(price, direction, hours = 24) {
+  addAlert(price, direction, hoursOrEod = 24) {
     if (!Number.isFinite(price)) return;
-    const expiresAt = Date.now() + (hours || 24) * 3600000;
+    let expiresAt;
+    if (hoursOrEod === 'eod' || hoursOrEod === 0) {
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+      expiresAt = endOfDay.getTime();
+    } else {
+      expiresAt = Date.now() + (hoursOrEod || 24) * 3600000;
+    }
     this._alerts.push({ price, direction: direction || 'above', expiresAt });
     this._save();
     this._requestUpdate?.();
+  }
+
+  getAlertCount() {
+    return this._alerts.length;
   }
 
   clearAlerts() {
@@ -124,8 +135,10 @@ export class PriceAlertsPlugin {
   attached(param) {
     if (param?.chart) this._chart = param.chart;
     if (param?.requestUpdate) this._requestUpdate = param.requestUpdate;
-    const list = this._chart?.series?.();
-    if (Array.isArray(list) && list.length > 0) this._series = list[0];
+    if (!this._series && this._chart) {
+      const list = this._chart?.series?.();
+      if (Array.isArray(list) && list.length > 0) this._series = list[0];
+    }
   }
 
   detached() {

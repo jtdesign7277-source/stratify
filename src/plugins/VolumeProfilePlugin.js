@@ -6,9 +6,9 @@
 
 const NUM_BINS = 80;
 const VALUE_AREA_PCT = 0.7;
-const MAX_BAR_WIDTH_PX = 100;
-const BAR_HEIGHT_PX = 2;
-const POC_LINE_WIDTH = 2;
+const MAX_BAR_WIDTH_PX = 200;
+const BAR_HEIGHT_PX = 5;
+const POC_LINE_WIDTH = 3;
 const EMERALD = 'rgba(16, 185, 129, 0.75)';
 const RED = 'rgba(248, 113, 113, 0.75)';
 const POC_COLOR = 'rgba(16, 185, 129, 0.95)';
@@ -142,7 +142,7 @@ export class VolumeProfilePlugin {
                   ctx.lineWidth = POC_LINE_WIDTH;
                   ctx.beginPath();
                   ctx.moveTo(right - MAX_BAR_WIDTH_PX, yy);
-                  ctx.lineTo(right + 4, yy);
+                  ctx.lineTo(right + 10, yy);
                   ctx.stroke();
                 }
               }
@@ -151,11 +151,11 @@ export class VolumeProfilePlugin {
                 if (y != null && Number.isFinite(y)) {
                   const yy = Math.round(y);
                   ctx.strokeStyle = VAH_VAL_COLOR;
-                  ctx.lineWidth = 1;
-                  ctx.setLineDash([4, 2]);
+                  ctx.lineWidth = 2;
+                  ctx.setLineDash([6, 3]);
                   ctx.beginPath();
                   ctx.moveTo(right - MAX_BAR_WIDTH_PX, yy);
-                  ctx.lineTo(right + 2, yy);
+                  ctx.lineTo(right + 8, yy);
                   ctx.stroke();
                   ctx.setLineDash([]);
                 }
@@ -165,11 +165,11 @@ export class VolumeProfilePlugin {
                 if (y != null && Number.isFinite(y)) {
                   const yy = Math.round(y);
                   ctx.strokeStyle = VAH_VAL_COLOR;
-                  ctx.lineWidth = 1;
-                  ctx.setLineDash([4, 2]);
+                  ctx.lineWidth = 2;
+                  ctx.setLineDash([6, 3]);
                   ctx.beginPath();
                   ctx.moveTo(right - MAX_BAR_WIDTH_PX, yy);
-                  ctx.lineTo(right + 2, yy);
+                  ctx.lineTo(right + 8, yy);
                   ctx.stroke();
                   ctx.setLineDash([]);
                 }

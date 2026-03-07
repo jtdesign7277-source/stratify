@@ -1839,6 +1839,14 @@ export default function TraderPage({
   const [alertPrice, setAlertPrice] = useState('');
   const [alertDirection, setAlertDirection] = useState('above');
   const [hasAlerts, setHasAlerts] = useState(false);
+  const [alertPopup, setAlertPopup] = useState(null);
+
+  useEffect(() => {
+    if (!alertPopup) return;
+    const ms = alertPopup.variant === 'triggered' ? 5000 : 4000;
+    const t = setTimeout(() => setAlertPopup(null), ms);
+    return () => clearTimeout(t);
+  }, [alertPopup]);
 
   useEffect(() => {
     selectedDrawingToolRef.current = selectedDrawingTool;
@@ -2868,9 +2876,11 @@ export default function TraderPage({
     sessionHighlightRef.current = sh;
 
     const pa = new PriceAlertsPlugin(selectedSymbolRef.current, {
+      series: candleSeries,
       persist: true,
       onTriggered: (alert) => {
         console.log(`[Stratify] Alert triggered: ${alert.direction} ${alert.price}`);
+        setAlertPopup({ message: `Price alert! $${Number(alert.price).toFixed(2)} ${alert.direction}`, variant: 'triggered' });
       },
     });
     try {
@@ -3431,6 +3441,12 @@ export default function TraderPage({
     });
     void fetchQuoteSnapshot([normalized]);
   }, [chartReady, fetchQuoteSnapshot, loadCandles, selectedSymbol]);
+
+  useEffect(() => {
+    if (chartReady && priceAlertsRef.current) {
+      setHasAlerts(priceAlertsRef.current.getAlertCount() > 0);
+    }
+  }, [chartReady]);
 
   useEffect(() => {
     const symbols = streamSubscriptionSymbols;
@@ -4972,6 +4988,18 @@ export default function TraderPage({
                       type="text"
                       value={alertPrice}
                       onChange={(e) => setAlertPrice(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const price = parseFloat(alertPrice);
+                          if (!isNaN(price) && priceAlertsRef.current) {
+                            priceAlertsRef.current.addAlert(price, alertDirection, 'eod');
+                            setAlertPrice('');
+                            setHasAlerts(true);
+                            setAlertPopup({ message: `Alert set at $${price.toFixed(2)} (${alertDirection})`, variant: 'set' });
+                          }
+                        }
+                      }}
                       placeholder="Alert price"
                       className="bg-transparent border border-white/10 rounded text-xs text-white px-2 py-1 w-24 focus:outline-none focus:border-emerald-400/50"
                     />
@@ -4988,9 +5016,10 @@ export default function TraderPage({
                       onClick={() => {
                         const price = parseFloat(alertPrice);
                         if (!isNaN(price) && priceAlertsRef.current) {
-                          priceAlertsRef.current.addAlert(price, alertDirection, 24);
+                          priceAlertsRef.current.addAlert(price, alertDirection, 'eod');
                           setAlertPrice('');
                           setHasAlerts(true);
+                          setAlertPopup({ message: `Alert set at $${price.toFixed(2)} (${alertDirection})`, variant: 'set' });
                         }
                       }}
                       className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
@@ -4998,7 +5027,7 @@ export default function TraderPage({
                       <Bell className="w-4 h-4" strokeWidth={1.5} />
                       Set Alert
                     </button>
-                    {hasAlerts && (
+                    {(hasAlerts || (priceAlertsRef.current?.getAlertCount?.() ?? 0) > 0) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -5098,6 +5127,33 @@ export default function TraderPage({
                   transition: 'width 220ms ease',
                 }}
               >
+                {alertPopup && (
+                  <div
+                    className="fixed left-1/2 top-[120px] z-[10000] -translate-x-1/2 pointer-events-none"
+                    role="alert"
+                  >
+                    <div
+                      className={`rounded-2xl px-5 py-3 shadow-xl border backdrop-blur-md min-w-[200px] text-center ${
+                        alertPopup.variant === 'triggered'
+                          ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300'
+                          : 'bg-white/10 border-white/20 text-white'
+                      }`}
+                      style={{
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      <div className="text-sm font-semibold">{alertPopup.message}</div>
+                      {alertPopup.variant === 'triggered' && (
+                        <div className="text-[10px] text-emerald-400/80 mt-0.5">Alert triggered</div>
+                      )}
+                    </div>
+                    <div
+                      className={`absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] ${
+                        alertPopup.variant === 'triggered' ? 'border-t-emerald-500/30' : 'border-t-white/10'
+                      }`}
+                    />
+                  </div>
+                )}
                 <div className="flex gap-0 relative flex-1 min-w-0 min-h-0 h-full">
                   <DrawingToolbar
                     lineTools={lineToolsRef.current}
