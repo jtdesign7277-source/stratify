@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -19,6 +19,7 @@ import { LineToolFibRetracement } from 'lightweight-charts-line-tools-fib-retrac
 import { LineToolParallelChannel } from 'lightweight-charts-line-tools-parallel-channel';
 import DrawingToolbar from '../chart/DrawingToolbar';
 import { VolumeProfilePlugin } from '../../plugins/VolumeProfilePlugin';
+import { SessionHighlightPlugin } from '../../plugins/SessionHighlightPlugin';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 
@@ -1804,6 +1805,8 @@ export default function TraderPage({
   const [activeTool, setActiveTool] = useState('cursor');
   const volumeProfileRef = useRef(null);
   const [volumeProfileVisible, setVolumeProfileVisible] = useState(false);
+  const sessionHighlightRef = useRef(null);
+  const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
 
   useEffect(() => {
     selectedDrawingToolRef.current = selectedDrawingTool;
@@ -2798,6 +2801,12 @@ export default function TraderPage({
     } catch (_) {}
     volumeProfileRef.current = vp;
 
+    const sh = new SessionHighlightPlugin({ showLabels: true });
+    try {
+      if (chart.panes && chart.panes()[0]) chart.panes()[0].attachPrimitive(sh);
+    } catch (_) {}
+    sessionHighlightRef.current = sh;
+
     const timeScale = chart.timeScale();
     const handleVisibleRangeChange = () => {
       const visibleRange = timeScale.getVisibleRange();
@@ -2816,6 +2825,7 @@ export default function TraderPage({
       timeScale.unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
       lineToolsPlugin.removeAllLineTools?.();
       volumeProfileRef.current = null;
+      if (sessionHighlightRef.current) sessionHighlightRef.current = null;
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
@@ -4835,6 +4845,21 @@ export default function TraderPage({
                   >
                     <BarChart2 className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                     <span className="text-[10px] mt-0.5">Vol Profile</span>
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      const next = !sessionHighlightVisible;
+                      setSessionHighlightVisible(next);
+                      sessionHighlightRef.current?.setVisible(next);
+                    }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className={`flex flex-col items-center justify-center shrink-0 transition-colors ${sessionHighlightVisible ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
+                    title="Session Highlighting"
+                  >
+                    <Clock className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                    <span className="text-[10px] mt-0.5">Sessions</span>
                   </motion.button>
                   {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
                     const isActive = chartTimeframe === timeframe.id;

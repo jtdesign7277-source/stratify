@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart2, Search, ChevronsLeft, ChevronsRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { BarChart2, Clock, Search, ChevronsLeft, ChevronsRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 import { createLineToolsPlugin } from 'lightweight-charts-line-tools-core';
 import { LineToolTrendLine, LineToolHorizontalLine, LineToolVerticalLine, LineToolRay } from 'lightweight-charts-line-tools-lines';
@@ -21,6 +21,7 @@ import { LineToolFibRetracement } from 'lightweight-charts-line-tools-fib-retrac
 import { LineToolParallelChannel } from 'lightweight-charts-line-tools-parallel-channel';
 import DrawingToolbar from '../chart/DrawingToolbar';
 import { VolumeProfilePlugin } from '../../plugins/VolumeProfilePlugin';
+import { SessionHighlightPlugin } from '../../plugins/SessionHighlightPlugin';
 import gsap from 'gsap';
 import CountUp from 'react-countup';
 import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
@@ -473,7 +474,7 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors, chartDisplayMode = 'solid', volumeProfileRef }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors, chartDisplayMode = 'solid', volumeProfileRef, sessionHighlightRef }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -547,6 +548,12 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     } catch (_) {}
     if (volumeProfileRef) volumeProfileRef.current = vp;
 
+    const sh = new SessionHighlightPlugin({ showLabels: true });
+    try {
+      if (chart.panes && chart.panes()[0]) chart.panes()[0].attachPrimitive(sh);
+    } catch (_) {}
+    if (sessionHighlightRef) sessionHighlightRef.current = sh;
+
     const lineSeries = addLineSeriesCompat(chart, {
       color: up,
       lineWidth: 2,
@@ -573,6 +580,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       window.removeEventListener('resize', applySize);
       lineToolsPlugin.removeAllLineTools?.();
       if (volumeProfileRef) volumeProfileRef.current = null;
+      if (sessionHighlightRef) sessionHighlightRef.current = null;
       obOverlaySeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
       obOverlaySeriesRef.current = [];
       drawingPriceLinesRef.current = [];
@@ -1486,6 +1494,8 @@ function StrategyRadarContent() {
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [volumeProfileVisible, setVolumeProfileVisible] = useState(false);
   const volumeProfileRef = useRef(null);
+  const sessionHighlightRef = useRef(null);
+  const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
   const [settings, setSettings] = useState({
     timeframe: '1D',
     stop_loss_multiplier: 0.5,
@@ -1919,6 +1929,21 @@ function StrategyRadarContent() {
                 <BarChart2 className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                 <span className="text-[10px] mt-0.5">Vol Profile</span>
               </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => {
+                  const next = !sessionHighlightVisible;
+                  setSessionHighlightVisible(next);
+                  sessionHighlightRef.current?.setVisible(next);
+                }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className={`flex flex-col items-center justify-center shrink-0 transition-colors ${sessionHighlightVisible ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
+                title="Session Highlighting"
+              >
+                <Clock className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                <span className="text-[10px] mt-0.5">Sessions</span>
+              </motion.button>
             </div>
             <div className="flex items-center gap-1">
               {TIMEFRAMES.map(tf => (
@@ -1949,6 +1974,7 @@ function StrategyRadarContent() {
               candleColors={candleColors}
               chartDisplayMode={chartDisplayMode}
               volumeProfileRef={volumeProfileRef}
+              sessionHighlightRef={sessionHighlightRef}
             />
             {/* Trend Strength widget: only when Smart Money signal is activated; never for MSB/OB or other strategies */}
             {activeStrategies['smart_money'] && smResults.trendDetails && smResults.trendDetails.length > 0 && (
