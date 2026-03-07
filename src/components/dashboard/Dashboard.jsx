@@ -1040,53 +1040,6 @@ export default function Dashboard({
     return [...unique];
   }, [miniTickers, watchlist]);
 
-  useEffect(() => {
-    if (watchlistSymbols.length === 0) {
-      setWatchlistQuotesBySymbol({});
-      setWatchlistQuotesLoading(false);
-      return undefined;
-    }
-
-    let isMounted = true;
-
-    const fetchWatchlistQuotes = async () => {
-      if (isMounted) setWatchlistQuotesLoading(true);
-
-      try {
-        const params = new URLSearchParams({ symbols: watchlistSymbols.join(',') });
-        const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
-        if (!response.ok) {
-          throw new Error(`Failed to fetch watchlist quotes: ${response.status}`);
-        }
-
-        const payload = await response.json().catch(() => []);
-        if (!isMounted) return;
-
-        const quotes = Array.isArray(payload) ? payload : [];
-        const nextMap = quotes.reduce((acc, quote) => {
-          const symbol = String(quote?.symbol || '').trim().toUpperCase();
-          if (!symbol) return acc;
-          acc[symbol] = quote;
-          return acc;
-        }, {});
-
-        setWatchlistQuotesBySymbol(nextMap);
-      } catch (error) {
-        console.error('[Dashboard] Watchlist quote batch fetch failed:', error);
-      } finally {
-        if (isMounted) setWatchlistQuotesLoading(false);
-      }
-    };
-
-    fetchWatchlistQuotes();
-    const interval = setInterval(fetchWatchlistQuotes, 10000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [watchlistSymbols]);
-  
   // Handle dropping a ticker onto one of the 4 ticker pill slots (2-5).
   const handleTickerDrop = useCallback((symbol, slotIndex) => {
     const normalizedSymbol = String(symbol || '').trim().toUpperCase();
@@ -1304,19 +1257,80 @@ export default function Dashboard({
     () => (Array.isArray(paperPortfolio?.positions) ? paperPortfolio.positions : []),
     [paperPortfolio?.positions],
   );
+  const paperPositionSymbols = useMemo(
+    () => paperPortfolioPositions.map((p) => String(p?.symbol ?? '').trim().toUpperCase()).filter(Boolean),
+    [paperPortfolioPositions],
+  );
+  const symbolsForQuoteFetch = useMemo(
+    () => [...new Set([...watchlistSymbols, ...paperPositionSymbols])],
+    [watchlistSymbols, paperPositionSymbols],
+  );
   const syncedPaperBuyingPower = useMemo(
     () => Math.max(0, toNumberOrNull(paperPortfolio?.cash_balance) ?? 0),
     [paperPortfolio?.cash_balance],
   );
-  const syncedPaperUnrealizedPnL = useMemo(
-    () => paperPortfolioPositions.reduce(
-      (sum, position) => sum + (toNumberOrNull(position?.pnl) ?? 0),
-      0,
-    ),
-    [paperPortfolioPositions],
-  );
+  const syncedPaperUnrealizedPnL = useMemo(() => {
+    let sum = 0;
+    paperPortfolioPositions.forEach((position) => {
+      const qty = toNumberOrNull(position?.quantity) ?? 0;
+      const avgCost = toNumberOrNull(position?.avg_cost_basis) ?? 0;
+      const sym = String(position?.symbol ?? '').trim().toUpperCase();
+      const quote = watchlistQuotesBySymbol[sym];
+      const livePrice = toNumberOrNull(quote?.price ?? quote?.last ?? quote?.close ?? quote?.ask ?? quote?.bid);
+      const price = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : (toNumberOrNull(position?.current_price) ?? avgCost ?? 0);
+      if (qty > 0) sum += qty * (price - avgCost);
+    });
+    return sum;
+  }, [paperPortfolioPositions, watchlistQuotesBySymbol]);
   const syncedPaperDailyPnL = syncedPaperUnrealizedPnL;
   const shouldUsePaperTopBarMetrics = !hasConnectedBroker;
+
+  useEffect(() => {
+    if (symbolsForQuoteFetch.length === 0) {
+      setWatchlistQuotesBySymbol({});
+      setWatchlistQuotesLoading(false);
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const fetchQuotes = async () => {
+      if (isMounted) setWatchlistQuotesLoading(true);
+
+      try {
+        const params = new URLSearchParams({ symbols: symbolsForQuoteFetch.join(',') });
+        const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch quotes: ${response.status}`);
+        }
+
+        const payload = await response.json().catch(() => []);
+        if (!isMounted) return;
+
+        const quotes = Array.isArray(payload) ? payload : [];
+        const nextMap = quotes.reduce((acc, quote) => {
+          const symbol = String(quote?.symbol || '').trim().toUpperCase();
+          if (!symbol) return acc;
+          acc[symbol] = quote;
+          return acc;
+        }, {});
+
+        setWatchlistQuotesBySymbol(nextMap);
+      } catch (error) {
+        console.error('[Dashboard] Quote batch fetch failed:', error);
+      } finally {
+        if (isMounted) setWatchlistQuotesLoading(false);
+      }
+    };
+
+    fetchQuotes();
+    const interval = setInterval(fetchQuotes, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [symbolsForQuoteFetch]);
 
   // Sync broker connections from database on mount (fixes top-right badge vs Portfolio page mismatch)
   useEffect(() => {

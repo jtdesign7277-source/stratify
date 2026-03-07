@@ -1421,8 +1421,39 @@ className={`py-1 text-[13px] font-semibold transition-colors ${
         ) : null}
 
         <div className={GLASS_INSET_CARD_CLASS}>
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-400">Total gain / loss</span>
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
+            <span className="text-[14px] font-mono font-semibold text-white">{buyingPowerDisplay}</span>
+          </div>
+        </div>
+
+        <div className={GLASS_INSET_CARD_CLASS}>
+          <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+            Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
+          </div>
+          {holdings.length > 0 ? (
+            <div className="mt-1 space-y-1">
+              {holdings.map((position) => {
+                const qty = Number(position.quantity) || 0;
+                const quote = quotesBySymbolProp[position.symbol] || quotesBySymbolProp[position.symbol?.trim?.()];
+                const livePrice = toNumber(quote?.price ?? quote?.last ?? quote?.close ?? quote?.ask ?? quote?.bid);
+                const price = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : (Number(position.current_price) || Number(position.avg_cost_basis) || 0);
+                const currentValue = qty * price;
+                return (
+                  <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
+                    <span className="text-[14px] font-medium text-slate-300">
+                      {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
+                    </span>
+                    <span className="text-[14px] font-mono font-semibold text-emerald-400">
+                      {formatPaperCurrency(currentValue)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+          <div className="mt-1 pt-1.5 flex items-center justify-between gap-2 border-t border-white/[0.06]">
+            <span className="text-[13px] font-semibold text-slate-400">Total gain / loss</span>
             <span className={`text-[14px] font-mono font-semibold ${Number(totalGainLossDollar) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {Number(totalGainLossDollar) >= 0 ? '+' : ''}{formatPaperCurrency(totalGainLossDollar)} ({Number(totalGainLossPercent) >= 0 ? '+' : ''}{Number(totalGainLossPercent).toFixed(2)}%)
             </span>
