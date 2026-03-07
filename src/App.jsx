@@ -17,6 +17,7 @@ import LiveScoresPill from './components/shared/LiveScoresPill';
 import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
 import AppErrorBoundary from './components/shared/AppErrorBoundary';
 import StrategyRadarPage from './components/dashboard/StrategyRadarPage';
+import SportsOddsPage from './pages/SportsOddsPage';
 import { Radar } from 'lucide-react';
 import {
   clearPendingCheckoutSession,
@@ -1044,6 +1045,7 @@ function StratifyAppContent() {
     if (normalizedPath === '/auth') return 'auth';
     if (normalizedPath === '/tokens') return 'tokens';
     if (normalizedPath === '/radar' || normalizedPath === '/radar/') return 'radar';
+    if (normalizedPath === '/sports' || normalizedPath === '/sports/') return 'sports';
     if (normalizedPath === '/dashboard' || normalizedPath === '/dashboard/') return 'dashboard';
     if (isLegacyXrayPath(path)) return 'dashboard';
 
@@ -1141,6 +1143,8 @@ function StratifyAppContent() {
       nextPath = '/tokens';
     } else if (nextPage === 'radar') {
       nextPath = '/radar';
+    } else if (nextPage === 'sports') {
+      nextPath = '/sports';
     } else if (nextPage === 'dashboard') {
       nextPath = '/dashboard';
     }
@@ -1582,6 +1586,8 @@ function StratifyAppContent() {
         }}
         onBackToLanding={() => navigateToPage('landing')}
       />
+    ) : currentPage === 'sports' ? (
+      <SportsOddsPage />
     ) : !isAuthenticated ? (
       <LandingPage
         onEnter={() => navigateToPage('auth')}
@@ -1701,6 +1707,11 @@ function StratifyAppContent() {
 
       if (path === '/radar' || path === '/radar/') {
         setCurrentPage('radar');
+        return;
+      }
+
+      if (path === '/sports' || path === '/sports/') {
+        setCurrentPage('sports');
         return;
       }
 

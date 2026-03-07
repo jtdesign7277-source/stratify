@@ -75,6 +75,7 @@ const Sidebar = ({
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
     { id: 'radar', label: 'Strategy Radar', icon: Crosshair },
+    { id: 'sports', label: 'Sports', icon: Zap },
   ];
 
   const handleTabClick = (id) => {
