@@ -21,6 +21,7 @@ export default function TradePage({
   pinnedGames = [],
   onGameDrop = () => {},
   onRemovePinnedGame = () => {},
+  paperTotalGainLoss = null,
 }) {
   const { tradingMode, isLive, canUseLiveTrading } = useTradingMode();
 
@@ -50,6 +51,7 @@ export default function TradePage({
           pinnedGames={pinnedGames}
           onGameDrop={onGameDrop}
           onRemovePinnedGame={onRemovePinnedGame}
+          paperTotalGainLoss={paperTotalGainLoss}
         />
       </motion.div>
     </motion.div>

@@ -311,6 +311,8 @@ function OrderEntry({
   lastPrice,
   onOrderPlaced,
   onSymbolChange,
+  totalGainLossDollar: totalGainLossDollarProp,
+  totalGainLossPercent: totalGainLossPercentProp,
 }) {
   const {
     portfolio,
@@ -409,11 +411,29 @@ function OrderEntry({
     const percent = accountValue > 0 ? (total / accountValue) * 100 : 0;
     return { totalHoldingsValue: total, holdingsPercentOfAccount: percent };
   }, [holdings, portfolio?.cash_balance]);
+
+  const computedTotalGainLoss = useMemo(() => {
+    let marketValue = 0;
+    let costBasis = 0;
+    (positions || []).forEach((position) => {
+      const qty = Number(position.quantity) || 0;
+      const avgCost = Number(position.avg_cost_basis) || 0;
+      const val = Number(position.market_value);
+      const price = Number(position.current_price) || avgCost || 0;
+      marketValue += Number.isFinite(val) && val > 0 ? val : qty * price;
+      costBasis += qty * avgCost;
+    });
+    const dollar = marketValue - costBasis;
+    const percent = costBasis > 0 ? (dollar / costBasis) * 100 : 0;
+    return { totalGainLossDollar: dollar, totalGainLossPercent: percent };
+  }, [positions]);
+  const totalGainLossDollar = Number.isFinite(totalGainLossDollarProp) ? totalGainLossDollarProp : computedTotalGainLoss.totalGainLossDollar;
+  const totalGainLossPercent = Number.isFinite(totalGainLossPercentProp) ? totalGainLossPercentProp : computedTotalGainLoss.totalGainLossPercent;
   const accountBuyingPowerDisplay = formatPaperCurrency(portfolio?.cash_balance);
   const availableCash = Number(portfolio?.cash_balance || 0);
   const selectedPositionQtyOwned = Number(selectedPosition?.quantity || 0);
   const executionPrice = liveMarketPrice > 0 ? liveMarketPrice : referencePrice;
-  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-cyan-400';
+  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-yellow-400';
   const accountBadgeText = isLiveMode ? 'Live Account' : 'Paper Account';
 
   useEffect(() => {
@@ -555,18 +575,34 @@ function OrderEntry({
     : Number(selectedPosition?.pnl_percent || 0);
   const selectedPositionPnlClass = selectedPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
   const showSellAllButton = hasSelectedPosition && side === 'sell';
-  const selectedPositionSummary = hasSelectedPosition ? (
-    <div className="rounded-md border border-white/10 bg-transparent px-2 py-1 text-[11px]">
+  // Display position: selected coin's position if any, else first position so the card is never missing when user has positions (match Trader)
+  const displayPosition = selectedPosition || (positions?.length > 0 ? positions[0] : null);
+  const displayPositionSymbol = displayPosition ? String(displayPosition?.symbol || '').replace('/USD', '') : '';
+  const displayPositionQty = Number(displayPosition?.quantity || 0);
+  const displayPositionAvgCost = Number(displayPosition?.avg_cost_basis ?? displayPosition?.avg_entry_price ?? displayPosition?.avgCost ?? 0);
+  const displayPositionPrice = displayPosition === selectedPosition && liveMarketPrice > 0
+    ? liveMarketPrice
+    : Number(displayPosition?.current_price) || displayPositionAvgCost || 0;
+  const displayPositionValue = displayPositionQty > 0 && displayPositionPrice > 0
+    ? displayPositionQty * displayPositionPrice
+    : Number(displayPosition?.market_value || 0);
+  const displayPositionCostBasis = displayPositionQty > 0 && displayPositionAvgCost > 0 ? displayPositionQty * displayPositionAvgCost : 0;
+  const displayPositionPnl = displayPositionCostBasis > 0 ? displayPositionValue - displayPositionCostBasis : Number(displayPosition?.pnl || 0);
+  const displayPositionPnlPercent = displayPositionCostBasis > 0 ? (displayPositionPnl / displayPositionCostBasis) * 100 : Number(displayPosition?.pnl_percent || 0);
+  const displayPositionPnlClass = displayPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+  // Position summary card — same structure and text-[13px] as TraderPage order entry (keep in sync)
+  const selectedPositionSummary = displayPosition ? (
+    <div className="rounded-xl border border-white/[0.06] bg-black/40 px-3 py-2.5 backdrop-blur-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] transition-all duration-300 text-[13px]">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 space-y-0.5">
           <div className="truncate text-slate-300">
-            Position: {formatPaperQuantity(selectedPosition.quantity)} {selectedPositionSymbol} · Avg {formatPaperCurrency(selectedPosition.avg_cost_basis)}
+            Position: {formatPaperQuantity(displayPosition.quantity)} {displayPositionSymbol} · Avg {formatPaperCurrency(displayPosition.avg_cost_basis ?? displayPosition.avg_entry_price ?? displayPosition.avgCost)}
           </div>
           <div className="truncate text-slate-400">
-            Value: {formatPaperCurrency(selectedPositionValue)}
+            Value: {formatPaperCurrency(displayPositionValue)}
           </div>
-          <div className={`truncate font-semibold ${selectedPositionPnlClass}`}>
-            P&L: {formatSignedPaperCurrency(selectedPositionPnl)} ({selectedPositionPnlPercent > 0 ? '+' : ''}{selectedPositionPnlPercent.toFixed(2)}%)
+          <div className={`truncate font-semibold ${displayPositionPnlClass}`}>
+            P&L: {formatSignedPaperCurrency(displayPositionPnl)} ({displayPositionPnlPercent >= 0 ? '+' : ''}{displayPositionPnlPercent.toFixed(2)}%)
           </div>
         </div>
         {showSellAllButton ? (
@@ -584,7 +620,7 @@ function OrderEntry({
   ) : null;
 
   const fieldClassName =
-    'h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60';
+    'h-[36px] w-full rounded-lg border border-white/[0.14] bg-[#0b0b0b] px-3 text-[13px] font-semibold text-white outline-none backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors focus:border-emerald-500/55';
 
   const handleSymbolSubmit = (input) => {
     const normalized = String(input || '')
@@ -596,7 +632,7 @@ function OrderEntry({
   };
 
   return (
-    <div className="relative flex min-h-full flex-col overflow-y-auto">
+    <div className="relative flex min-h-0 flex-col">
       <AlpacaOrderTicket
         side={side}
         onSideChange={setSide}
@@ -635,7 +671,7 @@ function OrderEntry({
           <div className="space-y-1">
             {(orderType === 'limit' || orderType === 'stop_limit') && (
               <div className="space-y-1">
-                <label className="block text-[12px] font-semibold text-slate-300">Limit Price</label>
+                <label className="block text-[13px] font-semibold text-slate-300">Limit Price</label>
                 <input
                   type="number"
                   step="any"
@@ -649,7 +685,7 @@ function OrderEntry({
             )}
             {(orderType === 'stop' || orderType === 'stop_limit') && (
               <div className="space-y-1">
-                <label className="block text-[12px] font-semibold text-slate-300">Stop Price</label>
+                <label className="block text-[13px] font-semibold text-slate-300">Stop Price</label>
                 <input
                   type="number"
                   step="any"
@@ -667,7 +703,7 @@ function OrderEntry({
                   <button
                     type="button"
                     onClick={() => setTrailType('dollars')}
-                    className={`py-1 text-[12px] font-semibold transition-colors ${
+                    className={`py-1 text-[13px] font-semibold transition-colors ${
                       trailType === 'dollars' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
                     }`}
                   >
@@ -676,14 +712,14 @@ function OrderEntry({
                   <button
                     type="button"
                     onClick={() => setTrailType('percent')}
-                    className={`py-1 text-[12px] font-semibold transition-colors ${
+                    className={`py-1 text-[13px] font-semibold transition-colors ${
                       trailType === 'percent' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
                     }`}
                   >
                     %
                   </button>
                 </div>
-                <label className="block text-[12px] font-semibold text-slate-300">
+                <label className="block text-[13px] font-semibold text-slate-300">
                   {trailType === 'percent' ? 'Trail Amount (%)' : 'Trail Amount ($)'}
                 </label>
                 <input
@@ -698,7 +734,7 @@ function OrderEntry({
               </div>
             )}
             {sizeMode === 'dollars' && (
-              <div className="text-[12px] font-semibold text-slate-300">
+              <div className="text-[13px] font-semibold text-slate-300">
                 Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
               </div>
             )}
@@ -709,7 +745,7 @@ function OrderEntry({
         }
       />
 
-      <div className="mt-1 min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
+      <div className="mt-1 space-y-1 px-2 pb-2">
         {lastResult && (
           <div className="text-center text-xs font-semibold py-2 rounded-lg animate-pulse"
             style={{
@@ -740,19 +776,17 @@ function OrderEntry({
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-white/[0.06] bg-black/40 px-3 py-2.5 backdrop-blur-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
-            <span className="text-[14px] font-mono font-semibold text-white">{accountBuyingPowerDisplay}</span>
+        <div className="rounded-none border-0 border-t border-white/[0.06] bg-transparent pt-2.5 px-3 pb-2.5">
+          <div className="flex items-center justify-between py-0.5">
+            <span className="text-[12px] font-medium uppercase tracking-[0.1em] text-slate-500">Available Cash</span>
+            <span className="text-[14px] font-mono font-medium text-white">{accountBuyingPowerDisplay}</span>
           </div>
-        </div>
-
-        <div className="rounded-xl border border-white/[0.06] bg-black/40 px-3 py-2.5 backdrop-blur-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] transition-all duration-300">
-          <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          <div className="my-1.5 border-t border-white/[0.06]" />
+          <div className="text-[12px] font-medium uppercase tracking-[0.1em] text-slate-500 pb-1">
             Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
           </div>
           {holdings.length > 0 ? (
-            <div className="mt-1 space-y-1">
+            <div className="space-y-1">
               {holdings.map((position) => {
                 const qty = Number(position.quantity) || 0;
                 const val = Number(position.market_value);
@@ -760,10 +794,10 @@ function OrderEntry({
                 const currentValue = Number.isFinite(val) && val > 0 ? val : qty * price;
                 return (
                   <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
-                    <span className="text-[14px] font-medium text-slate-300">
+                    <span className="text-[13px] font-medium text-slate-300">
                       {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
                     </span>
-                    <span className="text-[14px] font-mono font-semibold text-emerald-400">
+                    <span className="text-[13px] font-mono font-medium text-emerald-400">
                       {formatPaperCurrency(currentValue)}
                     </span>
                   </div>
@@ -771,10 +805,10 @@ function OrderEntry({
               })}
             </div>
           ) : null}
-          <div className="mt-1 pt-1.5 flex items-center justify-between gap-2 border-t border-white/[0.06]">
-            <span className="text-[13px] font-semibold text-slate-400">Total</span>
-            <span className="text-[14px] font-mono font-semibold text-emerald-400">
-              {formatPaperCurrency(totalHoldingsValue)} ({Number(holdingsPercentOfAccount).toFixed(1)}%)
+          <div className="mt-1.5 pt-1.5 flex items-center justify-between gap-2 border-t border-white/[0.06]">
+            <span className="text-[12px] font-medium text-slate-500">Total gain / loss</span>
+            <span className={`text-[13px] font-mono font-medium ${Number(totalGainLossDollar) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {Number(totalGainLossDollar) >= 0 ? '+' : ''}{formatPaperCurrency(totalGainLossDollar)} ({Number(totalGainLossPercent) >= 0 ? '+' : ''}{Number(totalGainLossPercent).toFixed(2)}%)
             </span>
           </div>
         </div>
@@ -792,7 +826,7 @@ function OrderEntry({
             >
             <div className="text-center">
               <div className="mb-2">
-                <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
+                <span className={`${accountBadgeColorClass} text-xs font-medium tracking-widest uppercase`}>
                   {accountBadgeText}
                 </span>
               </div>
@@ -923,7 +957,7 @@ function CoinSelector({ coins, selected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN CRYPTO PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
+export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced, paperTotalGainLoss = null }) {
   const [selectedCoin, setSelectedCoin] = useState(CRYPTO_COINS[0]);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   const [userId, setUserId] = useState(null);
@@ -963,8 +997,11 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
   };
 
   const orderTicketStyle = {
-    background: '#0b0b0b',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+    border: '1px solid rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px rgba(16,185,129,0.08)',
   };
 
   return (
@@ -1035,6 +1072,7 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
           {isRightPanelCollapsed ? (
             <div className="h-full flex flex-col items-center py-2 gap-2">
               <motion.button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   console.log('Crypto expand button clicked, current state:', isRightPanelCollapsed);
@@ -1043,57 +1081,48 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 transition={interactiveTransition}
-                className="h-7 w-7 text-xs font-bold transition-opacity cursor-pointer pointer-events-auto relative z-20 hover:opacity-80"
-                style={{
-                  color: 'rgba(34, 197, 94, 0.9)',
-                }}
+                className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer pointer-events-auto relative z-20 text-emerald-400 hover:text-emerald-200"
                 title="Expand order entry panel"
                 aria-label="Expand order entry panel"
               >
-                <ChevronsLeft className="h-3.5 w-3.5 mx-auto pointer-events-none" strokeWidth={1.7} />
+                <ChevronsLeft className="h-3.5 w-3.5 mx-auto pointer-events-none animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" strokeWidth={1.7} />
               </motion.button>
-              <div
-                className="text-[9px] font-bold tracking-[0.2em] uppercase"
-                style={{
-                  color: 'rgba(34, 197, 94, 0.85)',
-                  writingMode: 'vertical-rl',
-                  textOrientation: 'mixed',
-                }}
-              >
+              <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-400/80" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
                 Order
               </div>
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between border-b border-white/[0.06] px-2.5 py-1.5 shrink-0">
-                <span
-                  className="text-[10px] font-bold tracking-[0.16em] uppercase"
-                  style={{ color: 'rgba(34, 197, 94, 0.85)' }}
-                >
-                  Order Entry
-                </span>
-                <motion.button
-                  onClick={() => {
-                    console.log('Crypto collapse button clicked, current state:', isRightPanelCollapsed);
-                    setIsRightPanelCollapsed(true);
-                  }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={interactiveTransition}
-                  className="h-7 w-7 flex items-center justify-center transition-opacity cursor-pointer hover:opacity-80"
-                  style={{ color: 'rgba(34, 197, 94, 0.8)' }}
-                  title="Collapse order entry panel"
-                  aria-label="Collapse order entry panel"
-                >
-                  <ChevronsRight className="h-4 w-4" strokeWidth={1.7} />
-                </motion.button>
+              <div className="shrink-0 border-b border-white/[0.06] px-2.5 py-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-400">
+                    Order Entry
+                  </span>
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      console.log('Crypto collapse button clicked, current state:', isRightPanelCollapsed);
+                      setIsRightPanelCollapsed(true);
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    className="flex h-7 w-7 items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer text-emerald-400/70 hover:text-emerald-400"
+                    title="Collapse order entry panel"
+                    aria-label="Collapse order entry panel"
+                  >
+                    <ChevronsRight className="h-4 w-4" strokeWidth={1.7} />
+                  </motion.button>
+                </div>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 <OrderEntry
                   selectedCoin={selectedCoin}
                   lastPrice={lastPrice}
                   onOrderPlaced={handleOrderPlaced}
+                  totalGainLossDollar={paperTotalGainLoss?.dollar}
+                  totalGainLossPercent={paperTotalGainLoss?.percent}
                   onSymbolChange={(symbolInput) => {
                     const normalized = String(symbolInput || '').toUpperCase();
                     const nextCoin = CRYPTO_COINS.find((coin) =>

@@ -374,10 +374,13 @@ const SophiaPanel = ({
     });
   };
 
+  // Match news article window (Trader article drawer): same gradient, blur, border, shadow
   const glassPanelStyle = {
     background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-    borderLeft: '1px solid rgba(255,255,255,0.06)',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    borderLeft: '1px solid rgba(255,255,255,0.08)',
+    boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)',
   };
 
   if (panelState === 'closed') {

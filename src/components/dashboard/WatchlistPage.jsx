@@ -348,7 +348,7 @@ const WatchlistPage = ({
   const { tradingMode } = useTradingMode();
   const normalizedTradingMode = String(tradingMode || '').trim().toLowerCase() === 'live' ? 'live' : 'paper';
   const isLiveMode = normalizedTradingMode === 'live';
-  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-cyan-400';
+  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-yellow-400';
   const accountBadgeText = isLiveMode ? 'Live Account' : 'Paper Account';
   const [watchlistPanelState, setWatchlistPanelState] = useState(() => loadPanelState(WATCHLIST_PANEL_KEY, 'small'));
   const [orderPanelState, setOrderPanelState] = useState(() => {
@@ -1678,7 +1678,7 @@ const WatchlistPage = ({
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-white/60">Account</span>
-                          <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
+                          <span className={`${accountBadgeColorClass} text-xs font-medium tracking-widest uppercase`}>
                             {accountBadgeText}
                           </span>
                         </div>
@@ -1771,7 +1771,7 @@ const WatchlistPage = ({
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-white/60">Account</span>
-                          <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
+                          <span className={`${accountBadgeColorClass} text-xs font-medium tracking-widest uppercase`}>
                             {accountBadgeText}
                           </span>
                         </div>

@@ -87,17 +87,22 @@ const Sidebar = ({
   const grokStrategies = savedStrategies.filter(s => s.code); // Has code = from Grok
   const liveStrategies = savedStrategies.filter(s => s.deployed);
 
+  // Soft-glass (same as watchlist): gradient + base so it matches content panel; layered shadow + inset highlight
+  const glassStyle = {
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a',
+    borderRight: '1px solid rgba(255,255,255,0.06)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+  };
+
   return (
     <motion.div
       initial={false}
       animate={{ width: collapsed ? 56 : 220 }}
       transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="h-full flex flex-col flex-shrink-0"
-      style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
-      }}
+      className="h-full flex flex-col flex-shrink-0 rounded-r-xl"
+      style={glassStyle}
     >
       {/* Main Navigation — Linear-style spacing and hierarchy */}
       <nav className="flex-1 px-1.5 overflow-y-auto min-h-0 flex flex-col pt-1" style={{ scrollbarWidth: 'none' }}>

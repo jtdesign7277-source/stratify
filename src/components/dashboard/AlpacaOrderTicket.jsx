@@ -144,8 +144,8 @@ export default function OrderTicketPanel({
         : 'h-[40px] text-[14px]';
   const radioSizeClass = isCompactCryptoSticky ? 'h-3 w-3' : 'h-3.5 w-3.5';
   const reviewFooterClass = isCompactCryptoSticky
-    ? 'mt-0.5 shrink-0 border-t border-white/10 pt-0.5'
-    : 'mt-2 shrink-0 border-t border-white/10 pt-2';
+    ? 'mt-0.5 shrink-0 border-t border-white/[0.06] pt-0.5'
+    : 'mt-2 shrink-0 border-t border-white/[0.06] pt-2';
   const isSellSide = side === 'sell';
   const reviewButtonStateClass = reviewDisabled
     ? (isSellSide
@@ -159,24 +159,25 @@ export default function OrderTicketPanel({
   const contentLayoutClass = stickyReviewFooter
     ? `${contentTopClass} ${verticalGapClass} flex-1 min-h-0 overflow-y-auto pr-0.5`
     : `${contentTopClass} ${verticalGapClass}`;
-  const panelSurfaceClass = 'bg-[#0b0b0b]';
-  const controlSurfaceClass = 'bg-[#0b0b0b]';
-  const controlBorderClass = 'border-[#1f1f1f] focus:border-emerald-500/60';
-  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-cyan-400';
+  const panelSurfaceClass = 'bg-gradient-to-br from-white/[0.04] to-white/[0.01]';
+  const controlSurfaceClass = 'bg-black/40';
+  const controlBorderClass = 'border-white/[0.06] focus:border-emerald-500/60';
+  const controlInsetShadowClass = 'shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)]';
+  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-yellow-400';
   const accountBadgeText = isLiveMode ? 'Live Account' : 'Paper Account';
   const sizeInputLabel = sizeMode === 'dollars' ? 'Dollars' : 'Quantity';
 
   return (
     <div
-      className={`rounded-xl border border-white/10 ${panelSurfaceClass} ${panelPaddingClass} ${rootLayoutClass} text-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] backdrop-blur ${className}`}
+      className={`rounded-none border-0 border-t border-white/[0.06] ${panelSurfaceClass} ${panelPaddingClass} ${rootLayoutClass} text-white backdrop-blur-xl shadow-none ${className}`}
     >
       <div className="mb-2.5 flex">
-        <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
+        <span className={`${accountBadgeColorClass} text-xs font-medium tracking-widest uppercase`}>
           {accountBadgeText}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 border-b border-white/10">
+      <div className="grid grid-cols-2 border-b border-white/[0.06]">
         <button
           type="button"
           onClick={() => onSideChange?.('buy')}
@@ -215,7 +216,7 @@ export default function OrderTicketPanel({
               }
             }}
             placeholder="Search by symbol..."
-            className={`${controlHeightClass} w-full rounded-lg border ${controlBorderClass} ${controlSurfaceClass} ${symbolInputPaddingClass} ${controlTextClass} font-semibold text-white outline-none placeholder:text-gray-500`}
+            className={`${controlHeightClass} w-full rounded-lg border ${controlBorderClass} ${controlSurfaceClass} ${controlInsetShadowClass} ${symbolInputPaddingClass} ${controlTextClass} font-semibold text-white outline-none placeholder:text-gray-500`}
           />
         </div>
 
@@ -234,7 +235,7 @@ export default function OrderTicketPanel({
             min="0"
             value={activeAmount}
             onChange={(event) => handleAmountChange(event.target.value)}
-            className={`${controlHeightClass} w-full rounded-lg border ${controlBorderClass} ${controlSurfaceClass} px-3 ${controlTextClass} font-semibold text-white outline-none`}
+            className={`${controlHeightClass} w-full rounded-lg border ${controlBorderClass} ${controlSurfaceClass} ${controlInsetShadowClass} px-3 ${controlTextClass} font-semibold text-white outline-none`}
           />
         </div>
 
@@ -244,7 +245,7 @@ export default function OrderTicketPanel({
             <select
               value={orderType}
               onChange={(event) => onOrderTypeChange?.(event.target.value)}
-              className={`${controlHeightClass} w-full appearance-none rounded-lg border ${controlBorderClass} ${controlSurfaceClass} px-3 pr-10 ${controlTextClass} font-semibold text-white outline-none`}
+              className={`${controlHeightClass} w-full appearance-none rounded-lg border ${controlBorderClass} ${controlSurfaceClass} ${controlInsetShadowClass} px-3 pr-10 ${controlTextClass} font-semibold text-white outline-none`}
             >
               {orderTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -293,7 +294,7 @@ export default function OrderTicketPanel({
             <select
               value={timeInForce}
               onChange={(event) => onTimeInForceChange?.(event.target.value)}
-              className={`${controlHeightClass} w-full appearance-none rounded-lg border ${controlBorderClass} ${controlSurfaceClass} px-3 pr-10 ${controlTextClass} font-semibold text-white outline-none`}
+              className={`${controlHeightClass} w-full appearance-none rounded-lg border ${controlBorderClass} ${controlSurfaceClass} ${controlInsetShadowClass} px-3 pr-10 ${controlTextClass} font-semibold text-white outline-none`}
             >
               {timeInForceOptions.map((option) => (
                 <option key={option.value} value={option.value}>

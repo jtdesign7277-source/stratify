@@ -195,6 +195,9 @@ const GLASS_TOPBAR_STYLE = {
 // Soft-glass inset cards (stratify-platform + soft-glass-ui): depth + subtle gradient
 const GLASS_INSET_CARD_CLASS =
   'rounded-xl border border-white/[0.06] bg-black/40 px-3 py-2.5 backdrop-blur-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] transition-all duration-300';
+// Order entry: one continuous panel — divider line only, no card box
+const ORDER_ENTRY_SECTION_CLASS =
+  'rounded-none border-0 border-t border-white/[0.06] bg-transparent pt-2.5 px-3 pb-2.5';
 const GLASS_INSET_INPUT_CLASS = 'h-[36px] w-full rounded-lg border border-white/[0.14] bg-[#0b0b0b] px-3 text-[13px] font-semibold text-white outline-none backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors focus:border-emerald-500/55';
 
 const modalBackdropMotion = {
@@ -989,6 +992,8 @@ function TraderOrderEntry({
   tradingMode: _tradingMode = 'paper',
   canUseLiveTrading: _canUseLiveTrading = true,
   quotesBySymbol: quotesBySymbolProp = {},
+  totalGainLossDollar: totalGainLossDollarProp,
+  totalGainLossPercent: totalGainLossPercentProp,
 }) {
   const {
     portfolio,
@@ -1078,7 +1083,7 @@ function TraderOrderEntry({
     return { totalHoldingsValue: total, holdingsPercentOfAccount: percent };
   }, [holdings, portfolio?.cash_balance, quotesBySymbolProp]);
 
-  const { totalGainLossDollar, totalGainLossPercent } = useMemo(() => {
+  const computedTotalGainLoss = useMemo(() => {
     let marketValue = 0;
     let costBasis = 0;
     (positions || []).forEach((position) => {
@@ -1094,6 +1099,8 @@ function TraderOrderEntry({
     const percent = costBasis > 0 ? (dollar / costBasis) * 100 : 0;
     return { totalGainLossDollar: dollar, totalGainLossPercent: percent };
   }, [positions, quotesBySymbolProp]);
+  const totalGainLossDollar = Number.isFinite(totalGainLossDollarProp) ? totalGainLossDollarProp : computedTotalGainLoss.totalGainLossDollar;
+  const totalGainLossPercent = Number.isFinite(totalGainLossPercentProp) ? totalGainLossPercentProp : computedTotalGainLoss.totalGainLossPercent;
 
   const buyingPowerDisplay = formatPaperCurrency(portfolio?.cash_balance);
   const availableCash = toNumber(portfolio?.cash_balance, 0);
@@ -1236,18 +1243,33 @@ function TraderOrderEntry({
     : Number(selectedPosition?.pnl_percent || 0);
   const selectedPositionPnlClass = selectedPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
   const showSellAllButton = hasSelectedPosition && side === 'sell';
-  const selectedPositionSummary = hasSelectedPosition ? (
-    <div className={GLASS_INSET_CARD_CLASS}>
+  // Display position: selected symbol's position if any, else first position so the card is never missing when user has positions (match Crypto)
+  const displayPosition = selectedPosition || (positions?.length > 0 ? positions[0] : null);
+  const displayPositionSymbol = displayPosition ? String(displayPosition?.symbol || '').replace('/USD', '') : '';
+  const displayPositionQty = Number(displayPosition?.quantity || 0);
+  const displayPositionAvgCost = Number(displayPosition?.avg_cost_basis ?? displayPosition?.avg_entry_price ?? displayPosition?.avgCost ?? 0);
+  const displayPositionQuote = displayPosition ? (quotesBySymbolProp[displayPosition.symbol] || quotesBySymbolProp[displayPosition.symbol?.trim?.()]) : null;
+  const displayPositionLivePrice = displayPosition
+    ? (toNumber(displayPositionQuote?.price ?? displayPositionQuote?.last ?? displayPositionQuote?.close ?? displayPositionQuote?.ask ?? displayPositionQuote?.bid) || Number(displayPosition.current_price) || displayPositionAvgCost || 0)
+    : 0;
+  const displayPositionValue = displayPositionQty > 0 && displayPositionLivePrice > 0 ? displayPositionQty * displayPositionLivePrice : Number(displayPosition?.market_value || 0);
+  const displayPositionCostBasis = displayPositionQty > 0 && displayPositionAvgCost > 0 ? displayPositionQty * displayPositionAvgCost : 0;
+  const displayPositionPnl = displayPositionCostBasis > 0 ? displayPositionValue - displayPositionCostBasis : Number(displayPosition?.pnl || 0);
+  const displayPositionPnlPercent = displayPositionCostBasis > 0 ? (displayPositionPnl / displayPositionCostBasis) * 100 : Number(displayPosition?.pnl_percent || 0);
+  const displayPositionPnlClass = displayPositionPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+  // Position summary card — same structure and text-[13px] as CryptoPage order entry (keep in sync)
+  const selectedPositionSummary = displayPosition ? (
+    <div className={`${GLASS_INSET_CARD_CLASS} text-[13px]`}>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 space-y-0.5">
           <div className="truncate text-slate-300">
-            Position: {formatPaperQuantity(selectedPosition.quantity)} shares · Avg {formatPaperCurrency(selectedPosition.avg_cost_basis)}
+            Position: {formatPaperQuantity(displayPosition.quantity)} {displayPositionSymbol} · Avg {formatPaperCurrency(displayPosition.avg_cost_basis ?? displayPosition.avg_entry_price ?? displayPosition.avgCost)}
           </div>
           <div className="truncate text-slate-400">
-            Value: {formatPaperCurrency(selectedPositionValue)}
+            Value: {formatPaperCurrency(displayPositionValue)}
           </div>
-          <div className={`truncate font-semibold ${selectedPositionPnlClass}`}>
-            P&L: {formatSignedPaperCurrency(selectedPositionPnl)} ({selectedPositionPnlPercent > 0 ? '+' : ''}{selectedPositionPnlPercent.toFixed(2)}%)
+          <div className={`truncate font-semibold ${displayPositionPnlClass}`}>
+            P&L: {formatSignedPaperCurrency(displayPositionPnl)} ({displayPositionPnlPercent >= 0 ? '+' : ''}{displayPositionPnlPercent.toFixed(2)}%)
           </div>
         </div>
         {showSellAllButton ? (
@@ -1388,7 +1410,7 @@ className={`py-1 text-[13px] font-semibold transition-colors ${
         }
       />
 
-      <div className="mt-1 min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
+      <div className="mt-1 min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2">
         {lastResult && (
           <div
             className="animate-pulse rounded-lg py-2 text-center text-xs font-semibold"
@@ -1420,19 +1442,17 @@ className={`py-1 text-[13px] font-semibold transition-colors ${
           </div>
         ) : null}
 
-        <div className={GLASS_INSET_CARD_CLASS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-400">Available Cash</span>
-            <span className="text-[14px] font-mono font-semibold text-white">{buyingPowerDisplay}</span>
+        <div className={ORDER_ENTRY_SECTION_CLASS}>
+          <div className="flex items-center justify-between py-0.5">
+            <span className="text-[12px] font-medium uppercase tracking-[0.1em] text-slate-500">Available Cash</span>
+            <span className="text-[14px] font-mono font-medium text-white">{buyingPowerDisplay}</span>
           </div>
-        </div>
-
-        <div className={GLASS_INSET_CARD_CLASS}>
-          <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          <div className="my-1.5 border-t border-white/[0.06]" />
+          <div className="text-[12px] font-medium uppercase tracking-[0.1em] text-slate-500 pb-1">
             Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
           </div>
           {holdings.length > 0 ? (
-            <div className="mt-1 space-y-1">
+            <div className="space-y-1">
               {holdings.map((position) => {
                 const qty = Number(position.quantity) || 0;
                 const quote = quotesBySymbolProp[position.symbol] || quotesBySymbolProp[position.symbol?.trim?.()];
@@ -1441,10 +1461,10 @@ className={`py-1 text-[13px] font-semibold transition-colors ${
                 const currentValue = qty * price;
                 return (
                   <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
-                    <span className="text-[14px] font-medium text-slate-300">
+                    <span className="text-[13px] font-medium text-slate-300">
                       {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
                     </span>
-                    <span className="text-[14px] font-mono font-semibold text-emerald-400">
+                    <span className="text-[13px] font-mono font-medium text-emerald-400">
                       {formatPaperCurrency(currentValue)}
                     </span>
                   </div>
@@ -1452,9 +1472,9 @@ className={`py-1 text-[13px] font-semibold transition-colors ${
               })}
             </div>
           ) : null}
-          <div className="mt-1 pt-1.5 flex items-center justify-between gap-2 border-t border-white/[0.06]">
-            <span className="text-[13px] font-semibold text-slate-400">Total gain / loss</span>
-            <span className={`text-[14px] font-mono font-semibold ${Number(totalGainLossDollar) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <div className="mt-1.5 pt-1.5 flex items-center justify-between gap-2 border-t border-white/[0.06]">
+            <span className="text-[12px] font-medium text-slate-500">Total gain / loss</span>
+            <span className={`text-[13px] font-mono font-medium ${Number(totalGainLossDollar) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {Number(totalGainLossDollar) >= 0 ? '+' : ''}{formatPaperCurrency(totalGainLossDollar)} ({Number(totalGainLossPercent) >= 0 ? '+' : ''}{Number(totalGainLossPercent).toFixed(2)}%)
             </span>
           </div>
@@ -1578,6 +1598,7 @@ export default function TraderPage({
   pinnedGames = [],
   onGameDrop = () => {},
   onRemovePinnedGame = () => {},
+  paperTotalGainLoss = null,
 }) {
   const tradingModeState = useTradingMode();
   const resolvedTradingMode = tradingModeOverride || tradingModeState.tradingMode;
@@ -3948,7 +3969,9 @@ export default function TraderPage({
   };
   const orderTicketStyle = {
     ...GLASS_SHELL_STYLE,
-    boxShadow: '0 20px 44px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px rgba(16,185,129,0.1)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px rgba(16,185,129,0.08)',
   };
   const isMediumArticleDrawerLayout = Boolean(drawerArticle && isNewsOpen && !isArticleDrawerExtendedToChartTop);
 
@@ -5237,10 +5260,7 @@ export default function TraderPage({
               <>
                 <div className="shrink-0 border-b border-white/[0.06] px-2.5 py-1.5">
                   <div className="flex items-center justify-between">
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-[0.16em]"
-                      style={{ color: 'rgba(96, 165, 250, 0.85)' }}
-                    >
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-400">
                       Order Entry
                     </span>
                     <motion.button
@@ -5252,8 +5272,7 @@ export default function TraderPage({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       transition={interactiveTransition}
-                      className="flex h-7 w-7 items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer"
-                      style={{ color: 'rgba(110, 231, 183, 0.65)' }}
+                      className="flex h-7 w-7 items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer text-emerald-400/70 hover:text-emerald-400"
                       title="Collapse order entry panel"
                       aria-label="Collapse order entry panel"
                     >
@@ -5269,6 +5288,8 @@ export default function TraderPage({
                     tradingMode={resolvedTradingMode}
                     canUseLiveTrading={resolvedCanUseLiveTrading}
                     quotesBySymbol={quotesBySymbol}
+                    totalGainLossDollar={paperTotalGainLoss?.dollar}
+                    totalGainLossPercent={paperTotalGainLoss?.percent}
                     onSymbolChange={(symbolInput) => {
                       const normalized = normalizeSymbol(symbolInput);
                       if (!normalized) return;

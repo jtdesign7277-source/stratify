@@ -1269,8 +1269,9 @@ export default function Dashboard({
     () => Math.max(0, toNumberOrNull(paperPortfolio?.cash_balance) ?? 0),
     [paperPortfolio?.cash_balance],
   );
-  const syncedPaperUnrealizedPnL = useMemo(() => {
-    let sum = 0;
+  const { syncedPaperUnrealizedPnL, syncedPaperTotalGainLossPercent } = useMemo(() => {
+    let dollar = 0;
+    let costBasis = 0;
     paperPortfolioPositions.forEach((position) => {
       const qty = toNumberOrNull(position?.quantity) ?? 0;
       const avgCost = toNumberOrNull(position?.avg_cost_basis) ?? 0;
@@ -1278,9 +1279,13 @@ export default function Dashboard({
       const quote = watchlistQuotesBySymbol[sym];
       const livePrice = toNumberOrNull(quote?.price ?? quote?.last ?? quote?.close ?? quote?.ask ?? quote?.bid);
       const price = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : (toNumberOrNull(position?.current_price) ?? avgCost ?? 0);
-      if (qty > 0) sum += qty * (price - avgCost);
+      if (qty > 0) {
+        dollar += qty * (price - avgCost);
+        costBasis += qty * avgCost;
+      }
     });
-    return sum;
+    const percent = costBasis > 0 ? (dollar / costBasis) * 100 : 0;
+    return { syncedPaperUnrealizedPnL: dollar, syncedPaperTotalGainLossPercent: percent };
   }, [paperPortfolioPositions, watchlistQuotesBySymbol]);
   const syncedPaperDailyPnL = syncedPaperUnrealizedPnL;
   const shouldUsePaperTopBarMetrics = !hasConnectedBroker;
@@ -2473,6 +2478,7 @@ export default function Dashboard({
               dailyPnl: syncedPaperDailyPnL,
               buyingPower: syncedPaperBuyingPower,
               unrealizedPnl: syncedPaperUnrealizedPnL,
+              totalGainLossPercent: syncedPaperTotalGainLossPercent,
             } : null}
           />
           <LiveAlertsTicker />
@@ -2570,6 +2576,7 @@ export default function Dashboard({
                 pinnedGames={pinnedGames}
                 onGameDrop={handleGameDrop}
                 onRemovePinnedGame={handleRemovePinnedGame}
+                paperTotalGainLoss={shouldUsePaperTopBarMetrics ? { dollar: syncedPaperUnrealizedPnL, percent: syncedPaperTotalGainLossPercent } : null}
               />
             </Suspense>
           )}
@@ -2819,7 +2826,11 @@ export default function Dashboard({
           </AnimatePresence>
           {activeTab === 'crypto' ? (
             <div className="h-full w-full min-h-0 flex flex-col overflow-hidden" aria-hidden={false}>
-              <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />
+              <CryptoPage
+                alpacaData={alpacaData}
+                onOrderPlaced={refreshAlpacaData}
+                paperTotalGainLoss={shouldUsePaperTopBarMetrics ? { dollar: syncedPaperUnrealizedPnL, percent: syncedPaperTotalGainLossPercent } : null}
+              />
             </div>
           ) : null}
           <div className={activeTab === 'terminal' ? 'h-full w-full min-h-0 overflow-y-auto' : 'hidden'} aria-hidden={activeTab !== 'terminal'}>

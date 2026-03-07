@@ -380,54 +380,12 @@ const clearGlobalDragPayload = () => {
 };
 
 const GLOBAL_MARKET_CLOCKS = [
-  {
-    id: 'nyc',
-    city: 'New York',
-    timezone: 'America/New_York',
-    code: 'NYSE',
-    hoursLabel: '09:30-16:00',
-    windows: [[9 * 60 + 30, 16 * 60]],
-  },
-  {
-    id: 'lon',
-    city: 'London',
-    timezone: 'Europe/London',
-    code: 'LSE',
-    hoursLabel: '08:00-16:30',
-    windows: [[8 * 60, 16 * 60 + 30]],
-  },
-  {
-    id: 'tyo',
-    city: 'Tokyo',
-    timezone: 'Asia/Tokyo',
-    code: 'TSE',
-    hoursLabel: '09:00-11:30, 12:30-15:00',
-    windows: [[9 * 60, 11 * 60 + 30], [12 * 60 + 30, 15 * 60]],
-  },
-  {
-    id: 'syd',
-    city: 'Sydney',
-    timezone: 'Australia/Sydney',
-    code: 'ASX',
-    hoursLabel: '10:00-16:00',
-    windows: [[10 * 60, 16 * 60]],
-  },
-  {
-    id: 'sha',
-    city: 'Shanghai',
-    timezone: 'Asia/Shanghai',
-    code: 'SSE',
-    hoursLabel: '09:30-11:30, 13:00-15:00',
-    windows: [[9 * 60 + 30, 11 * 60 + 30], [13 * 60, 15 * 60]],
-  },
-  {
-    id: 'dxb',
-    city: 'Dubai',
-    timezone: 'Asia/Dubai',
-    code: 'DFM',
-    hoursLabel: '10:00-14:00',
-    windows: [[10 * 60, 14 * 60]],
-  },
+  { id: 'nyc', city: 'New York', short: 'NY', flag: '🇺🇸', timezone: 'America/New_York', code: 'NYSE', hoursLabel: '09:30-16:00', windows: [[9 * 60 + 30, 16 * 60]] },
+  { id: 'lon', city: 'London', short: 'LON', flag: '🇬🇧', timezone: 'Europe/London', code: 'LSE', hoursLabel: '08:00-16:30', windows: [[8 * 60, 16 * 60 + 30]] },
+  { id: 'tyo', city: 'Tokyo', short: 'TYO', flag: '🇯🇵', timezone: 'Asia/Tokyo', code: 'TSE', hoursLabel: '09:00-11:30, 12:30-15:00', windows: [[9 * 60, 11 * 60 + 30], [12 * 60 + 30, 15 * 60]] },
+  { id: 'syd', city: 'Sydney', short: 'SYD', flag: '🇦🇺', timezone: 'Australia/Sydney', code: 'ASX', hoursLabel: '10:00-16:00', windows: [[10 * 60, 16 * 60]] },
+  { id: 'sha', city: 'Shanghai', short: 'SHA', flag: '🇨🇳', timezone: 'Asia/Shanghai', code: 'SSE', hoursLabel: '09:30-11:30, 13:00-15:00', windows: [[9 * 60 + 30, 11 * 60 + 30], [13 * 60, 15 * 60]] },
+  { id: 'dxb', city: 'Dubai', short: 'DXB', flag: '🇦🇪', timezone: 'Asia/Dubai', code: 'DFM', hoursLabel: '10:00-14:00', windows: [[10 * 60, 14 * 60]] },
 ];
 
 const getLocalMarketParts = (date, timezone) => {
@@ -560,6 +518,9 @@ export default function TopMetricsBar({
   const unrealizedPnL = shouldShowPaperMetrics
     ? (toMetricNumber(paperMetrics?.unrealizedPnl) ?? dailyPnL)
     : (shouldShowBrokerMetrics ? Number(account.unrealized_pl ?? account.daily_pnl ?? 0) : 0);
+  const totalGainLossPercent = shouldShowPaperMetrics && paperMetrics && Number.isFinite(Number(paperMetrics?.totalGainLossPercent))
+    ? Number(paperMetrics.totalGainLossPercent)
+    : null;
   const calculatedBuyingPower = useMemo(() => {
     if (!shouldShowPaperMetrics || !hasPaperTradingBalance) return null;
     const activeStrategies = Array.isArray(deployedStrategies)
@@ -592,10 +553,11 @@ export default function TopMetricsBar({
       signed: false,
     },
     {
-      label: 'Unrealized P&L',
+      label: 'Total gain / loss',
       value: hasDisplayData ? unrealizedPnL : 0,
       change: hasDisplayData ? unrealizedPnL : undefined,
       signed: true,
+      percent: totalGainLossPercent,
     },
   ];
 
@@ -694,37 +656,38 @@ export default function TopMetricsBar({
   }, [clockNow]);
 
   return (
-    <div className={`soft-glass-surface relative z-20 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
-      <div className="soft-glass-surface h-8 px-4 border-b border-[#1f1f1f] flex items-center bg-[#0b0b0b]">
-        <div className="flex w-full items-center justify-between gap-2">
+    <div className="relative z-20 bg-transparent">
+      <div className="h-8 px-4 flex items-center border-b border-white/[0.06] min-w-0">
+        <div className="flex w-full items-center justify-between gap-3 flex-nowrap">
           {worldClockData.map((clock) => (
-            <div
+            <span
               key={clock.id}
-              className="soft-glass-panel h-6 min-w-0 rounded-md border border-[#1f1f1f] bg-[#0b0b0b] px-2.5 flex items-center gap-2"
-              title={`${clock.city} (${clock.code}) market hours ${clock.hoursLabel}`}
+              className="flex items-center gap-2 shrink-0 text-[11px]"
+              title={`${clock.city} (${clock.code}) ${clock.hoursLabel}`}
             >
-              <span className="text-[10px] uppercase tracking-wide text-white/55 font-semibold">{clock.city}</span>
-              <span className="text-[11px] font-mono text-white">{clock.localTime}</span>
-              <span className={`h-1.5 w-1.5 rounded-full ${clock.isOpen ? 'bg-emerald-400' : 'bg-blue-600'}`} />
-              <span className={`text-[10px] font-semibold uppercase tracking-wide ${clock.isOpen ? 'text-emerald-400' : 'text-blue-500'}`}>
+              <span className="text-base leading-none" aria-hidden>{clock.flag}</span>
+              <span className="uppercase text-white/60 font-semibold">{clock.short || clock.city}</span>
+              <span className="font-mono text-white tabular-nums">{clock.localTime}</span>
+              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${clock.isOpen ? 'bg-emerald-400' : 'bg-blue-600'}`} />
+              <span className={`font-medium shrink-0 ${clock.isOpen ? 'text-emerald-400' : 'text-blue-500'}`}>
                 {clock.isOpen ? 'Open' : 'Closed'}
               </span>
-              <span className={`text-[10px] ${clock.isOpen ? 'text-emerald-300/85' : 'text-blue-400/80'}`}>
-                {clock.transitionVerb} {clock.countdownLabel}
+              <span className={`shrink-0 ${clock.isOpen ? 'text-emerald-300/80' : 'text-blue-400/80'}`}>
+                {clock.countdownLabel.replace(/\s+/g, '')}
               </span>
-            </div>
+            </span>
           ))}
         </div>
       </div>
 
-      <div className="h-14 flex items-center px-4">
+      <div className="h-14 flex items-center px-4 border-b border-white/[0.06]">
         <div className="flex min-w-0 items-center gap-6">
           {metrics.map((metric, index) => (
             <div key={index} className="flex flex-col min-w-0">
               <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>{metric.label}</span>
               <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>
                 <CountUp
-                  key={`${metric.label}-${metric.value}`}
+                  key={`${metric.label}-${metric.value}-${metric.percent}`}
                   start={0}
                   end={Math.abs(Number(metric.value) || 0)}
                   duration={metric.signed ? 0.6 : 1.2}
@@ -733,6 +696,11 @@ export default function TopMetricsBar({
                   separator=","
                   useEasing
                 />
+                {metric.percent != null && Number.isFinite(metric.percent) && (
+                  <span className="ml-1">
+                    ({Number(metric.percent) >= 0 ? '+' : ''}{Number(metric.percent).toFixed(2)}%)
+                  </span>
+                )}
               </span>
             </div>
           ))}

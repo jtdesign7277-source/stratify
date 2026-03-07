@@ -215,7 +215,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const { tradingMode } = useTradingMode();
   const normalizedTradingMode = String(tradingMode || '').trim().toLowerCase() === 'live' ? 'live' : 'paper';
   const isLiveMode = normalizedTradingMode === 'live';
-  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-cyan-400';
+  const accountBadgeColorClass = isLiveMode ? 'text-emerald-400' : 'text-yellow-400';
   const accountBadgeText = isLiveMode ? 'Live Account' : 'Paper Account';
   const [ticker, setTicker] = useState(activeTicker);
   const [timeframe, setTimeframe] = useState('1m');
@@ -1490,7 +1490,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-white/60">Account</span>
-                <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
+                <span className={`${accountBadgeColorClass} text-xs font-medium tracking-widest uppercase`}>
                   {accountBadgeText}
                 </span>
               </div>
@@ -1593,7 +1593,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-white/60">Account</span>
-                <span className={`${accountBadgeColorClass} text-xs font-semibold tracking-widest uppercase`}>
+                <span className={`${accountBadgeColorClass} text-xs font-medium tracking-widest uppercase`}>
                   {accountBadgeText}
                 </span>
               </div>
