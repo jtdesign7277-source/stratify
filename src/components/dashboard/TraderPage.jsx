@@ -1598,7 +1598,7 @@ export default function TraderPage({
     error: '',
   });
   const [chartReady, setChartReady] = useState(false);
-  const [chartTimeframe, setChartTimeframe] = useState(() => loadInitialChartTimeframe());
+  const [chartTimeframe, setChartTimeframe] = useState('1D');
   const [candlePaletteId, setCandlePaletteId] = useState(() => {
     if (typeof window === 'undefined') return 'classic';
     try {
@@ -1784,6 +1784,7 @@ export default function TraderPage({
   const searchRequestRef = useRef(0);
   const chartTimeframeRef = useRef(chartTimeframe);
   const chartRequestIdRef = useRef(0);
+  const chartResizeTimerRef = useRef(null);
   const dragPositionYRef = useRef(null);
   const dragPositionXRef = useRef(null);
   const chartAndNewsContainerRef = useRef(null);
@@ -3197,6 +3198,15 @@ export default function TraderPage({
         }))
       );
 
+      // Force price scale (Y-axis) to fit new ticker's data so right-side prices update (e.g. HIMS $15 -> NVDA $177)
+      try {
+        const mainScale = chartRef.current?.priceScale?.('right');
+        if (mainScale) {
+          if (typeof mainScale.setAutoScale === 'function') mainScale.setAutoScale(true);
+          else if (typeof mainScale.applyOptions === 'function') mainScale.applyOptions({ autoScale: true });
+        }
+      } catch (_) {}
+
       // Restore saved viewport if available, otherwise fit content
       const savedViewport = forceFitContent ? null : loadChartViewport(normalized, timeframeId);
       if (savedViewport && chartRef.current) {
@@ -3211,6 +3221,24 @@ export default function TraderPage({
       }
       lastBarRef.current = deduped[deduped.length - 1];
       setChartStatus({ loading: false, error: '' });
+      // After layout settles, resize chart so candles are clearly visible (fixes "chart very small" on first load)
+      if (chartResizeTimerRef.current) clearTimeout(chartResizeTimerRef.current);
+      chartResizeTimerRef.current = setTimeout(() => {
+        chartResizeTimerRef.current = null;
+        try {
+          const container = chartContainerRef.current;
+          const chart = chartRef.current;
+          if (container && chart) {
+            const { width, height } = container.getBoundingClientRect();
+            if (width > 0 && height > 0) {
+              chart.resize(width, height);
+              chart.timeScale().fitContent();
+              const mainScale = chart.priceScale?.('right');
+              if (mainScale && (typeof mainScale.setAutoScale === 'function')) mainScale.setAutoScale(true);
+            }
+          }
+        } catch {}
+      }, 200);
     } catch (error) {
       if (requestId !== chartRequestIdRef.current) return;
       setChartStatus({
@@ -4677,11 +4705,11 @@ export default function TraderPage({
                           onClick={() => setCandlePaletteId(pal.id)}
                           whileTap={{ scale: 0.96 }}
                           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
+                          className={`flex items-center gap-1 rounded border px-1.5 py-1 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
                           title={pal.name}
                         >
-                          <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.up }} />
-                          <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.down }} />
+                          <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.up }} />
+                          <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.down }} />
                         </motion.button>
                       );
                     })}
@@ -4697,10 +4725,10 @@ export default function TraderPage({
                           onClick={() => setChartDisplayMode(opt.id)}
                           whileTap={{ scale: 0.96 }}
                           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          className={`rounded-md border p-1 transition-colors ${isActive ? 'border-white/20 bg-white/10 text-white' : 'border-white/[0.06] bg-transparent text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'}`}
+                          className={`flex items-center justify-center rounded border w-7 h-7 transition-colors ${isActive ? 'border-white/20 bg-white/10 text-white' : 'border-white/[0.06] bg-transparent text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'}`}
                           title={opt.name}
                         >
-                          <Icon className="h-5 w-5 shrink-0" />
+                          <Icon className="h-4 w-4 shrink-0" />
                         </motion.button>
                       );
                     })}

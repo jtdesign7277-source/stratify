@@ -1197,6 +1197,32 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     if (chartRef.current && candlesKey && candlesKey !== lastCandlesFitKeyRef.current) {
       lastCandlesFitKeyRef.current = candlesKey;
       chartRef.current.timeScale().fitContent();
+      // Force price scale (Y-axis) to fit new ticker so right-side prices update (e.g. HIMS $15 -> NVDA $177)
+      try {
+        const mainScale = chartRef.current?.priceScale?.('right');
+        if (mainScale) {
+          if (typeof mainScale.setAutoScale === 'function') mainScale.setAutoScale(true);
+          else if (typeof mainScale.applyOptions === 'function') mainScale.applyOptions({ autoScale: true });
+        }
+      } catch (_) {}
+      // After layout settles, resize chart so candles are clearly visible (same as Trader page)
+      const t = setTimeout(() => {
+        const container = chartContainerRef.current;
+        const chart = chartRef.current;
+        if (container && chart) {
+          const w = container.clientWidth;
+          const h = container.clientHeight;
+          if (w > 0 && h > 0) {
+            chart.applyOptions({ width: w, height: h });
+            chart.timeScale().fitContent();
+            try {
+              const scale = chart.priceScale?.('right');
+              if (scale && (typeof scale.setAutoScale === 'function')) scale.setAutoScale(true);
+            } catch (_) {}
+          }
+        }
+      }, 200);
+      return () => clearTimeout(t);
     }
   }, [candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, chartDisplayMode]);
 
@@ -2165,11 +2191,11 @@ function StrategyRadarContent() {
                       onClick={() => setCandlePaletteId(pal.id)}
                       whileTap={{ scale: 0.96 }}
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
+                      className={`flex items-center gap-1 rounded border px-1.5 py-1 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
                       title={pal.name}
                     >
-                      <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.up }} />
-                      <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.down }} />
+                      <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.up }} />
+                      <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.down }} />
                     </motion.button>
                   );
                 })}
@@ -2185,10 +2211,10 @@ function StrategyRadarContent() {
                       onClick={() => setChartDisplayMode(opt.id)}
                       whileTap={{ scale: 0.96 }}
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      className={`rounded-md border p-1 transition-colors ${isActive ? 'border-white/20 bg-white/10 text-white' : 'border-white/[0.06] bg-transparent text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'}`}
+                      className={`flex items-center justify-center rounded border w-7 h-7 transition-colors ${isActive ? 'border-white/20 bg-white/10 text-white' : 'border-white/[0.06] bg-transparent text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'}`}
                       title={opt.name}
                     >
-                      <Icon className="h-5 w-5 shrink-0" />
+                      <Icon className="h-4 w-4 shrink-0" />
                     </motion.button>
                   );
                 })}
