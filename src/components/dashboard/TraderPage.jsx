@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import { BarChart2, Bell, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { BarChart2, Bell, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -1649,6 +1650,10 @@ export default function TraderPage({
   });
   const [chartReady, setChartReady] = useState(false);
   const [chartTimeframe, setChartTimeframe] = useState('1D');
+  const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
+  const [timeframeDropdownPosition, setTimeframeDropdownPosition] = useState(null);
+  const timeframeDropdownRef = useRef(null);
+  const timeframeDropdownPanelRef = useRef(null);
   const [candlePaletteId, setCandlePaletteId] = useState(() => {
     if (typeof window === 'undefined') return 'classic';
     try {
@@ -1656,6 +1661,28 @@ export default function TraderPage({
       return CANDLE_PALETTES.some(p => p.id === saved) ? saved : 'classic';
     } catch { return 'classic'; }
   });
+  const [candlePaletteDropdownOpen, setCandlePaletteDropdownOpen] = useState(false);
+  const [candlePaletteDropdownPosition, setCandlePaletteDropdownPosition] = useState(null);
+  const candlePaletteDropdownRef = useRef(null);
+  const candlePaletteDropdownPanelRef = useRef(null);
+  useLayoutEffect(() => {
+    if (candlePaletteDropdownOpen && candlePaletteDropdownRef.current) {
+      const rect = candlePaletteDropdownRef.current.getBoundingClientRect();
+      setCandlePaletteDropdownPosition({ top: rect.bottom + 4, left: rect.left });
+    } else if (!candlePaletteDropdownOpen) {
+      setCandlePaletteDropdownPosition(null);
+    }
+  }, [candlePaletteDropdownOpen]);
+  useEffect(() => {
+    if (!candlePaletteDropdownOpen) return;
+    const onMouseDown = (e) => {
+      const inTrigger = candlePaletteDropdownRef.current?.contains(e.target);
+      const inPanel = candlePaletteDropdownPanelRef.current?.contains(e.target);
+      if (!inTrigger && !inPanel) setCandlePaletteDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [candlePaletteDropdownOpen]);
   const [chartDisplayMode, setChartDisplayMode] = useState(() => {
     if (typeof window === 'undefined') return 'solid';
     try {
@@ -2193,6 +2220,25 @@ export default function TraderPage({
   useEffect(() => {
     chartTimeframeRef.current = chartTimeframe;
   }, [chartTimeframe]);
+
+  useLayoutEffect(() => {
+    if (timeframeDropdownOpen && timeframeDropdownRef.current) {
+      const rect = timeframeDropdownRef.current.getBoundingClientRect();
+      setTimeframeDropdownPosition({ top: rect.bottom + 4, left: rect.left });
+    } else if (!timeframeDropdownOpen) {
+      setTimeframeDropdownPosition(null);
+    }
+  }, [timeframeDropdownOpen]);
+  useEffect(() => {
+    if (!timeframeDropdownOpen) return;
+    const onMouseDown = (e) => {
+      const inTrigger = timeframeDropdownRef.current?.contains(e.target);
+      const inPanel = timeframeDropdownPanelRef.current?.contains(e.target);
+      if (!inTrigger && !inPanel) setTimeframeDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [timeframeDropdownOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -4818,25 +4864,59 @@ export default function TraderPage({
             <div className="shrink-0 border-b border-white/[0.06] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0 relative">
                     <span className="text-[10px] uppercase tracking-wider text-gray-500 mr-0.5">Candles</span>
-                    {CANDLE_PALETTES.map((pal) => {
-                      const isActive = candlePaletteId === pal.id;
-                      return (
-                        <motion.button
-                          key={pal.id}
-                          type="button"
-                          onClick={() => setCandlePaletteId(pal.id)}
-                          whileTap={{ scale: 0.96 }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          className={`flex items-center gap-1 rounded border px-1.5 py-1 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
-                          title={pal.name}
+                    <div className="relative" ref={candlePaletteDropdownRef}>
+                      <motion.button
+                        type="button"
+                        onClick={() => setCandlePaletteDropdownOpen((o) => !o)}
+                        whileTap={{ scale: 0.96 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        className={`flex items-center gap-1.5 rounded border px-2 py-1 text-xs transition-colors ${candlePaletteDropdownOpen ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-400 hover:text-gray-300'}`}
+                        title="Candle color palette"
+                      >
+                        {(() => {
+                          const pal = CANDLE_PALETTES.find((p) => p.id === candlePaletteId) || CANDLE_PALETTES[0];
+                          return (
+                            <>
+                              <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.up }} />
+                              <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.down }} />
+                              <span className="max-w-[4rem] truncate">{pal.name}</span>
+                              <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${candlePaletteDropdownOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
+                            </>
+                          );
+                        })()}
+                      </motion.button>
+                      {candlePaletteDropdownOpen && candlePaletteDropdownPosition && createPortal(
+                        <div
+                          ref={candlePaletteDropdownPanelRef}
+                          className="min-w-[7rem] rounded border border-white/10 bg-[#0b0b0b] py-1 shadow-lg"
+                          style={{
+                            position: 'fixed',
+                            top: candlePaletteDropdownPosition.top,
+                            left: candlePaletteDropdownPosition.left,
+                            zIndex: 9999,
+                          }}
                         >
-                          <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.up }} />
-                          <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.down }} />
-                        </motion.button>
-                      );
-                    })}
+                          {CANDLE_PALETTES.map((pal) => (
+                            <button
+                              key={pal.id}
+                              type="button"
+                              onClick={() => {
+                                setCandlePaletteId(pal.id);
+                                setCandlePaletteDropdownOpen(false);
+                              }}
+                              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-white/[0.08] ${candlePaletteId === pal.id ? 'bg-white/10 text-white' : 'text-gray-400'}`}
+                            >
+                              <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.up }} />
+                              <span className="w-3 h-3 rounded-[4px] flex-shrink-0 border border-white/10" style={{ backgroundColor: pal.down }} />
+                              <span>{pal.name}</span>
+                            </button>
+                          ))}
+                        </div>,
+                        document.body
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {CHART_DISPLAY_OPTIONS.map((opt) => {
@@ -4932,54 +5012,53 @@ export default function TraderPage({
                       </button>
                     )}
                   </span>
-                  {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
-                    const isActive = chartTimeframe === timeframe.id;
-                    return (
-                      <motion.button
-                        key={timeframe.id}
-                        type="button"
-                        onClick={() => setChartTimeframe(timeframe.id)}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={interactiveTransition}
-                        className={`relative h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
-                          isActive
-                            ? 'border-emerald-400 text-emerald-400'
-                            : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
-                        }`}
-                        aria-pressed={isActive}
+                  <div className="relative shrink-0" ref={timeframeDropdownRef}>
+                    <motion.button
+                      type="button"
+                      onClick={() => setTimeframeDropdownOpen((o) => !o)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
+                      className={`flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
+                        timeframeDropdownOpen
+                          ? 'border-emerald-400 text-emerald-400'
+                          : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                      }`}
+                      aria-expanded={timeframeDropdownOpen}
+                    >
+                      <span>{(CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME])?.label ?? chartTimeframe}</span>
+                      <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${timeframeDropdownOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
+                    </motion.button>
+                    {timeframeDropdownOpen && timeframeDropdownPosition && createPortal(
+                      <div
+                        ref={timeframeDropdownPanelRef}
+                        className="min-w-[5rem] rounded border border-white/10 bg-[#0b0b0b] py-1 shadow-lg"
+                        style={{
+                          position: 'fixed',
+                          top: timeframeDropdownPosition.top,
+                          left: timeframeDropdownPosition.left,
+                          zIndex: 9999,
+                        }}
                       >
-                        {isActive && (
-                          <motion.div
-                            layoutId="timeframe-indicator"
-                            className="absolute inset-0 bg-white/10"
-                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                          />
-                        )}
-                        <span className="relative z-10">{timeframe.label}</span>
-                      </motion.button>
-                    );
-                  })}
+                        {CHART_TIMEFRAME_OPTIONS.map((tf) => (
+                          <button
+                            key={tf.id}
+                            type="button"
+                            onClick={() => {
+                              setChartTimeframe(tf.id);
+                              setTimeframeDropdownOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-center px-3 py-1.5 text-[11px] font-medium transition-colors hover:bg-white/[0.08] ${chartTimeframe === tf.id ? 'bg-white/10 text-emerald-400' : 'text-gray-400'}`}
+                          >
+                            {tf.label}
+                          </button>
+                        ))}
+                      </div>,
+                      document.body
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <motion.button
-                    type="button"
-                    onClick={toggleNewsPanelCollapsed}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={interactiveTransition}
-                    className={`inline-flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
-                      isNewsOpen
-                        ? 'border-emerald-400/60 text-emerald-400 bg-emerald-500/10'
-                        : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
-                    }`}
-                    title={isNewsOpen ? 'Hide news panel' : 'Show news panel'}
-                    aria-label={isNewsOpen ? 'Hide news panel' : 'Show news panel'}
-                    aria-pressed={isNewsOpen}
-                  >
-                    <Newspaper className="h-3.5 w-3.5" strokeWidth={1.8} />
-                    News
-                  </motion.button>
                   <motion.button
                     type="button"
                     onClick={handleRefreshChart}

@@ -5,6 +5,8 @@ export const CANDLE_PALETTES = [
   { id: 'classic', name: 'Classic', up: '#089981', down: '#f23645' },
   { id: 'ocean', name: 'Ocean', up: '#00C2FF', down: '#FF6B9D' },
   { id: 'forest', name: 'Forest', up: '#22c55e', down: '#f97316' },
+  { id: 'sunset', name: 'Sunset', up: '#f59e0b', down: '#ec4899' },
+  { id: 'lavender', name: 'Lavender', up: '#a78bfa', down: '#f472b6' },
 ];
 
 export const CHART_DISPLAY_OPTIONS = [
