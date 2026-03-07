@@ -12,7 +12,12 @@ import { usePaperTrading } from '../../hooks/usePaperTrading';
 import SentimentBadge from './SentimentBadge';
 import ErrorBoundary from '../shared/AppErrorBoundary';
 import MiniGamePill from '../shared/MiniGamePill';
-import FloatingDrawingToolbar from './FloatingDrawingToolbar';
+import { createLineToolsPlugin } from 'lightweight-charts-line-tools-core';
+import { LineToolTrendLine, LineToolHorizontalLine, LineToolVerticalLine, LineToolRay } from 'lightweight-charts-line-tools-lines';
+import { LineToolRectangle } from 'lightweight-charts-line-tools-rectangle';
+import { LineToolFibRetracement } from 'lightweight-charts-line-tools-fib-retracement';
+import { LineToolParallelChannel } from 'lightweight-charts-line-tools-parallel-channel';
+import DrawingToolbar from '../chart/DrawingToolbar';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 
@@ -1794,6 +1799,8 @@ export default function TraderPage({
   const drawingDragStartedRef = useRef(false);
   const drawingJustFinishedViaMouseupRef = useRef(false);
   const [selectedDrawingTool, setSelectedDrawingTool] = useState(null);
+  const lineToolsRef = useRef(null);
+  const [activeTool, setActiveTool] = useState('cursor');
 
   useEffect(() => {
     selectedDrawingToolRef.current = selectedDrawingTool;
@@ -2747,6 +2754,16 @@ export default function TraderPage({
       borderDownColor: DOWN_COLOR,
     });
 
+    const lineToolsPlugin = createLineToolsPlugin(chart, candleSeries);
+    lineToolsPlugin.registerLineTool('TrendLine', LineToolTrendLine);
+    lineToolsPlugin.registerLineTool('HorizontalLine', LineToolHorizontalLine);
+    lineToolsPlugin.registerLineTool('VerticalLine', LineToolVerticalLine);
+    lineToolsPlugin.registerLineTool('Ray', LineToolRay);
+    lineToolsPlugin.registerLineTool('Rectangle', LineToolRectangle);
+    lineToolsPlugin.registerLineTool('FibRetracement', LineToolFibRetracement);
+    lineToolsPlugin.registerLineTool('ParallelChannel', LineToolParallelChannel);
+    lineToolsRef.current = lineToolsPlugin;
+
     const lineSeries = chart.addSeries(LineSeries, {
       color: UP_COLOR,
       lineWidth: 2,
@@ -2788,6 +2805,7 @@ export default function TraderPage({
     return () => {
       setChartReady(false);
       timeScale.unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
+      lineToolsPlugin.removeAllLineTools?.();
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
@@ -2859,6 +2877,18 @@ export default function TraderPage({
       if (sym) saveDrawings('trader', sym, { horizontal: [], trends: [], rectangles: [] });
     }
   }, []);
+
+  const handleToolSelect = (toolName) => {
+    setActiveTool(toolName);
+    if (!lineToolsRef.current) return;
+    if (toolName === 'cursor') return;
+    if (toolName === 'clear') {
+      lineToolsRef.current.removeAllLineTools();
+      setActiveTool('cursor');
+      return;
+    }
+    lineToolsRef.current.addLineTool(toolName, []);
+  };
 
   // Drawing tools: one stable handler reads current tool from ref so all tools work; proper unsubscribe
   const drawingClickHandler = useCallback((param) => {
@@ -4864,13 +4894,14 @@ export default function TraderPage({
                   transition: 'width 220ms ease',
                 }}
               >
-                <div ref={chartContainerRef} className="absolute inset-0" />
-
-                <FloatingDrawingToolbar
-                  onSelectTool={setSelectedDrawingTool}
-                  onClear={clearDrawingLines}
-                  selectedToolId={selectedDrawingTool}
-                />
+                <div className="flex gap-0 relative flex-1 min-w-0 min-h-0 h-full">
+                  <DrawingToolbar
+                    lineTools={lineToolsRef.current}
+                    activeTool={activeTool}
+                    onToolSelect={handleToolSelect}
+                  />
+                  <div ref={chartContainerRef} className="flex-1 min-w-0" />
+                </div>
 
                 {chartStatus.loading && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/55 text-sm text-[#9ca3af]">

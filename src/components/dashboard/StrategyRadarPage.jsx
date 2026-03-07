@@ -14,8 +14,12 @@ import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronsLeft, ChevronsRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
-import FloatingDrawingToolbar from './FloatingDrawingToolbar';
-import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
+import { createLineToolsPlugin } from 'lightweight-charts-line-tools-core';
+import { LineToolTrendLine, LineToolHorizontalLine, LineToolVerticalLine, LineToolRay } from 'lightweight-charts-line-tools-lines';
+import { LineToolRectangle } from 'lightweight-charts-line-tools-rectangle';
+import { LineToolFibRetracement } from 'lightweight-charts-line-tools-fib-retracement';
+import { LineToolParallelChannel } from 'lightweight-charts-line-tools-parallel-channel';
+import DrawingToolbar from '../chart/DrawingToolbar';
 import gsap from 'gsap';
 import CountUp from 'react-countup';
 import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
@@ -480,8 +484,6 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
   const drawingRectanglesRef = useRef([]);
   const drawingOrderRef = useRef([]);
   const drawingPendingPointRef = useRef(null);
-  const selectedDrawingToolRef = useRef(null);
-  const setSelectedDrawingToolRef = useRef(null);
   const draggingPriceLineRef = useRef(null);
   const drawingDragCleanupRef = useRef(null);
   const drawingPreviewSeriesRef = useRef(null);
@@ -490,24 +492,12 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
   const drawingJustFinishedViaMouseupRef = useRef(false);
   const selectedTickerRef = useRef(selectedTicker);
   const lastCandlesFitKeyRef = useRef('');
-  const [selectedDrawingTool, setSelectedDrawingTool] = useState(null);
+  const lineToolsRef = useRef(null);
+  const [activeTool, setActiveTool] = useState('cursor');
 
   useEffect(() => {
     selectedTickerRef.current = selectedTicker;
   }, [selectedTicker]);
-  useEffect(() => {
-    selectedDrawingToolRef.current = selectedDrawingTool;
-  }, [selectedDrawingTool]);
-  useEffect(() => {
-    setSelectedDrawingToolRef.current = setSelectedDrawingTool;
-  }, []);
-  useEffect(() => {
-    drawingPendingPointRef.current = null;
-    if (drawingDragCleanupRef.current) {
-      drawingDragCleanupRef.current();
-      drawingDragCleanupRef.current = null;
-    }
-  }, [selectedDrawingTool]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -540,6 +530,16 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     });
     candleSeriesRef.current = candleSeries;
 
+    const lineToolsPlugin = createLineToolsPlugin(chart, candleSeries);
+    lineToolsPlugin.registerLineTool('TrendLine', LineToolTrendLine);
+    lineToolsPlugin.registerLineTool('HorizontalLine', LineToolHorizontalLine);
+    lineToolsPlugin.registerLineTool('VerticalLine', LineToolVerticalLine);
+    lineToolsPlugin.registerLineTool('Ray', LineToolRay);
+    lineToolsPlugin.registerLineTool('Rectangle', LineToolRectangle);
+    lineToolsPlugin.registerLineTool('FibRetracement', LineToolFibRetracement);
+    lineToolsPlugin.registerLineTool('ParallelChannel', LineToolParallelChannel);
+    lineToolsRef.current = lineToolsPlugin;
+
     const lineSeries = addLineSeriesCompat(chart, {
       color: up,
       lineWidth: 2,
@@ -564,6 +564,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       if (ro && containerEl) ro.unobserve(containerEl);
       ro?.disconnect();
       window.removeEventListener('resize', applySize);
+      lineToolsPlugin.removeAllLineTools?.();
       obOverlaySeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
       obOverlaySeriesRef.current = [];
       drawingPriceLinesRef.current = [];
@@ -595,353 +596,6 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       lineSeries.applyOptions({ color: up });
     }
   }, [candleColors?.up, candleColors?.down, chartDisplayMode]);
-
-  const clearDrawingLines = useCallback((opts) => {
-    const skipSave = opts?.skipSave === true;
-    const clearAll = opts?.all === true;
-    const chart = chartRef.current;
-    const series = candleSeriesRef.current;
-    if (!series) return;
-    const order = drawingOrderRef.current;
-    if (skipSave || clearAll || order.length === 0) {
-      try {
-        const allPriceLines = series.priceLines?.() ?? [];
-        allPriceLines.forEach((line) => {
-          try { series.removePriceLine(line); } catch (_) {}
-        });
-      } catch (_) {}
-      drawingPriceLinesRef.current = [];
-      drawingTrendLinesRef.current.forEach((s) => {
-        try { if (chart) chart.removeSeries(s); } catch (_) {}
-      });
-      drawingTrendLinesRef.current = [];
-      drawingRectanglesRef.current.forEach((s) => {
-        try { if (chart) chart.removeSeries(s); } catch (_) {}
-      });
-      drawingRectanglesRef.current = [];
-      drawingOrderRef.current = [];
-      drawingPendingPointRef.current = null;
-      if (!skipSave && (clearAll || order.length === 0)) {
-        const sym = selectedTickerRef.current;
-        if (sym) saveDrawings('radar', sym, { horizontal: [], trends: [], rectangles: [] });
-      }
-      return;
-    }
-    const last = order.pop();
-    if (last.type === 'horizontal' && last.line) {
-      try { series.removePriceLine(last.line); } catch (_) {}
-      drawingPriceLinesRef.current = drawingPriceLinesRef.current.filter((l) => l !== last.line);
-      const sym = selectedTickerRef.current;
-      if (sym) {
-        const stored = getStoredDrawings('radar', sym);
-        const horizontal = Array.isArray(stored.horizontal) ? stored.horizontal.slice(0, -1) : [];
-        saveDrawings('radar', sym, { ...stored, horizontal });
-      }
-    } else if (last.type === 'trend' && last.series) {
-      try { if (chart) chart.removeSeries(last.series); } catch (_) {}
-      drawingTrendLinesRef.current = drawingTrendLinesRef.current.filter((s) => s !== last.series);
-      const sym = selectedTickerRef.current;
-      if (sym) {
-        const stored = getStoredDrawings('radar', sym);
-        const trends = Array.isArray(stored.trends) ? stored.trends.slice(0, -1) : [];
-        saveDrawings('radar', sym, { ...stored, trends });
-      }
-    } else if (last.type === 'rectangle' && last.seriesList) {
-      last.seriesList.forEach((s) => {
-        try { if (chart) chart.removeSeries(s); } catch (_) {}
-      });
-      drawingRectanglesRef.current = drawingRectanglesRef.current.filter((s) => !last.seriesList.includes(s));
-      const sym = selectedTickerRef.current;
-      if (sym) {
-        const stored = getStoredDrawings('radar', sym);
-        const rectangles = Array.isArray(stored.rectangles) ? stored.rectangles.slice(0, -1) : [];
-        saveDrawings('radar', sym, { ...stored, rectangles });
-      }
-    }
-  }, []);
-
-  const LINE_SOLID = 0;
-  const DRAWING_COLOR = '#10b981';
-  const DRAWING_LINE_WIDTH = 2;
-  const drawingClickHandler = useCallback((param) => {
-    const chart = chartRef.current;
-    const series = candleSeriesRef.current;
-    const tool = selectedDrawingToolRef.current;
-    if (!chart || !series || !tool || !param?.point) return;
-    const timeScale = chart.timeScale();
-    const price = series.coordinateToPrice(param.point.y);
-    const time = timeScale.coordinateToTime(param.point.x);
-    if (price == null || !Number.isFinite(price) || time == null) return;
-    const numPrice = Number(price);
-
-    if (tool === 'horizontal') {
-      const lines = drawingPriceLinesRef.current;
-      const hitPx = 10;
-      for (let i = 0; i < lines.length; i++) {
-        const pl = lines[i];
-        const linePrice = pl.options().price;
-        const lineY = series.priceToCoordinate(linePrice);
-        if (lineY != null && Math.abs(lineY - param.point.y) <= hitPx) {
-          draggingPriceLineRef.current = pl;
-          const onMove = (moveParam) => {
-            if (!draggingPriceLineRef.current || !moveParam?.point) return;
-            const s = candleSeriesRef.current;
-            if (!s) return;
-            const p = s.coordinateToPrice(moveParam.point.y);
-            if (p != null && Number.isFinite(p)) draggingPriceLineRef.current.applyOptions({ price: Number(p) });
-          };
-          const onUp = () => {
-            if (drawingDragCleanupRef.current) drawingDragCleanupRef.current();
-            drawingDragCleanupRef.current = null;
-            const sym = selectedTickerRef.current;
-            if (sym) {
-              const prices = drawingPriceLinesRef.current.map((pl) => pl.options().price);
-              const stored = getStoredDrawings('radar', sym);
-              saveDrawings('radar', sym, { ...stored, horizontal: prices });
-            }
-            draggingPriceLineRef.current = null;
-          };
-          chart.subscribeCrosshairMove(onMove);
-          const removeListeners = () => {
-            try { chart.unsubscribeCrosshairMove(onMove); } catch (_) {}
-            window.removeEventListener('mouseup', onUp);
-          };
-          drawingDragCleanupRef.current = removeListeners;
-          window.addEventListener('mouseup', onUp, { once: true });
-          return;
-        }
-      }
-      const line = series.createPriceLine({
-        price: numPrice,
-        lineWidth: DRAWING_LINE_WIDTH,
-        lineStyle: LINE_SOLID,
-        axisLabelVisible: true,
-        color: DRAWING_COLOR,
-      });
-      drawingPriceLinesRef.current.push(line);
-      drawingOrderRef.current.push({ type: 'horizontal', line });
-      const sym = selectedTickerRef.current;
-      if (sym) {
-        const stored = getStoredDrawings('radar', sym);
-        saveDrawings('radar', sym, { ...stored, horizontal: [...stored.horizontal, numPrice] });
-      }
-      setSelectedDrawingToolRef.current?.(null);
-      return;
-    }
-
-    if (tool === 'trend' || tool === 'line-segment') {
-      if (drawingJustFinishedViaMouseupRef.current) {
-        drawingJustFinishedViaMouseupRef.current = false;
-        return;
-      }
-      const pending = drawingPendingPointRef.current;
-      if (!pending) {
-        drawingPendingPointRef.current = { time, price: numPrice };
-        drawingLastCrosshairRef.current = { time, value: numPrice };
-        drawingDragStartedRef.current = false;
-        const previewOpts = {
-          color: DRAWING_COLOR,
-          lineWidth: DRAWING_LINE_WIDTH,
-          lineStyle: LINE_SOLID,
-          lastValueVisible: false,
-          priceLineVisible: false,
-          crosshairMarkerVisible: false,
-        };
-        const previewSeries = addLineSeriesCompat(chart, previewOpts);
-        previewSeries.setData([
-          { time, value: numPrice },
-          { time, value: numPrice },
-        ]);
-        drawingPreviewSeriesRef.current = previewSeries;
-        const container = chartContainerRef.current;
-        const onMove = (e) => {
-          const p = drawingPendingPointRef.current;
-          const s = candleSeriesRef.current;
-          const ts = chart.timeScale();
-          if (!p || !s || !container) return;
-          const rect = container.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          const movePrice = s.coordinateToPrice(y);
-          const moveTime = ts.coordinateToTime(x);
-          if (movePrice == null || !Number.isFinite(movePrice) || moveTime == null) return;
-          drawingDragStartedRef.current = true;
-          drawingLastCrosshairRef.current = { time: moveTime, value: Number(movePrice) };
-          const prev = drawingPreviewSeriesRef.current;
-          if (prev) prev.setData([{ time: p.time, value: p.price }, { time: moveTime, value: Number(movePrice) }]);
-        };
-        const onUp = () => {
-          const cleanup = drawingDragCleanupRef.current;
-          if (cleanup) cleanup();
-          drawingDragCleanupRef.current = null;
-          const prev = drawingPreviewSeriesRef.current;
-          if (prev) {
-            try { chart.removeSeries(prev); } catch (_) {}
-            drawingPreviewSeriesRef.current = null;
-          }
-          const p = drawingPendingPointRef.current;
-          const last = drawingLastCrosshairRef.current;
-          if (drawingDragStartedRef.current && p && last) {
-            const lineSeries = addLineSeriesCompat(chart, {
-              color: DRAWING_COLOR,
-              lineWidth: DRAWING_LINE_WIDTH,
-              lineStyle: LINE_SOLID,
-              lastValueVisible: false,
-              priceLineVisible: false,
-              crosshairMarkerVisible: false,
-            });
-            lineSeries.setData([{ time: p.time, value: p.price }, { time: last.time, value: last.value }]);
-            drawingTrendLinesRef.current.push(lineSeries);
-            drawingOrderRef.current.push({ type: 'trend', series: lineSeries });
-            const symTrend = selectedTickerRef.current;
-            if (symTrend) {
-              const stored = getStoredDrawings('radar', symTrend);
-              saveDrawings('radar', symTrend, {
-                ...stored,
-                trends: [...stored.trends, { points: [{ time: p.time, value: p.price }, { time: last.time, value: last.value }] }],
-              });
-            }
-            setSelectedDrawingToolRef.current?.(null);
-            drawingJustFinishedViaMouseupRef.current = true;
-            drawingPendingPointRef.current = null;
-          }
-        };
-        window.addEventListener('mousemove', onMove, { passive: true });
-        window.addEventListener('mouseup', onUp, { once: true });
-        drawingDragCleanupRef.current = () => {
-          window.removeEventListener('mousemove', onMove);
-          window.removeEventListener('mouseup', onUp);
-        };
-        return;
-      }
-      const lineSeries = addLineSeriesCompat(chart, {
-        color: DRAWING_COLOR,
-        lineWidth: DRAWING_LINE_WIDTH,
-        lineStyle: LINE_SOLID,
-        lastValueVisible: false,
-        priceLineVisible: false,
-        crosshairMarkerVisible: false,
-      });
-      lineSeries.setData([
-        { time: pending.time, value: pending.price },
-        { time, value: numPrice },
-      ]);
-      drawingTrendLinesRef.current.push(lineSeries);
-      drawingOrderRef.current.push({ type: 'trend', series: lineSeries });
-      const symTrend = selectedTickerRef.current;
-      if (symTrend) {
-        const stored = getStoredDrawings('radar', symTrend);
-        saveDrawings('radar', symTrend, {
-          ...stored,
-          trends: [...stored.trends, { points: [{ time: pending.time, value: pending.price }, { time, value: numPrice }] }],
-        });
-      }
-      drawingPendingPointRef.current = null;
-      setSelectedDrawingToolRef.current?.(null);
-      return;
-    }
-
-    if (tool === 'rectangle') {
-      const pending = drawingPendingPointRef.current;
-      if (!pending) {
-        drawingPendingPointRef.current = { time, price: numPrice };
-        return;
-      }
-      const t1 = pending.time;
-      const t2 = time;
-      const p1 = pending.price;
-      const p2 = numPrice;
-      const rectOpts = {
-        color: DRAWING_COLOR,
-        lineWidth: DRAWING_LINE_WIDTH,
-        lineStyle: LINE_SOLID,
-        lastValueVisible: false,
-        priceLineVisible: false,
-        crosshairMarkerVisible: false,
-      };
-      const top = addLineSeriesCompat(chart, rectOpts);
-      top.setData([{ time: t1, value: p1 }, { time: t2, value: p1 }]);
-      const bottom = addLineSeriesCompat(chart, rectOpts);
-      bottom.setData([{ time: t2, value: p2 }, { time: t1, value: p2 }]);
-      const tOff = typeof t1 === 'number' && typeof t2 === 'number' ? 1 : 0;
-      const right = addLineSeriesCompat(chart, rectOpts);
-      right.setData([{ time: t2, value: p1 }, { time: t2 + tOff, value: p2 }]);
-      const left = addLineSeriesCompat(chart, rectOpts);
-      left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
-      drawingRectanglesRef.current.push(top, right, bottom, left);
-      drawingOrderRef.current.push({ type: 'rectangle', seriesList: [top, right, bottom, left] });
-      const symRect = selectedTickerRef.current;
-      if (symRect) {
-        const stored = getStoredDrawings('radar', symRect);
-        saveDrawings('radar', symRect, {
-          ...stored,
-          rectangles: [...stored.rectangles, { t1, t2, p1, p2 }],
-        });
-      }
-      drawingPendingPointRef.current = null;
-      setSelectedDrawingToolRef.current?.(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    const series = candleSeriesRef.current;
-    if (!chart || !series) return;
-    chart.subscribeClick(drawingClickHandler);
-    return () => {
-      try {
-        chart.unsubscribeClick(drawingClickHandler);
-      } catch (_) {}
-    };
-  }, [drawingClickHandler]);
-
-  // Restore persisted drawings when symbol or candles change
-  useEffect(() => {
-    const chart = chartRef.current;
-    const series = candleSeriesRef.current;
-    if (!chart || !series || !selectedTicker || !candles.length) return;
-    clearDrawingLines({ skipSave: true });
-    const stored = getStoredDrawings('radar', selectedTicker);
-    const lineOpts = {
-      lineWidth: DRAWING_LINE_WIDTH,
-      lineStyle: LINE_SOLID,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-    };
-    (stored.horizontal || []).forEach((price) => {
-      const line = series.createPriceLine({
-        price: Number(price),
-        lineWidth: DRAWING_LINE_WIDTH,
-        lineStyle: LINE_SOLID,
-        axisLabelVisible: true,
-        color: DRAWING_COLOR,
-      });
-      drawingPriceLinesRef.current.push(line);
-      drawingOrderRef.current.push({ type: 'horizontal', line });
-    });
-    (stored.trends || []).forEach(({ points }) => {
-      if (!Array.isArray(points) || points.length < 2) return;
-      const lineSeries = addLineSeriesCompat(chart, { color: DRAWING_COLOR, ...lineOpts });
-      lineSeries.setData(points.map((p) => ({ time: p.time, value: p.value })));
-      drawingTrendLinesRef.current.push(lineSeries);
-      drawingOrderRef.current.push({ type: 'trend', series: lineSeries });
-    });
-    (stored.rectangles || []).forEach(({ t1, t2, p1, p2 }) => {
-      const rectOpts = { color: DRAWING_COLOR, ...lineOpts };
-      const top = addLineSeriesCompat(chart, rectOpts);
-      top.setData([{ time: t1, value: p1 }, { time: t2, value: p1 }]);
-      const bottom = addLineSeriesCompat(chart, rectOpts);
-      bottom.setData([{ time: t2, value: p2 }, { time: t1, value: p2 }]);
-      const tOff = typeof t1 === 'number' && typeof t2 === 'number' ? 1 : 0;
-      const right = addLineSeriesCompat(chart, rectOpts);
-      right.setData([{ time: t2, value: p1 }, { time: t2 + tOff, value: p2 }]);
-      const left = addLineSeriesCompat(chart, rectOpts);
-      left.setData([{ time: t1, value: p2 }, { time: t1 + tOff, value: p1 }]);
-      drawingRectanglesRef.current.push(top, right, bottom, left);
-      drawingOrderRef.current.push({ type: 'rectangle', seriesList: [top, right, bottom, left] });
-    });
-  }, [selectedTicker, candles.length, clearDrawingLines]);
 
   useEffect(() => {
     const candleSeries = candleSeriesRef.current;
@@ -1264,15 +918,28 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     return () => cancelAnimationFrame(raf);
   }, [selectedTicker, selectedTimeframe, candles.length]);
 
+  const handleToolSelect = (toolName) => {
+    setActiveTool(toolName);
+    if (!lineToolsRef.current) return;
+    if (toolName === 'cursor') return;
+    if (toolName === 'clear') {
+      lineToolsRef.current.removeAllLineTools();
+      setActiveTool('cursor');
+      return;
+    }
+    lineToolsRef.current.addLineTool(toolName, []);
+  };
+
   return (
-    <div className="relative w-full h-full">
-      <div ref={chartContainerRef} className="absolute inset-0" />
-      <FloatingDrawingToolbar
-        onSelectTool={setSelectedDrawingTool}
-        onClear={clearDrawingLines}
-        onClearAll={() => clearDrawingLines({ all: true })}
-        selectedToolId={selectedDrawingTool}
-      />
+    <div className="relative w-full h-full flex">
+      <div className="flex gap-0 relative flex-1 min-w-0 min-h-0">
+        <DrawingToolbar
+          lineTools={lineToolsRef.current}
+          activeTool={activeTool}
+          onToolSelect={handleToolSelect}
+        />
+        <div ref={chartContainerRef} className="flex-1 min-w-0" />
+      </div>
     </div>
   );
 }
