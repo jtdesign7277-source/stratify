@@ -505,7 +505,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       layout: {
-        background: { type: 'solid', color: '#0a0a0f' },
+        background: { type: 'solid', color: '#0b0b0b' },
         textColor: 'rgba(255,255,255,0.7)',
         fontSize: 12,
       },
@@ -1460,8 +1460,12 @@ function StrategyRadarContent() {
   const [signals, setSignals] = useState([]);
   const [orderBlocks, setOrderBlocks] = useState([]);
   const [msbEvents, setMsbEvents] = useState([]);
-  const [strategies, setStrategies] = useState([]);
-  const [activeStrategies, setActiveStrategies] = useState({});
+  const [strategies, setStrategies] = useState(() => [...VERIFIED_SIGNALS]);
+  const [activeStrategies, setActiveStrategies] = useState(() => {
+    const initial = {};
+    VERIFIED_SIGNALS.forEach(s => { initial[s.id] = false; });
+    return initial;
+  });
   const [isScanning, setIsScanning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeSignalIdx, setActiveSignalIdx] = useState(0);
@@ -1845,7 +1849,7 @@ function StrategyRadarContent() {
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT — Chart */}
         <div className="flex-1 flex flex-col border-r border-white/6 min-w-0">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-white/6">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-white/6 bg-[#0b0b0b]">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] uppercase tracking-wider text-gray-500 mr-0.5">Candles</span>
@@ -1902,7 +1906,7 @@ function StrategyRadarContent() {
             </div>
           </div>
 
-          <div className="flex-1 p-2 relative">
+          <div className="flex-1 min-h-0 relative flex flex-col">
             <RadarChart
               key={selectedTicker}
               candles={candles}
@@ -1924,7 +1928,7 @@ function StrategyRadarContent() {
             )}
           </div>
 
-          <div className="flex items-center gap-4 px-4 py-2 border-t border-white/6 text-sm flex-wrap">
+          <div className="flex items-center gap-4 px-4 py-2 border-t border-white/6 text-sm flex-wrap bg-[#0b0b0b]">
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: candleColors.up }} /><span className="text-gray-500">Bullish OB</span></span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: candleColors.down }} /><span className="text-gray-500">Bearish OB</span></span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: HPZ_BULL }} /><span className="text-gray-500">High Probability Zone</span></span>
@@ -1962,7 +1966,7 @@ function StrategyRadarContent() {
               animate={{ width: 300 }}
               className="flex min-h-0 relative"
             >
-              <div className="w-full min-h-0 overflow-y-auto relative p-2 pl-3 scrollbar-hide bg-[#0b0b0b]">
+              <div className="w-full min-h-0 overflow-y-auto relative p-2 pl-3 scrollbar-hide bg-[#111111]">
                 <div className={SIGNAL_PANEL_BLEND_CLASS}>
                   <LiveTickerHeader
                     ticker={selectedTicker}

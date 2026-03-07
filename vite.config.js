@@ -13,6 +13,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    optimizeDeps: {
+      include: [
+        'lightweight-charts-line-tools-core',
+        'lightweight-charts-line-tools-lines',
+        'lightweight-charts-line-tools-rectangle',
+        'lightweight-charts-line-tools-fib-retracement',
+        'lightweight-charts-line-tools-parallel-channel',
+      ],
+    },
     resolve: {
       alias: {
         components: fileURLToPath(new URL('./src/components', import.meta.url)),

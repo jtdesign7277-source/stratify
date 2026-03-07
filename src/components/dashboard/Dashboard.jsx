@@ -2450,7 +2450,7 @@ export default function Dashboard({
       `}</style>
       <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
       <motion.div
-        className="relative z-20 overflow-visible bg-linear-canvas border-b border-[rgba(255,255,255,0.06)]"
+        className="relative z-20 overflow-visible bg-[#0b0b0b] border-b border-[rgba(255,255,255,0.06)]"
         initial={false}
         animate={{ height: isTopBarCollapsed ? TOPBAR_COLLAPSED_HEIGHT : 'auto' }}
         transition={{ height: TOPBAR_ANIMATION }}
@@ -2492,7 +2492,7 @@ export default function Dashboard({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={TOPBAR_ANIMATION}
-              className="absolute inset-x-0 top-0 h-10 border-b border-[rgba(255,255,255,0.06)] bg-linear-canvas/80 flex items-center"
+              className="absolute inset-x-0 top-0 h-10 border-b border-[rgba(255,255,255,0.06)] bg-[#0b0b0b] flex items-center"
             >
               <div className="relative h-full w-full flex items-center pr-28">
                 <TopBarTickerTapeWidget

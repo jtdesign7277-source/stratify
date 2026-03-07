@@ -63,7 +63,7 @@ export default function DrawingToolbar({ lineTools, activeTool, onToolSelect }) 
   let lastGroup = 0;
   return (
     <div
-      className="flex flex-col w-9 py-2 px-1 rounded-2xl border border-white/10 bg-[#0a0a0f] backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]"
+      className="flex flex-col w-9 py-2 px-1 rounded-none border-r border-white/10 bg-[#0b0b0b] self-stretch flex-shrink-0"
       role="toolbar"
       aria-label="Drawing tools"
     >
