@@ -181,17 +181,20 @@ const watchlistRowItemMotion = {
   hidden: { opacity: 0, x: -8 },
   show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 400, damping: 30 } },
 };
-const GLASS_SHELL_STYLE = {
-  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-  border: '1px solid rgba(255,255,255,0.06)',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+/* One-page look: panels share the same surface, dividers only (no card shadows) */
+const UNIFIED_PANEL_STYLE = {
+  background: 'transparent',
+  border: 'none',
+  boxShadow: 'none',
 };
-const GLASS_TOPBAR_STYLE = {
-  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a',
+const UNIFIED_TOPBAR_STYLE = {
+  background: 'transparent',
   borderBottom: '1px solid rgba(255,255,255,0.06)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35)',
-  backdropFilter: 'blur(16px)',
+  boxShadow: 'none',
+  backdropFilter: 'blur(8px)',
 };
+const GLASS_SHELL_STYLE = UNIFIED_PANEL_STYLE;
+const GLASS_TOPBAR_STYLE = UNIFIED_TOPBAR_STYLE;
 // Soft-glass inset cards (stratify-platform + soft-glass-ui): depth + subtle gradient
 const GLASS_INSET_CARD_CLASS =
   'rounded-xl border border-white/[0.06] bg-black/40 px-3 py-2.5 backdrop-blur-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] transition-all duration-300';
@@ -3968,10 +3971,10 @@ export default function TraderPage({
     ...GLASS_SHELL_STYLE,
   };
   const orderTicketStyle = {
-    ...GLASS_SHELL_STYLE,
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px rgba(16,185,129,0.08)',
+    ...UNIFIED_PANEL_STYLE,
+    borderLeft: '1px solid rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
   };
   const isMediumArticleDrawerLayout = Boolean(drawerArticle && isNewsOpen && !isArticleDrawerExtendedToChartTop);
 
@@ -3981,12 +3984,12 @@ export default function TraderPage({
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-[#e5e7eb]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a' }}
     >
       {!isMediumArticleDrawerLayout ? (
-      <div className="flex h-[68px] shrink-0 items-center justify-between px-4 py-3 backdrop-blur-xl" style={GLASS_TOPBAR_STYLE}>
-        <div className="flex items-center gap-2">
+      <div className="flex h-[76px] shrink-0 items-center justify-between gap-8 px-6 py-3 backdrop-blur-xl" style={GLASS_TOPBAR_STYLE}>
+        <div className="flex flex-1 min-w-0 items-center gap-4">
           <button
             type="button"
             onClick={onOpenLiveScores}
-            className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
+            className={`relative h-9 flex items-center gap-2.5 pl-3 pr-3.5 rounded-full cursor-pointer transition-all shrink-0 ${
               isLiveScoresOpen
                 ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
                 : 'border border-white/20 bg-black/90 hover:border-white/40'
@@ -3996,30 +3999,30 @@ export default function TraderPage({
           >
             <div className="h-4 min-w-0 flex items-center justify-center">
               {espnLogoErrored ? (
-                <span className="text-[11px] font-black italic tracking-tight text-[#E5252A]">ESPN</span>
+                <span className="text-xs font-black italic tracking-tight text-[#E5252A]">ESPN</span>
               ) : (
                 <img
                   src={ESPN_WORDMARK_URL}
                   alt="ESPN"
-                  className="h-3 w-auto object-contain"
+                  className="h-3.5 w-auto object-contain"
                   loading="lazy"
                   onError={() => setEspnLogoErrored(true)}
                 />
               )}
             </div>
-            <span className="text-white font-medium text-xs">Live</span>
+            <span className="text-white font-medium text-sm">Live</span>
           </button>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {GAME_PILL_SLOTS.map((slot) => {
               const game = pinnedGames?.[slot] || null;
               const isDropActive = activeGameDropSlot === slot;
               return (
                 <div
                   key={`trader-game-slot-${slot}`}
-                  className={`relative h-8 rounded-full transition-all ${
+                  className={`relative h-9 rounded-full transition-all ${
                     game
                       ? 'border border-transparent'
-                      : 'min-w-[72px] border border-dashed border-white/15 bg-white/[0.03]'
+                      : 'min-w-[80px] border border-dashed border-white/15 bg-white/[0.03]'
                   } ${
                     isDropActive ? 'ring-1 ring-emerald-400/75 border-emerald-400/60 bg-emerald-500/10' : ''
                   }`}
@@ -4070,22 +4073,22 @@ export default function TraderPage({
             })}
           </div>
         </div>
-        <div className="flex items-center gap-4 text-right">
+        <div className="flex shrink-0 items-center gap-6 text-right">
           <div>
-            <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
-            <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
+            <h2 className="text-base font-semibold text-white">{selectedSymbol || 'Select a symbol'}</h2>
+            <p className="mt-0.5 text-sm text-[#9ca3af]">Candlestick chart · {selectedChartTimeframe.label}</p>
           </div>
           <div>
-            <div className="flex items-center justify-end gap-1">
-              <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
+            <div className="flex items-center justify-end gap-1.5">
+              <div className={`text-xl font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
                 {formatPrice(selectedQuote?.price)}
               </div>
               {selectedPriceLoading && (
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
+                <span className="h-2 w-2 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
               )}
             </div>
             <div
-              className={`flex items-center justify-end gap-1 text-xs font-medium tabular-nums ${
+              className={`flex items-center justify-end gap-1.5 text-sm font-medium tabular-nums ${
                 Number.isFinite(Number(selectedQuote?.changePercent))
                   ? Number(selectedQuote?.changePercent) >= 0
                     ? 'text-emerald-400'
@@ -4105,14 +4108,14 @@ export default function TraderPage({
 
       <motion.div
         {...sectionMotion(0)}
-        className="flex flex-1 min-h-0 min-w-0 gap-2 overflow-x-auto overflow-y-hidden p-2"
+        className="flex flex-1 min-h-0 min-w-0 overflow-x-auto overflow-y-hidden"
       >
         <aside
-          className="flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden rounded-xl transition-[width] duration-200 ease-in-out"
+          className="flex h-full min-h-0 max-h-full shrink-0 flex-col overflow-hidden border-r border-white/[0.06] transition-[width] duration-200 ease-in-out"
           style={watchlistPanelStyle}
         >
           {isWatchlistCollapsed && (
-            <div className="flex h-10 shrink-0 items-center justify-center border-b border-[#1f1f1f] px-1">
+            <div className="flex h-10 shrink-0 items-center justify-center border-b border-white/[0.06] px-1">
               <motion.button
                 type="button"
                 onClick={() => setIsWatchlistCollapsed(false)}
@@ -4129,7 +4132,7 @@ export default function TraderPage({
 
           {!isWatchlistCollapsed && (
             <>
-              <form onSubmit={addSymbol} className="shrink-0 border-b border-white/[0.09] px-4 py-3">
+              <form onSubmit={addSymbol} className="shrink-0 border-b border-white/[0.06] px-4 py-3">
                 <div className="mb-3 flex items-center justify-center gap-2">
                   <motion.button
                     type="button"
@@ -4302,7 +4305,7 @@ export default function TraderPage({
               </form>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.09] px-4 py-2 text-xs">
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.06] px-4 py-2 text-xs">
                   {watchlistView === 'watchlist' ? (
                     streamStatus.error ? (
                       <span className="text-red-400/90" title="Twelve Data API key required for live watchlist prices">{streamStatus.error}</span>
@@ -4730,9 +4733,9 @@ export default function TraderPage({
           )}
         </aside>
 
-        <section className="flex min-w-0 flex-1 min-h-0 gap-2 overflow-hidden">
-          <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-visible rounded-xl backdrop-blur-xl" style={chartPanelStyle}>
-            <div className="shrink-0 border-b border-white/[0.09] px-4 py-2">
+        <section className="flex min-w-0 flex-1 min-h-0 overflow-hidden">
+          <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-visible" style={chartPanelStyle}>
+            <div className="shrink-0 border-b border-white/[0.06] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -4882,18 +4885,16 @@ export default function TraderPage({
                 )}
               </div>
 
-              {/* News toggle bar — above chart so it and the news panel are always clickable */}
+              {/* News toggle bar — only when no article open; when article is open, hide so it can't expand drawer into chart */}
+              {!drawerArticle && (
               <button
                 type="button"
                 onClick={toggleNewsPanelCollapsed}
-                className="relative z-[420] flex h-8 shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.06] cursor-pointer pointer-events-auto"
+                className="relative z-[420] flex h-8 shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.04] cursor-pointer pointer-events-auto w-full"
                 style={{
-                  width: drawerArticle ? '50%' : '100%',
-                  background: 'rgba(11,11,11,0.97)',
-                  borderTop: '1px solid rgba(255,255,255,0.08)',
-                  borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                  borderRight: drawerArticle ? '1px solid rgba(255,255,255,0.08)' : 'none',
-                  transition: 'width 220ms ease',
+                  background: 'transparent',
+                  borderTop: '1px solid rgba(255,255,255,0.06)',
+                  borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.04)' : 'none',
                 }}
               >
                 <div className="flex items-center gap-2">
@@ -4904,18 +4905,15 @@ export default function TraderPage({
                     {selectedTicker ? `$${selectedTicker}` : ''}
                   </span>
                 </div>
-                {drawerArticle && isNewsOpen ? (
-                  <ChevronDown className="h-4 w-4 text-emerald-400" strokeWidth={1.9} />
-                ) : (
-                  <ChevronsDown
-                    className="h-4 w-4 text-emerald-400 transition-transform duration-300"
-                    style={{ transform: isNewsOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
-                    strokeWidth={1.7}
-                  />
-                )}
+                <ChevronsDown
+                  className="h-4 w-4 text-emerald-400 transition-transform duration-300"
+                  style={{ transform: isNewsOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
+                  strokeWidth={1.7}
+                />
               </button>
+              )}
 
-              {/* News panel — list with scroll buttons; article drawer slides in from right (in-app only, no external links) */}
+              {/* News panel — shrunk when no article; full height when article open */}
               <div
                 className="relative z-20 shrink-0 isolate"
                 style={{
@@ -4929,18 +4927,27 @@ export default function TraderPage({
                     position: "absolute",
                     inset: 0,
                     display: "flex",
-                    flexDirection: "column",
+                    flexDirection: "row",
                     overflow: "hidden",
-                    background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)",
-                    backdropFilter: "blur(24px)",
-                    WebkitBackdropFilter: "blur(24px)",
-                    borderTop: "1px solid rgba(255,255,255,0.06)",
-                    width: drawerArticle ? "50%" : "100%",
-                    borderRight: drawerArticle ? "1px solid rgba(255,255,255,0.08)" : "none",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)",
-                    transition: "width 220ms ease",
+                    background: "transparent",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    borderTop: "1px solid rgba(255,255,255,0.04)",
+                    width: "100%",
+                    boxShadow: "none",
                   }}
                 >
+                  {/* Left: article list — fixed 50% width, never resizes when article opens */}
+                  <div
+                    style={{
+                      width: "50%",
+                      flexShrink: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      overflow: "hidden",
+                      borderRight: "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
                   <ErrorBoundary><div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
                     {/* Header — scroll/refresh controls live in the article drawer (right panel) when open */}
                     <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
@@ -4977,11 +4984,16 @@ export default function TraderPage({
                         </div>
                       ) : null}
                     </div>
-                    {/* Scrollable article list — no href / target _blank; click opens in-app drawer */}
+                    {/* Scrollable article list — when no article open (shrunk panel) show ~2; when article open use full height so more visible */}
                     <div
                       ref={newsListScrollRef}
                       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y"
-                      style={{ touchAction: 'pan-y', flex: '1 1 0%', minHeight: 0 }}
+                      style={{
+                        touchAction: 'pan-y',
+                        flex: '1 1 0%',
+                        minHeight: 0,
+                        ...(isNewsOpen && !drawerArticle ? { maxHeight: '184px' } : {}),
+                      }}
                     >
                       {newsLoading && !newsArticles?.length ? (
                         <div className="flex items-center justify-center py-8 gap-2">
@@ -5011,7 +5023,7 @@ export default function TraderPage({
                                   setDrawerArticle(article);
                                   setNewsArticleExpanded(true);
                                 }}
-                                className="w-full text-left group flex gap-3 p-3 rounded-none hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/[0.06] cursor-pointer"
+                                className={`w-full text-left group flex rounded-none hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/[0.06] cursor-pointer ${drawerArticle ? 'gap-3 p-3' : 'gap-2 px-2.5 py-2'}`}
                               >
                                 <div
                                   className="flex-shrink-0 w-1 rounded-full self-stretch mt-0.5"
@@ -5020,13 +5032,13 @@ export default function TraderPage({
                                   }}
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <h4 className={`font-medium text-gray-200 leading-snug group-hover:text-white transition-colors break-words ${drawerArticle ? 'text-[15px] line-clamp-3 pr-1.5' : 'text-[15px] line-clamp-2'}`}>
+                                  <h4 className={`font-medium text-gray-200 leading-snug group-hover:text-white transition-colors break-words ${drawerArticle ? 'text-[15px] line-clamp-3 pr-1.5' : 'text-[13px] line-clamp-2 pr-1'}`}>
                                     {article.title}
                                   </h4>
-                                  <div className="flex items-center gap-2 mt-1.5">
-                                    <span className="text-[13px] text-gray-500 font-medium uppercase tracking-wide">{sourceLabel}</span>
+                                  <div className={`flex items-center gap-2 ${drawerArticle ? 'mt-1.5' : 'mt-0.5'} ${!drawerArticle ? 'text-[11px]' : ''}`}>
+                                    <span className={`text-gray-500 font-medium uppercase tracking-wide ${drawerArticle ? 'text-[13px]' : 'text-[11px]'}`}>{sourceLabel}</span>
                                     <span className="text-gray-700">·</span>
-                                    <span className="text-[13px] text-gray-600">{timeAgo}</span>
+                                    <span className={`text-gray-600 ${drawerArticle ? 'text-[13px]' : 'text-[11px]'}`}>{timeAgo}</span>
                                   </div>
                                 </div>
                               </button>
@@ -5036,9 +5048,21 @@ export default function TraderPage({
                       )}
                     </div>
                   </div></ErrorBoundary>
-                </div>
+                  </div>
 
-                {/* In-app article drawer — no external URLs; slides in from right */}
+                  {/* Right: article drawer — fixed 50%; fills height so article body can scroll */}
+                  <div
+                    style={{
+                      width: "50%",
+                      flexShrink: 0,
+                      minWidth: 0,
+                      position: "relative",
+                      overflow: "hidden",
+                      display: "flex",
+                      flexDirection: "column",
+                      height: "100%",
+                    }}
+                  >
                 <AnimatePresence>
                   {drawerArticle ? (() => {
                     const articles = newsArticles || [];
@@ -5075,9 +5099,9 @@ export default function TraderPage({
                       animate={{ x: 0, opacity: 1 }}
                       exit={{ x: 40, opacity: 0 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-                      style={{ position: "absolute", top: drawerTopOffset, right: 0, bottom: 0, width: "50%", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
+                      style={{ position: "absolute", top: drawerTopOffset, right: 0, bottom: 0, left: 0, display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
                     >
-                      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", height: "100%" }}>
+                      <div style={{ display: "flex", flexDirection: "column", flex: "1 1 0%", minHeight: 0, overflow: "hidden" }}>
                         <div className="flex shrink-0 items-center justify-between gap-2 p-3 border-b border-white/[0.06]">
                           <div className="flex items-center gap-1">
                             <button
@@ -5215,12 +5239,14 @@ export default function TraderPage({
                     );
                   })() : null}
                 </AnimatePresence>
+                  </div>
               </div>
             </div>
           </div>
+          </div>
 
           <div
-            className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl transition-all duration-200 z-10`}
+            className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden transition-all duration-200 z-10`}
             style={orderTicketStyle}
           >
             {isRightPanelCollapsed ? (

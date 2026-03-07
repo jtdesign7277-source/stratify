@@ -374,19 +374,16 @@ const SophiaPanel = ({
     });
   };
 
-  // Match news article window (Trader article drawer): same gradient, blur, border, shadow
-  const glassPanelStyle = {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-    borderLeft: '1px solid rgba(255,255,255,0.08)',
-    boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)',
+  // Same background as main dashboard (linear-canvas) so panel feels like one page
+  const panelStyle = {
+    background: '#111111',
+    borderLeft: '1px solid rgba(255,255,255,0.06)',
   };
 
   if (panelState === 'closed') {
     return (
       <div
-        style={{ width: PANEL_WIDTHS.closed, ...glassPanelStyle }}
+        style={{ width: PANEL_WIDTHS.closed, ...panelStyle }}
         className="h-full flex flex-col items-center py-2"
       >
         <button
@@ -402,7 +399,7 @@ const SophiaPanel = ({
 
   return (
     <div
-      style={{ width: PANEL_WIDTHS[panelState], ...glassPanelStyle }}
+      style={{ width: PANEL_WIDTHS[panelState], ...panelStyle }}
       className="h-full flex flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#1f1f1f]">

@@ -411,8 +411,8 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
   try {
     return (
-      <motion.div {...PAGE_TRANSITION} className="min-h-full overflow-y-auto bg-[#0b0b0b] text-white">
-        <div className="mx-auto flex w-full max-w-[1600px] flex-col px-3 py-2 md:px-4 md:py-3">
+      <motion.div {...PAGE_TRANSITION} className="h-full min-h-0 overflow-y-auto overflow-x-hidden bg-[#0b0b0b] text-white">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col px-3 py-2 md:px-4 md:py-3 pb-8">
           <motion.div {...sectionMotion(0)} className={`rounded-2xl border border-white/10 bg-[#0b0b0b] ${isCompactHeader ? 'p-2.5' : 'p-3'}`}>
             <div className={`flex flex-col ${isCompactHeader ? 'gap-2' : 'gap-3'} lg:flex-row lg:items-center lg:justify-between`}>
               <div className="flex items-center gap-3">

@@ -101,7 +101,7 @@ const Sidebar = ({
       initial={false}
       animate={{ width: collapsed ? 56 : 220 }}
       transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="h-full flex flex-col flex-shrink-0 rounded-r-xl"
+      className="h-full flex flex-col flex-shrink-0 rounded-none"
       style={glassStyle}
     >
       {/* Main Navigation — Linear-style spacing and hierarchy */}

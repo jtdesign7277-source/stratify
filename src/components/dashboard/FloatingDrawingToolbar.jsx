@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { GripVertical, Minus, TrendingUp, Square, Trash2, RefreshCw } from 'lucide-react';
 
 const STORAGE_KEY = 'stratify-drawing-toolbar-v1';
@@ -107,7 +108,7 @@ export default function FloatingDrawingToolbar({ onSelectTool, onClear, onClearA
     };
   }, [isDragging, handleDragMove, handleDragEnd]);
 
-  return (
+  const toolbar = (
     <div
       ref={barRef}
       role="toolbar"
@@ -163,4 +164,6 @@ export default function FloatingDrawingToolbar({ onSelectTool, onClear, onClearA
       </button>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(toolbar, document.body) : toolbar;
 }

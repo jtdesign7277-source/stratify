@@ -230,7 +230,7 @@ const EconomicsCalendarPage = () => {
       {/* Content — flex 1 1 0 so it shrinks and scrolls; no scrollbar so user scrolls naturally with trackpad */}
       <motion.div
         {...sectionMotion(1)}
-        className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-8 scrollbar-show"
+        className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-8 scrollbar-hide"
         style={{
           minHeight: 0,
           flex: '1 1 0%',

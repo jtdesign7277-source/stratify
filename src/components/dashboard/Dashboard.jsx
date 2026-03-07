@@ -656,14 +656,14 @@ const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false 
               <span key={`${row.ticker}-${idx}`} className="flex items-center gap-2 px-2">
                 <TopBarTickerLogo ticker={row.ticker} />
                 <span
-                  className="ticker-symbol text-[12px] font-semibold uppercase tracking-[0.08em] text-white/85 leading-none"
+                  className="ticker-symbol text-[16px] font-semibold uppercase tracking-[0.05em] text-white/85 leading-none"
                   style={{ fontVariationSettings: '"wght" 500', transition: 'font-variation-settings 200ms ease' }}
                 >
                   ${row.ticker}
                 </span>
-                <span className="text-[12px] font-mono text-white/70 leading-none">{priceText}</span>
-                <span className={`text-[12px] font-mono ${pctClass} leading-none`}>{pct}</span>
-                <span className="text-white/30">•</span>
+                <span className="text-[16px] font-mono text-white/70 leading-none">{priceText}</span>
+                <span className={`text-[16px] font-mono ${pctClass} leading-none`}>{pct}</span>
+                <span className="text-white/30 text-[16px]">•</span>
               </span>
             );
           })}
@@ -2521,8 +2521,8 @@ export default function Dashboard({
           <ChevronsUp className="h-4 w-4" strokeWidth={1.5} />
         </motion.button>
       </motion.div>
-      {/* Linear-style app window: one rounded panel containing sidebar + content */}
-      <div className="flex-1 flex flex-row min-h-0 mx-3 mb-3 rounded-xl bg-linear-canvas border border-[rgba(255,255,255,0.06)] shadow-linear-window overflow-hidden">
+      {/* Linear-style app window: fills viewport edge-to-edge (no outer margins) */}
+      <div className="flex-1 flex flex-row min-h-0 min-w-0 rounded-none bg-linear-canvas border-0 border-t border-[rgba(255,255,255,0.06)] shadow-none overflow-hidden">
         <Sidebar
           expanded={sidebarExpanded}
           onToggle={(val) => setSidebarExpanded(val)}
