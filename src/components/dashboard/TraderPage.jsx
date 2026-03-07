@@ -2614,8 +2614,8 @@ export default function TraderPage({
         textColor: '#9ca3af',
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.03)' },
-        horzLines: { color: 'rgba(255,255,255,0.03)' },
+        vertLines: { visible: false },
+        horzLines: { visible: false },
       },
       crosshair: {
         vertLine: { color: 'rgba(255,255,255,0.15)', width: 1 },

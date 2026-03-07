@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, Check } from 'lucide-react';
 import FloatingDrawingToolbar from './FloatingDrawingToolbar';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import gsap from 'gsap';
@@ -35,11 +35,18 @@ const TIMEFRAME_MAP = {
 const BULL_COLOR = '#089981';
 const BEAR_COLOR = '#f23645';
 const HPZ_BULL = '#1de9b6';
+
+const CANDLE_PALETTE_STORAGE_KEY = 'stratify-strategy-radar-candle-palette';
+const CANDLE_PALETTES = [
+  { id: 'classic', name: 'Classic', up: '#089981', down: '#f23645' },
+  { id: 'ocean', name: 'Ocean', up: '#00C2FF', down: '#FF6B9D' },
+  { id: 'forest', name: 'Forest', up: '#22c55e', down: '#f97316' },
+];
 const HPZ_BEAR = '#ff5252';
 const CHOCH_COLOR = '#00C2FF';
 const BOS_COLOR = '#7B61FF';
 const SOFT_GLASS_CARD_CLASS = 'dashboard-card bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 hover:from-white/[0.06] hover:to-white/[0.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:border-white/[0.1]';
-const SIGNAL_PANEL_BLEND_CLASS = 'bg-[#0a0a0f] overflow-hidden flex flex-col min-h-0';
+const SIGNAL_PANEL_BLEND_CLASS = 'bg-[#0b0b0b] overflow-hidden flex flex-col min-h-0';
 const SIGNAL_CARD_BLEND_CLASS = 'border border-white/[0.03] rounded py-3 px-3 transition-colors';
 const SIGNAL_CARD_BLEND_ACTIVE_CLASS = 'border-emerald-500/20 bg-emerald-500/5';
 const SOFT_GLASS_ACCENT_CLASS = 'dashboard-card bg-gradient-to-br from-emerald-500/[0.08] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-emerald-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgba(16,185,129,0.1)]';
@@ -458,7 +465,7 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -507,7 +514,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
         textColor: 'rgba(255,255,255,0.7)',
         fontSize: 12,
       },
-      grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
+      grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: { color: 'rgba(255,255,255,0.1)', width: 1, style: 3 },
@@ -519,10 +526,12 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       handleScale: true,
     });
     chartRef.current = chart;
+    const up = candleColors?.up ?? BULL_COLOR;
+    const down = candleColors?.down ?? BEAR_COLOR;
     const candleSeries = addCandlestickSeriesCompat(chart, {
-      upColor: BULL_COLOR, downColor: BEAR_COLOR,
-      borderUpColor: BULL_COLOR, borderDownColor: BEAR_COLOR,
-      wickUpColor: BULL_COLOR, wickDownColor: BEAR_COLOR,
+      upColor: up, downColor: down,
+      borderUpColor: up, borderDownColor: down,
+      wickUpColor: up, wickDownColor: down,
     });
     candleSeriesRef.current = candleSeries;
 
@@ -549,6 +558,21 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
       chart.remove();
     };
   }, []);
+
+  useEffect(() => {
+    const series = candleSeriesRef.current;
+    if (!series || !candleColors) return;
+    const up = candleColors.up ?? BULL_COLOR;
+    const down = candleColors.down ?? BEAR_COLOR;
+    series.applyOptions({
+      upColor: up,
+      downColor: down,
+      borderUpColor: up,
+      borderDownColor: down,
+      wickUpColor: up,
+      wickDownColor: down,
+    });
+  }, [candleColors?.up, candleColors?.down]);
 
   const clearDrawingLines = useCallback((opts) => {
     const skipSave = opts?.skipSave === true;
@@ -1312,8 +1336,8 @@ function StrategyCard({ strategy, enabled, onToggle, onViewDetails, isExpanded, 
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.96 }}
           transition={BUTTON_SPRING}
-          className={`w-5 h-5 rounded-full border-2 transition-all flex-shrink-0 flex items-center justify-center ${enabled ? 'border-emerald-400' : 'border-white/20 hover:border-white/40'}`}>
-          {enabled && <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />}
+          className={`h-3.5 w-3.5 rounded border flex-shrink-0 flex items-center justify-center transition-all ${enabled ? 'border-emerald-400 bg-[#0b0b0b]' : 'border-zinc-600 bg-[#0b0b0b] hover:border-zinc-500'}`}>
+          {enabled && <Check className="h-2.5 w-2.5 text-emerald-400" strokeWidth={2.5} />}
         </motion.button>
       </div>
       <AnimatePresence initial={false}>
@@ -1555,7 +1579,7 @@ function TrendStrengthMatrix({ trendStrength, confidence, trendDetails }) {
 // LIVE TICKER HEADER (Twelve Data WebSocket — price ticking next to ticker)
 // ══════════════════════════════════════════════════════════════════════════════
 
-function LiveTickerHeader({ ticker, priceData, connected }) {
+function LiveTickerHeader({ ticker, priceData, connected, onCollapse }) {
   const prevPriceRef = useRef(null);
   const price = priceData?.price ?? null;
   const change = priceData?.change ?? (price !== null && priceData?.previous_close != null ? price - priceData.previous_close : null);
@@ -1570,7 +1594,16 @@ function LiveTickerHeader({ ticker, priceData, connected }) {
   }, [price]);
 
   return (
-    <div className="px-5 py-3 border-b border-white/[0.04] flex items-center gap-3 flex-wrap">
+    <div className="pl-2 pr-5 py-3 border-b border-white/[0.04] flex items-center gap-3 flex-wrap">
+      <button
+        type="button"
+        onClick={() => onCollapse?.()}
+        className="-ml-0.5 flex-shrink-0 p-1 rounded-md text-emerald-400 hover:text-emerald-300 hover:bg-white/[0.06] transition-colors cursor-pointer"
+        title="Collapse panel"
+        aria-label="Collapse panel"
+      >
+        <ChevronsRight className="w-5 h-5" strokeWidth={2} />
+      </button>
       <span className="text-white font-bold text-sm font-mono">${ticker}</span>
       {connected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />}
       {price != null && Number.isFinite(price) && (
@@ -1627,6 +1660,28 @@ function StrategyRadarContent() {
     take_profit_multiplier: 2.5,
     risk_per_trade: 0.02,
   });
+
+  const [candlePaletteId, setCandlePaletteId] = useState(() => {
+    if (typeof window === 'undefined') return 'classic';
+    try {
+      const saved = window.localStorage.getItem(CANDLE_PALETTE_STORAGE_KEY);
+      return CANDLE_PALETTES.some(p => p.id === saved) ? saved : 'classic';
+    } catch {
+      return 'classic';
+    }
+  });
+
+  const candleColors = useMemo(() => {
+    const p = CANDLE_PALETTES.find(pa => pa.id === candlePaletteId) || CANDLE_PALETTES[0];
+    return { up: p.up, down: p.down };
+  }, [candlePaletteId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(CANDLE_PALETTE_STORAGE_KEY, candlePaletteId);
+    } catch {}
+  }, [candlePaletteId]);
 
   const [smResults, setSmResults] = useState({ chochEvents: [], bosEvents: [], trendStrength: 0, confidence: 50, trendDetails: [], divergences: [], liquidityZones: [] });
 
@@ -1891,7 +1946,7 @@ function StrategyRadarContent() {
   return (
     <div className="h-full overflow-hidden bg-[#0a0a0f] text-white flex flex-col">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-white/6">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/6 bg-[#0b0b0b]">
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-semibold tracking-wide">Strategy Radar</h1>
           <div className="flex items-center gap-2">
@@ -1927,7 +1982,27 @@ function StrategyRadarContent() {
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT — Chart */}
         <div className="flex-1 flex flex-col border-r border-white/6 min-w-0">
-          <div className="flex items-center justify-end px-4 py-2 border-b border-white/6">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-white/6">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-wider text-gray-500 mr-0.5">Candles</span>
+              {CANDLE_PALETTES.map(pal => {
+                const isActive = candlePaletteId === pal.id;
+                return (
+                  <motion.button
+                    key={pal.id}
+                    type="button"
+                    onClick={() => setCandlePaletteId(pal.id)}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors ${isActive ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-500 hover:text-gray-300'}`}
+                    title={pal.name}
+                  >
+                    <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.up }} />
+                    <span className="w-2 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pal.down }} />
+                  </motion.button>
+                );
+              })}
+            </div>
             <div className="flex items-center gap-1">
               {TIMEFRAMES.map(tf => (
                 <motion.button
@@ -1954,6 +2029,7 @@ function StrategyRadarContent() {
               bosEvents={smResults.bosEvents}
               selectedTicker={selectedTicker}
               selectedTimeframe={settings.timeframe}
+              candleColors={candleColors}
             />
             {/* Trend Strength widget: only when Smart Money signal is activated; never for MSB/OB or other strategies */}
             {activeStrategies['smart_money'] && smResults.trendDetails && smResults.trendDetails.length > 0 && (
@@ -1964,8 +2040,8 @@ function StrategyRadarContent() {
           </div>
 
           <div className="flex items-center gap-4 px-4 py-2 border-t border-white/6 text-sm flex-wrap">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: BULL_COLOR }} /><span className="text-gray-500">Bullish OB</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: BEAR_COLOR }} /><span className="text-gray-500">Bearish OB</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: candleColors.up }} /><span className="text-gray-500">Bullish OB</span></span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: candleColors.down }} /><span className="text-gray-500">Bearish OB</span></span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: HPZ_BULL }} /><span className="text-gray-500">High Probability Zone</span></span>
             {enabledTypes.has('smart_money') && (
               <>
@@ -1989,10 +2065,10 @@ function StrategyRadarContent() {
               initial={false}
               animate={{ width: 40 }}
               onClick={() => setRightPanelCollapsed(false)}
-              className="flex flex-col items-center justify-center gap-1 min-h-0 py-4 text-emerald-400 hover:text-emerald-300 hover:bg-white/[0.04] transition-colors"
+              className="flex flex-col items-center justify-start min-h-0 pt-4 pb-4 text-emerald-400 hover:text-emerald-300 hover:bg-white/[0.04] transition-colors"
               title="Expand panel"
             >
-              <ChevronsLeft className="w-5 h-5" strokeWidth={2} />
+              <ChevronsLeft className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
               <span className="text-[10px] uppercase tracking-wider rotate-0 hidden">Open</span>
             </motion.button>
           ) : (
@@ -2001,17 +2077,9 @@ function StrategyRadarContent() {
               animate={{ width: 300 }}
               className="flex min-h-0 relative"
             >
-              <button
-                type="button"
-                onClick={() => setRightPanelCollapsed(true)}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-12 flex items-center justify-center rounded-r border border-l-0 border-white/10 bg-[#0a0a0f]/90 text-emerald-400 hover:text-emerald-300 hover:bg-white/[0.06] transition-colors"
-                title="Collapse panel"
-              >
-                <ChevronsRight className="w-4 h-4" strokeWidth={2} />
-              </button>
-              <div className="w-full min-h-0 overflow-y-auto relative p-2 pl-3 scrollbar-hide">
+              <div className="w-full min-h-0 overflow-y-auto relative p-2 pl-3 scrollbar-hide bg-[#0b0b0b]">
                 <div className={SIGNAL_PANEL_BLEND_CLASS}>
-                  <LiveTickerHeader ticker={selectedTicker} priceData={tickerPriceData} connected={connected} />
+                  <LiveTickerHeader ticker={selectedTicker} priceData={tickerPriceData} connected={connected} onCollapse={() => setRightPanelCollapsed(true)} />
 
             <div className="p-3 border-b border-white/[0.04]">
               <h2 className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-2">Active Signals</h2>

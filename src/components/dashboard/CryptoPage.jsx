@@ -17,37 +17,52 @@ function TradingViewWidget({ scriptSrc, config, containerId, style, className })
   const containerRef = useRef(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    containerRef.current.innerHTML = '';
+    const el = containerRef.current;
+    if (!el) return;
+    el.innerHTML = '';
 
-    const widgetContainer = document.createElement('div');
-    widgetContainer.className = 'tradingview-widget-container';
-    widgetContainer.style.height = '100%';
-    widgetContainer.style.width = '100%';
+    const mount = () => {
+      if (!el.isConnected) return;
+      el.innerHTML = '';
+      const widgetContainer = document.createElement('div');
+      widgetContainer.className = 'tradingview-widget-container';
+      widgetContainer.style.height = '100%';
+      widgetContainer.style.width = '100%';
+      widgetContainer.style.minHeight = '400px';
 
-    const widgetInner = document.createElement('div');
-    widgetInner.className = 'tradingview-widget-container__widget';
-    widgetInner.style.height = '100%';
-    widgetInner.style.width = '100%';
+      const widgetInner = document.createElement('div');
+      widgetInner.className = 'tradingview-widget-container__widget';
+      widgetInner.style.height = '100%';
+      widgetInner.style.width = '100%';
+      widgetInner.style.minHeight = '400px';
 
-    const script = document.createElement('script');
-    script.src = scriptSrc;
-    script.async = true;
-    script.type = 'text/javascript';
-    script.innerHTML = JSON.stringify(config);
+      const script = document.createElement('script');
+      script.src = scriptSrc;
+      script.async = true;
+      script.type = 'text/javascript';
+      script.innerHTML = JSON.stringify(config);
 
-    widgetContainer.appendChild(widgetInner);
-    widgetContainer.appendChild(script);
-    containerRef.current.appendChild(widgetContainer);
+      widgetContainer.appendChild(widgetInner);
+      widgetContainer.appendChild(script);
+      el.appendChild(widgetContainer);
+    };
+
+    const raf = requestAnimationFrame(() => {
+      mount();
+    });
 
     return () => {
+      cancelAnimationFrame(raf);
       if (containerRef.current) containerRef.current.innerHTML = '';
     };
   }, [scriptSrc, JSON.stringify(config)]);
 
   return (
-    <div ref={containerRef} id={containerId} className={className}
-      style={{ height: '100%', width: '100%', ...style }}
+    <div
+      ref={containerRef}
+      id={containerId}
+      className={className}
+      style={{ height: '100%', width: '100%', minHeight: '400px', ...style }}
     />
   );
 }
@@ -944,6 +959,7 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
     background: 'rgba(6, 13, 24, 0.6)',
     backdropFilter: 'blur(12px)',
     border: '1px solid rgba(255, 255, 255, 0.06)',
+    minHeight: 400,
   };
 
   const orderTicketStyle = {
@@ -980,10 +996,10 @@ export default function CryptoPage({ alpacaData: _brokerData, onOrderPlaced }) {
       </div>
 
       {/* ── Main Content ──────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 flex overflow-hidden p-3 gap-3">
+      <div className="flex-1 min-h-0 flex overflow-hidden p-3 gap-3 min-h-[300px]">
 
         {/* ── LEFT: TradingView Chart (bigger now) ────────────────── */}
-        <div className="flex-1 w-full min-h-0 min-w-0 rounded-2xl border border-white/8 shadow-2xl shadow-black/30 overflow-hidden" style={glassStyle}>
+        <div className="flex-1 w-full min-h-0 min-w-0 min-h-[280px] rounded-2xl border border-white/8 shadow-2xl shadow-black/30 overflow-hidden" style={glassStyle}>
           <TradingViewWidget
             key={selectedCoin.tvSymbol}
             scriptSrc="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js"

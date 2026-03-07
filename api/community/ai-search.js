@@ -41,8 +41,12 @@ function hashQuery(query) {
   return createHash('sha256').update(normalizeQuery(query).toLowerCase()).digest('hex').slice(0, 40);
 }
 
-function makeCacheKey(query) {
-  return `ai-search:v2:{${hashQuery(query)}}`;
+function makeCacheKey(query, refreshNonce) {
+  const base = hashQuery(query);
+  const nonce = refreshNonce != null && String(refreshNonce).trim() !== ''
+    ? String(refreshNonce).trim()
+    : '';
+  return nonce ? `ai-search:v2:{${base}}:${nonce}` : `ai-search:v2:{${base}}`;
 }
 
 function toNumber(value) {
@@ -357,7 +361,21 @@ function buildTickerSnapshots(relatedTickers = [], quoteBySymbol = {}) {
   return snapshots;
 }
 
-function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol }) {
+function seededShuffle(arr, seed) {
+  if (!arr.length || seed == null || String(seed).trim() === '') return arr;
+  const s = String(seed);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    h = (Math.imul(31, h) + i) | 0;
+    const j = Math.abs(h) % (i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol, refreshNonce }) {
   const fromNews = [...tickerMeta.entries()]
     .sort((a, b) => b[1].count - a[1].count)
     .map(([symbol]) => symbol);
@@ -368,7 +386,7 @@ function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol
       .filter(Boolean)
   )];
 
-  const candidates = [...new Set([
+  let candidates = [...new Set([
     ...fromNews,
     ...tracked,
     ...(isMomentum ? MOMENTUM_FALLBACK_SYMBOLS : []),
@@ -376,8 +394,12 @@ function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol
 
   if (candidates.length === 0) return [];
 
+  if (refreshNonce != null && String(refreshNonce).trim() !== '') {
+    candidates = seededShuffle(candidates, String(refreshNonce));
+  }
+
   if (isMomentum) {
-    const ranked = candidates
+    let ranked = candidates
       .map((symbol) => ({
         symbol,
         pct: toNumber(quoteBySymbol[symbol]?.percentChange),
@@ -392,7 +414,12 @@ function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol
 
     const positive = ranked.filter((entry) => Number.isFinite(entry.pct) && entry.pct > 0);
     const source = positive.length > 0 ? positive : ranked;
-    return source.slice(0, 8).map((entry) => entry.symbol);
+    if (refreshNonce != null && String(refreshNonce).trim() !== '') {
+      ranked = seededShuffle(source, String(refreshNonce));
+    } else {
+      ranked = source;
+    }
+    return ranked.slice(0, 8).map((entry) => entry.symbol);
   }
 
   return candidates.slice(0, 8);
@@ -425,6 +452,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const query = normalizeQuery(req.body?.query);
+  const refreshNonce = req.body?.refreshNonce;
   const interests = req.body?.interests && typeof req.body.interests === 'object'
     ? req.body.interests
     : {};
@@ -432,7 +460,7 @@ export default async function handler(req, res) {
   if (!query) return res.status(400).json({ error: 'query is required' });
 
   const redis = getRedisClient();
-  const cacheKey = makeCacheKey(query);
+  const cacheKey = makeCacheKey(query, refreshNonce);
 
   if (redis) {
     try {
@@ -484,6 +512,7 @@ export default async function handler(req, res) {
       tickerMeta,
       interests,
       quoteBySymbol,
+      refreshNonce,
     });
 
     const keyPoints = buildKeyPoints({

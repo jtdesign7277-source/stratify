@@ -112,7 +112,7 @@ export default function FloatingDrawingToolbar({ onSelectTool, onClear, selected
       ref={barRef}
       role="toolbar"
       aria-label="Drawing tools"
-      className="fixed z-[100] flex items-center gap-0.5 rounded-xl border border-white/[0.08] bg-[#1a1a1f] px-1.5 py-1.5 shadow-lg"
+      className="fixed z-[100] flex items-center gap-0.5 rounded-xl border border-white/[0.08] bg-[#1a1a1f]/40 backdrop-blur-xl px-1.5 py-1.5 shadow-lg"
       style={{
         left: position.x,
         top: position.y,

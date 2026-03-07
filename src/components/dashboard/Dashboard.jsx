@@ -2803,8 +2803,8 @@ export default function Dashboard({
               </motion.div>
             )}
           </AnimatePresence>
-          {hasMountedCryptoTab ? (
-            <div className={activeTab === 'crypto' ? 'h-full w-full min-h-0 overflow-y-auto' : 'hidden'} aria-hidden={activeTab !== 'crypto'}>
+          {activeTab === 'crypto' ? (
+            <div className="h-full w-full min-h-0 flex flex-col overflow-hidden" aria-hidden={false}>
               <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />
             </div>
           ) : null}

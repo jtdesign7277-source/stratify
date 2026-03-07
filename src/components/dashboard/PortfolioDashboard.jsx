@@ -209,7 +209,8 @@ const buildAiIdeaQuery = (heldSymbols = [], strategySymbols = []) => {
 };
 
 const buildFallbackIdeas = (heldSymbols = []) => {
-  const heldSet = new Set((Array.isArray(heldSymbols) ? heldSymbols : []).map((symbol) => normalizeSymbol(symbol)).filter(Boolean));
+  const held = (Array.isArray(heldSymbols) ? heldSymbols : []).map((symbol) => normalizeSymbol(symbol)).filter(Boolean);
+  const heldSet = new Set(held);
   const hasCryptoExposure = [...heldSet].some((symbol) => isCryptoSymbol(symbol));
   const hasMegaCapTechExposure = [...heldSet].some((symbol) => ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'TSLA', 'QQQ'].includes(symbol));
 
@@ -227,7 +228,7 @@ const buildFallbackIdeas = (heldSymbols = []) => {
     'Potential continuation setup if risk-on sentiment holds.',
   ];
 
-  return candidatePool
+  const others = candidatePool
     .map((symbol) => normalizeSymbol(symbol))
     .filter((symbol) => symbol && !heldSet.has(symbol))
     .slice(0, 8)
@@ -237,6 +238,19 @@ const buildFallbackIdeas = (heldSymbols = []) => {
       percentChange: null,
       rationale: rationalePool[index % rationalePool.length],
     }));
+
+  if (held.length === 1) {
+    const userTicker = held[0];
+    const userRow = {
+      symbol: userTicker,
+      price: null,
+      percentChange: null,
+      rationale: 'Your current holding — monitor for momentum and risk management.',
+    };
+    return [userRow, ...others].slice(0, 8);
+  }
+
+  return others;
 };
 
 const isCryptoSymbol = (value = '') => {
@@ -607,6 +621,8 @@ export default function PortfolioDashboard() {
   const [selectedIdeaSymbols, setSelectedIdeaSymbols] = useState([]);
   const [portfolioScenarios, setPortfolioScenarios] = useState(() => loadInitialPortfolioScenarios());
   const [activeScenarioId, setActiveScenarioId] = useState('');
+  const [editingScenarioId, setEditingScenarioId] = useState(null);
+  const [editingScenarioName, setEditingScenarioName] = useState('');
   const [scenarioNameInput, setScenarioNameInput] = useState('AI Radar Basket');
   const [scenarioCapitalInput, setScenarioCapitalInput] = useState('100000');
   const [selectedWhatIfMonths, setSelectedWhatIfMonths] = useState(3);
@@ -966,12 +982,21 @@ export default function PortfolioDashboard() {
     const scenario = portfolioScenarios.find((row) => row.id === scenarioId);
     if (!scenario) return;
 
+    setEditingScenarioId(null);
+    setEditingScenarioName('');
+
+    const symbols = scenario.symbols.map((symbol) => normalizeSymbol(symbol)).filter(Boolean);
     setActiveScenarioId(scenario.id);
-    setSelectedIdeaSymbols(scenario.symbols.map((symbol) => normalizeSymbol(symbol)).filter(Boolean));
+    setSelectedIdeaSymbols(symbols);
     setScenarioNameInput(scenario.name);
     setScenarioCapitalInput(String(Math.round(Number(scenario.capital || STARTING_BALANCE))));
     setWhatIfResults([]);
     setWhatIfError('');
+
+    const capital = Number(scenario.capital) || STARTING_BALANCE;
+    if (symbols.length > 0) {
+      void runSimulationWithParams(symbols, capital);
+    }
   };
 
   const handleCreateScenario = () => {
@@ -1009,22 +1034,46 @@ export default function PortfolioDashboard() {
       setActiveScenarioId('');
       setWhatIfResults([]);
     }
+    if (editingScenarioId === scenarioId) {
+      setEditingScenarioId(null);
+      setEditingScenarioName('');
+    }
   };
 
-  const runWhatIfSimulation = async () => {
-    const symbols = [...new Set(activeScenarioSymbols.map((symbol) => normalizeSymbol(symbol)).filter(Boolean))].slice(0, 12);
-    if (symbols.length === 0) {
+  const handleStartEditScenarioName = (e, scenario) => {
+    e.stopPropagation();
+    setEditingScenarioId(scenario.id);
+    setEditingScenarioName(String(scenario.name || '').trim());
+  };
+
+  const handleSaveScenarioName = () => {
+    if (editingScenarioId == null) return;
+    const name = String(editingScenarioName || '').trim().slice(0, 40) || 'AI Radar Basket';
+    setPortfolioScenarios((previous) =>
+      previous.map((scenario) =>
+        scenario.id === editingScenarioId ? { ...scenario, name } : scenario
+      )
+    );
+    if (activeScenarioId === editingScenarioId) {
+      setScenarioNameInput(name);
+    }
+    setEditingScenarioId(null);
+    setEditingScenarioName('');
+  };
+
+  const runSimulationWithParams = async (symbols, capital) => {
+    const normalized = [...new Set(symbols.map((s) => normalizeSymbol(s)).filter(Boolean))].slice(0, 12);
+    if (normalized.length === 0) {
       setWhatIfError('Select AI radar symbols or load a saved watchlist first.');
       setWhatIfResults([]);
       return;
     }
 
-    const capital = parseCapitalInput(scenarioCapitalInput, STARTING_BALANCE);
     setWhatIfLoading(true);
     setWhatIfError('');
 
     try {
-      const quoteParams = new URLSearchParams({ symbols: symbols.join(',') });
+      const quoteParams = new URLSearchParams({ symbols: normalized.join(',') });
       const quoteResponse = await fetch(`/api/community/market-data?${quoteParams.toString()}`, {
         method: 'GET',
         headers: { Accept: 'application/json' },
@@ -1042,7 +1091,7 @@ export default function PortfolioDashboard() {
       });
 
       const candlesBySymbol = new Map();
-      await Promise.all(symbols.map(async (symbol) => {
+      await Promise.all(normalized.map(async (symbol) => {
         const params = new URLSearchParams({
           symbol,
           interval: '1day',
@@ -1069,7 +1118,7 @@ export default function PortfolioDashboard() {
 
       const results = WHAT_IF_TIMEFRAME_OPTIONS.map((months) => {
         const targetDate = subtractMonthsToTradingDay(months);
-        const candidateRows = symbols.map((symbol) => {
+        const candidateRows = normalized.map((symbol) => {
           const candles = candlesBySymbol.get(symbol) || [];
           const entry = findEntryCloseOnOrBefore(candles, targetDate);
           const currentPrice = Number(quoteBySymbol.get(symbol));
@@ -1152,6 +1201,17 @@ export default function PortfolioDashboard() {
     } finally {
       setWhatIfLoading(false);
     }
+  };
+
+  const runWhatIfSimulation = async () => {
+    const symbols = [...new Set(activeScenarioSymbols.map((symbol) => normalizeSymbol(symbol)).filter(Boolean))].slice(0, 12);
+    if (symbols.length === 0) {
+      setWhatIfError('Select AI radar symbols or load a saved watchlist first.');
+      setWhatIfResults([]);
+      return;
+    }
+    const capital = parseCapitalInput(scenarioCapitalInput, STARTING_BALANCE);
+    await runSimulationWithParams(symbols, capital);
   };
 
   useEffect(() => {
@@ -1461,6 +1521,7 @@ export default function PortfolioDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             query: aiIdeasQuery,
+            refreshNonce: ideaRefreshNonce,
             interests: {
               trackedSymbols: heldSymbols,
               filter: 'portfolio',
@@ -1502,7 +1563,21 @@ export default function PortfolioDashboard() {
           .filter(Boolean)
           .slice(0, 8);
 
-        const nextRows = mappedRows.length > 0 ? mappedRows : fallbackAiIdeas;
+        let nextRows;
+        if (heldSymbols.length === 1) {
+          const userSym = normalizeSymbol(heldSymbols[0]);
+          const userSnapshot = userSym ? (tickerSnapshots[userSym] || {}) : {};
+          const userRow = {
+            symbol: userSym,
+            price: Number(userSnapshot?.price) || null,
+            percentChange: Number(userSnapshot?.percentChange) ?? null,
+            rationale: 'Your current holding — monitor for momentum and risk management.',
+          };
+          const others = mappedRows.length > 0 ? mappedRows : (Array.isArray(fallbackAiIdeas) ? fallbackAiIdeas : []).filter((r) => r?.symbol !== userSym);
+          nextRows = [userRow, ...others].slice(0, 8);
+        } else {
+          nextRows = mappedRows.length > 0 ? mappedRows : fallbackAiIdeas;
+        }
 
         if (cancelled) return;
         setAiIdeas({
@@ -1902,12 +1977,6 @@ export default function PortfolioDashboard() {
           >
             <RefreshCw size={12} className={aiIdeas.loading ? 'animate-spin' : ''} /> Ideas
           </button>
-          <button
-            onClick={fetchPortfolio}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff]"
-          >
-            <RefreshCw size={12} /> Refresh
-          </button>
         </div>
       </div>
 
@@ -1921,7 +1990,18 @@ export default function PortfolioDashboard() {
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className={`${panelClass} p-3`}
       >
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Holdings</div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Holdings</div>
+          <button
+            type="button"
+            onClick={() => fetchPortfolio({ silent: false })}
+            disabled={loading}
+            className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff] disabled:cursor-not-allowed disabled:opacity-50"
+            title="Refresh portfolio: holdings, totals, portfolio value, buying power, total P&L"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -2106,19 +2186,19 @@ export default function PortfolioDashboard() {
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className={`${panelClass} p-3`}
         >
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Recent Trades</div>
-          <div className="space-y-1">
+          <div className="mb-2 text-sm font-semibold uppercase tracking-[0.14em] text-gray-400">Recent Trades</div>
+          <div className="space-y-1.5">
             {trades.slice(0, 8).map((trade, index) => {
               const side = String(trade?.side || '').toLowerCase();
               const value = asTradeValue(trade);
               return (
-                <div key={trade?.id || `${trade?.symbol || 'trade'}-${index}`} className="flex items-center justify-between rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1.5 text-xs">
+                <div key={trade?.id || `${trade?.symbol || 'trade'}-${index}`} className="flex items-center justify-between rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2.5 py-2 text-sm">
                   <div className="flex items-center gap-2">
-                    <span className={`font-semibold uppercase tracking-[0.12em] ${side === 'buy' ? 'text-emerald-300' : 'text-red-300'}`}>
+                    <span className={`font-mono font-semibold uppercase tracking-[0.12em] ${side === 'buy' ? 'text-emerald-300' : 'text-red-300'}`}>
                       {side || 'trade'}
                     </span>
-                    <span className="font-mono">${normalizeSymbol(trade?.symbol)}</span>
-                    <span className="text-gray-500">x{fmtQty(trade?.quantity)}</span>
+                    <span className="font-mono text-[#f8fbff]">${normalizeSymbol(trade?.symbol)}</span>
+                    <span className="font-mono text-gray-500">x{fmtQty(trade?.quantity)}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-[#f8fbff]">@ {fmtMoney(trade?.price)}</span>
@@ -2299,24 +2379,63 @@ export default function PortfolioDashboard() {
                   return (
                     <div
                       key={scenario.id}
-                      className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 ${
-                        active ? 'border-blue-500/40 bg-blue-500/10' : 'border-[#1f1f1f] bg-[#080808]'
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleSelectScenario(scenario.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleSelectScenario(scenario.id);
+                        }
+                      }}
+                      className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 cursor-pointer transition-colors ${
+                        active ? 'border-blue-500/40 bg-blue-500/10' : 'border-[#1f1f1f] bg-[#080808] hover:border-[#334155] hover:bg-[#0a0a0a]'
                       }`}
+                      title="Click to open this saved watchlist"
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleSelectScenario(scenario.id)}
-                        className="min-w-0 flex-1 text-left"
-                      >
-                        <div className="truncate text-sm text-[#f8fbff]">{scenario.name}</div>
+                      <div className="min-w-0 flex-1 text-left">
+                        {editingScenarioId === scenario.id ? (
+                          <input
+                            type="text"
+                            value={editingScenarioName}
+                            onChange={(e) => setEditingScenarioName(e.target.value)}
+                            onBlur={handleSaveScenarioName}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveScenarioName();
+                              }
+                              if (e.key === 'Escape') {
+                                setEditingScenarioId(null);
+                                setEditingScenarioName('');
+                              }
+                              e.stopPropagation();
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full rounded border border-blue-500/50 bg-[#0a0a0a] px-1.5 py-0.5 text-sm text-[#f8fbff] outline-none focus:border-blue-500"
+                            placeholder="Watchlist name"
+                            autoFocus
+                          />
+                        ) : (
+                          <div
+                            onClick={(e) => handleStartEditScenarioName(e, scenario)}
+                            className="truncate text-sm text-[#f8fbff] cursor-text hover:text-blue-300 transition-colors"
+                            title="Click to rename"
+                          >
+                            {scenario.name}
+                          </div>
+                        )}
                         <div className="text-sm text-gray-500">
-                          {scenario.symbols.length} symbols · {fmtMoney(scenario.capital || STARTING_BALANCE, 0)}
+                          {scenario.symbols.length} symbols · <span className="font-mono text-emerald-300">{fmtMoney(scenario.capital || STARTING_BALANCE, 0)}</span>
                         </div>
-                      </button>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => handleDeleteScenario(scenario.id)}
-                        className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-sm text-red-300 transition hover:bg-red-500/20"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteScenario(scenario.id);
+                        }}
+                        className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-sm text-red-300 transition hover:bg-red-500/20 shrink-0"
                         title="Delete watchlist"
                       >
                         Delete
@@ -2377,7 +2496,7 @@ export default function PortfolioDashboard() {
                         }`}
                       >
                         <div className="text-sm uppercase tracking-[0.14em] text-gray-500">{result.months}M</div>
-                        <div className={`mt-1 font-mono text-sm ${pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                        <div className="mt-1 font-mono text-sm text-emerald-300">
                           {fmtMoney(result.valueNow || 0)}
                         </div>
                         <div className="text-sm text-gray-500">Buy {result.targetDate || '—'}</div>
@@ -2393,7 +2512,7 @@ export default function PortfolioDashboard() {
                         <div className="text-sm uppercase tracking-[0.14em] text-gray-500">
                           {whatIfSelectedResult.months}M Result · Buy {whatIfSelectedResult.targetDate || '—'}
                         </div>
-                        <div className="mt-1 font-mono text-sm text-[#f8fbff]">
+                        <div className="mt-1 font-mono text-sm text-emerald-300">
                           {fmtMoney(whatIfSelectedResult.valueNow || 0)}
                         </div>
                       </div>
@@ -2416,8 +2535,8 @@ export default function PortfolioDashboard() {
                           {whatIfSelectedResult.rows.map((row) => (
                             <tr key={`what-if-row-${row.symbol}`} className="border-b border-[#121212] last:border-b-0">
                               <td className="px-2 py-1.5 font-mono text-[#f8fbff]">${normalizeSymbol(row.symbol)}</td>
-                              <td className="px-2 py-1.5 text-right font-mono text-gray-300">{fmtMoney(row.entryClose)}</td>
-                              <td className="px-2 py-1.5 text-right font-mono text-gray-300">{fmtMoney(row.currentPrice)}</td>
+                              <td className="px-2 py-1.5 text-right font-mono text-emerald-300">{fmtMoney(row.entryClose)}</td>
+                              <td className="px-2 py-1.5 text-right font-mono text-emerald-300">{fmtMoney(row.currentPrice)}</td>
                               <td className={`px-2 py-1.5 text-right font-mono ${Number(row.pct || row.pnlPct || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                                 {fmtPct(row.pct || row.pnlPct || 0)}
                               </td>
