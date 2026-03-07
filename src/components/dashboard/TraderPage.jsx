@@ -4424,7 +4424,7 @@ export default function TraderPage({
                                       <div
                                         {...provided.dragHandleProps}
                                         data-drag-handle
-                                        className={`mr-2 shrink-0 flex items-center justify-center self-stretch text-gray-500 hover:text-gray-300 select-none ${
+                                        className={`ml-2 mr-2 shrink-0 flex items-center justify-center self-stretch text-gray-500 hover:text-gray-300 select-none ${
                                           snapshot.isDragging ? 'cursor-grabbing' : 'cursor-grab'
                                         }`}
                                         title="Drag to reorder"
