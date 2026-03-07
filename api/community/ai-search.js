@@ -13,6 +13,11 @@ const MOMENTUM_FALLBACK_SYMBOLS = [
   'NVDA', 'AAPL', 'MSFT', 'META', 'AMZN', 'TSLA', 'AMD', 'AVGO', 'NFLX', 'PLTR', 'SMCI', 'COIN',
 ];
 
+/** Diverse pool so Ideas refresh always has 8+ candidates (avoids returning only the user’s holding). */
+const IDEAS_DIVERSITY_SYMBOLS = [
+  'SPY', 'QQQ', 'NVDA', 'AAPL', 'MSFT', 'META', 'AMZN', 'TSLA', 'AMD', 'GOOGL', 'MSTR', 'COIN', 'PLTR', 'NFLX', 'AVGO', 'SMH', 'IWM', 'XLF',
+];
+
 let redisClient = null;
 let redisDisabled = false;
 
@@ -386,10 +391,12 @@ function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol
       .filter(Boolean)
   )];
 
+  const hasPortfolioInterests = Array.isArray(interests?.trackedSymbols) && interests.trackedSymbols.length > 0;
   let candidates = [...new Set([
     ...fromNews,
     ...tracked,
     ...(isMomentum ? MOMENTUM_FALLBACK_SYMBOLS : []),
+    ...(hasPortfolioInterests ? IDEAS_DIVERSITY_SYMBOLS : []),
   ])].slice(0, 40);
 
   if (candidates.length === 0) return [];
@@ -486,10 +493,14 @@ export default async function handler(req, res) {
 
   try {
     const isMomentum = /\bmomentum\b|\bbreakout\b|\bgainer(s)?\b/i.test(query);
-    let articles = await fetchMarketauxNews(query, { daysBack: 1, limit: 30 });
+    const isPortfolioIdeas = /\bcurrent holdings\b|\bsuggest\s*\d+\s*(additional\s*)?stocks?\b/i.test(query);
+    const newsSearchQuery = isPortfolioIdeas
+      ? 'stocks to watch market momentum'
+      : query;
+    let articles = await fetchMarketauxNews(newsSearchQuery, { daysBack: 1, limit: 30 });
 
     if (articles.length < 6) {
-      const fallbackArticles = await fetchMarketauxNews(query, { daysBack: 3, limit: 30 });
+      const fallbackArticles = await fetchMarketauxNews(newsSearchQuery, { daysBack: 3, limit: 30 });
       const seen = new Set();
       articles = [...articles, ...fallbackArticles].filter((article) => {
         const key = normalizeUrl(article?.url) || String(article?.title || '').toLowerCase();

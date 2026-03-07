@@ -193,6 +193,14 @@ const parseCapitalInput = (value, fallback = STARTING_BALANCE) => {
   return parsed;
 };
 
+const formatCapitalWithCommas = (value) => {
+  const digits = String(value ?? '').replace(/[^0-9]/g, '');
+  if (!digits) return '';
+  const n = parseInt(digits, 10);
+  if (Number.isNaN(n)) return '';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+};
+
 const buildAiIdeaQuery = (heldSymbols = [], strategySymbols = []) => {
   const held = Array.isArray(heldSymbols) ? heldSymbols.filter(Boolean).slice(0, 8) : [];
   const strategy = Array.isArray(strategySymbols) ? strategySymbols.filter(Boolean).slice(0, 6) : [];
@@ -604,7 +612,7 @@ const starfieldDotsStyle = {
   backgroundPosition: '0 0, 42px 86px, 118px 30px',
 };
 
-export default function PortfolioDashboard() {
+export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
   const { user } = useAuth();
   const { portfolio, trades, loading, error, fetchPortfolio, updatePositionPrice } = usePaperTrading();
   const { trades: syncedTrades = [] } = useTradeHistoryStore();
@@ -1587,6 +1595,11 @@ export default function PortfolioDashboard() {
           summary: String(data?.summary || '').trim(),
           generatedAt: String(data?.generatedAt || new Date().toISOString()),
         });
+        // Load new tickers into the radar / watchlist simulator so the radar shows the fresh ideas
+        const newSymbols = nextRows.map((r) => normalizeSymbol(r?.symbol)).filter(Boolean);
+        if (newSymbols.length > 0) {
+          setSelectedIdeaSymbols(newSymbols);
+        }
       } catch {
         if (abortController.signal.aborted || cancelled) return;
         setAiIdeas({
@@ -1970,10 +1983,13 @@ export default function PortfolioDashboard() {
             {splitViewEnabled ? 'Full Width' : 'Split View'}
           </button>
           <button
-            onClick={() => setIdeaRefreshNonce((value) => value + 1)}
-            disabled={!splitViewEnabled || aiIdeas.loading}
+            onClick={() => {
+              if (!splitViewEnabled) setSplitViewEnabled(true);
+              setIdeaRefreshNonce((value) => value + 1);
+            }}
+            disabled={aiIdeas.loading}
             className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff] disabled:cursor-not-allowed disabled:opacity-50"
-            title="Refresh AI ideas"
+            title="Generate new stock ideas for backtest and watchlist simulations"
           >
             <RefreshCw size={12} className={aiIdeas.loading ? 'animate-spin' : ''} /> Ideas
           </button>
@@ -2132,6 +2148,12 @@ export default function PortfolioDashboard() {
             <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L %</span>
             <span className={`font-mono text-sm ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
               {fmtPct(totalPnlPct)}
+            </span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500">Total gain / loss</span>
+            <span className={`font-mono text-sm ${(Number(paperTotalGainLoss?.dollar) ?? totalPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+              {(Number(paperTotalGainLoss?.dollar) ?? totalPnl) >= 0 ? '+' : ''}{fmtMoney(Number(paperTotalGainLoss?.dollar) ?? totalPnl)} ({((Number(paperTotalGainLoss?.percent) ?? totalPnlPct) >= 0 ? '+' : '')}{fmtPct(Number(paperTotalGainLoss?.percent) ?? totalPnlPct)})
             </span>
           </div>
         </div>
@@ -2327,13 +2349,16 @@ export default function PortfolioDashboard() {
               </label>
               <label className="text-sm uppercase tracking-[0.14em] text-gray-500">
                 Total Capital (Paper)
-                <input
-                  value={scenarioCapitalInput}
-                  onChange={(event) => setScenarioCapitalInput(event.target.value.replace(/[^0-9.]/g, ''))}
-                  placeholder="100000"
-                  className="mt-1 w-full rounded-md border border-[#1f1f1f] bg-[#080808] px-2 py-1.5 font-mono text-sm text-[#f8fbff] outline-none transition focus:border-blue-500/50"
-                  inputMode="decimal"
-                />
+                <div className="mt-1 flex items-center rounded-md border border-[#1f1f1f] bg-[#080808] focus-within:border-blue-500/50 transition">
+                  <span className="pl-2.5 pr-1 font-mono text-sm text-gray-500">$</span>
+                  <input
+                    value={formatCapitalWithCommas(scenarioCapitalInput)}
+                    onChange={(e) => setScenarioCapitalInput(e.target.value.replace(/[^0-9]/g, '') || '')}
+                    placeholder="100,000"
+                    className="w-full min-w-0 rounded-md border-0 bg-transparent py-1.5 pr-2 font-mono text-sm text-[#f8fbff] outline-none placeholder:text-gray-600"
+                    inputMode="decimal"
+                  />
+                </div>
               </label>
             </div>
 

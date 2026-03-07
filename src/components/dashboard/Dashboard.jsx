@@ -161,7 +161,7 @@ const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const HIDDEN_TABS = new Set(['predictions']);
 const TOPBAR_COLLAPSE_STORAGE_KEY = 'stratify-topbar-collapsed';
-const TOPBAR_COLLAPSED_HEIGHT = 56;
+const TOPBAR_COLLAPSED_HEIGHT = 40;
 const COMMUNITY_WATCHLIST_V3_STORAGE_KEY = 'stratify-community-watchlist-v3';
 const TOPBAR_TICKER_TAPE_CONTAINER_ID = 'dashboard-topbar-ticker-tape-widget';
 const TOPBAR_TICKER_TAPE_MAX_SYMBOLS = 24;
@@ -2492,17 +2492,14 @@ export default function Dashboard({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={TOPBAR_ANIMATION}
-              className="absolute inset-x-0 top-0 h-[56px] border-b border-[rgba(255,255,255,0.06)] bg-linear-canvas/80"
+              className="absolute inset-x-0 top-0 h-10 border-b border-[rgba(255,255,255,0.06)] bg-linear-canvas/80 flex items-center"
             >
-              <div className="relative h-full w-full">
-                <div className="h-full pr-28 pb-4 box-border">
-                  <TopBarTickerTapeWidget
-                    symbols={topBarTickerTapeSymbols}
-                    quotesBySymbol={watchlistQuotesBySymbol}
-                    loading={watchlistQuotesLoading}
-                  />
-                </div>
-
+              <div className="relative h-full w-full flex items-center pr-28">
+                <TopBarTickerTapeWidget
+                  symbols={topBarTickerTapeSymbols}
+                  quotesBySymbol={watchlistQuotesBySymbol}
+                  loading={watchlistQuotesLoading}
+                />
               </div>
             </motion.div>
           )}
@@ -2756,6 +2753,7 @@ export default function Dashboard({
               themeClasses={themeClasses}
               alpacaData={alpacaData}
               connectedBrokers={connectedBrokers}
+              paperTotalGainLoss={shouldUsePaperTopBarMetrics ? { dollar: syncedPaperUnrealizedPnL, percent: syncedPaperTotalGainLossPercent } : null}
               onBrokerConnect={(broker) => setConnectedBrokers(prev => [...prev, broker])}
               onBrokerDisconnect={async (brokerId) => {
                 try {

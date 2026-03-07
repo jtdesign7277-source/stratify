@@ -169,7 +169,7 @@ export default function OrderTicketPanel({
 
   return (
     <div
-      className={`rounded-none border-0 border-t border-white/[0.06] ${panelSurfaceClass} ${panelPaddingClass} ${rootLayoutClass} text-white backdrop-blur-xl shadow-none ${className}`}
+      className={`rounded-none border-0 ${panelSurfaceClass} ${panelPaddingClass} ${rootLayoutClass} text-white backdrop-blur-xl shadow-none ${className}`}
     >
       <div className="mb-2.5 flex">
         <span className={`${accountBadgeColorClass} text-xs font-medium tracking-widest uppercase`}>

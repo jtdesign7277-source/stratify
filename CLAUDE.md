@@ -1,6 +1,6 @@
 # CLAUDE.md - Stratify Project Context
 
-*Last updated: 2026-02-22*
+*Last updated: 2026-03-07*
 
 ## Project Overview
 
@@ -240,6 +240,40 @@ Added connect locks: `stockConnectPromise` and `cryptoConnectPromise` — guaran
 2. Verify connect locks still exist in both `connectStockWs` and `connectCryptoWs`.
 3. Confirm all pages subscribe through `useAlpacaStream` / shared manager.
 4. Re-test Markets + Trade + Watchlist together.
+
+---
+
+## Preserved design (as-built state)
+
+**Keep this entire website behavior and layout for future work.** The following is the canonical state; do not change unless explicitly requested.
+
+### Dashboard header (one unified area)
+- **Single visual band:** Top bar is one continuous area on `bg-linear-canvas` (#111111). No separate “tab” panels — use transparent child backgrounds and only subtle dividers (`border-white/[0.06]`).
+- **Top row — World clocks (`TopMetricsBar.jsx`):** One horizontal row, full width (`justify-between`). Each market: **country flag** (emoji) + short code (NY, LON, TYO, SYD, SHA, DXB) + local time + status dot (green/blue) + Open/Closed + countdown (e.g. `1d21h`). 11px text. No per-city boxes or pills; flags and labels in `GLOBAL_MARKET_CLOCKS` (with `short`, `flag`). Tooltip = full city name + hours.
+- **Second row:** Daily P&L, Buying Power, Total gain / loss (with %) — same single-row treatment, subtle bottom border only.
+- **Third row — Live ticker (`LiveAlertsTicker.jsx`):** Scrolling headlines only. No “LATEST” label, no left badge, no left gradient overlay; content starts at left edge. Right-edge fade only. Same canvas background (transparent).
+
+### Total gain / loss — single source of truth
+- **Dashboard** computes paper total gain/loss once: `syncedPaperUnrealizedPnL`, `syncedPaperTotalGainLossPercent` from `paperPortfolioPositions` + `watchlistQuotesBySymbol`.
+- **Dashboard** passes `paperTotalGainLoss={{ dollar, percent }}` to **TradePage** and **CryptoPage** when `shouldUsePaperTopBarMetrics`. **TradePage** must forward `paperTotalGainLoss` to **TraderPage** (wrapper does not pass it through by default).
+- **Top bar** and **both order entry panels** (Trader + Crypto) display that same value. Order entry components accept optional `totalGainLossDollar` / `totalGainLossPercent`; when provided (from Dashboard), use them instead of local computation so numbers never diverge.
+
+### Order entry parity (Trader + Crypto)
+- **Same layout and copy:** Quantity, Order Type, Time in Force, Estimated Cost, Buying Power, Review button, then Available Cash + Holdings block, then **Total gain / loss** (dollar + percent) at bottom. Label: “Total gain / loss” (not “Unrealized P&L”). 13px font for values and labels.
+- **Position summary card:** When user has any position, show one card: “Position: {qty} {symbol} · Avg $X” / “Value: $Y” / “P&L: $Z (%).” Use **display position** = selected symbol’s position if it exists, else **first position** so the card is never missing when there are positions. Same card styling both tabs (soft glass, 13px). “Sell All” only when selected symbol has a position and side is Sell.
+- **Trader:** `TraderOrderEntry` in `TraderPage.jsx`, receives `paperTotalGainLoss` from Dashboard via TradePage. **Crypto:** `OrderEntry` in `CryptoPage.jsx`, same props and same position-summary + total-gain/loss logic.
+- **PAPER ACCOUNT** badge: yellow, `font-medium`, on all order entry surfaces (Trader, Crypto, AdvancedCharts, Watchlist).
+
+### Sidebar, Sophia panel, and soft glass
+- **Sidebar:** Matches watchlist panel (same glass, base `#0a0a0a`, gradient, backdrop blur, rounded-r-xl).
+- **Sophia panel:** Matches news article drawer (gradient, blur, border, shadow).
+- **Order entry panels:** Emerald “Order Entry” label; gradient + blur + shadow; AlpacaOrderTicket root soft glass, inputs inset-style.
+
+### What not to change without explicit request
+- Do not reintroduce separate header “tabs” (world clock / metrics / ticker as distinct panels with different backgrounds).
+- Do not remove or bypass `paperTotalGainLoss` flow (Dashboard → TradePage → TraderPage; Dashboard → CryptoPage).
+- Do not make Trader and Crypto order entry layouts or wording diverge.
+- Do not add a “LATEST” label or left-side badge/gradient on the ticker strip.
 
 ---
 

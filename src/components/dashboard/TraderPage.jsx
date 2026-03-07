@@ -1065,7 +1065,7 @@ function TraderOrderEntry({
   );
   const hasSelectedPosition = Number(selectedPosition?.quantity) > 0;
   const holdings = useMemo(
-    () => (Array.isArray(positions) ? positions.slice(0, 5) : []),
+    () => (Array.isArray(positions) ? positions : []),
     [positions]
   );
   const { totalHoldingsValue, holdingsPercentOfAccount } = useMemo(() => {
@@ -1452,7 +1452,7 @@ className={`py-1 text-[13px] font-semibold transition-colors ${
             Holdings {holdings.length ? `(${holdings.length})` : '(0)'}
           </div>
           {holdings.length > 0 ? (
-            <div className="space-y-1">
+            <div className="min-h-0 max-h-[200px] overflow-y-auto overflow-x-hidden space-y-1 pr-0.5">
               {holdings.map((position) => {
                 const qty = Number(position.quantity) || 0;
                 const quote = quotesBySymbolProp[position.symbol] || quotesBySymbolProp[position.symbol?.trim?.()];
@@ -1460,11 +1460,11 @@ className={`py-1 text-[13px] font-semibold transition-colors ${
                 const price = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : (Number(position.current_price) || Number(position.avg_cost_basis) || 0);
                 const currentValue = qty * price;
                 return (
-                  <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-medium text-slate-300">
+                  <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2 shrink-0">
+                    <span className="text-[13px] font-medium text-slate-300 truncate min-w-0">
                       {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
                     </span>
-                    <span className="text-[13px] font-mono font-medium text-emerald-400">
+                    <span className="text-[13px] font-mono font-medium text-emerald-400 shrink-0">
                       {formatPaperCurrency(currentValue)}
                     </span>
                   </div>
@@ -5258,7 +5258,7 @@ export default function TraderPage({
               </div>
             ) : (
               <>
-                <div className="shrink-0 border-b border-white/[0.06] px-2.5 py-1.5">
+                <div className="shrink-0 px-2.5 py-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-400">
                       Order Entry

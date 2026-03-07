@@ -217,6 +217,28 @@ const warRoomStyles = `
       box-shadow: 0 0 12px rgba(245, 158, 11, 0.22);
     }
   }
+
+  /* Visible scrollbar on dark War Room panes — natural scroll, clear thumb/track */
+  .warroom-pane-scroll {
+    -ms-overflow-style: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.25) rgba(255,255,255,0.06);
+  }
+  .warroom-pane-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .warroom-pane-scroll::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.06);
+    border-radius: 9999px;
+  }
+  .warroom-pane-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.25);
+    border-radius: 9999px;
+  }
+  .warroom-pane-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.4);
+  }
 `;
 
 const fmtB = (val) => {
@@ -295,12 +317,12 @@ const renderInlineText = (text, keyPrefix) => {
 
 const renderLine = (line, index, keyPrefix) => {
   const trimmed = line.trim();
-  if (!trimmed) return <div key={`${keyPrefix}-space-${index}`} className="h-2.5" />;
+  if (!trimmed) return <div key={`${keyPrefix}-space-${index}`} className="h-4" />;
 
   if (/^#{1,2}\s+/.test(trimmed)) {
     const heading = trimmed.replace(/^#{1,2}\s+/, '');
     return (
-      <h3 key={`${keyPrefix}-heading-${index}`} className="text-white font-bold text-xl tracking-tight leading-snug mt-4 mb-1.5">
+      <h3 key={`${keyPrefix}-heading-${index}`} className="text-white font-semibold text-[1.125rem] tracking-tight leading-snug mt-6 mb-2 first:mt-0">
         {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
       </h3>
     );
@@ -309,7 +331,7 @@ const renderLine = (line, index, keyPrefix) => {
   if (/^#{3,6}\s+/.test(trimmed)) {
     const heading = trimmed.replace(/^#{3,6}\s+/, '');
     return (
-      <h4 key={`${keyPrefix}-heading-${index}`} className="text-blue-300 font-semibold text-base leading-relaxed mt-3 mb-1">
+      <h4 key={`${keyPrefix}-heading-${index}`} className="text-white/90 font-medium text-[1rem] leading-snug mt-4 mb-1.5">
         {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
       </h4>
     );
@@ -318,8 +340,8 @@ const renderLine = (line, index, keyPrefix) => {
   if (/^[-*•]\s+/.test(trimmed)) {
     const bulletText = trimmed.replace(/^[-*•]\s+/, '');
     return (
-      <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-2.5 text-[15px] text-zinc-200 leading-7">
-        <span className="text-blue-400/70 mt-0.5">•</span>
+      <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-3 text-[15px] text-white/80 leading-[1.65] pl-0.5">
+        <span className="text-white/35 mt-[0.4em] shrink-0 select-none">•</span>
         <span>{renderInlineText(bulletText, `${keyPrefix}-bullet-text-${index}`)}</span>
       </div>
     );
@@ -327,14 +349,14 @@ const renderLine = (line, index, keyPrefix) => {
 
   if (/^\d+\.\s+/.test(trimmed)) {
     return (
-      <div key={`${keyPrefix}-numbered-${index}`} className="text-[15px] text-zinc-200 leading-7">
+      <div key={`${keyPrefix}-numbered-${index}`} className="text-[15px] text-white/80 leading-[1.65] pl-0.5">
         {renderInlineText(trimmed, `${keyPrefix}-numbered-text-${index}`)}
       </div>
     );
   }
 
   return (
-    <p key={`${keyPrefix}-line-${index}`} className="text-[15px] text-zinc-200 leading-7">
+    <p key={`${keyPrefix}-line-${index}`} className="text-[15px] text-white/80 leading-[1.7]">
       {renderInlineText(trimmed, `${keyPrefix}-line-text-${index}`)}
     </p>
   );
@@ -983,29 +1005,28 @@ export default function WarRoom({ onClose }) {
       const sectionKey = `${keyPrefix}-sec-${si}`;
       const menuOpen = sectionSaveMenu === sectionKey;
       return (
-        <div key={sectionKey}>
-          <div className="space-y-1.5">
+        <section key={sectionKey} className="warroom-intel-section">
+          <div className="space-y-3">
             {section.lines.map((line, li) => renderLine(line, li, `${sectionKey}-l`))}
           </div>
-          {/* Accent divider + save button */}
-          <div className="relative flex items-center gap-2 my-3">
-            <div className="flex-1 h-px bg-blue-500/20" />
+          <div className="relative flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-blue-500/50" />
             <div className="relative" data-section-save>
               <button
                 type="button"
                 onClick={() => setSectionSaveMenu(menuOpen ? null : sectionKey)}
-                className="text-[10px] uppercase tracking-wider text-blue-300 hover:text-blue-200 bg-blue-500/10 border border-blue-500/25 rounded px-2 py-0.5 transition-colors"
+                className="text-[11px] uppercase tracking-wider text-blue-400 hover:text-blue-300 transition-colors"
               >
-                Save to Folder
+                Save to folder
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-6 z-40 w-48 rounded-lg border border-gray-700 bg-[#0a0f14] shadow-xl p-1.5">
+                <div className="absolute right-0 top-6 z-40 w-48 rounded-lg border border-white/10 bg-[#0d0d12] shadow-xl p-1.5">
                   {folders.map(f => (
                     <button
                       key={f.id}
                       type="button"
                       onClick={() => handleSaveSection(section.raw, f.id)}
-                      className="w-full text-left rounded px-2 py-1.5 text-xs text-gray-300 hover:bg-blue-500/10 hover:text-white transition-colors"
+                      className="w-full text-left rounded px-2 py-1.5 text-xs text-white/70 hover:bg-white/5 hover:text-white transition-colors"
                     >
                       {f.name}
                     </button>
@@ -1013,9 +1034,9 @@ export default function WarRoom({ onClose }) {
                 </div>
               )}
             </div>
-            <div className="flex-1 h-px bg-blue-500/20" />
+            <div className="flex-1 h-px bg-blue-500/50" />
           </div>
-        </div>
+        </section>
       );
     });
   };
@@ -1133,7 +1154,7 @@ export default function WarRoom({ onClose }) {
     <div className={`h-full w-full min-h-0 flex flex-col bg-transparent relative ${isGlitching ? 'warroom-glitch' : ''}`}>
       <style>{warRoomStyles}</style>
 
-      <div className="relative z-10 flex-1 min-h-0 flex flex-col gap-3 px-5 py-3 overflow-y-auto overflow-x-hidden scrollbar-show">
+      <div className="relative z-10 flex-1 min-h-0 flex flex-col gap-3 px-5 py-3 overflow-y-auto overflow-x-hidden warroom-pane-scroll">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-white font-bold text-base tracking-[0.2em] uppercase truncate">Deep Market Intelligence</h1>
@@ -1164,7 +1185,7 @@ export default function WarRoom({ onClose }) {
         </header>
 
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-3 overflow-hidden">
-          <aside className="min-h-0 overflow-y-auto overflow-x-hidden scrollbar-show rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-2.5">
+          <aside className="min-h-0 overflow-y-auto overflow-x-hidden warroom-pane-scroll rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-2.5">
             <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">War Room Tabs</p>
             <div className="mt-2 space-y-1.5">
               {[
@@ -1235,7 +1256,7 @@ export default function WarRoom({ onClose }) {
             </div>
           </aside>
 
-          <div className="min-h-0 overflow-y-auto overflow-x-hidden scrollbar-show rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
+          <div className="min-h-0 overflow-y-auto overflow-x-hidden warroom-pane-scroll rounded-xl border border-[#1f1f1f] bg-[#090909]/80 p-3">
           {activeView === 'transcripts' ? (
             <div className="h-full flex flex-col gap-2">
               {/* Search bar + ticker buttons */}
@@ -1856,7 +1877,7 @@ export default function WarRoom({ onClose }) {
               </div>
             </div>
           ) : (
-            <div ref={liveFeedScrollRef} className="h-full overflow-y-auto scrollbar-show space-y-4 pr-1">
+            <div ref={liveFeedScrollRef} className="h-full overflow-y-auto warroom-pane-scroll space-y-4 pr-1">
               {error ? (
                 <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
               ) : null}
@@ -1894,20 +1915,27 @@ export default function WarRoom({ onClose }) {
                 return (
                   <article
                     key={card.id}
-                    className="relative bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 hover:border-[#58a6ff]/30 hover:shadow-[0_0_20px_rgba(88,166,255,0.1)] transition-all"
+                    className="relative rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#0d0d12]/90 backdrop-blur-sm p-6 pl-6 hover:border-[#58a6ff]/20 hover:shadow-[0_0_24px_rgba(88,166,255,0.06)] transition-all"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-white font-semibold text-lg">{card.title}</h3>
-                        <p className="text-gray-600 text-sm mt-1">{formatTimestamp(card.createdAt)}</p>
+                    {/* Notion-style doc header: title + single meta line */}
+                    <header className="mb-5 pb-4 border-b border-white/[0.06]">
+                      <div className="flex items-start justify-between gap-4 pr-8">
+                        <div className="min-w-0">
+                          <h2 className="text-white font-semibold text-[1.25rem] tracking-tight leading-tight">
+                            {card.title}
+                          </h2>
+                          <p className="mt-1.5 text-[13px] text-white/50">
+                            {formatTimestamp(card.createdAt)}
+                            <span className="mx-1.5">·</span>
+                            <span className="text-white/40">
+                              {String(card.sourceLabel || '').toLowerCase().includes('cache') ? 'Claude Intel' : (card.sourceLabel || 'Claude Intel')}
+                            </span>
+                          </p>
+                        </div>
                       </div>
+                    </header>
 
-                      <span className="text-blue-400 text-sm bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-0.5">
-                        {String(card.sourceLabel || '').toLowerCase().includes('cache') ? 'Claude Intel' : (card.sourceLabel || 'Claude Intel')}
-                      </span>
-                    </div>
-
-                    <div className="absolute top-4 right-4">
+                    <div className="absolute top-5 right-5">
                       <button
                         type="button"
                         data-save-trigger
@@ -1985,22 +2013,22 @@ export default function WarRoom({ onClose }) {
                       ) : null}
                     </div>
 
-                    <div className="mt-3 space-y-1">{renderIntelBodyWithSave(card.content, `feed-${card.id}`)}</div>
+                    <div className="warroom-intel-prose mt-0 space-y-0">{renderIntelBodyWithSave(card.content, `feed-${card.id}`)}</div>
 
                     {sources.length > 0 ? (
-                      <div className="mt-4 pt-3 border-t border-gray-800/70">
-                        <div className="flex items-center gap-1.5 text-blue-400/60 text-xs mb-2">
-                          <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      <div className="mt-6 pt-4 border-t border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-white/40 text-[11px] uppercase tracking-wider mb-2">
+                          <Link2 className="h-3 w-3" strokeWidth={1.5} />
                           <span>Sources</span>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
                           {sources.map((source, index) => (
                             <a
                               key={`${card.id}-source-${index}`}
                               href={source.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-blue-400/60 text-sm hover:text-blue-300 underline decoration-blue-400/30"
+                              className="text-[13px] text-blue-400/70 hover:text-blue-300 underline underline-offset-2 decoration-blue-400/20"
                             >
                               {source.title || `Source ${index + 1}`}
                             </a>
@@ -2009,7 +2037,7 @@ export default function WarRoom({ onClose }) {
                       </div>
                     ) : null}
 
-                    <div className="mt-4 pt-3 border-t border-gray-800/70 flex items-center gap-2">
+                    <div className="mt-5 pt-4 border-t border-white/[0.06] flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => handleSaveToFolder(card, quickSaveFolderId)}
