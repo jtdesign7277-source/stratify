@@ -202,22 +202,18 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y pt-2" style={{ flex: '1 1 0%', minHeight: 0, touchAction: 'pan-y' }}>
         {showIdle ? (
           <div className="w-full h-full min-h-0 flex flex-col">
-            <div className="flex-1 min-h-0 w-full relative overflow-hidden">
+            <div className="flex-1 min-h-0 w-full h-full relative overflow-hidden">
               <AnimatePresence mode="wait">
                 {idleLogoIndex === 0 ? (
                   <motion.div
                     key="draftkings"
                     className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1a1a1a]"
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    variants={{
-                      hidden: { opacity: 0, scale: 0.75 },
-                      visible: { opacity: 1, scale: 1, transition: { duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] } },
-                      exit: { opacity: 0, scale: 1.08, transition: { duration: 0.7, ease: 'easeIn' } },
-                    }}
+                    initial={{ opacity: 0, scale: 0.75 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.08, transition: { duration: 0.7, ease: 'easeIn' } }}
+                    transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
-                    <div className="flex flex-col items-center justify-center">
+                    <div className="w-full h-full flex flex-col items-center justify-center">
                       <span className="text-5xl mb-2" aria-hidden>👑</span>
                       <div className="flex items-baseline gap-0.5">
                         <span className="text-5xl font-black text-white tracking-wider">DRAFT</span>
@@ -229,16 +225,12 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                   <motion.div
                     key="fanduel"
                     className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1a78c2]"
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    variants={{
-                      hidden: { opacity: 0, scale: 0.75 },
-                      visible: { opacity: 1, scale: 1, transition: { duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] } },
-                      exit: { opacity: 0, scale: 1.08, transition: { duration: 0.7, ease: 'easeIn' } },
-                    }}
+                    initial={{ opacity: 0, scale: 0.75 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.08, transition: { duration: 0.7, ease: 'easeIn' } }}
+                    transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
-                    <div className="flex flex-row items-center justify-center">
+                    <div className="w-full h-full flex flex-row items-center justify-center">
                       <Shield className="w-16 h-16 text-white mr-4 shrink-0" strokeWidth={2} />
                       <span className="text-5xl font-bold text-white tracking-wide">FanDuel</span>
                     </div>
