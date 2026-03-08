@@ -5286,6 +5286,7 @@ export default function TraderPage({
                             const score = article.sentiment ?? article.sentiment_score ?? null;
                             const timeAgo = newsTimeAgo(article.publishedAt ?? article.published_at);
                             const sourceLabel = newsSourceLabel(article.source);
+                            const thumbUrl = article.image || article.imageUrl || article.image_url || null;
                             return (
                               <button
                                 key={article.uuid || article.url || article.title}
@@ -5298,12 +5299,15 @@ export default function TraderPage({
                                 }}
                                 className="w-full text-left group flex gap-3 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer"
                               >
-                                <div
-                                  className="flex-shrink-0 w-1 rounded-full self-stretch mt-0.5"
-                                  style={{
-                                    backgroundColor: score >= 0.2 ? 'rgba(52, 211, 153, 0.5)' : score <= -0.2 ? 'rgba(248, 113, 113, 0.5)' : 'rgba(107, 114, 128, 0.25)',
-                                  }}
-                                />
+                                {thumbUrl ? (
+                                  <img
+                                    src={thumbUrl}
+                                    alt=""
+                                    className="w-14 h-14 rounded-lg object-cover flex-shrink-0 bg-white/5"
+                                    loading="lazy"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                ) : null}
                                 <div className="flex-1 min-w-0">
                                   <h4 className="text-sm font-medium text-white leading-snug group-hover:text-white break-words line-clamp-2">
                                     {article.title}

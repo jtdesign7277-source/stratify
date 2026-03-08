@@ -1722,14 +1722,14 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, [saveTweetDraft]);
 
   return (
-    <div className="relative min-h-full w-full overflow-y-auto" style={{ backgroundColor: T.bg, color: T.text }}>
+    <div className="relative h-full w-full overflow-hidden flex flex-col" style={{ backgroundColor: T.bg, color: T.text }}>
       <style>{COMMUNITY_PAGE_STYLES}</style>
 
       <div className="pointer-events-none absolute inset-0" style={{
         backgroundImage: 'radial-gradient(circle at 8% 2%, rgba(88,166,255,0.16), transparent 38%), radial-gradient(circle at 92% 96%, rgba(63,185,80,0.14), transparent 42%), radial-gradient(circle at 44% 46%, rgba(248,81,73,0.08), transparent 52%)',
       }} />
 
-      <motion.div className="relative z-10 h-full flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <motion.div className="relative z-10 flex-1 min-h-0 flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         {error ? (
           <div className="px-4 pt-2">
             <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'rgba(248,81,73,0.35)', color: T.red, backgroundColor: 'rgba(248,81,73,0.08)' }}>
@@ -1886,6 +1886,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     </div>
                     )}
 
+                    <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     {selectedTicker ? (
                       <StockDetailView
                         ticker={selectedTicker}
@@ -2132,8 +2133,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                       </div>
                     </div>
                     )}
+                    </div>
 
-                    <div className="px-3 pb-3 pt-2">
+                    <div className="shrink-0 px-3 pb-3 pt-2">
                       <ChatInputBar
                         currentUser={currentUser}
                         currentUserAvatarUrl={activeAvatarUrl}

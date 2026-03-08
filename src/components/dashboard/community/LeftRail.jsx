@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Home, Compass, BarChart3, Hash, Settings,
-  PanelLeftClose, PanelRightClose, ChevronRight, Bell, BellOff, Trash2, Pencil, Check, X, Plus,
+  Compass, BarChart3, Hash, Settings,
+  PanelLeftClose, PanelRightClose, ChevronRight, Trash2, Pencil, Check, X, Plus,
 } from 'lucide-react';
 import { T, ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS } from './communityConstants';
 import { UserAvatar } from './CommunityShared';
-import { buildCurrentUserAvatarUrl, toMaybeFiniteNumber } from './communityHelpers';
+import { buildCurrentUserAvatarUrl } from './communityHelpers';
 
 const EXPLORE_TABS = [
   { id: 'discover', label: 'Discover', icon: Compass },
@@ -20,10 +20,6 @@ const LeftRail = ({
   // feed filter
   filter,
   onFilter,
-  // price alerts
-  priceAlerts = [],
-  onTogglePriceAlert,
-  onDeletePriceAlert,
   // user / profile
   currentUser,
   avatarUrl,
@@ -48,7 +44,6 @@ const LeftRail = ({
   activeExploreTab,
   onExploreTabChange,
 }) => {
-  const [priceAlertsOpen, setPriceAlertsOpen] = useState(false);
   const [tweetsOpen, setTweetsOpen] = useState(true);
   const [draggedTweetRef, setDraggedTweetRef] = useState(null);
   const [tweetDropTargetFolderId, setTweetDropTargetFolderId] = useState('');
@@ -60,7 +55,6 @@ const LeftRail = ({
     ? { ...currentUser, display_name: profileName, avatar_url: profileAvatarUrl }
     : { id: 'guest-user', display_name: profileName, avatar_url: profileAvatarUrl };
 
-  const activeAlerts = (Array.isArray(priceAlerts) ? priceAlerts : []).filter((a) => a?.active && !a?.triggered);
   const feedChannels = ALL_FEED_HASHTAGS.filter((feed) => (Array.isArray(enabledFeeds) ? enabledFeeds : []).includes(feed.id));
   const folders = Array.isArray(tweetFolders) ? tweetFolders : [];
   const activeTweetFolder = folders.find((folder) => folder.id === activeTweetFolderId) || folders[0] || null;
@@ -143,16 +137,6 @@ const LeftRail = ({
           title="Expand sidebar"
         >
           <PanelRightClose size={15} strokeWidth={1.5} />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onFilter?.(null)}
-          className="h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-white/8 transition-colors"
-          style={{ color: !filter && !activeExploreTab ? T.blue : T.muted }}
-          title="Home feed"
-        >
-          <Home size={15} strokeWidth={1.5} />
         </button>
 
         {EXPLORE_TABS.map((tab) => {
@@ -255,20 +239,6 @@ const LeftRail = ({
             </div>
           </div>
         )}
-
-        {/* ── Home ── */}
-        <button
-          type="button"
-          onClick={() => { onExploreTabChange?.(null); onFilter?.(null); }}
-          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors"
-          style={{
-            color: !filter && !activeExploreTab ? T.blue : T.text,
-            backgroundColor: !filter && !activeExploreTab ? 'rgba(88,166,255,0.1)' : 'transparent',
-          }}
-        >
-          <Home size={20} strokeWidth={1.5} />
-          <span>Home Feed</span>
-        </button>
 
         {/* ── Explore Tabs ── */}
         {EXPLORE_TABS.map((tab) => {
@@ -475,96 +445,6 @@ const LeftRail = ({
           </AnimatePresence>
         </div>
 
-        {/* ── Price Alerts ── */}
-        <div className="pt-2 pb-1">
-          <button
-            type="button"
-            onClick={() => setPriceAlertsOpen((o) => !o)}
-            className="w-full flex items-center gap-1.5 px-2 mb-1.5 hover:bg-white/5 rounded-lg py-1 transition-colors"
-            title="Toggle price alerts"
-          >
-            <ChevronRight
-              size={12}
-              strokeWidth={1.7}
-              className={`transition-transform ${priceAlertsOpen ? 'rotate-90' : ''}`}
-              style={{ color: T.muted }}
-            />
-            <span className="text-base font-bold uppercase tracking-[0.1em]" style={{ color: T.text }}>Price Alerts</span>
-            <span
-              className="ml-auto text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
-              style={{
-                backgroundColor: activeAlerts.length > 0 ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.06)',
-                color: activeAlerts.length > 0 ? T.blue : T.muted,
-              }}
-            >
-              {Array.isArray(priceAlerts) ? priceAlerts.length : 0}
-            </span>
-          </button>
-
-          <AnimatePresence initial={false}>
-            {priceAlertsOpen ? (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.18 }}
-                className="overflow-hidden"
-              >
-                <div className="pl-2 pr-1 pb-1 space-y-1">
-                  {(Array.isArray(priceAlerts) ? priceAlerts : []).length === 0 ? (
-                    <div className="rounded-lg px-2 py-1.5 text-[11px]" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                      No price alerts yet.
-                    </div>
-                  ) : (
-                    (Array.isArray(priceAlerts) ? priceAlerts : []).map((alert) => {
-                      const isActive = alert?.active && !alert?.triggered;
-                      const isTriggered = Boolean(alert?.triggered);
-                      return (
-                        <div
-                          key={alert.id}
-                          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px]"
-                          style={{
-                            backgroundColor: 'rgba(255,255,255,0.03)',
-                            borderLeft: `2px solid ${isTriggered ? T.green : isActive ? T.blue : 'rgba(255,255,255,0.1)'}`,
-                          }}
-                        >
-                          <span className="font-medium truncate" style={{ color: T.text }}>{alert.ticker}</span>
-                          <span style={{ color: T.muted }}>{alert.direction === 'below' ? '↓' : '↑'}</span>
-                          <span className="font-mono tabular-nums" style={{ color: T.text }}>
-                            ${toMaybeFiniteNumber(alert.targetPrice) != null ? Number(alert.targetPrice).toFixed(2) : '--'}
-                          </span>
-                          {isTriggered && <span className="text-[#3fb950] text-[9px] font-bold ml-auto">HIT</span>}
-                          <div className="ml-auto flex items-center gap-1">
-                            <motion.button
-                              type="button"
-                              onClick={() => onTogglePriceAlert?.(alert.id)}
-                              className="opacity-60 hover:opacity-100 transition-opacity origin-center"
-                              style={{ color: isActive ? T.blue : T.muted }}
-                              title={isActive ? 'Disable alert' : 'Enable alert'}
-                              whileHover={{ scale: 2, rotate: [0, -10, 10, -8, 8, -4, 4, 0] }}
-                              transition={{ duration: 0.45, ease: 'easeInOut' }}
-                            >
-                              {isActive ? <Bell size={10} strokeWidth={1.5} /> : <BellOff size={10} strokeWidth={1.5} />}
-                            </motion.button>
-                            <button
-                              type="button"
-                              onClick={() => onDeletePriceAlert?.(alert.id)}
-                              className="opacity-60 hover:opacity-100 transition-opacity"
-                              style={{ color: T.red }}
-                              title="Delete alert"
-                            >
-                              <Trash2 size={10} strokeWidth={1.5} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
       </div>
 
     </motion.aside>
