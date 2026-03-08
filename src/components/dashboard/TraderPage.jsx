@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import { BarChart2, Bell, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { Activity, BarChart2, Bell, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -1710,6 +1710,7 @@ export default function TraderPage({
   const [isNewsOpen, setIsNewsOpen] = useState(true);
   const [newsArticleExpanded, setNewsArticleExpanded] = useState(false);
   const [drawerArticle, setDrawerArticle] = useState(null);
+  const [rightPanelTab, setRightPanelTab] = useState('article');
   const [isArticleOpen, setIsArticleOpen] = useState(false);
   const [selectedGames, setSelectedGames] = useState([]);
   const [isArticleDrawerExtendedToChartTop, setIsArticleDrawerExtendedToChartTop] = useState(false);
@@ -5324,6 +5325,7 @@ export default function TraderPage({
                                 type="button"
                                 onClick={() => {
                                   setDrawerArticle(article);
+                                  setRightPanelTab('article');
                                   setNewsArticleExpanded(true);
                                   setIsArticleOpen(true);
                                 }}
@@ -5406,6 +5408,34 @@ export default function TraderPage({
                       style={{ position: "absolute", top: drawerTopOffset, right: 0, bottom: 0, left: 0, display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
                     >
                       <div style={{ display: "flex", flexDirection: "column", flex: "1 1 0%", minHeight: 0, overflow: "hidden" }}>
+                        <div className="border-b border-white/[0.06] flex gap-1 px-3 pt-2 pb-0">
+                          <button
+                            type="button"
+                            onClick={() => setRightPanelTab('article')}
+                            className={`relative text-xs font-medium px-3 py-1.5 cursor-pointer ${rightPanelTab === 'article' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                            aria-label="Article"
+                          >
+                            <Newspaper className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" strokeWidth={1.5} />
+                            <span>Article</span>
+                            {rightPanelTab === 'article' && (
+                              <motion.div layoutId="article-tab-indicator" className="absolute bottom-0 left-0 right-0 border-b-2 border-emerald-400" style={{ marginBottom: -1 }} />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRightPanelTab('liveLines')}
+                            className={`relative text-xs font-medium px-3 py-1.5 cursor-pointer ${rightPanelTab === 'liveLines' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                            aria-label="Live Lines"
+                          >
+                            <Activity className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" strokeWidth={1.5} />
+                            <span>Live Lines</span>
+                            {rightPanelTab === 'liveLines' && (
+                              <motion.div layoutId="article-tab-indicator" className="absolute bottom-0 left-0 right-0 border-b-2 border-emerald-400" style={{ marginBottom: -1 }} />
+                            )}
+                          </button>
+                        </div>
+                        {rightPanelTab === 'article' ? (
+                        <>
                         <div className="flex shrink-0 items-center justify-between gap-2 p-3 border-b border-white/[0.06]">
                           <div className="flex items-center gap-1">
                             <button
@@ -5538,6 +5568,12 @@ export default function TraderPage({
                           )}
 
                         </div>
+                        </>
+                        ) : (
+                          <div style={{ flex: "1 1 0%", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                            <LiveOddsPanel selectedGames={selectedGames} isArticleOpen={isArticleOpen} />
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                     );
