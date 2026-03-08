@@ -5,7 +5,7 @@
  * Persists to localStorage keyed by ticker.
  */
 
-const STORAGE_KEY_PREFIX = 'stratify-price-alerts-';
+export const STORAGE_KEY_PREFIX = 'stratify-price-alerts-';
 const EMERALD = 'rgba(16, 185, 129, 0.9)';
 const RED = 'rgba(248, 113, 113, 0.9)';
 const LABEL_FONT = '11px sans-serif';
@@ -34,6 +34,7 @@ export class PriceAlertsPlugin {
             const now = Date.now();
             const toRemove = [];
             self._alerts.forEach((a) => {
+              if (a.enabled === false) return;
               const expiresAt = a.expiresAt ?? now + 86400000;
               if (now >= expiresAt) {
                 toRemove.push(a);
@@ -71,7 +72,12 @@ export class PriceAlertsPlugin {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_PREFIX + this._symbol);
       const arr = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(arr)) this._alerts = arr.filter((a) => a && Number.isFinite(a.price) && (a.expiresAt == null || a.expiresAt > Date.now()));
+      if (Array.isArray(arr)) {
+        this._alerts = arr.filter((a) => a && Number.isFinite(a.price) && (a.expiresAt == null || a.expiresAt > Date.now())).map((a) => ({
+          ...a,
+          enabled: a.enabled !== false,
+        }));
+      }
     } catch {}
   }
 
@@ -93,6 +99,7 @@ export class PriceAlertsPlugin {
     this._currentPrice = price;
     const toTrigger = [];
     this._alerts.forEach((a) => {
+      if (a.enabled === false) return;
       const crossed = a.direction === 'above' ? price >= a.price : price <= a.price;
       if (crossed) toTrigger.push(a);
     });
@@ -113,9 +120,43 @@ export class PriceAlertsPlugin {
     } else {
       expiresAt = Date.now() + (hoursOrEod || 24) * 3600000;
     }
-    this._alerts.push({ price, direction: direction || 'above', expiresAt });
+    this._alerts.push({ price, direction: direction || 'above', expiresAt, enabled: true });
     this._save();
     this._requestUpdate?.();
+  }
+
+  getAlerts() {
+    return this._alerts.map((a) => ({ ...a }));
+  }
+
+  loadFromStorage() {
+    this._load();
+    this._requestUpdate?.();
+  }
+
+  setSymbol(symbol) {
+    const next = symbol || '';
+    if (this._symbol === next) return;
+    this._symbol = next;
+    this._load();
+    this._requestUpdate?.();
+  }
+
+  removeAlert(price, direction) {
+    const idx = this._alerts.findIndex((a) => Number(a.price) === Number(price) && (a.direction || 'above') === (direction || 'above'));
+    if (idx === -1) return;
+    this._alerts.splice(idx, 1);
+    this._save();
+    this._requestUpdate?.();
+  }
+
+  setAlertEnabled(price, direction, enabled) {
+    const a = this._alerts.find((x) => Number(x.price) === Number(price) && (x.direction || 'above') === (direction || 'above'));
+    if (a) {
+      a.enabled = !!enabled;
+      this._save();
+      this._requestUpdate?.();
+    }
   }
 
   getAlertCount() {

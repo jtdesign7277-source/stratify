@@ -46,17 +46,17 @@ const TickerPill = ({ symbol, onRemove, quote = null, loading = false }) => {
       className="h-7 px-1.5 flex items-center gap-1.5 group cursor-default rounded-lg"
     >
       <span
-        className="ticker-symbol text-[13px] font-semibold text-white leading-none"
+        className="ticker-symbol text-sm font-semibold text-white leading-none"
         style={{ fontVariationSettings: '"wght" 500', transition: 'font-variation-settings 200ms ease' }}
       >
         ${symbol}
       </span>
       {showLoading ? (
-        <span className="text-[12px] text-gray-400 leading-none">...</span>
+        <span className="text-sm text-gray-400 leading-none">...</span>
       ) : (
         <div className="flex items-center gap-1">
-          <span className="text-[12px] font-mono text-white leading-none">{price === null ? '--' : `$${price.toFixed(2)}`}</span>
-          <span className={`text-[11px] font-mono ${colorClass} flex items-center leading-none`}>
+          <span className="text-sm font-mono text-white leading-none">{price === null ? '--' : `$${price.toFixed(2)}`}</span>
+          <span className={`text-sm font-mono ${colorClass} flex items-center leading-none`}>
             {hasTrend ? (
               isPositive ? <TrendingUp className="w-3 h-3 mr-0.5 flex-shrink-0" /> : <TrendingDown className="w-3 h-3 mr-0.5 flex-shrink-0" />
             ) : null}

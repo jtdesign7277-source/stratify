@@ -1,34 +1,106 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 const ODDS_API = '/api/odds/events';
 const BOOK_KEYS = ['fanduel', 'draftkings', 'betmgm', 'betonline_ag'];
-const BOOK_LABELS = { fanduel: 'FanDuel', draftkings: 'DraftKings', betmgm: 'BetMGM', betonline_ag: 'BetOnline' };
-const IDLE_TIMEOUT_MS = 60000;
-const LOGO_HOLD_MS = 2800;
+const DRAFTKINGS_URL = 'https://draftkings.com';
 const LIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
+const NBA_LOGO_BASE = 'https://cdn.nba.com/logos/nba';
+
+const NBA_TEAM_IDS = {
+  'Atlanta Hawks': 1610612737,
+  'Boston Celtics': 1610612738,
+  'Brooklyn Nets': 1610612751,
+  'Charlotte Hornets': 1610612766,
+  'Chicago Bulls': 1610612741,
+  'Cleveland Cavaliers': 1610612739,
+  'Dallas Mavericks': 1610612742,
+  'Denver Nuggets': 1610612743,
+  'Detroit Pistons': 1610612765,
+  'Golden State Warriors': 1610612744,
+  'Houston Rockets': 1610612745,
+  'Indiana Pacers': 1610612754,
+  'Los Angeles Clippers': 1610612746,
+  'Los Angeles Lakers': 1610612747,
+  'Memphis Grizzlies': 1610612763,
+  'Miami Heat': 1610612748,
+  'Milwaukee Bucks': 1610612749,
+  'Minnesota Timberwolves': 1610612750,
+  'New Orleans Pelicans': 1610612740,
+  'New York Knicks': 1610612752,
+  'Oklahoma City Thunder': 1610612760,
+  'Orlando Magic': 1610612753,
+  'Philadelphia 76ers': 1610612755,
+  'Phoenix Suns': 1610612756,
+  'Portland Trail Blazers': 1610612757,
+  'Sacramento Kings': 1610612758,
+  'San Antonio Spurs': 1610612759,
+  'Toronto Raptors': 1610612761,
+  'Utah Jazz': 1610612762,
+  'Washington Wizards': 1610612764,
+};
+
+const NHL_LOGO_ABBREV = {
+  'Anaheim Ducks': 'ANA',
+  'Arizona Coyotes': 'ARI',
+  'Boston Bruins': 'BOS',
+  'Buffalo Sabres': 'BUF',
+  'Calgary Flames': 'CGY',
+  'Carolina Hurricanes': 'CAR',
+  'Chicago Blackhawks': 'CHI',
+  'Colorado Avalanche': 'COL',
+  'Columbus Blue Jackets': 'CBJ',
+  'Dallas Stars': 'DAL',
+  'Detroit Red Wings': 'DET',
+  'Edmonton Oilers': 'EDM',
+  'Florida Panthers': 'FLA',
+  'Los Angeles Kings': 'LAK',
+  'Minnesota Wild': 'MIN',
+  'Montreal Canadiens': 'MTL',
+  'Nashville Predators': 'NSH',
+  'New Jersey Devils': 'NJD',
+  'New York Islanders': 'NYI',
+  'New York Rangers': 'NYR',
+  'Ottawa Senators': 'OTT',
+  'Philadelphia Flyers': 'PHI',
+  'Pittsburgh Penguins': 'PIT',
+  'San Jose Sharks': 'SJS',
+  'Seattle Kraken': 'SEA',
+  'St. Louis Blues': 'STL',
+  'Tampa Bay Lightning': 'TBL',
+  'Toronto Maple Leafs': 'TOR',
+  'Utah Hockey Club': 'UTA',
+  'Vancouver Canucks': 'VAN',
+  'Vegas Golden Knights': 'VGK',
+  'Washington Capitals': 'WSH',
+  'Winnipeg Jets': 'WPG',
+};
 
 function formatTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return '';
   try {
     const d = new Date(iso);
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   } catch {
-    return iso;
+    return '';
   }
 }
 
 function formatAmerican(price) {
-  if (price == null || price === '') return '—';
+  if (price == null || price === '') return '';
   const n = Number(price);
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '';
   return n > 0 ? `+${n}` : String(n);
 }
 
-function getMoneylineOutcomes(book) {
-  const market = (book.markets || []).find((m) => m.key === 'h2h');
+function getMarket(book, key) {
+  const market = (book.markets || []).find((m) => m.key === key);
   return market?.outcomes || [];
+}
+
+function getMoneylineOutcomes(book) {
+  return getMarket(book, 'h2h');
 }
 
 function isToday(iso) {
@@ -45,27 +117,80 @@ function isGameLive(commenceTime) {
   return commence <= now && now - commence <= LIVE_WINDOW_MS;
 }
 
-export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = false }) {
+function teamAbbrev(name) {
+  if (!name || typeof name !== 'string') return '???';
+  const words = name.trim().split(/\s+/);
+  if (words.length >= 2) return words.map((w) => w[0]).join('').slice(0, 3).toUpperCase();
+  return name.slice(0, 3).toUpperCase();
+}
+
+function TeamLogo({ teamName, league = 'nba' }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const isNHL = league === 'nhl';
+  const logoUrl = isNHL
+    ? (() => {
+        const abbrev = NHL_LOGO_ABBREV[teamName];
+        return abbrev ? `https://assets.nhle.com/logos/nhl/svg/${abbrev}_light.svg` : null;
+      })()
+    : (() => {
+        const teamId = NBA_TEAM_IDS[teamName];
+        return teamId ? `${NBA_LOGO_BASE}/${teamId}/primary/L/logo.svg` : null;
+      })();
+
+  if (logoUrl && !logoFailed) {
+    return (
+      <img
+        src={logoUrl}
+        alt=""
+        className="w-7 h-7 object-contain mr-2 flex-shrink-0"
+        onError={() => setLogoFailed(true)}
+      />
+    );
+  }
+  const fallbackAbbrev = isNHL && NHL_LOGO_ABBREV[teamName] ? NHL_LOGO_ABBREV[teamName] : teamAbbrev(teamName);
+  return (
+    <div className="w-7 h-7 rounded-full bg-[#1a1a1a] border border-white/[0.06] flex items-center justify-center text-xs font-bold text-white mr-2 flex-shrink-0">
+      {fallbackAbbrev}
+    </div>
+  );
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.04 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, x: -8 },
+  show: {
+    opacity: 1,
+    x: 0,
+    transition: { type: 'spring', stiffness: 400, damping: 30 },
+  },
+};
+
+export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = false, onLiveLinesExpand, onLiveLinesCollapse, isBottomPanelExpanded }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [expandedId, setExpandedId] = useState(null);
-  const [isActive, setIsActive] = useState(false);
-  const [idleLogoIndex, setIdleLogoIndex] = useState(0);
-  const idleTimeoutRef = useRef(null);
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [activeLeague, setActiveLeague] = useState('nba');
 
-  const hasLiveGame = useMemo(
-    () => events.some((e) => isGameLive(e.commence_time)),
-    [events]
-  );
+  const hasLiveGame = events.some((e) => isGameLive(e.commence_time));
+  const sportParam = activeLeague === 'nhl' ? 'icehockey_nhl' : 'basketball_nba';
 
-  const showIdle = !loading && !error && !hasLiveGame && !isActive;
+  useEffect(() => {
+    if (isBottomPanelExpanded) setIsExpanded(true);
+  }, [isBottomPanelExpanded]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError('');
-    fetch(`${ODDS_API}?sport=basketball_nba&regions=us&oddsFormat=american`)
+    fetch(`${ODDS_API}?sport=${sportParam}&regions=us&oddsFormat=american&markets=h2h`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
@@ -88,255 +213,174 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [activeLeague]);
 
-  useEffect(() => {
-    if (!showIdle) return;
-    const t = setInterval(() => setIdleLogoIndex((i) => (i === 0 ? 1 : 0)), LOGO_HOLD_MS);
-    return () => clearInterval(t);
-  }, [showIdle]);
-
-  const clearIdleTimeout = () => {
-    if (idleTimeoutRef.current) {
-      clearTimeout(idleTimeoutRef.current);
-      idleTimeoutRef.current = null;
-    }
-  };
-
-  const scheduleIdleReturn = () => {
-    clearIdleTimeout();
-    if (hasLiveGame) return;
-    idleTimeoutRef.current = setTimeout(() => setIsActive(false), IDLE_TIMEOUT_MS);
-  };
-
-  const handlePanelInteraction = () => {
-    setIsActive(true);
-    scheduleIdleReturn();
-  };
-
-  useEffect(() => () => clearIdleTimeout(), []);
-
-  const toggleExpanded = (id) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-  };
-
-  const renderOddsContent = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center py-8 gap-2">
-          <span className="text-[11px] text-gray-600">Loading…</span>
-        </div>
-      );
-    }
-    if (error) {
-      return (
-        <div className="flex flex-col items-center justify-center py-8 gap-2">
-          <span className="text-[11px] text-red-400/70">{error}</span>
-        </div>
-      );
-    }
-    if (events.length === 0) {
-      return (
-        <div className="flex items-center justify-center py-8">
-          <span className="text-[11px] text-gray-600">No games today</span>
-        </div>
-      );
-    }
-    return (
-      <div className="divide-y divide-white/[0.03]">
-        <AnimatePresence initial={false}>
-          {events.map((event, index) => {
-            const id = event.id;
-            const isExpanded = expandedId === id;
-            const books = (event.bookmakers || []).filter((b) => BOOK_KEYS.includes(b.key));
-            const homeTeam = event.home_team || 'Home';
-            const awayTeam = event.away_team || 'Away';
-            const time = formatTime(event.commence_time);
-            const outcomesByBook = books.map((book) => {
-              const outcomes = getMoneylineOutcomes(book);
-              return { book, outcomes };
-            });
-            return (
-              <GameRow
-                key={id}
-                index={index}
-                awayTeam={awayTeam}
-                homeTeam={homeTeam}
-                time={time}
-                isExpanded={isExpanded}
-                onToggle={() => toggleExpanded(id)}
-                outcomesByBook={outcomesByBook}
-                BOOK_LABELS={BOOK_LABELS}
-                formatAmerican={formatAmerican}
-                muted={showIdle}
-              />
-            );
-          })}
-        </AnimatePresence>
-      </div>
-    );
+  const openDraftKings = () => {
+    window.open(DRAFTKINGS_URL, '_blank');
   };
 
   return (
     <div
       className="flex flex-col h-full min-h-0 overflow-hidden"
-      style={{ width: '100%' }}
-      onClick={handlePanelInteraction}
-      onMouseEnter={handlePanelInteraction}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePanelInteraction(); }}
+      style={{
+        width: '100%',
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
     >
-      <div className="flex h-10 shrink-0 items-center justify-between overflow-hidden px-3 border-b border-white/[0.06] relative z-[150]">
-        <span className="text-[11px] text-gray-500">Today&apos;s NBA Lines</span>
-        {hasLiveGame && (
-          <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            </span>
-            LIVE
-          </span>
-        )}
+      {/* Tab bar: Live Lines first, then NBA | NHL — match news panel look */}
+      <div className="flex flex-row gap-1 px-3 pt-3 pb-0 border-b border-white/[0.06] shrink-0">
+        <button
+          type="button"
+          onClick={() => {
+            if (isBottomPanelExpanded) {
+              onLiveLinesCollapse?.();
+            } else {
+              setIsExpanded(true);
+              onLiveLinesExpand?.();
+            }
+          }}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${isExpanded ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          aria-label="Live Lines"
+        >
+          <Activity className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" strokeWidth={1.5} />
+          <span>Live Lines</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveLeague('nba')}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nba' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          aria-label="NBA"
+        >
+          <span className="inline-block mr-1.5">🏀</span>
+          <span>NBA</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveLeague('nhl')}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nhl' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          aria-label="NHL"
+        >
+          <span className="inline-block mr-1.5">🏒</span>
+          <span>NHL</span>
+        </button>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y pt-2" style={{ flex: '1 1 0%', minHeight: 0, touchAction: 'pan-y' }}>
-        {showIdle ? (
-          <div className="w-full h-full min-h-0 flex flex-col">
-            <div className="flex-1 min-h-0 w-full h-full relative overflow-hidden">
-              <AnimatePresence mode="wait">
-                {idleLogoIndex === 0 ? (
-                  <motion.div
-                    key="draftkings"
-                    className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1a1a1a]"
-                    initial={{ opacity: 0, scale: 0.75 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.08, transition: { duration: 0.7, ease: 'easeIn' } }}
-                    transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <div className="w-full h-full flex flex-col items-center justify-center">
-                      <span className="text-5xl mb-2" aria-hidden>👑</span>
-                      <div className="flex items-baseline gap-0.5">
-                        <span className="text-5xl font-black text-white tracking-wider">DRAFT</span>
-                        <span className="text-5xl font-black text-[#4caf50] tracking-wider">KINGS</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="fanduel"
-                    className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1a78c2]"
-                    initial={{ opacity: 0, scale: 0.75 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.08, transition: { duration: 0.7, ease: 'easeIn' } }}
-                    transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <div className="w-full h-full flex flex-row items-center justify-center">
-                      <Shield className="w-16 h-16 text-white mr-4 shrink-0" strokeWidth={2} />
-                      <span className="text-5xl font-bold text-white tracking-wide">FanDuel</span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            {events.length > 0 && (
-              <div className="shrink-0 pt-2 pb-2 px-2 opacity-60">
-                {renderOddsContent()}
-              </div>
-            )}
+
+      {/* Collapsed: minimal content; expanded: full game list */}
+      {!isExpanded ? (
+        <div className="flex-1 min-h-0" style={{ minHeight: 24 }} aria-hidden />
+      ) : (
+        <>
+      {/* Column header: Moneyline only */}
+      <div className="shrink-0 grid grid-cols-[1fr_auto] gap-2 px-3 pb-1">
+        <div />
+        <div className="w-20 text-center">
+          <span className="text-xs text-gray-500">Moneyline</span>
+        </div>
+      </div>
+
+      {/* Game list */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-3 pb-3">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-6 h-6 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center py-12 px-3">
+            <span className="text-[11px] text-red-400/80 text-center">{error}</span>
           </div>
         ) : (
-          renderOddsContent()
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeLeague}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="min-h-0"
+            >
+              {events.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-[11px] text-gray-500">No games today</span>
+                </div>
+              ) : (
+                <motion.div
+                  className="divide-y divide-white/[0.06]"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                >
+                  {events.map((event, index) => {
+                    const books = (event.bookmakers || []).filter((b) => BOOK_KEYS.includes(b.key));
+                    const dk = books.find((b) => b.key === 'draftkings') || books[0];
+                    const homeTeam = event.home_team || 'Home';
+                    const awayTeam = event.away_team || 'Away';
+                    const timeStr = formatTime(event.commence_time);
+                    const mlOutcomes = dk ? getMoneylineOutcomes(dk) : [];
+                    const awayMl = mlOutcomes.find((o) => o.name === awayTeam || (typeof o.name === 'string' && (o.name.includes(awayTeam) || awayTeam.includes(o.name))));
+                    const homeMl = mlOutcomes.find((o) => o.name === homeTeam || (typeof o.name === 'string' && (o.name.includes(homeTeam) || homeTeam.includes(o.name))));
+
+                    return (
+                      <motion.div
+                        key={event.id}
+                        variants={itemVariants}
+                        className="py-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
+                        onClick={openDraftKings}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <TeamLogo teamName={awayTeam} league={activeLeague} />
+                              <span className="text-sm font-medium text-white truncate">{awayTeam}</span>
+                            </div>
+                            {(awayMl?.price != null && Number.isFinite(Number(awayMl.price))) && (
+                              <span className="text-sm font-mono text-emerald-400 flex-shrink-0">{formatAmerican(awayMl.price)}</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5 pl-9">AT</div>
+                          <div className="flex items-center justify-between gap-2 mt-0.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <TeamLogo teamName={homeTeam} league={activeLeague} />
+                              <span className="text-sm font-medium text-white truncate">{homeTeam}</span>
+                            </div>
+                            {(homeMl?.price != null && Number.isFinite(Number(homeMl.price))) && (
+                              <span className="text-sm font-mono text-emerald-400 flex-shrink-0">{formatAmerican(homeMl.price)}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 pl-9">
+                          <span className="border border-emerald-500 text-emerald-400 text-[10px] rounded px-1.5 py-0.5">
+                            SGP
+                          </span>
+                          <span className="text-xs text-gray-500">{timeStr ? `Today ${timeStr}` : 'Today'}</span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </motion.div>
+          </AnimatePresence>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }
 
-function GameRow({ index, awayTeam, homeTeam, time, isExpanded, onToggle, outcomesByBook, BOOK_LABELS, formatAmerican, muted = false }) {
-  const bestBySide = useMemo(() => {
-    const homePrices = [];
-    const awayPrices = [];
-    outcomesByBook.forEach(({ book, outcomes }) => {
-      const home = outcomes.find((o) => o.name === homeTeam);
-      const away = outcomes.find((o) => o.name === awayTeam);
-      if (home != null && Number.isFinite(Number(home.price))) homePrices.push({ bookKey: book.key, price: Number(home.price) });
-      if (away != null && Number.isFinite(Number(away.price))) awayPrices.push({ bookKey: book.key, price: Number(away.price) });
-    });
-    const bestHome = homePrices.length ? homePrices.reduce((a, b) => (a.price > b.price ? a : b)) : null;
-    const bestAway = awayPrices.length ? awayPrices.reduce((a, b) => (a.price > b.price ? a : b)) : null;
-    return { bestHome, bestAway };
-  }, [outcomesByBook, homeTeam, awayTeam]);
+function OddsCell({ value, odds }) {
+  const oddsClass = odds != null && Number.isFinite(Number(odds)) ? 'text-emerald-400' : 'text-gray-500';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: index * 0.04 }}
-      className={`border border-transparent hover:border-white/[0.06] ${muted ? 'opacity-70' : ''}`}
+      className="bg-[#1a1a1a] rounded-lg border border-white/[0.06] text-center px-3 py-2 text-xs"
+      whileHover={{ scale: 1.05 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full text-left group flex rounded-none hover:bg-white/[0.03] transition-colors cursor-pointer gap-2 px-2.5 py-2"
-      >
-        <div className="min-w-0 flex-1">
-          <h4 className="font-medium text-gray-200 leading-snug group-hover:text-white transition-colors break-words text-[13px] line-clamp-2 pr-1">
-            {awayTeam} @ {homeTeam}
-          </h4>
-          <div className="flex items-center gap-2 mt-0.5 text-[11px]">
-            <span className="text-gray-500">{time}</span>
-          </div>
-        </div>
-        <span className="text-[11px] text-emerald-400/90 shrink-0">{isExpanded ? '−' : '+'}</span>
-      </button>
-      <AnimatePresence initial={false}>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="border-t border-white/[0.06] overflow-hidden"
-          >
-            <div className="px-2.5 py-2">
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="text-[10px] uppercase tracking-wider text-gray-500">
-                    <th className="text-left font-medium pb-1.5">Book</th>
-                    <th className="text-right font-medium pb-1.5">{awayTeam}</th>
-                    <th className="text-right font-medium pb-1.5">{homeTeam}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {outcomesByBook.map(({ book, outcomes }) => {
-                    const home = outcomes.find((o) => o.name === homeTeam);
-                    const away = outcomes.find((o) => o.name === awayTeam);
-                    const homePrice = home?.price != null ? Number(home.price) : null;
-                    const awayPrice = away?.price != null ? Number(away.price) : null;
-                    const isBestHome = bestBySide?.bestHome?.bookKey === book.key;
-                    const isBestAway = bestBySide?.bestAway?.bookKey === book.key;
-                    return (
-                      <tr key={book.key} className="border-t border-white/[0.04]">
-                        <td className="py-1 text-gray-500">{BOOK_LABELS[book.key] || book.key}</td>
-                        <td className="py-1 text-right">
-                          <span className={isBestAway ? 'text-emerald-400 font-medium' : awayPrice != null && awayPrice > 0 ? 'text-emerald-400' : 'text-gray-200'}>
-                            {formatAmerican(awayPrice)}
-                          </span>
-                        </td>
-                        <td className="py-1 text-right">
-                          <span className={isBestHome ? 'text-emerald-400 font-medium' : homePrice != null && homePrice > 0 ? 'text-emerald-400' : 'text-gray-200'}>
-                            {formatAmerican(homePrice)}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {value != null && value !== '' && <div className="text-white">{value}</div>}
+      <div className={oddsClass}>{formatAmerican(odds)}</div>
     </motion.div>
   );
 }

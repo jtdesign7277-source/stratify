@@ -1714,6 +1714,7 @@ export default function TraderPage({
   const [isArticleOpen, setIsArticleOpen] = useState(false);
   const [selectedGames, setSelectedGames] = useState([]);
   const [isArticleDrawerExtendedToChartTop, setIsArticleDrawerExtendedToChartTop] = useState(false);
+  const [isBottomPanelExpanded, setIsBottomPanelExpanded] = useState(false);
   const [chartViewportHeight, setChartViewportHeight] = useState(0);
   const [hydratedArticlesByUrl, setHydratedArticlesByUrl] = useState({});
   const [articleHydrationLoadingUrl, setArticleHydrationLoadingUrl] = useState('');
@@ -1836,7 +1837,7 @@ export default function TraderPage({
   const lineToolsRef = useRef(null);
   const [activeTool, setActiveTool] = useState('cursor');
   const volumeProfileRef = useRef(null);
-  const [volumeProfileVisible, setVolumeProfileVisible] = useState(false);
+  const [volumeProfileVisible, setVolumeProfileVisible] = useState(true);
   const sessionHighlightRef = useRef(null);
   const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
   const priceAlertsRef = useRef(null);
@@ -2226,7 +2227,9 @@ export default function TraderPage({
   }, []);
 
   useEffect(() => {
-    selectedSymbolRef.current = normalizeSymbol(selectedSymbol);
+    const normalized = normalizeSymbol(selectedSymbol);
+    selectedSymbolRef.current = normalized;
+    priceAlertsRef.current?.setSymbol?.(normalized);
   }, [selectedSymbol]);
 
   useEffect(() => {
@@ -2923,6 +2926,14 @@ export default function TraderPage({
       drawingRectanglesRef.current = [];
       drawingPendingPointRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      priceAlertsRef.current?.loadFromStorage?.();
+    };
+    window.addEventListener('stratify-chart-alerts-updated', handler);
+    return () => window.removeEventListener('stratify-chart-alerts-updated', handler);
   }, []);
 
   useEffect(() => {
@@ -4146,18 +4157,18 @@ export default function TraderPage({
           >
             <div className="h-4 min-w-0 flex items-center justify-center">
               {espnLogoErrored ? (
-                <span className="text-xs font-black italic tracking-tight text-[#E5252A]">ESPN</span>
+                <span className="text-[10px] font-black italic tracking-tight text-[#E5252A]">ESPN</span>
               ) : (
                 <img
                   src={ESPN_WORDMARK_URL}
                   alt="ESPN"
-                  className="h-3.5 w-auto object-contain"
+                  className="h-2.5 w-auto object-contain"
                   loading="lazy"
                   onError={() => setEspnLogoErrored(true)}
                 />
               )}
             </div>
-            <span className="text-white font-medium text-sm">Live</span>
+            <span className="text-white font-medium text-xs">Live</span>
           </button>
           <div className="flex items-center gap-2">
             {GAME_PILL_SLOTS.map((slot) => {
@@ -5014,6 +5025,7 @@ export default function TraderPage({
                             setAlertPrice('');
                             setHasAlerts(true);
                             setAlertPopup({ message: `Alert set at $${price.toFixed(2)} (${alertDirection})`, variant: 'set' });
+                            window.dispatchEvent(new CustomEvent('stratify-chart-alerts-updated'));
                           }
                         }
                       }}
@@ -5037,6 +5049,7 @@ export default function TraderPage({
                           setAlertPrice('');
                           setHasAlerts(true);
                           setAlertPopup({ message: `Alert set at $${price.toFixed(2)} (${alertDirection})`, variant: 'set' });
+                          window.dispatchEvent(new CustomEvent('stratify-chart-alerts-updated'));
                         }
                       }}
                       className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
@@ -5225,7 +5238,7 @@ export default function TraderPage({
               <div
                 className="relative z-20 shrink-0 isolate"
                 style={{
-                  height: isNewsOpen ? (drawerArticle ? 'min(520px, 50vh)' : '200px') : '0px',
+                  height: isNewsOpen ? (drawerArticle ? 'min(520px, 50vh)' : isBottomPanelExpanded ? 'min(520px, 50vh)' : '200px') : '0px',
                   transition: 'height 0.35s ease',
                   pointerEvents: 'auto',
                 }}
@@ -5300,7 +5313,7 @@ export default function TraderPage({
                         touchAction: 'pan-y',
                         flex: '1 1 0%',
                         minHeight: 0,
-                        ...(isNewsOpen && !drawerArticle ? { maxHeight: '184px' } : {}),
+                        ...(isNewsOpen && !drawerArticle && !isBottomPanelExpanded ? { maxHeight: '184px' } : {}),
                       }}
                     >
                       {newsLoading && !newsArticles?.length ? (
@@ -5441,7 +5454,7 @@ export default function TraderPage({
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); setIsArticleOpen(false); setIsArticleDrawerExtendedToChartTop(false); }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); setIsArticleOpen(false); setIsArticleDrawerExtendedToChartTop(false); setIsBottomPanelExpanded(false); }}
                             className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0"
                             aria-label="Close"
                           >
@@ -5589,6 +5602,9 @@ export default function TraderPage({
                   <LiveOddsPanel
                     selectedGames={selectedGames}
                     isArticleOpen={isArticleOpen}
+                    onLiveLinesExpand={() => setIsBottomPanelExpanded(true)}
+                    onLiveLinesCollapse={() => setIsBottomPanelExpanded(false)}
+                    isBottomPanelExpanded={isBottomPanelExpanded}
                   />
                 )}
                   </div>

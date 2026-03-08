@@ -1,196 +1,148 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import CountUp from 'react-countup';
+import { Trash2 } from 'lucide-react';
+import { STORAGE_KEY_PREFIX } from '../../plugins/PriceAlertsPlugin';
 
-// Notification Settings Dropdown
+const CHART_ALERTS_UPDATED_EVENT = 'stratify-chart-alerts-updated';
+
+function getAllChartAlertsFromStorage() {
+  const out = [];
+  try {
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith(STORAGE_KEY_PREFIX));
+    const now = Date.now();
+    keys.forEach((key) => {
+      const symbol = key.slice(STORAGE_KEY_PREFIX.length);
+      const raw = localStorage.getItem(key);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) return;
+      arr.forEach((a) => {
+        if (!a || !Number.isFinite(a.price)) return;
+        const expiresAt = a.expiresAt ?? now + 86400000;
+        if (expiresAt <= now) return;
+        out.push({
+          symbol,
+          price: a.price,
+          direction: a.direction || 'above',
+          enabled: a.enabled !== false,
+        });
+      });
+    });
+  } catch {}
+  return out;
+}
+
+function removeChartAlertFromStorage(symbol, price, direction) {
+  try {
+    const key = STORAGE_KEY_PREFIX + symbol;
+    const raw = localStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return;
+    const next = arr.filter((a) => !(Number(a.price) === Number(price) && (a.direction || 'above') === (direction || 'above')));
+    if (next.length) localStorage.setItem(key, JSON.stringify(next));
+    else localStorage.removeItem(key);
+    window.dispatchEvent(new CustomEvent(CHART_ALERTS_UPDATED_EVENT));
+  } catch {}
+}
+
+function setChartAlertEnabledInStorage(symbol, price, direction, enabled) {
+  try {
+    const key = STORAGE_KEY_PREFIX + symbol;
+    const raw = localStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return;
+    const a = arr.find((x) => Number(x.price) === Number(price) && (x.direction || 'above') === (direction || 'above'));
+    if (a) a.enabled = !!enabled;
+    localStorage.setItem(key, JSON.stringify(arr));
+    window.dispatchEvent(new CustomEvent(CHART_ALERTS_UPDATED_EVENT));
+  } catch {}
+}
+
+// Notification Settings Dropdown — chart price alerts only
 const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
-  const [settings, setSettings] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-notification-settings');
-      return saved ? JSON.parse(saved) : {
-        enabled: true,
-        phone: false,
-        desktop: true,
-        email: false,
-        arbOpportunities: true,
-        tradeOutcomes: true,
-        priceAlerts: false,
-        strategyStatus: true,
-        weeklyDigest: false,
-      };
-    } catch { 
-      return {
-        enabled: true,
-        phone: false,
-        desktop: true,
-        email: false,
-        arbOpportunities: true,
-        tradeOutcomes: true,
-        priceAlerts: false,
-        strategyStatus: true,
-        weeklyDigest: false,
-      };
-    }
-  });
+  const [chartAlerts, setChartAlerts] = useState([]);
 
-  const updateSetting = (key, value) => {
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-    localStorage.setItem('stratify-notification-settings', JSON.stringify(newSettings));
+  useEffect(() => {
+    if (isOpen) setChartAlerts(getAllChartAlertsFromStorage());
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = () => setChartAlerts(getAllChartAlertsFromStorage());
+    window.addEventListener(CHART_ALERTS_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(CHART_ALERTS_UPDATED_EVENT, handler);
+  }, [isOpen]);
+
+  const handleRemoveChartAlert = (symbol, price, direction) => {
+    removeChartAlertFromStorage(symbol, price, direction);
+    setChartAlerts(getAllChartAlertsFromStorage());
+  };
+
+  const handleToggleChartAlert = (symbol, price, direction, enabled) => {
+    setChartAlertEnabledInStorage(symbol, price, direction, enabled);
+    setChartAlerts(getAllChartAlertsFromStorage());
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="soft-glass-panel absolute right-0 top-full mt-2 w-80 bg-[#0b0b0b] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-[#2a2a3d] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          <span className="text-sm font-semibold text-white">Notifications</span>
-        </div>
-        <button
-          onClick={() => updateSetting('enabled', !settings.enabled)}
-          className={`w-10 h-5 rounded-full transition-colors ${settings.enabled ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
-        >
-          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${settings.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-        </button>
+      <div className="px-4 py-3 border-b border-[#2a2a3d] flex items-center gap-2">
+        <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        <span className="text-sm font-semibold text-white">Chart price alerts</span>
       </div>
 
-      <div className={`${settings.enabled ? '' : 'opacity-50 pointer-events-none'}`}>
-        {/* Delivery Methods */}
-        <div className="px-4 py-3 border-b border-[#2a2a3d]">
-          <p className="text-[10px] text-white/50 uppercase tracking-wider mb-3">Delivery Method</p>
-          <div className="space-y-2">
-            <label className="flex items-center justify-between cursor-pointer">
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm text-white">Desktop</span>
-              </div>
-              <button
-                onClick={() => updateSetting('desktop', !settings.desktop)}
-                className={`w-9 h-5 rounded-full transition-colors ${settings.desktop ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
+      <div className="px-4 py-3">
+        <p className="text-[11px] text-white/60 mb-3">Alerts you create on the chart appear here. Toggle on/off or delete.</p>
+        {chartAlerts.length === 0 ? (
+          <p className="text-[11px] text-white/40 py-2">No chart alerts yet. Create one from the chart.</p>
+        ) : (
+          <ul className="space-y-2 max-h-64 overflow-y-auto">
+            {chartAlerts.map((alert, i) => (
+              <li
+                key={`${alert.symbol}-${alert.price}-${alert.direction}-${i}`}
+                className={`flex items-center justify-between gap-2 py-2 px-2 rounded-lg border border-white/5 ${alert.enabled ? 'bg-white/[0.03]' : 'bg-white/[0.02] opacity-70'}`}
               >
-                <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${settings.desktop ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-            </label>
-            <label className="flex items-center justify-between cursor-pointer">
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <div>
-                  <span className="text-sm text-white">Phone</span>
-                  <p className="text-[10px] text-white/50">Requires mobile app</p>
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium text-white">${alert.symbol}</span>
+                  <span className="text-[11px] text-white/70 ml-1">
+                    ${Number(alert.price).toFixed(2)} {alert.direction === 'above' ? '↑' : '↓'}
+                  </span>
                 </div>
-              </div>
-              <button
-                onClick={() => updateSetting('phone', !settings.phone)}
-                className={`w-9 h-5 rounded-full transition-colors ${settings.phone ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
-              >
-                <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${settings.phone ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-            </label>
-            <label className="flex items-center justify-between cursor-pointer">
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm text-white">Email</span>
-              </div>
-              <button
-                onClick={() => updateSetting('email', !settings.email)}
-                className={`w-9 h-5 rounded-full transition-colors ${settings.email ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
-              >
-                <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${settings.email ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-            </label>
-          </div>
-        </div>
-
-        {/* Alert Types */}
-        <div className="px-4 py-3">
-          <p className="text-[10px] text-white/50 uppercase tracking-wider mb-3">Alert Types</p>
-          <div className="space-y-2">
-            <label className="flex items-center justify-between cursor-pointer py-1">
-              <div className="flex items-center gap-2">
-                <span className="text-amber-400">🎯</span>
-                <span className="text-sm text-white">Arbitrage Opportunities</span>
-              </div>
-              <button
-                onClick={() => updateSetting('arbOpportunities', !settings.arbOpportunities)}
-                className={`w-9 h-5 rounded-full transition-colors ${settings.arbOpportunities ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
-              >
-                <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${settings.arbOpportunities ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-            </label>
-            <label className="flex items-center justify-between cursor-pointer py-1">
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-400">💰</span>
-                <span className="text-sm text-white">Trade Outcomes</span>
-              </div>
-              <button
-                onClick={() => updateSetting('tradeOutcomes', !settings.tradeOutcomes)}
-                className={`w-9 h-5 rounded-full transition-colors ${settings.tradeOutcomes ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
-              >
-                <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${settings.tradeOutcomes ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-            </label>
-            <label className="flex items-center justify-between cursor-pointer py-1">
-              <div className="flex items-center gap-2">
-                <span className="text-blue-400">📈</span>
-                <span className="text-sm text-white">Price Alerts</span>
-              </div>
-              <button
-                onClick={() => updateSetting('priceAlerts', !settings.priceAlerts)}
-                className={`w-9 h-5 rounded-full transition-colors ${settings.priceAlerts ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
-              >
-                <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${settings.priceAlerts ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-            </label>
-            <label className="flex items-center justify-between cursor-pointer py-1">
-              <div className="flex items-center gap-2">
-                <span className="text-purple-400">⚡</span>
-                <span className="text-sm text-white">Strategy Status</span>
-              </div>
-              <button
-                onClick={() => updateSetting('strategyStatus', !settings.strategyStatus)}
-                className={`w-9 h-5 rounded-full transition-colors ${settings.strategyStatus ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
-              >
-                <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${settings.strategyStatus ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="px-4 py-2 bg-[#111111] border-t border-[#2a2a3d]">
-        <p className="text-[10px] text-gray-600 text-center">
-          {settings.enabled ? 'Notifications are enabled' : 'Notifications are disabled'}
-        </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleChartAlert(alert.symbol, alert.price, alert.direction, !alert.enabled)}
+                    className={`w-9 h-5 rounded-full transition-colors ${alert.enabled ? 'bg-emerald-500' : 'bg-[#3c4043]'}`}
+                    title={alert.enabled ? 'Disable alert' : 'Enable alert'}
+                  >
+                    <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${alert.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveChartAlert(alert.symbol, alert.price, alert.direction)}
+                    className="p-1 rounded text-white/50 hover:text-red-400 hover:bg-white/5 transition-colors"
+                    aria-label="Delete alert"
+                    title="Delete alert"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
 };
 
-// Notification Button with Dropdown
+// Notification Button with Dropdown — opens chart price alerts panel
 const NotificationButton = ({ themeClasses }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
-  
-  // Check if notifications are enabled
-  const [hasNotifications] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-notification-settings');
-      return saved ? JSON.parse(saved).enabled : true;
-    } catch { return true; }
-  });
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -203,17 +155,15 @@ const NotificationButton = ({ themeClasses }) => {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors relative ${themeClasses.textMuted}`}
+        title="Chart price alerts"
+        aria-label="Chart price alerts"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
-        {/* Active indicator dot */}
-        {hasNotifications && (
-          <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_6px_rgba(248,113,113,0.6)]" />
-        )}
       </button>
       <NotificationDropdown isOpen={isOpen} onClose={() => setIsOpen(false)} themeClasses={themeClasses} />
     </div>

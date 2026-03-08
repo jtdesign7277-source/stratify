@@ -20,9 +20,10 @@ export default async function handler(req, res) {
 
   const regions = (req.query.regions || 'us').trim();
   const oddsFormat = (req.query.oddsFormat || 'american').trim();
+  const markets = (req.query.markets || 'h2h,spreads,totals').trim();
 
   try {
-    const url = `${ODDS_BASE}/sports/${encodeURIComponent(sport)}/odds?regions=${encodeURIComponent(regions)}&oddsFormat=${encodeURIComponent(oddsFormat)}&apiKey=${encodeURIComponent(apiKey)}`;
+    const url = `${ODDS_BASE}/sports/${encodeURIComponent(sport)}/odds?regions=${encodeURIComponent(regions)}&oddsFormat=${encodeURIComponent(oddsFormat)}&markets=${encodeURIComponent(markets)}&apiKey=${encodeURIComponent(apiKey)}`;
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     const data = await response.json().catch(() => null);
     if (!response.ok) {

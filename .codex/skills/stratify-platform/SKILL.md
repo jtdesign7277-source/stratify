@@ -73,7 +73,7 @@ All scrollable content (news article list, article body, watchlist, War Room, ca
 
 ### Colors
 
-- **Background:** `bg-[#0a0a0f]` always
+- **Background:** `bg-[#0a0a0f]` always. All new panels, modals, drawers, and full-page views MUST use this same background (or the documented gradient) for consistency across the app.
 - **Accent:** `#10b981` emerald only
 - **Positive:** `text-emerald-400`
 - **Negative:** `text-red-400`
