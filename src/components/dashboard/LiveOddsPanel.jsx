@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ODDS_API = '/api/odds/events';
 const BOOK_KEYS = ['fanduel', 'draftkings', 'betmgm', 'betonline_ag'];
 const BOOK_LABELS = { fanduel: 'FanDuel', draftkings: 'DraftKings', betmgm: 'BetMGM', betonline_ag: 'BetOnline' };
+const FANDUEL_LOGO = 'https://logo.dev/img/logos/fanduel.com?token=pk_f0dMEFReRsGeGMElHUfwXQ';
+const DRAFTKINGS_LOGO = 'https://logo.dev/img/logos/draftkings.com?token=pk_f0dMEFReRsGeGMElHUfwXQ';
+const IDLE_TIMEOUT_MS = 60000;
+const LOGO_HOLD_MS = 2500;
+const LIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 function formatTime(iso) {
   if (!iso) return '—';
@@ -34,11 +39,28 @@ function isToday(iso) {
   return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
 }
 
+function isGameLive(commenceTime) {
+  if (!commenceTime) return false;
+  const now = Date.now();
+  const commence = new Date(commenceTime).getTime();
+  return commence <= now && now - commence <= LIVE_WINDOW_MS;
+}
+
 export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = false }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  const [isActive, setIsActive] = useState(false);
+  const [idleLogoIndex, setIdleLogoIndex] = useState(0);
+  const idleTimeoutRef = useRef(null);
+
+  const hasLiveGame = useMemo(
+    () => events.some((e) => isGameLive(e.commence_time)),
+    [events]
+  );
+
+  const showIdle = !loading && !error && !hasLiveGame && !isActive;
 
   useEffect(() => {
     let cancelled = false;
@@ -69,65 +91,148 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (!showIdle) return;
+    const t = setInterval(() => setIdleLogoIndex((i) => (i === 0 ? 1 : 0)), LOGO_HOLD_MS);
+    return () => clearInterval(t);
+  }, [showIdle]);
+
+  const clearIdleTimeout = () => {
+    if (idleTimeoutRef.current) {
+      clearTimeout(idleTimeoutRef.current);
+      idleTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleIdleReturn = () => {
+    clearIdleTimeout();
+    if (hasLiveGame) return;
+    idleTimeoutRef.current = setTimeout(() => setIsActive(false), IDLE_TIMEOUT_MS);
+  };
+
+  const handlePanelInteraction = () => {
+    setIsActive(true);
+    scheduleIdleReturn();
+  };
+
+  useEffect(() => () => clearIdleTimeout(), []);
+
   const toggleExpanded = (id) => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
+  const renderOddsContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-8 gap-2">
+          <span className="text-[11px] text-gray-600">Loading…</span>
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 gap-2">
+          <span className="text-[11px] text-red-400/70">{error}</span>
+        </div>
+      );
+    }
+    if (events.length === 0) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <span className="text-[11px] text-gray-600">No games today</span>
+        </div>
+      );
+    }
+    return (
+      <div className="divide-y divide-white/[0.03]">
+        <AnimatePresence initial={false}>
+          {events.map((event, index) => {
+            const id = event.id;
+            const isExpanded = expandedId === id;
+            const books = (event.bookmakers || []).filter((b) => BOOK_KEYS.includes(b.key));
+            const homeTeam = event.home_team || 'Home';
+            const awayTeam = event.away_team || 'Away';
+            const time = formatTime(event.commence_time);
+            const outcomesByBook = books.map((book) => {
+              const outcomes = getMoneylineOutcomes(book);
+              return { book, outcomes };
+            });
+            return (
+              <GameRow
+                key={id}
+                index={index}
+                awayTeam={awayTeam}
+                homeTeam={homeTeam}
+                time={time}
+                isExpanded={isExpanded}
+                onToggle={() => toggleExpanded(id)}
+                outcomesByBook={outcomesByBook}
+                BOOK_LABELS={BOOK_LABELS}
+                formatAmerican={formatAmerican}
+                muted={showIdle}
+              />
+            );
+          })}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
   return (
     <div
-      className="flex flex-col h-full min-h-0 overflow-hidden bg-[#0a0a0f] rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)]"
+      className="flex flex-col h-full min-h-0 overflow-hidden"
       style={{ width: '100%' }}
+      onClick={handlePanelInteraction}
+      onMouseEnter={handlePanelInteraction}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePanelInteraction(); }}
     >
-      <div className="shrink-0 px-4 py-3 border-b border-white/[0.06]">
-        <h3 className="text-sm font-semibold text-white">Today&apos;s NBA Lines</h3>
+      <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
+        <span className="text-[11px] text-gray-500">Today&apos;s NBA Lines</span>
+        {hasLiveGame && (
+          <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            LIVE
+          </span>
+        )}
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto p-3">
-        {loading ? (
-          <div className="py-6 text-center text-gray-500 text-sm">Loading…</div>
-        ) : error ? (
-          <div className="py-6 text-center text-red-400/80 text-sm">{error}</div>
-        ) : events.length === 0 ? (
-          <div className="py-6 text-center text-gray-500 text-sm">No games today</div>
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y" style={{ flex: '1 1 0%', minHeight: 0, touchAction: 'pan-y' }}>
+        {showIdle ? (
+          <div className="flex flex-col h-full min-h-0 p-4">
+            <div className="flex-1 flex items-center justify-center min-h-[140px] relative">
+              <img
+                src={FANDUEL_LOGO}
+                alt="FanDuel"
+                className="max-w-[180px] w-full object-contain transition-opacity duration-[1.2s] ease-[ease] absolute"
+                style={{ opacity: idleLogoIndex === 0 ? 1 : 0, pointerEvents: 'none' }}
+              />
+              <img
+                src={DRAFTKINGS_LOGO}
+                alt="DraftKings"
+                className="max-w-[180px] w-full object-contain transition-opacity duration-[1.2s] ease-[ease] absolute"
+                style={{ opacity: idleLogoIndex === 1 ? 1 : 0, pointerEvents: 'none' }}
+              />
+            </div>
+            <p className="text-center text-gray-600 text-xs mt-2">Powered by</p>
+            {events.length > 0 && (
+              <div className="mt-4 opacity-60">
+                {renderOddsContent()}
+              </div>
+            )}
+          </div>
         ) : (
-          <ul className="space-y-2">
-            <AnimatePresence initial={false}>
-              {events.map((event, index) => {
-                const id = event.id;
-                const isExpanded = expandedId === id;
-                const books = (event.bookmakers || []).filter((b) => BOOK_KEYS.includes(b.key));
-                const homeTeam = event.home_team || 'Home';
-                const awayTeam = event.away_team || 'Away';
-                const time = formatTime(event.commence_time);
-
-                const outcomesByBook = books.map((book) => {
-                  const outcomes = getMoneylineOutcomes(book);
-                  return { book, outcomes };
-                });
-
-                return (
-                  <GameRow
-                    key={id}
-                    index={index}
-                    awayTeam={awayTeam}
-                    homeTeam={homeTeam}
-                    time={time}
-                    isExpanded={isExpanded}
-                    onToggle={() => toggleExpanded(id)}
-                    outcomesByBook={outcomesByBook}
-                    BOOK_LABELS={BOOK_LABELS}
-                    formatAmerican={formatAmerican}
-                  />
-                );
-              })}
-            </AnimatePresence>
-          </ul>
+          renderOddsContent()
         )}
       </div>
     </div>
   );
 }
 
-function GameRow({ index, awayTeam, homeTeam, time, isExpanded, onToggle, outcomesByBook, BOOK_LABELS, formatAmerican }) {
+function GameRow({ index, awayTeam, homeTeam, time, isExpanded, onToggle, outcomesByBook, BOOK_LABELS, formatAmerican, muted = false }) {
   const bestBySide = useMemo(() => {
     const homePrices = [];
     const awayPrices = [];
@@ -143,24 +248,26 @@ function GameRow({ index, awayTeam, homeTeam, time, isExpanded, onToggle, outcom
   }, [outcomesByBook, homeTeam, awayTeam]);
 
   return (
-    <motion.li
+    <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: index * 0.04 }}
-      className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl overflow-hidden"
+      className={`border border-transparent hover:border-white/[0.06] ${muted ? 'opacity-70' : ''}`}
     >
       <button
         type="button"
         onClick={onToggle}
-        className="w-full text-left px-4 py-3 flex items-center justify-between gap-2 hover:bg-white/[0.03] transition-colors"
+        className="w-full text-left group flex rounded-none hover:bg-white/[0.03] transition-colors cursor-pointer gap-2 px-2.5 py-2"
       >
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-white truncate">
+          <h4 className="font-medium text-gray-200 leading-snug group-hover:text-white transition-colors break-words text-[13px] line-clamp-2 pr-1">
             {awayTeam} @ {homeTeam}
+          </h4>
+          <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+            <span className="text-gray-500">{time}</span>
           </div>
-          <div className="text-xs text-gray-500 mt-0.5">{time}</div>
         </div>
-        <span className="text-xs text-emerald-400/90 shrink-0">{isExpanded ? '−' : '+'}</span>
+        <span className="text-[11px] text-emerald-400/90 shrink-0">{isExpanded ? '−' : '+'}</span>
       </button>
       <AnimatePresence initial={false}>
         {isExpanded && (
@@ -171,13 +278,13 @@ function GameRow({ index, awayTeam, homeTeam, time, isExpanded, onToggle, outcom
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="border-t border-white/[0.06] overflow-hidden"
           >
-            <div className="px-4 py-3">
-              <table className="w-full text-sm">
+            <div className="px-2.5 py-2">
+              <table className="w-full text-[11px]">
                 <thead>
                   <tr className="text-[10px] uppercase tracking-wider text-gray-500">
-                    <th className="text-left font-medium pb-2">Book</th>
-                    <th className="text-right font-medium pb-2">{awayTeam}</th>
-                    <th className="text-right font-medium pb-2">{homeTeam}</th>
+                    <th className="text-left font-medium pb-1.5">Book</th>
+                    <th className="text-right font-medium pb-1.5">{awayTeam}</th>
+                    <th className="text-right font-medium pb-1.5">{homeTeam}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -190,14 +297,14 @@ function GameRow({ index, awayTeam, homeTeam, time, isExpanded, onToggle, outcom
                     const isBestAway = bestBySide?.bestAway?.bookKey === book.key;
                     return (
                       <tr key={book.key} className="border-t border-white/[0.04]">
-                        <td className="py-1.5 text-gray-400">{BOOK_LABELS[book.key] || book.key}</td>
-                        <td className="py-1.5 text-right">
-                          <span className={isBestAway ? 'text-emerald-400 font-medium' : awayPrice != null && awayPrice > 0 ? 'text-emerald-400' : 'text-white'}>
+                        <td className="py-1 text-gray-500">{BOOK_LABELS[book.key] || book.key}</td>
+                        <td className="py-1 text-right">
+                          <span className={isBestAway ? 'text-emerald-400 font-medium' : awayPrice != null && awayPrice > 0 ? 'text-emerald-400' : 'text-gray-200'}>
                             {formatAmerican(awayPrice)}
                           </span>
                         </td>
-                        <td className="py-1.5 text-right">
-                          <span className={isBestHome ? 'text-emerald-400 font-medium' : homePrice != null && homePrice > 0 ? 'text-emerald-400' : 'text-white'}>
+                        <td className="py-1 text-right">
+                          <span className={isBestHome ? 'text-emerald-400 font-medium' : homePrice != null && homePrice > 0 ? 'text-emerald-400' : 'text-gray-200'}>
                             {formatAmerican(homePrice)}
                           </span>
                         </td>
@@ -210,6 +317,6 @@ function GameRow({ index, awayTeam, homeTeam, time, isExpanded, onToggle, outcom
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.li>
+    </motion.div>
   );
 }
