@@ -8,11 +8,14 @@ const NUM_BINS = 80;
 const VALUE_AREA_PCT = 0.7;
 const MAX_BAR_WIDTH_PX = 200;
 const BAR_HEIGHT_PX = 5;
-const POC_LINE_WIDTH = 3;
+const DOTTED_LINE_WIDTH = 1;
 const EMERALD = 'rgba(16, 185, 129, 0.75)';
 const RED = 'rgba(248, 113, 113, 0.75)';
-const POC_COLOR = 'rgba(16, 185, 129, 0.95)';
-const VAH_VAL_COLOR = 'rgba(255, 255, 255, 0.35)';
+const POC_COLOR = 'rgba(16, 185, 129, 0.95)'; // green for POC
+const VAH_VAL_COLOR = 'rgba(59, 130, 246, 0.9)'; // blue for value area lines
+const LABEL_LEFT_PX = 6;
+const LINE_GAP_AFTER_LABEL_PX = 8; // gap between label and start of dotted line
+const LABEL_FONT = '14px monospace';
 
 function buildProfile(bars) {
   if (!bars || bars.length === 0) return { bins: [], poc: null, vah: null, val: null, maxVol: 0 };
@@ -134,45 +137,39 @@ export class VolumeProfilePlugin {
                 }
               }
 
-              if (poc != null && Number.isFinite(poc)) {
-                const y = self.series.priceToCoordinate(poc);
-                if (y != null && Number.isFinite(y)) {
-                  const yy = Math.round(y);
-                  ctx.strokeStyle = POC_COLOR;
-                  ctx.lineWidth = POC_LINE_WIDTH;
+              ctx.font = LABEL_FONT;
+              ctx.textBaseline = 'middle';
+              ctx.textAlign = 'left';
+              const drawLineWithLabel = (price, tag) => {
+                const y = self.series.priceToCoordinate(price);
+                if (y == null || !Number.isFinite(y)) return;
+                const yy = Math.round(y);
+                const priceStr = Number(price).toFixed(2);
+                const labelStr = tag ? `${tag} ${priceStr}` : priceStr;
+                const isPoc = tag === 'POC';
+                ctx.fillStyle = isPoc ? POC_COLOR : VAH_VAL_COLOR;
+                ctx.fillText(labelStr, LABEL_LEFT_PX, yy);
+                const labelWidth = ctx.measureText(labelStr).width;
+                const lineStartX = LABEL_LEFT_PX + labelWidth + LINE_GAP_AFTER_LABEL_PX;
+                if (lineStartX < right) {
+                  ctx.strokeStyle = isPoc ? POC_COLOR : VAH_VAL_COLOR;
+                  ctx.lineWidth = DOTTED_LINE_WIDTH;
+                  ctx.setLineDash([6, 3]);
                   ctx.beginPath();
-                  ctx.moveTo(right - MAX_BAR_WIDTH_PX, yy);
+                  ctx.moveTo(lineStartX, yy);
                   ctx.lineTo(right + 10, yy);
                   ctx.stroke();
+                  ctx.setLineDash([]);
                 }
+              };
+              if (poc != null && Number.isFinite(poc)) {
+                drawLineWithLabel(poc, 'POC');
               }
               if (vah != null && Number.isFinite(vah)) {
-                const y = self.series.priceToCoordinate(vah);
-                if (y != null && Number.isFinite(y)) {
-                  const yy = Math.round(y);
-                  ctx.strokeStyle = VAH_VAL_COLOR;
-                  ctx.lineWidth = 2;
-                  ctx.setLineDash([6, 3]);
-                  ctx.beginPath();
-                  ctx.moveTo(right - MAX_BAR_WIDTH_PX, yy);
-                  ctx.lineTo(right + 8, yy);
-                  ctx.stroke();
-                  ctx.setLineDash([]);
-                }
+                drawLineWithLabel(vah, 'VAH');
               }
               if (val != null && Number.isFinite(val)) {
-                const y = self.series.priceToCoordinate(val);
-                if (y != null && Number.isFinite(y)) {
-                  const yy = Math.round(y);
-                  ctx.strokeStyle = VAH_VAL_COLOR;
-                  ctx.lineWidth = 2;
-                  ctx.setLineDash([6, 3]);
-                  ctx.beginPath();
-                  ctx.moveTo(right - MAX_BAR_WIDTH_PX, yy);
-                  ctx.lineTo(right + 8, yy);
-                  ctx.stroke();
-                  ctx.setLineDash([]);
-                }
+                drawLineWithLabel(val, 'VAL');
               }
             } finally {
               ctx.restore();
