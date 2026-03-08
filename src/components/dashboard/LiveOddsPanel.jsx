@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Shield } from 'lucide-react';
 
 const ODDS_API = '/api/odds/events';
 const BOOK_KEYS = ['fanduel', 'draftkings', 'betmgm', 'betonline_ag'];
 const BOOK_LABELS = { fanduel: 'FanDuel', draftkings: 'DraftKings', betmgm: 'BetMGM', betonline_ag: 'BetOnline' };
-const FANDUEL_LOGO = 'https://logo.dev/img/logos/fanduel.com?token=pk_f0dMEFReRsGeGMElHUfwXQ';
-const DRAFTKINGS_LOGO = 'https://logo.dev/img/logos/draftkings.com?token=pk_f0dMEFReRsGeGMElHUfwXQ';
 const IDLE_TIMEOUT_MS = 60000;
-const LOGO_HOLD_MS = 2500;
+const LOGO_HOLD_MS = 2800;
 const LIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 function formatTime(iso) {
@@ -188,7 +187,7 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePanelInteraction(); }}
     >
-      <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
+      <div className="flex h-10 shrink-0 items-center justify-between overflow-hidden px-3 border-b border-white/[0.06] relative z-[150]">
         <span className="text-[11px] text-gray-500">Today&apos;s NBA Lines</span>
         {hasLiveGame && (
           <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
@@ -200,26 +199,55 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
           </span>
         )}
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y" style={{ flex: '1 1 0%', minHeight: 0, touchAction: 'pan-y' }}>
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y pt-2" style={{ flex: '1 1 0%', minHeight: 0, touchAction: 'pan-y' }}>
         {showIdle ? (
-          <div className="flex flex-col h-full min-h-0 p-4">
-            <div className="flex-1 flex items-center justify-center min-h-[140px] relative">
-              <img
-                src={FANDUEL_LOGO}
-                alt="FanDuel"
-                className="max-w-[180px] w-full object-contain transition-opacity duration-[1.2s] ease-[ease] absolute"
-                style={{ opacity: idleLogoIndex === 0 ? 1 : 0, pointerEvents: 'none' }}
-              />
-              <img
-                src={DRAFTKINGS_LOGO}
-                alt="DraftKings"
-                className="max-w-[180px] w-full object-contain transition-opacity duration-[1.2s] ease-[ease] absolute"
-                style={{ opacity: idleLogoIndex === 1 ? 1 : 0, pointerEvents: 'none' }}
-              />
+          <div className="w-full h-full min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 w-full relative overflow-hidden">
+              <AnimatePresence mode="wait">
+                {idleLogoIndex === 0 ? (
+                  <motion.div
+                    key="draftkings"
+                    className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1a1a1a]"
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    variants={{
+                      hidden: { opacity: 0, scale: 0.75 },
+                      visible: { opacity: 1, scale: 1, transition: { duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] } },
+                      exit: { opacity: 0, scale: 1.08, transition: { duration: 0.7, ease: 'easeIn' } },
+                    }}
+                  >
+                    <div className="flex flex-col items-center justify-center">
+                      <span className="text-5xl mb-2" aria-hidden>👑</span>
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="text-5xl font-black text-white tracking-wider">DRAFT</span>
+                        <span className="text-5xl font-black text-[#4caf50] tracking-wider">KINGS</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="fanduel"
+                    className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1a78c2]"
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    variants={{
+                      hidden: { opacity: 0, scale: 0.75 },
+                      visible: { opacity: 1, scale: 1, transition: { duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] } },
+                      exit: { opacity: 0, scale: 1.08, transition: { duration: 0.7, ease: 'easeIn' } },
+                    }}
+                  >
+                    <div className="flex flex-row items-center justify-center">
+                      <Shield className="w-16 h-16 text-white mr-4 shrink-0" strokeWidth={2} />
+                      <span className="text-5xl font-bold text-white tracking-wide">FanDuel</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            <p className="text-center text-gray-600 text-xs mt-2">Powered by</p>
             {events.length > 0 && (
-              <div className="mt-4 opacity-60">
+              <div className="shrink-0 pt-2 pb-2 px-2 opacity-60">
                 {renderOddsContent()}
               </div>
             )}
