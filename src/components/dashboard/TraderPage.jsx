@@ -4112,6 +4112,7 @@ export default function TraderPage({
   const watchlistPanelStyle = {
     width: `${watchlistPanelWidth}px`,
     ...GLASS_SHELL_STYLE,
+    borderRight: '1px solid rgba(255,255,255,0.06)',
   };
   const chartPanelStyle = {
     ...GLASS_SHELL_STYLE,
@@ -4287,35 +4288,37 @@ export default function TraderPage({
 
           {!isWatchlistCollapsed && (
             <>
-              <form onSubmit={addSymbol} className="shrink-0 border-b border-white/[0.06] px-4 py-3">
-                <div className="mb-3 flex items-center justify-center gap-2">
-                  <motion.button
-                    type="button"
-                    onClick={() => setWatchlistView('watchlist')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={interactiveTransition}
-                    className={`text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
-                      watchlistView === 'watchlist' ? 'text-emerald-300' : 'text-[#9ca3af] hover:text-white'
-                    }`}
-                  >
-                    Watchlist
-                  </motion.button>
-                  <span className="text-white/40">|</span>
-                  <motion.button
-                    type="button"
-                    onClick={() => setWatchlistView('portfolio')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={interactiveTransition}
-                    className={`text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
-                      watchlistView === 'portfolio' ? 'text-emerald-300' : 'text-[#9ca3af] hover:text-white'
-                    }`}
-                  >
-                    Portfolio ({portfolioPositions.length})
-                  </motion.button>
+              <form onSubmit={addSymbol} className="shrink-0">
+                <div className="flex h-10 shrink-0 items-center justify-center border-b border-white/[0.06] px-3">
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      type="button"
+                      onClick={() => setWatchlistView('watchlist')}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
+                      className={`text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
+                        watchlistView === 'watchlist' ? 'text-emerald-300' : 'text-[#9ca3af] hover:text-white'
+                      }`}
+                    >
+                      Watchlist
+                    </motion.button>
+                    <span className="text-white/40">|</span>
+                    <motion.button
+                      type="button"
+                      onClick={() => setWatchlistView('portfolio')}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
+                      className={`text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
+                        watchlistView === 'portfolio' ? 'text-emerald-300' : 'text-[#9ca3af] hover:text-white'
+                      }`}
+                    >
+                      Portfolio ({portfolioPositions.length})
+                    </motion.button>
+                  </div>
                 </div>
-
+                <div className="px-3 py-3">
                 {watchlistView === 'watchlist' ? (
                   <>
                     <div className="mb-3 flex items-center gap-2">
@@ -4457,10 +4460,11 @@ export default function TraderPage({
                     </div>
                   </div>
                 )}
+                </div>
               </form>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.06] px-4 py-2 text-xs">
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.06] px-3 py-2 text-xs">
                   {watchlistView === 'watchlist' ? (
                     streamStatus.error ? (
                       <span className="text-red-400/90" title="Twelve Data API key required for live watchlist prices">{streamStatus.error}</span>
@@ -5254,7 +5258,7 @@ export default function TraderPage({
                   >
                   <ErrorBoundary><div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
                     {/* Header — scroll/refresh controls live in the article drawer (right panel) when open */}
-                    <div className="flex shrink-0 items-center justify-between px-3 py-2 border-b border-white/[0.06] relative z-[150]">
+                    <div className="flex h-10 shrink-0 items-center justify-between overflow-hidden px-3 border-b border-white/[0.06] relative z-[150]">
                       <span className="text-[11px] text-gray-500">
                         News for <span className="text-blue-400 font-mono font-medium">${selectedTicker || '—'}</span>
                       </span>
@@ -5291,7 +5295,7 @@ export default function TraderPage({
                     {/* Scrollable article list — when no article open (shrunk panel) show ~2; when article open use full height so more visible */}
                     <div
                       ref={newsListScrollRef}
-                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y"
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y pt-2"
                       style={{
                         touchAction: 'pan-y',
                         flex: '1 1 0%',
@@ -5408,30 +5412,40 @@ export default function TraderPage({
                       style={{ position: "absolute", top: drawerTopOffset, right: 0, bottom: 0, left: 0, display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200, background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)" }}
                     >
                       <div style={{ display: "flex", flexDirection: "column", flex: "1 1 0%", minHeight: 0, overflow: "hidden" }}>
-                        <div className="border-b border-white/[0.06] flex gap-1 px-3 pt-2 pb-0">
+                        <div className="border-b border-white/[0.06] flex h-10 shrink-0 items-center justify-between gap-2 overflow-hidden px-3">
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setRightPanelTab('article')}
+                              className={`relative text-xs font-medium px-3 py-1.5 cursor-pointer ${rightPanelTab === 'article' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                              aria-label="Article"
+                            >
+                              <Newspaper className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" strokeWidth={1.5} />
+                              <span>Article</span>
+                              {rightPanelTab === 'article' && (
+                                <motion.div layoutId="article-tab-indicator" className="absolute bottom-0 left-0 right-0 border-b-2 border-emerald-400" style={{ marginBottom: -1 }} />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRightPanelTab('liveLines')}
+                              className={`relative text-xs font-medium px-3 py-1.5 cursor-pointer ${rightPanelTab === 'liveLines' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                              aria-label="Live Lines"
+                            >
+                              <Activity className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" strokeWidth={1.5} />
+                              <span>Live Lines</span>
+                              {rightPanelTab === 'liveLines' && (
+                                <motion.div layoutId="article-tab-indicator" className="absolute bottom-0 left-0 right-0 border-b-2 border-emerald-400" style={{ marginBottom: -1 }} />
+                              )}
+                            </button>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => setRightPanelTab('article')}
-                            className={`relative text-xs font-medium px-3 py-1.5 cursor-pointer ${rightPanelTab === 'article' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                            aria-label="Article"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); setIsArticleOpen(false); setIsArticleDrawerExtendedToChartTop(false); }}
+                            className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                            aria-label="Close"
                           >
-                            <Newspaper className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" strokeWidth={1.5} />
-                            <span>Article</span>
-                            {rightPanelTab === 'article' && (
-                              <motion.div layoutId="article-tab-indicator" className="absolute bottom-0 left-0 right-0 border-b-2 border-emerald-400" style={{ marginBottom: -1 }} />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setRightPanelTab('liveLines')}
-                            className={`relative text-xs font-medium px-3 py-1.5 cursor-pointer ${rightPanelTab === 'liveLines' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                            aria-label="Live Lines"
-                          >
-                            <Activity className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" strokeWidth={1.5} />
-                            <span>Live Lines</span>
-                            {rightPanelTab === 'liveLines' && (
-                              <motion.div layoutId="article-tab-indicator" className="absolute bottom-0 left-0 right-0 border-b-2 border-emerald-400" style={{ marginBottom: -1 }} />
-                            )}
+                            <X className="w-5 h-5" strokeWidth={1.8} />
                           </button>
                         </div>
                         {rightPanelTab === 'article' ? (
@@ -5460,14 +5474,6 @@ export default function TraderPage({
                               {currentIndex >= 0 ? `${currentIndex + 1} / ${articles.length}` : '—'}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); setIsArticleOpen(false); setIsArticleDrawerExtendedToChartTop(false); }}
-                            className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
-                            aria-label="Close article"
-                          >
-                            <X className="w-5 h-5" strokeWidth={1.8} />
-                          </button>
                         </div>
                         <div className="flex shrink-0 flex-wrap items-center gap-3 px-4 py-2 border-b border-white/[0.06]">
                           <div className="flex items-center gap-1">

@@ -5,10 +5,9 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const defaultApiTarget =
-    mode === 'development'
-      ? 'http://localhost:3000'  // vercel dev; run "vercel dev" then "npm run dev"
-      : 'https://stratify.associates';
+  // Default: production API so news + ticker tape work with just "npm run dev".
+  // For Sports Odds locally: run "vercel dev" and set VITE_API_PROXY_TARGET=http://localhost:3000
+  const defaultApiTarget = 'https://stratify.associates';
   const apiProxyTarget = String(
     env.VITE_API_PROXY_TARGET
     || env.VITE_API_BASE
