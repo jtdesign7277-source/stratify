@@ -384,7 +384,7 @@ const SophiaPanel = ({
     return (
       <div
         style={{ width: PANEL_WIDTHS.closed, ...panelStyle }}
-        className="h-full flex flex-col items-center py-2"
+        className="h-full flex flex-col items-center pt-10 pb-2"
       >
         <button
           onClick={cyclePanel}
@@ -402,7 +402,7 @@ const SophiaPanel = ({
       style={{ width: PANEL_WIDTHS[panelState], ...panelStyle }}
       className="h-full flex flex-col overflow-hidden"
     >
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1f1f1f]">
+      <div className="flex items-center justify-between pl-4 pr-6 py-2 border-b border-[#1f1f1f]">
         <div className="flex items-center gap-2">
           <SophiaMark className="w-4 h-4" />
           <span className="text-white font-semibold text-sm">Sophia</span>
@@ -427,7 +427,7 @@ const SophiaPanel = ({
       </div>
 
       {/* Tab pills */}
-      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-[#1f1f1f]">
+      <div className="flex items-center justify-between gap-2 pl-4 pr-6 py-1.5 border-b border-[#1f1f1f]">
         <div className="flex gap-1">
           <button onClick={() => handleTabSelect('sophia')}
             className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${activeTab === 'sophia' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>

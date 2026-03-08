@@ -2495,7 +2495,7 @@ export default function Dashboard({
               transition={TOPBAR_ANIMATION}
               className="absolute inset-x-0 top-0 h-10 border-b border-[rgba(255,255,255,0.06)] bg-[#1a1a1a] flex items-center"
             >
-              <div className="relative h-full w-full flex items-center pr-10">
+              <div className="relative h-full w-full flex items-center">
                 <TopBarTickerTapeWidget
                   symbols={topBarTickerTapeSymbols}
                   quotesBySymbol={watchlistQuotesBySymbol}
@@ -2506,24 +2506,21 @@ export default function Dashboard({
           )}
         </AnimatePresence>
 
-        <motion.button
-          type="button"
-          onClick={() => setIsTopBarCollapsed((prev) => !prev)}
-          aria-label={isTopBarCollapsed ? 'Expand top header' : 'Collapse top header'}
-          title={isTopBarCollapsed ? 'Expand top header' : 'Collapse top header'}
-          className={`absolute right-2 z-30 transition-colors ${
-            isTopBarCollapsed
-              ? 'top-1.5 text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]'
-              : 'bottom-1 text-emerald-300/70 hover:text-emerald-300'
-          }`}
-          animate={{ rotate: isTopBarCollapsed ? 180 : 0 }}
-          transition={TOPBAR_ANIMATION}
-        >
-          <ChevronsUp className="h-4 w-4" strokeWidth={1.5} />
-        </motion.button>
+        {!isTopBarCollapsed && (
+          <motion.button
+            type="button"
+            onClick={() => setIsTopBarCollapsed((prev) => !prev)}
+            aria-label="Collapse top header"
+            title="Collapse top header"
+            className="absolute right-2 bottom-1 z-30 text-emerald-300/70 hover:text-emerald-300 transition-colors"
+            transition={TOPBAR_ANIMATION}
+          >
+            <ChevronsUp className="h-4 w-4" strokeWidth={1.5} />
+          </motion.button>
+        )}
       </motion.div>
       {/* Linear-style app window: fills viewport edge-to-edge (no outer margins) */}
-      <div className="flex-1 flex flex-row min-h-0 min-w-0 rounded-none bg-[#0a0a0a] border-0 border-t border-[rgba(255,255,255,0.06)] shadow-none overflow-hidden">
+      <div className="flex-1 flex flex-row min-h-0 min-w-0 rounded-none bg-[#0a0a0a] border-0 border-t border-[rgba(255,255,255,0.06)] shadow-none overflow-hidden relative">
         <Sidebar
           expanded={sidebarExpanded}
           onToggle={(val) => setSidebarExpanded(val)}
@@ -2553,6 +2550,23 @@ export default function Dashboard({
           onOpenFloatingGrok={() => setIsFloatingGrokOpen(prev => !prev)}
           onLogout={() => setCurrentPage('landing')}
         />
+
+        {/* Expand top bar chevron: in the content row (other tab) when top bar is collapsed */}
+        {isTopBarCollapsed && (
+          <motion.button
+            type="button"
+            onClick={() => setIsTopBarCollapsed(false)}
+            aria-label="Expand top header"
+            title="Expand top header"
+            className="absolute top-3 right-2 z-30 text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={TOPBAR_ANIMATION}
+          >
+            <ChevronsUp className="h-4 w-4" strokeWidth={1.5} style={{ transform: 'rotate(180deg)' }} />
+          </motion.button>
+        )}
         
         {/* Main Content Area — same background as sidebar for seamless look */}
         <div 

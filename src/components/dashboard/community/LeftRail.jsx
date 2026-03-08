@@ -2,11 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass, BarChart3, Hash, Settings,
-  PanelLeftClose, PanelRightClose, ChevronRight, ChevronDown, Trash2, Pencil, Check, X, Plus,
+  PanelLeftClose, PanelRightClose, ChevronRight, ChevronDown, Trash2, X, Plus,
 } from 'lucide-react';
 import { T, ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS, HOVER_LIFT } from './communityConstants';
-import { UserAvatar } from './CommunityShared';
-import { buildCurrentUserAvatarUrl } from './communityHelpers';
 
 const EXPLORE_TABS = [
   { id: 'discover', label: 'Discover', icon: Compass },
@@ -50,19 +48,12 @@ const LeftRail = ({
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const newFolderInputRef = useRef(null);
-  const isPro = true; // hardcoded until Stripe subscription wired
 
   useEffect(() => {
     if (isCreatingFolder && newFolderInputRef.current) {
       newFolderInputRef.current.focus();
     }
   }, [isCreatingFolder]);
-
-  const profileName = String(displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader').trim() || 'Trader';
-  const profileAvatarUrl = String(avatarUrl || currentUser?.avatar_url || buildCurrentUserAvatarUrl(profileName)).trim();
-  const profileUser = currentUser
-    ? { ...currentUser, display_name: profileName, avatar_url: profileAvatarUrl }
-    : { id: 'guest-user', display_name: profileName, avatar_url: profileAvatarUrl };
 
   const feedChannels = ALL_FEED_HASHTAGS.filter((feed) => (Array.isArray(enabledFeeds) ? enabledFeeds : []).includes(feed.id));
   const folders = Array.isArray(tweetFolders) ? tweetFolders : [];
@@ -179,10 +170,6 @@ const LeftRail = ({
             </button>
           );
         })}
-
-        <div className="mt-auto">
-          <UserAvatar user={profileUser} size={32} initialsClassName="text-[10px]" />
-        </div>
       </motion.aside>
     );
   }
@@ -209,62 +196,6 @@ const LeftRail = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
-        {/* ── Profile ── */}
-        {currentUser && (
-          <div className="px-2 py-2 mb-1">
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex-shrink-0">
-                <UserAvatar user={profileUser} size={40} initialsClassName="text-xs" />
-                {isPro && (
-                  <svg viewBox="0 0 22 22" className="absolute -bottom-0.5 -right-0.5 w-5 h-5" aria-label="Verified">
-                    <g>
-                      <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.855-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.69-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.636.433 1.221.878 1.69.47.446 1.055.752 1.69.883.635.13 1.294.083 1.902-.14.272.587.7 1.086 1.24 1.44s1.167.551 1.813.568c.647-.017 1.277-.213 1.818-.567s.972-.854 1.245-1.44c.604.223 1.26.27 1.894.14.634-.132 1.22-.437 1.69-.883.445-.47.75-1.055.88-1.69.131-.634.084-1.29-.139-1.896.587-.274 1.084-.705 1.438-1.246.355-.54.552-1.17.57-1.817z" fill="#1D9BF0"/>
-                      <path d="M9.585 14.929l-3.28-3.28 1.168-1.168 2.112 2.112 5.321-5.321 1.168 1.168-6.489 6.489z" fill="white"/>
-                    </g>
-                  </svg>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                {isEditingName ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      value={editName}
-                      onChange={(e) => setEditName?.(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveName?.();
-                        if (e.key === 'Escape') setIsEditingName?.(false);
-                      }}
-                      className="flex-1 min-w-0 bg-white/8 border border-white/15 rounded px-1.5 py-0.5 text-sm outline-none"
-                      style={{ color: T.text }}
-                      autoFocus
-                      maxLength={24}
-                    />
-                    <button type="button" onClick={handleSaveName} className="text-[#3fb950] hover:brightness-110" title="Save">
-                      <Check size={13} strokeWidth={2} />
-                    </button>
-                    <button type="button" onClick={() => setIsEditingName?.(false)} className="text-[#7d8590] hover:text-[#e6edf3]" title="Cancel">
-                      <X size={13} strokeWidth={2} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 group">
-                    <span className="text-base font-bold truncate" style={{ color: T.text }}>{profileName}</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEditName?.(profileName); setIsEditingName?.(true); }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{ color: T.muted }}
-                      title="Edit display name"
-                    >
-                      <Pencil size={12} strokeWidth={1.5} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* ── Explore Tabs ── */}
         {EXPLORE_TABS.map((tab) => {
           const Icon = tab.icon;

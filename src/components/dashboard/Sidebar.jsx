@@ -25,6 +25,8 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { UserAvatar } from './community/CommunityShared';
+import { readCurrentUserAvatar } from './community/communityHelpers';
 
 const Sidebar = ({ 
   activeTab = 'war-room', 
@@ -39,7 +41,17 @@ const Sidebar = ({
   onRemoveSavedStrategy,
   onLogout
 }) => {
-  const { signOut, isAuthenticated } = useAuth();
+  const { user, signOut, isAuthenticated } = useAuth();
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const communityAvatar = user ? readCurrentUserAvatar(displayName) : null;
+  const profileUser = user
+    ? {
+        id: user.id,
+        display_name: displayName,
+        email: user.email,
+        avatar_url: communityAvatar?.url || user.user_metadata?.avatar_url,
+      }
+    : null;
   const [internalCollapsed, setInternalCollapsed] = useState(true);
   const [strategiesExpanded, setStrategiesExpanded] = useState(false);
   const [deployedExpanded, setDeployedExpanded] = useState(false);
@@ -154,7 +166,7 @@ const Sidebar = ({
         <div className="h-px bg-[rgba(255,255,255,0.06)] mx-2 mb-2" />
         
         <ul className="space-y-0.5 mb-2">
-          {/* More info button */}
+          {/* More info + profile avatar */}
           <li>
             <motion.button
               onClick={() => handleTabClick('more')}
@@ -166,7 +178,11 @@ const Sidebar = ({
               }`}
               title={collapsed ? 'More info' : undefined}
             >
-              <MoreHorizontal className="w-[18px] h-[18px] flex-shrink-0 text-linear-text-muted" strokeWidth={1.5} />
+              {profileUser ? (
+                <UserAvatar user={profileUser} size={collapsed ? 36 : 28} initialsClassName="text-[10px]" />
+              ) : (
+                <MoreHorizontal className="w-[18px] h-[18px] flex-shrink-0 text-linear-text-muted" strokeWidth={1.5} />
+              )}
               {!collapsed && (
                 <span className="whitespace-nowrap overflow-hidden">More info</span>
               )}
@@ -197,14 +213,14 @@ const Sidebar = ({
           )}
         </ul>
 
-        <div className="h-px bg-[rgba(255,255,255,0.06)] mx-2 mb-2" />
+        <div className="h-px bg-[rgba(255,255,255,0.06)] mx-2 mb-2 mt-8" />
 
         <motion.button
           onClick={() => setCollapsed(!collapsed)}
           whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
           whileTap={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
           transition={{ duration: 0.15 }}
-          className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-linear-sm font-medium text-linear-text-muted hover:text-linear-text-secondary ${
+          className={`w-full flex items-center gap-3 px-2.5 py-2 mt-4 rounded-md text-linear-sm font-medium text-linear-text-muted hover:text-linear-text-secondary ${
             collapsed ? 'justify-center px-0' : ''
           }`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

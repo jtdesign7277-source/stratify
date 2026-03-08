@@ -18,6 +18,7 @@ import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
 import AppErrorBoundary from './components/shared/AppErrorBoundary';
 import StrategyRadarPage from './components/dashboard/StrategyRadarPage';
 import SportsOddsPage from './pages/SportsOddsPage';
+import ProModal from './components/dashboard/ProModal';
 import { Radar } from 'lucide-react';
 import {
   clearPendingCheckoutSession,
@@ -1053,6 +1054,7 @@ function StratifyAppContent() {
   };
 
   const [currentPage, setCurrentPage] = useState(resolveInitialPage);
+  const [showProModal, setShowProModal] = useState(false);
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
@@ -1667,6 +1669,7 @@ function StratifyAppContent() {
       <Dashboard
         initialTab={currentPage === 'radar' ? 'radar' : undefined}
         setCurrentPage={navigateToPage}
+        openProModal={() => setShowProModal(true)}
         isSocialFeedOpen={isSocialFeedOpen}
         onToggleSocialFeed={() => setIsSocialFeedOpen((prev) => !prev)}
         socialFeedUnread={hasSocialFeedUnread}
@@ -1806,6 +1809,7 @@ function StratifyAppContent() {
           isOpen={isSocialFeedOpen}
           onClose={() => setIsSocialFeedOpen(false)}
         />
+        <ProModal open={showProModal} onClose={() => setShowProModal(false)} />
       </div>
     </div>
   );
