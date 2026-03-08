@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
-import { T, CARD_VARIANTS } from './communityConstants';
+import { T, CARD_VARIANTS, HOVER_LIFT } from './communityConstants';
 import { ShimmerBlock } from './CommunityShared';
 import {
   normalizeSymbolKey,
@@ -19,6 +19,7 @@ const sentimentStyle = (sentiment) => {
 export const AiSearchLoadingCard = ({ query }) => (
   <motion.article
     layout
+    {...HOVER_LIFT}
     className="rounded-lg border border-l-2 p-3 animate-pulse"
     style={{
       borderColor: T.border,
@@ -76,6 +77,7 @@ export const AiSearchResultCard = ({ result, quoteMap = {}, onClear, onTickerCli
     <motion.article
       layout
       variants={CARD_VARIANTS}
+      {...HOVER_LIFT}
       className="rounded-lg border border-l-2 p-4"
       style={{
         borderColor: T.border,

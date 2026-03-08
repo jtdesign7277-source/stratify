@@ -65,6 +65,7 @@ const Sidebar = ({
     { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true },
     { id: 'trader', label: 'Trader', icon: TrendingUp },
     { id: 'crypto', label: 'Crypto', icon: Bitcoin },
+    { id: 'radar', label: 'Strategy Radar', icon: Crosshair },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'xray', label: 'X-Ray', icon: Microscope },
@@ -74,7 +75,6 @@ const Sidebar = ({
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
-    { id: 'radar', label: 'Strategy Radar', icon: Crosshair },
     { id: 'sports', label: 'Sports', icon: Zap },
   ];
 

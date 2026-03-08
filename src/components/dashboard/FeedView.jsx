@@ -9,6 +9,7 @@ import {
   X as XIcon, ArrowLeft, Globe, Clock, User, Sparkles, Loader2
 } from 'lucide-react'
 import { useFeed } from '../../hooks/useFeed'
+import { HOVER_LIFT } from './community/communityConstants'
 
 const CATEGORY_STYLES = {
   NEWS:       { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: Newspaper },
@@ -553,8 +554,9 @@ function HeroCard({ item, onClick }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      {...HOVER_LIFT}
       onClick={() => onClick(item)}
-      className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden hover:border-[#2a3548] hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 relative group cursor-pointer"
+      className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden hover:border-[#2a3548] hover:shadow-lg hover:shadow-black/20 transition-all duration-200 relative group cursor-pointer"
     >
       <div className={`flex ${hasImage ? 'flex-row' : ''}`}>
         {/* Text content */}
@@ -619,8 +621,9 @@ function NewsCard({ item, index, onClick }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.25 }}
+      {...HOVER_LIFT}
       onClick={() => onClick(item)}
-      className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden hover:border-[#2a3548] hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 relative group cursor-pointer"
+      className="bg-[#0a1628] border border-[#1a2538] rounded-xl overflow-hidden hover:border-[#2a3548] hover:shadow-lg hover:shadow-black/20 transition-all duration-200 relative group cursor-pointer"
     >
       <div className={`flex ${hasImage ? 'flex-row' : ''}`}>
         {/* Text content */}

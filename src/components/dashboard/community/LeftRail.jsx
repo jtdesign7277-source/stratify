@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass, BarChart3, Hash, Settings,
-  PanelLeftClose, PanelRightClose, ChevronRight, Trash2, Pencil, Check, X, Plus,
+  PanelLeftClose, PanelRightClose, ChevronRight, ChevronDown, Trash2, Pencil, Check, X, Plus,
 } from 'lucide-react';
-import { T, ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS } from './communityConstants';
+import { T, ALL_FEED_HASHTAGS, MAX_VISIBLE_FEED_HASHTAGS, HOVER_LIFT } from './communityConstants';
 import { UserAvatar } from './CommunityShared';
 import { buildCurrentUserAvatarUrl } from './communityHelpers';
 
@@ -47,7 +47,16 @@ const LeftRail = ({
   const [tweetsOpen, setTweetsOpen] = useState(true);
   const [draggedTweetRef, setDraggedTweetRef] = useState(null);
   const [tweetDropTargetFolderId, setTweetDropTargetFolderId] = useState('');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const newFolderInputRef = useRef(null);
   const isPro = true; // hardcoded until Stripe subscription wired
+
+  useEffect(() => {
+    if (isCreatingFolder && newFolderInputRef.current) {
+      newFolderInputRef.current.focus();
+    }
+  }, [isCreatingFolder]);
 
   const profileName = String(displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader').trim() || 'Trader';
   const profileAvatarUrl = String(avatarUrl || currentUser?.avatar_url || buildCurrentUserAvatarUrl(profileName)).trim();
@@ -57,13 +66,29 @@ const LeftRail = ({
 
   const feedChannels = ALL_FEED_HASHTAGS.filter((feed) => (Array.isArray(enabledFeeds) ? enabledFeeds : []).includes(feed.id));
   const folders = Array.isArray(tweetFolders) ? tweetFolders : [];
-  const activeTweetFolder = folders.find((folder) => folder.id === activeTweetFolderId) || folders[0] || null;
-  const activeTweets = Array.isArray(activeTweetFolder?.tweets) ? activeTweetFolder.tweets : [];
+  const activeTweetFolder = (activeTweetFolderId && folders.find((folder) => folder.id === activeTweetFolderId)) || null;
 
-  const handleCreateTweetFolder = () => {
-    const nextName = window.prompt('Create tweet folder');
-    if (!nextName || !String(nextName).trim()) return;
-    onCreateTweetFolder?.(String(nextName).trim());
+  const openNewFolderInput = () => {
+    setTweetsOpen(true);
+    setIsCreatingFolder(true);
+    setNewFolderName('');
+  };
+
+  const submitNewFolder = () => {
+    const name = String(newFolderName || '').trim().slice(0, 28);
+    if (!name) {
+      setIsCreatingFolder(false);
+      setNewFolderName('');
+      return;
+    }
+    onCreateTweetFolder?.(name);
+    setIsCreatingFolder(false);
+    setNewFolderName('');
+  };
+
+  const cancelNewFolder = () => {
+    setIsCreatingFolder(false);
+    setNewFolderName('');
   };
 
   const beginTweetDrag = (event, folderId, tweet) => {
@@ -165,9 +190,9 @@ const LeftRail = ({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: 240 }}
+      animate={{ width: 300 }}
       className="h-full flex-shrink-0 flex flex-col border-r overflow-y-auto"
-      style={{ borderColor: T.border, backgroundColor: T.bg, minWidth: 240, maxWidth: 240 }}
+      style={{ borderColor: T.border, backgroundColor: T.bg, minWidth: 300, maxWidth: 300 }}
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b flex-shrink-0" style={{ borderColor: T.border }}>
@@ -245,10 +270,11 @@ const LeftRail = ({
           const Icon = tab.icon;
           const isActive = activeExploreTab === tab.id;
           return (
-            <button
+            <motion.button
               key={tab.id}
               type="button"
               onClick={() => onExploreTabChange?.(isActive ? null : tab.id)}
+              {...HOVER_LIFT}
               className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors"
               style={{
                 color: isActive ? T.blue : T.text,
@@ -258,7 +284,7 @@ const LeftRail = ({
               <Icon size={20} strokeWidth={1.5} />
               <span>{tab.label}</span>
               {isActive && <ChevronRight size={14} strokeWidth={1.5} className="ml-auto" style={{ color: T.blue }} />}
-            </button>
+            </motion.button>
           );
         })}
 
@@ -281,10 +307,11 @@ const LeftRail = ({
             feedChannels.slice(0, MAX_VISIBLE_FEED_HASHTAGS).map((feed) => {
               const isActive = filter === feed.id;
               return (
-                <button
+                <motion.button
                   key={feed.id}
                   type="button"
                   onClick={() => { onExploreTabChange?.(null); onFilter?.(isActive ? null : feed.id); }}
+                  {...HOVER_LIFT}
                   className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-base transition-colors"
                   style={{
                     color: isActive ? T.blue : T.text,
@@ -293,22 +320,23 @@ const LeftRail = ({
                 >
                   <Hash size={14} strokeWidth={1.5} />
                   <span className="truncate">{feed.label}</span>
-                </button>
+                </motion.button>
               );
             })
           ) : (
-            <button
+            <motion.button
               type="button"
               onClick={onOpenFeedCustomizer}
+              {...HOVER_LIFT}
               className="w-full px-2 py-2 text-base text-left rounded-lg hover:bg-white/5 transition-colors"
               style={{ color: T.muted }}
             >
               + Add feed channels
-            </button>
+            </motion.button>
           )}
         </div>
 
-        {/* ── Tweets ── */}
+        {/* ── Tweets (each folder tab opens to that folder's saved tweets) ── */}
         <div className="pt-2 pb-1">
           <div className="flex items-center gap-1.5 px-2 mb-1.5">
             <button
@@ -327,12 +355,13 @@ const LeftRail = ({
             </button>
             <button
               type="button"
-              onClick={handleCreateTweetFolder}
-              className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-white/8 transition-colors"
+              onClick={openNewFolderInput}
+              className="h-7 w-7 flex-shrink-0 inline-flex items-center justify-center rounded-md hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
               style={{ color: T.blue }}
-              title="Create tweet folder"
+              title="Create new folder under Tweets"
+              aria-label="Create new tweet folder"
             >
-              <Plus size={13} strokeWidth={2} />
+              <Plus size={14} strokeWidth={2.5} />
             </button>
           </div>
 
@@ -346,20 +375,58 @@ const LeftRail = ({
                 className="overflow-hidden"
               >
                 <div className="pl-2 pr-1 space-y-1">
-                  {folders.length === 0 ? (
-                    <div className="rounded-lg px-2 py-1.5 text-[11px]" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                      No tweet folders yet.
+                  {isCreatingFolder ? (
+                    <motion.div {...HOVER_LIFT} className="rounded-lg border bg-white/[0.04] p-2 flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                      <input
+                        ref={newFolderInputRef}
+                        type="text"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') submitNewFolder();
+                          if (e.key === 'Escape') cancelNewFolder();
+                        }}
+                        placeholder="Folder name"
+                        maxLength={28}
+                        className="flex-1 min-w-0 rounded-lg border border-white/[0.08] bg-black/30 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500/50"
+                        style={{ color: T.text }}
+                      />
+                      <button
+                        type="button"
+                        onClick={submitNewFolder}
+                        disabled={!String(newFolderName || '').trim()}
+                        className="rounded-md px-2 py-1.5 text-sm font-medium disabled:opacity-40 transition-opacity"
+                        style={{ color: T.blue }}
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelNewFolder}
+                        className="rounded-md p-1.5 transition-colors"
+                        style={{ color: T.muted }}
+                        title="Cancel"
+                      >
+                        <X size={14} strokeWidth={1.8} />
+                      </button>
+                    </motion.div>
+                  ) : null}
+                  {folders.length === 0 && !isCreatingFolder ? (
+                    <div className="rounded-lg px-2 py-2 text-base" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                      No tweet folders yet. Click + to create one.
                     </div>
                   ) : (
                     folders.map((folder) => {
                       const isActiveFolder = activeTweetFolder?.id === folder.id;
-                      const folderCount = Array.isArray(folder?.tweets) ? folder.tweets.length : 0;
+                      const folderTweets = Array.isArray(folder?.tweets) ? folder.tweets : [];
+                      const folderCount = folderTweets.length;
                       const canDeleteFolder = folder.id !== 'tweets-default';
                       const isDropTarget = tweetDropTargetFolderId === folder.id;
                       return (
-                        <div
+                        <motion.div
                           key={folder.id}
-                          className="rounded-lg border bg-white/[0.02] transition-colors"
+                          {...HOVER_LIFT}
+                          className="rounded-lg border bg-white/[0.02] transition-colors overflow-hidden"
                           style={{
                             borderColor: isDropTarget ? 'rgba(88,166,255,0.55)' : 'rgba(255,255,255,0.08)',
                             boxShadow: isDropTarget ? '0 0 0 1px rgba(88,166,255,0.25) inset' : 'none',
@@ -375,16 +442,27 @@ const LeftRail = ({
                             <button
                               type="button"
                               onClick={() => onSetActiveTweetFolder?.(folder.id)}
-                              className="flex-1 text-left px-2 py-1.5 text-[11px] rounded-l-lg transition-colors"
+                              className="flex-1 text-left px-2 py-2 text-base rounded-l-lg transition-colors"
                               style={{
                                 color: isActiveFolder ? T.blue : T.text,
                                 backgroundColor: isActiveFolder ? 'rgba(88,166,255,0.1)' : 'transparent',
                               }}
-                              title={`Open ${folder.name} folder`}
+                              title={isActiveFolder ? `Close ${folder.name} tweets` : `Open ${folder.name} tweets`}
                             >
-                              <span className="font-semibold">{folder.name}</span>
+                              <span className="font-bold">{folder.name}</span>
                               <span className="ml-1" style={{ color: T.muted }}>({folderCount})</span>
                             </button>
+                            {isActiveFolder ? (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onSetActiveTweetFolder?.(folder.id); }}
+                                className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-white/8 transition-colors mr-1"
+                                style={{ color: T.muted }}
+                                title="Close tweets"
+                              >
+                                <ChevronDown size={12} strokeWidth={1.8} className="rotate-180" />
+                              </button>
+                            ) : null}
                             {canDeleteFolder ? (
                               <button
                                 type="button"
@@ -397,48 +475,43 @@ const LeftRail = ({
                               </button>
                             ) : null}
                           </div>
-                        </div>
+                          {isActiveFolder && folderTweets.length > 0 && (
+                            <div className="border-t border-white/[0.06] pl-2 pr-1 py-1.5 space-y-1">
+                              {folderTweets.map((tweet) => (
+                                <div
+                                  key={tweet.id}
+                                  className="group flex items-start gap-2 rounded-lg px-2 py-2 text-base cursor-grab active:cursor-grabbing"
+                                  style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                  draggable
+                                  onDragStart={(event) => beginTweetDrag(event, folder.id, tweet)}
+                                  onDragEnd={endTweetDrag}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenTweetDraft?.(tweet, folder.id)}
+                                    className="flex-1 min-w-0 text-left leading-relaxed hover:text-[#e6edf3] transition-colors font-medium"
+                                    style={{ color: T.text }}
+                                    title="Open tweet in AI Rewrite"
+                                  >
+                                    {String(tweet.content || '').slice(0, 140)}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onDeleteTweetDraft?.(folder.id, tweet.id)}
+                                    className="opacity-40 group-hover:opacity-100 transition-opacity"
+                                    style={{ color: T.red }}
+                                    title="Delete tweet"
+                                  >
+                                    <Trash2 size={11} strokeWidth={1.6} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </motion.div>
                       );
                     })
                   )}
-
-                  <div className="pt-1 space-y-1">
-                    {activeTweets.length === 0 ? (
-                      <div className="rounded-lg px-2 py-1.5 text-[11px]" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                        No tweets saved in this folder.
-                      </div>
-                    ) : (
-                      activeTweets.map((tweet) => (
-                        <div
-                          key={tweet.id}
-                          className="group flex items-start gap-1.5 rounded-lg px-2 py-1.5 text-[11px] cursor-grab active:cursor-grabbing"
-                          style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                          draggable
-                          onDragStart={(event) => beginTweetDrag(event, activeTweetFolder?.id, tweet)}
-                          onDragEnd={endTweetDrag}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => onOpenTweetDraft?.(tweet, activeTweetFolder?.id)}
-                            className="flex-1 min-w-0 text-left leading-relaxed hover:text-[#e6edf3] transition-colors"
-                            style={{ color: T.text }}
-                            title="Open tweet in AI Rewrite"
-                          >
-                            {String(tweet.content || '').slice(0, 88)}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDeleteTweetDraft?.(activeTweetFolder?.id, tweet.id)}
-                            className="opacity-40 group-hover:opacity-100 transition-opacity"
-                            style={{ color: T.red }}
-                            title="Delete tweet"
-                          >
-                            <Trash2 size={11} strokeWidth={1.6} />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
                 </div>
               </motion.div>
             ) : null}

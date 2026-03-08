@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { HOVER_LIFT } from './communityConstants';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -143,7 +145,10 @@ function IndexCard({ label, subtitle, symbol, quote, sparkline }) {
   };
 
   return (
-    <div className="bg-[#161b22] border border-white/10 rounded-xl p-4 relative overflow-hidden flex flex-col">
+    <motion.div
+      {...HOVER_LIFT}
+      className="bg-[#161b22] border border-white/10 rounded-xl p-4 relative overflow-hidden flex flex-col"
+    >
       {/* Top row: label + % change */}
       <div className="flex items-center justify-between mb-0.5">
         <span className="text-xs font-bold uppercase tracking-wide text-[#e6edf3]">{label}</span>
@@ -176,7 +181,7 @@ function IndexCard({ label, subtitle, symbol, quote, sparkline }) {
         className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
         style={{ background: 'linear-gradient(to bottom, transparent, #161b22)' }}
       />
-    </div>
+    </motion.div>
   );
 }
 

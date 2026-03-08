@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Clock3, Newspaper, ChevronDown, BarChart3, RefreshCw } from 'lucide-react';
+import { HOVER_LIFT } from './communityConstants';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import WatchlistPanel from './WatchlistPanel';
 import IndexCards from './IndexCards';
@@ -102,7 +103,7 @@ export const HistoryView = ({ history, loading, onClear, onArticleClick }) => {
         <button type="button" onClick={onClear} className="text-xs text-[#f85149] hover:text-[#ff7b72] transition">Clear All</button>
       </div>
       {history.map((item, idx) => (
-        <button
+        <motion.button
           type="button"
           key={`${item.content_type}-${item.content_id}-${idx}`}
           onClick={() => onArticleClick?.({
@@ -113,6 +114,7 @@ export const HistoryView = ({ history, loading, onClear, onArticleClick }) => {
             image: item.thumbnail_url || null,
             category: 'NEWS',
           })}
+          {...HOVER_LIFT}
           className="w-full text-left flex gap-3 rounded-xl border border-white/6 bg-white/2 p-3 hover:bg-white/4 transition-colors group"
         >
           {item.thumbnail_url ? (
@@ -129,7 +131,7 @@ export const HistoryView = ({ history, loading, onClear, onArticleClick }) => {
               <span className="text-xs text-[#7d8590]">{relTime(item.clicked_at)}</span>
             </div>
           </div>
-        </button>
+        </motion.button>
       ))}
     </div>
   );
@@ -159,7 +161,7 @@ export const DiscoverView = ({ data, loading, onArticleClick }) => {
           <div className="text-xs uppercase tracking-widest text-[#7d8590] px-1 mb-2">Top Stories</div>
           <div className="space-y-2">
             {stories.map((story, idx) => (
-              <button
+              <motion.button
                 type="button"
                 key={`story-${idx}`}
                 onClick={() => onArticleClick?.({
@@ -172,6 +174,7 @@ export const DiscoverView = ({ data, loading, onArticleClick }) => {
                   publishedAt: story.publishedAt || null,
                   category: 'NEWS',
                 })}
+                {...HOVER_LIFT}
                 className="w-full text-left flex gap-3 rounded-xl border border-white/6 bg-white/2 p-3 hover:bg-white/4 transition-colors group"
               >
                 {story.thumbnailUrl ? (
@@ -190,7 +193,7 @@ export const DiscoverView = ({ data, loading, onArticleClick }) => {
                     ) : null}
                   </div>
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -345,7 +348,7 @@ export const FinanceView = ({ onArticleClick }) => {
         )}
 
         {!newsLoading && articles.map((article) => (
-          <button
+          <motion.button
             type="button"
             key={article.id || article.url}
             onClick={() => onArticleClick?.({
@@ -357,6 +360,7 @@ export const FinanceView = ({ onArticleClick }) => {
               tickers: Array.isArray(article.tickers) ? article.tickers : [],
               category: 'NEWS',
             })}
+            {...HOVER_LIFT}
             className="w-full text-left rounded-xl border border-white/6 bg-white/2 p-3 mb-2 hover:bg-white/4 transition-colors"
           >
             <div className="flex gap-3">
@@ -384,7 +388,7 @@ export const FinanceView = ({ onArticleClick }) => {
                 )}
               </div>
             </div>
-          </button>
+          </motion.button>
         ))}
       </div>
     </div>

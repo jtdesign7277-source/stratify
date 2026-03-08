@@ -17,6 +17,12 @@ export const T = {
   blue: '#58a6ff',
 };
 
+// Hover scale + lift (every card, tab, panel on Community)
+export const HOVER_LIFT = {
+  whileHover: { scale: 1.03, y: -2 },
+  transition: { type: 'spring', stiffness: 400, damping: 30 },
+};
+
 // ─── Market Symbols ───────────────────────────────────────
 export const MARKET_MOVER_SYMBOLS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'META', 'AMZN', 'AMD', 'GOOGL'];
 export const DEFAULT_TICKERS = [...MARKET_MOVER_SYMBOLS, 'BTC/USD', 'ETH/USD', 'SPY', 'QQQ'];

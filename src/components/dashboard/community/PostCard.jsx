@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
-import { T, CARD_VARIANTS } from './communityConstants';
+import { T, CARD_VARIANTS, HOVER_LIFT } from './communityConstants';
 import {
   toFiniteNumber,
   buildCurrentUserAvatarUrl,
@@ -226,6 +226,7 @@ const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayNa
     <motion.article
       variants={CARD_VARIANTS}
       layout
+      {...HOVER_LIFT}
       className="rounded-lg border p-3"
       style={{ borderColor: T.border, backgroundColor: T.card }}
     >

@@ -8,7 +8,7 @@ import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
 import {
-  Heart, MessageCircle, Send, X, TrendingUp, BarChart3, Bell, BellOff,
+  Heart, MessageCircle, Send, X, TrendingUp, BarChart3,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
@@ -60,6 +60,7 @@ import {
   RAIL_TRENDS_PLACEHOLDER,
   MOOD_LS_KEY,
   DEFAULT_MOOD,
+  HOVER_LIFT,
 } from './community/communityConstants';
 import {
   buildProfileAvatarUrl,
@@ -98,7 +99,6 @@ import {
   createSlipCaption,
   shareToX,
   normalizeSymbolKey,
-  normalizePriceAlertTicker,
   mergeQuotesFromPayload,
   mergeStreamQuote,
   mentionSymbolsFromPosts,
@@ -114,7 +114,6 @@ import {
   readEnabledFeedHashtags,
   persistEnabledFeedHashtags,
   makeMockReactionRows,
-  generateMockFeed,
 } from './community/communityHelpers';
 import {
   XLogoIcon,
@@ -170,7 +169,7 @@ const buildDefaultTweetStorage = (tweets = []) => {
       createdAt,
       tweets: index === 0 ? tweets.filter(Boolean) : [],
     })),
-    activeFolderId: DEFAULT_TWEET_FOLDERS[0].id,
+    activeFolderId: '', // none expanded until user clicks a tab
   };
 };
 
@@ -241,7 +240,7 @@ const normalizeTweetStorage = (raw) => {
   const requestedActiveFolderId = String(raw?.activeFolderId || '').trim();
   const activeFolderId = folders.some((folder) => folder.id === requestedActiveFolderId)
     ? requestedActiveFolderId
-    : folders[0].id;
+    : '';
 
   return { folders, activeFolderId };
 };
@@ -314,10 +313,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       return [];
     }
   });
-  const [priceAlertPopoverOpen, setPriceAlertPopoverOpen] = useState(false);
-  const [priceAlertTickerInput, setPriceAlertTickerInput] = useState('');
-  const [priceAlertTargetInput, setPriceAlertTargetInput] = useState('');
-  const [priceAlertDirection, setPriceAlertDirection] = useState('above');
   const [alertToasts, setAlertToasts] = useState([]);
   const [feedCustomizerOpen, setFeedCustomizerOpen] = useState(false);
   const [enabledFeeds, setEnabledFeeds] = useState(() => readEnabledFeedHashtags());
@@ -354,7 +349,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const activeAvatarUrl = String(
     currentUserAvatar?.url || buildCurrentUserAvatarUrl(activeAvatarSeed)
   ).trim() || buildCurrentUserAvatarUrl(activeAvatarSeed);
-  const priceAlertPopoverRef = useRef(null);
   const alertToastTimersRef = useRef(new Map());
   const upsertProfileRecord = useCallback(async ({
     userId,
@@ -409,9 +403,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       // localStorage sync is best effort only
     }
   }, []);
-
-  const mockFeed = useMemo(() => generateMockFeed(), []);
-
 
   // Preload discover + finance data on mount
   useEffect(() => {
@@ -513,26 +504,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       // localStorage sync is best effort only
     }
   }, [priceAlerts]);
-
-  useEffect(() => {
-    if (!priceAlertPopoverOpen) return undefined;
-
-    const handlePointerDown = (event) => {
-      if (priceAlertPopoverRef.current?.contains(event.target)) return;
-      setPriceAlertPopoverOpen(false);
-    };
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setPriceAlertPopoverOpen(false);
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [priceAlertPopoverOpen]);
 
   useEffect(() => {
     return () => {
@@ -798,17 +769,17 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       })));
 
       if (hydrated.length === 0) {
-        setPosts(mockFeed);
+        setPosts([]);
       } else {
         setPosts(hydrated);
       }
     } catch {
-      setPosts(mockFeed);
-      setError('Using offline mock feed while live community data is unavailable.');
+      setPosts([]);
+      setError('Community feed is temporarily unavailable.');
     } finally {
       setLoading(false);
     }
-  }, [hydratePosts, mockFeed]);
+  }, [hydratePosts]);
 
   useEffect(() => {
     void fetchPosts();
@@ -1274,36 +1245,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setAiSearchResults((prev) => prev.filter((row) => row.id !== id));
   }, []);
 
-  const handleSetPriceAlert = useCallback(async () => {
-    const ticker = normalizePriceAlertTicker(priceAlertTickerInput);
-    const targetPrice = toMaybeFiniteNumber(priceAlertTargetInput);
-    const direction = priceAlertDirection === 'below' ? 'below' : 'above';
-
-    if (!ticker || !Number.isFinite(targetPrice) || targetPrice <= 0) return;
-
-    const alert = {
-      id: Date.now(),
-      ticker,
-      targetPrice: Number(targetPrice.toFixed(2)),
-      direction,
-      active: true,
-      triggered: false,
-      createdAt: new Date().toISOString(),
-    };
-
-    setPriceAlerts((prev) => [alert, ...prev]);
-    setPriceAlertPopoverOpen(false);
-    setPriceAlertTickerInput('');
-    setPriceAlertTargetInput('');
-    setPriceAlertDirection('above');
-
-    try {
-      await supabase.from('price_alerts').insert(alert);
-    } catch {
-      // fall back to local state + localStorage only
-    }
-  }, [priceAlertDirection, priceAlertTargetInput, priceAlertTickerInput]);
-
   const togglePriceAlert = useCallback((alertId) => {
     setPriceAlerts((prev) => prev.map((alert) => {
       if (alert.id !== alertId) return alert;
@@ -1375,11 +1316,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const activeFeedFilter = filter;
   const activeFeedTag = normalizeFeedHashtag(activeFeedFilter);
 
-  const filteredPosts = useMemo(() => (
-    activeFeedFilter
-      ? posts.filter((post) => postMatchesFeedFilter(post, activeFeedFilter))
-      : posts
-  ), [activeFeedFilter, posts]);
+  const filteredPosts = useMemo(() => {
+    const realPosts = posts.filter((post) => !post?.is_mock);
+    return activeFeedFilter
+      ? realPosts.filter((post) => postMatchesFeedFilter(post, activeFeedFilter))
+      : realPosts;
+  }, [activeFeedFilter, posts]);
 
   const shouldShowWebFallback = Boolean(activeFeedFilter) && filteredPosts.length < HASHTAG_WEB_MIN_VISIBLE_POSTS;
   const activeHashtagCacheEntry = activeFeedTag ? hashtagWebCache[activeFeedTag] : null;
@@ -1581,7 +1523,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setTweetStorage((prev) => {
       const base = normalizeTweetStorage(prev);
       if (!base.folders.some((folder) => folder.id === targetId)) return base;
-      return { ...base, activeFolderId: targetId };
+      // Toggle: click same tab again to close its tweets
+      const nextActive = base.activeFolderId === targetId ? '' : targetId;
+      return { ...base, activeFolderId: nextActive };
     });
   }, []);
 
@@ -1787,105 +1731,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
                 <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
                   <div className={`mx-auto flex h-full w-full min-w-0 flex-col transition-all duration-200${filter ? '' : ' max-w-[750px]'}`}>
-                    {!filter && !activeExploreTab && (
-                    <div className="px-3 pb-2">
-                      <div className="flex items-center justify-end">
-                        <div className="relative" ref={priceAlertPopoverRef}>
-                          <button
-                            type="button"
-                            onClick={() => setPriceAlertPopoverOpen((prev) => !prev)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-[#e6edf3] hover:bg-white/10 transition"
-                          >
-                            <Bell className="h-3.5 w-3.5 text-[#58a6ff]" strokeWidth={1.5} />
-                            <span>Price Alert</span>
-                          </button>
-
-                          <AnimatePresence initial={false}>
-                            {priceAlertPopoverOpen && (
-                              <motion.div
-                                initial={{ opacity: 0, y: -4, scale: 0.97 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                                transition={{ duration: 0.15, ease: 'easeOut' }}
-                                className="absolute top-full right-0 mt-2 z-50 bg-[#161b22] border border-white/10 rounded-2xl p-4 shadow-xl w-[300px]"
-                              >
-                                {/* Header */}
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <Bell className="h-4 w-4 text-[#58a6ff]" strokeWidth={1.5} />
-                                    <span className="text-[#e6edf3] text-sm font-semibold">Set Price Alert</span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => setPriceAlertPopoverOpen(false)}
-                                    className="text-[#7d8590] hover:text-[#e6edf3] cursor-pointer transition"
-                                    aria-label="Close price alert"
-                                  >
-                                    <X className="w-4 h-4" strokeWidth={1.5} />
-                                  </button>
-                                </div>
-
-                                {/* Ticker input */}
-                                <input
-                                  type="text"
-                                  value={priceAlertTickerInput}
-                                  onChange={(event) => setPriceAlertTickerInput(normalizePriceAlertTicker(event.target.value))}
-                                  placeholder="$AAPL"
-                                  className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2.5 text-[#e6edf3] text-sm font-mono placeholder-[#7d8590] focus:border-[#58a6ff]/50 outline-none mb-2"
-                                />
-
-                                {/* Price input */}
-                                <input
-                                  type="number"
-                                  value={priceAlertTargetInput}
-                                  onChange={(event) => setPriceAlertTargetInput(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                      event.preventDefault();
-                                      void handleSetPriceAlert();
-                                    }
-                                  }}
-                                  placeholder="250.00"
-                                  className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2.5 text-[#e6edf3] text-sm font-mono placeholder-[#7d8590] focus:border-[#58a6ff]/50 outline-none mb-3"
-                                />
-
-                                {/* Above / Below toggle */}
-                                <div className="flex gap-2 mb-3">
-                                  {['above', 'below'].map((direction) => {
-                                    const active = priceAlertDirection === direction;
-                                    return (
-                                      <button
-                                        key={direction}
-                                        type="button"
-                                        onClick={() => setPriceAlertDirection(direction)}
-                                        className={`flex-1 rounded-lg py-2 text-xs font-medium transition cursor-pointer ${
-                                          active
-                                            ? 'bg-[#58a6ff] text-white'
-                                            : 'bg-[#0d1117] border border-white/10 text-[#7d8590] hover:bg-white/5'
-                                        }`}
-                                      >
-                                        {direction === 'above' ? '↑ Above' : '↓ Below'}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-
-                                {/* Set Alert button */}
-                                <button
-                                  type="button"
-                                  onClick={() => void handleSetPriceAlert()}
-                                  className="w-full bg-[#58a6ff] hover:bg-[#4a90e2] text-white rounded-xl py-2.5 text-sm font-semibold transition cursor-pointer"
-                                >
-                                  Set Alert
-                                </button>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </div>
-                    </div>
-                    )}
-
                     <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     {selectedTicker ? (
                       <StockDetailView
@@ -1981,7 +1826,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
                             {/* Article cards */}
                             {!marketauxLoading && marketauxResults.map((article) => (
-                              <div
+                              <motion.div
                                 key={article.id}
                                 role="button"
                                 tabIndex={0}
@@ -1992,6 +1837,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                     openArticleInCenter(article);
                                   }
                                 }}
+                                {...HOVER_LIFT}
                                 className="rounded-xl border p-3 mb-2 cursor-pointer transition-colors hover:bg-white/[0.03]"
                                 style={{ borderColor: T.border, backgroundColor: T.card }}
                               >
@@ -2021,7 +1867,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                     )}
                                   </div>
                                 </div>
-                              </div>
+                              </motion.div>
                             ))}
                           </div>
                         )}
@@ -2102,8 +1948,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                 ) : hasActiveHashtagWebResults ? (
                                   <div className="space-y-2">
                                     {activeHashtagWebResults.map((result, idx) => (
-                                      <div
+                                      <motion.div
                                         key={`hashtag-web-result-${idx}-${result.headline.slice(0, 24)}`}
+                                        {...HOVER_LIFT}
                                         className="rounded-xl border border-white/6 bg-white/3 p-3"
                                       >
                                         <div className="text-sm font-medium text-[#e6edf3]">
@@ -2118,7 +1965,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                             <span>{result.relatedTickers.map((ticker) => `$${ticker}`).join(' • ')}</span>
                                           ) : null}
                                         </div>
-                                      </div>
+                                      </motion.div>
                                     ))}
                                   </div>
                                 ) : (

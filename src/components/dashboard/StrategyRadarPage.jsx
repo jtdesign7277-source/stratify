@@ -1890,6 +1890,20 @@ function StrategyRadarContent() {
     [strategies, activeStrategies]
   );
 
+  // When a strategy is off, don't pass its data to the chart so markers/overlays clear
+  const chartOrderBlocks = enabledTypes.has('msb_ob') ? orderBlocks : [];
+  const chartMsbEvents = enabledTypes.has('msb_ob') ? msbEvents : [];
+  const chartChochEvents = enabledTypes.has('smart_money') ? smResults.chochEvents : [];
+  const chartBosEvents = enabledTypes.has('smart_money') ? smResults.bosEvents : [];
+  const chartSignals = useMemo(() => {
+    return currentTickerSignals.filter(s => {
+      const src = String(s?.strategy_source || '').trim();
+      if (src === 'MSB/OB') return enabledTypes.has('msb_ob');
+      if (src === 'Smart Money') return enabledTypes.has('smart_money');
+      return true;
+    });
+  }, [currentTickerSignals, enabledTypes]);
+
   if (loading && candles.length === 0) {
     return (
       <div className="h-full bg-[#0a0a0f] flex items-center justify-center">
@@ -2186,11 +2200,11 @@ function StrategyRadarContent() {
             <RadarChart
               key={selectedTicker}
               candles={candles}
-              orderBlocks={orderBlocks}
-              msbEvents={msbEvents}
-              signals={currentTickerSignals}
-              chochEvents={smResults.chochEvents}
-              bosEvents={smResults.bosEvents}
+              orderBlocks={chartOrderBlocks}
+              msbEvents={chartMsbEvents}
+              signals={chartSignals}
+              chochEvents={chartChochEvents}
+              bosEvents={chartBosEvents}
               selectedTicker={selectedTicker}
               selectedTimeframe={settings.timeframe}
               candleColors={candleColors}

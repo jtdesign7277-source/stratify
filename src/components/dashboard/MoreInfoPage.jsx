@@ -41,6 +41,11 @@ const modalPanelMotion = {
   transition: { type: 'spring', stiffness: 300, damping: 25 },
 };
 
+const HOVER_LIFT = {
+  whileHover: { scale: 1.03, y: -2 },
+  transition: { type: 'spring', stiffness: 400, damping: 30 },
+};
+
 const UPGRADE_URL = null; // Handled by click handler
 
 const AVATAR_STYLES = [
@@ -324,56 +329,61 @@ export default function MoreInfoPage() {
 
   return (
     <motion.div {...PAGE_TRANSITION} className="min-h-full bg-transparent p-4 flex flex-col overflow-y-auto">
-      <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-3 min-h-0">
+      <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-4 min-h-0">
         
         {/* Header Row */}
-        <div className="flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center justify-between flex-shrink-0 flex-wrap gap-3">
           <div>
             <h2 className="text-xl font-semibold text-white">Contact & Support</h2>
-            <p className="text-gray-500 text-sm">Get help or reach out to our team</p>
+            <p className="text-gray-500 text-sm mt-0.5">Get help or reach out to our team</p>
           </div>
           
           {/* Quick Links */}
-          <div className="flex items-center gap-2">
-            <a 
-              href="mailto:jeff@stratify-associates.com" 
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#111118] border border-[#2a2a3d] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-sm transition-all"
+          <div className="flex items-center gap-2 flex-wrap">
+            <motion.a
+              href="mailto:jeff@stratify-associates.com"
+              {...HOVER_LIFT}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.03] backdrop-blur-sm border border-white/[0.06] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-sm transition-all shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
             >
               <Mail className="w-3.5 h-3.5" strokeWidth={1.5} />
               jeff@stratify-associates.com
-            </a>
-            <a 
-              href="https://x.com/stratify_hq" 
-              target="_blank" 
+            </motion.a>
+            <motion.a
+              href="https://x.com/stratify_hq"
+              target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#111118] border border-[#2a2a3d] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-sm transition-all"
+              {...HOVER_LIFT}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.03] backdrop-blur-sm border border-white/[0.06] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-sm transition-all shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
               </svg>
               @stratify_hq
-            </a>
+            </motion.a>
           </div>
         </div>
 
         {/* Top Row - Contact Form & Chat (Compact) */}
-        <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
+        <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
           
           {/* Contact Form */}
-          <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-4 flex flex-col">
+          <motion.div
+            {...HOVER_LIFT}
+            className="rounded-2xl p-5 flex flex-col bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)]"
+          >
             <h3 className="text-white font-medium text-lg mb-3 flex items-center gap-2">
               <Mail className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
               Send us a message
             </h3>
             
-            <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-2">
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <input 
                   type="text" 
                   required
                   value={formData.name}
                   onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                  className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all" 
+                  className="w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2.5 text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-emerald-500/50 transition-all shadow-[inset_2px_2px_6px_rgba(0,0,0,0.3)]" 
                   placeholder="Name"
                 />
                 <input 
@@ -381,7 +391,7 @@ export default function MoreInfoPage() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
-                  className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all" 
+                  className="w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2.5 text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-emerald-500/50 transition-all shadow-[inset_2px_2px_6px_rgba(0,0,0,0.3)]" 
                   placeholder="Email"
                 />
               </div>
@@ -389,7 +399,7 @@ export default function MoreInfoPage() {
               <select 
                 value={formData.subject}
                 onChange={(e) => setFormData(p => ({ ...p, subject: e.target.value }))}
-                className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/60 transition-all"
+                className="w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all"
               >
                 <option>General Inquiry</option>
                 <option>Technical Support</option>
@@ -399,19 +409,19 @@ export default function MoreInfoPage() {
               </select>
               
               <textarea 
-                rows={2} 
+                rows={3} 
                 required
                 value={formData.message}
                 onChange={(e) => setFormData(p => ({ ...p, message: e.target.value }))}
                 placeholder="How can we help?" 
-                className="flex-1 w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all resize-none" 
+                className="flex-1 min-h-[80px] w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2.5 text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-emerald-500/50 transition-all resize-none shadow-[inset_2px_2px_6px_rgba(0,0,0,0.3)]" 
               />
               
               <div className="flex items-center gap-2">
                 <button 
                   type="submit"
                   disabled={status === 'loading'}
-                  className="px-2.5 py-1 rounded-md border border-emerald-500/40 hover:border-emerald-400 disabled:opacity-50 text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-all flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl border border-emerald-500/40 hover:border-emerald-400 disabled:opacity-50 text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-all flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/15"
                 >
                   {status === 'loading' ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Sending...</>
@@ -434,30 +444,36 @@ export default function MoreInfoPage() {
                 </AnimatePresence>
               </div>
             </form>
-          </div>
+          </motion.div>
 
           {/* Live Chat */}
-          <div className="min-h-0 flex flex-col [&_*]:text-sm [&>div>div:first-child>span]:text-lg [&>div>div:first-child>div>span:last-child]:text-xs">
+          <motion.div
+            {...HOVER_LIFT}
+            className="min-h-0 flex flex-col rounded-2xl overflow-hidden bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)] [&_*]:text-sm [&>div>div:first-child>span]:text-lg [&>div>div:first-child>div>span:last-child]:text-xs"
+          >
             <SupportChat compact className="flex-1" />
-          </div>
+          </motion.div>
         </div>
 
         {/* FAQ & User Profile - Side by Side */}
-        <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
+        <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
 
           {/* FAQ Section */}
-          <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-4 flex flex-col">
-            <h3 className="text-white font-medium text-lg mb-3">Frequently Asked Questions</h3>
+          <motion.div
+            {...HOVER_LIFT}
+            className="rounded-2xl p-5 flex flex-col bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)]"
+          >
+            <h3 className="text-white font-medium text-lg mb-4">Frequently Asked Questions</h3>
             
             <div className="flex-1 flex flex-col justify-between space-y-2">
               
               {faqs.map((faq, i) => (
-                <div key={i} className="border border-[#1f1f1f] rounded-lg overflow-hidden">
+                <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
                   <button 
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                    className="w-full px-4 py-3 flex items-center justify-between text-left text-white hover:bg-[#111118] transition-colors"
+                    className="w-full px-4 py-3 flex items-center justify-between text-left text-white hover:bg-white/[0.04] transition-colors"
                   >
-                    <span className="text-base font-medium">{faq.q}</span>
+                    <span className="text-base font-medium pr-2">{faq.q}</span>
                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${openFaq === i ? 'rotate-180' : ''}`} />
                   </button>
                   <AnimatePresence>
@@ -467,19 +483,22 @@ export default function MoreInfoPage() {
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
+                        className="overflow-hidden border-t border-white/[0.06]"
                       >
-                        <p className="px-4 pb-3 text-gray-400 text-sm leading-relaxed">{faq.a}</p>
+                        <p className="px-4 py-3 text-gray-400 text-sm leading-relaxed">{faq.a}</p>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {/* User Profile */}
-          <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 text-white">
+          <motion.div
+            {...HOVER_LIFT}
+            className="rounded-2xl p-5 text-white bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)]"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-medium text-lg flex items-center gap-2">
                 <User className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
@@ -496,30 +515,40 @@ export default function MoreInfoPage() {
               <div className="space-y-4">
                 {/* Avatar + Name (editable) */}
                 <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => isAuthenticated && setIsAvatarPickerOpen(true)}
-                    disabled={!isAuthenticated}
-                    className="h-14 w-14 rounded-full flex items-center justify-center text-white text-xl font-semibold flex-shrink-0 bg-gradient-to-br from-emerald-400 to-blue-500 hover:ring-2 hover:ring-blue-500/60 transition-all disabled:cursor-not-allowed"
-                    aria-label="Change avatar"
-                  >
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt="User avatar"
-                        className="h-full w-full rounded-full object-cover"
-                      />
-                    ) : (
-                      initials
+                  <div className="relative flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => isAuthenticated && setIsAvatarPickerOpen(true)}
+                      disabled={!isAuthenticated}
+                      className="h-14 w-14 rounded-full flex items-center justify-center text-white text-xl font-semibold bg-gradient-to-br from-emerald-400 to-blue-500 hover:ring-2 hover:ring-blue-500/60 transition-all disabled:cursor-not-allowed overflow-hidden"
+                      aria-label="Change avatar"
+                    >
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt="User avatar"
+                          className="h-full w-full rounded-full object-cover"
+                        />
+                      ) : (
+                        initials
+                      )}
+                    </button>
+                    {isProUser && (
+                      <svg viewBox="0 0 22 22" className="absolute -bottom-0.5 -right-0.5 w-5 h-5" aria-label="Verified">
+                        <g>
+                          <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.855-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.69-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.636.433 1.221.878 1.69.47.446 1.055.752 1.69.883.635.13 1.294.083 1.902-.14.272.587.7 1.086 1.24 1.44s1.167.551 1.813.568c.647-.017 1.277-.213 1.818-.567s.972-.854 1.245-1.44c.604.223 1.26.27 1.894.14.634-.132 1.22-.437 1.69-.883.445-.47.75-1.055.88-1.69.131-.634.084-1.29-.139-1.896.587-.274 1.084-.705 1.438-1.246.355-.54.552-1.17.57-1.817z" fill="#1D9BF0"/>
+                          <path d="M9.585 14.929l-3.28-3.28 1.168-1.168 2.112 2.112 5.321-5.321 1.168 1.168-6.489 6.489z" fill="white"/>
+                        </g>
+                      </svg>
                     )}
-                  </button>
+                  </div>
                   <div className="min-w-0 flex-1">
                     {isEditing ? (
                       <input
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-base focus:outline-none focus:border-emerald-500/60 transition-all"
+                        className="w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2 text-white text-base focus:outline-none focus:border-emerald-500/50 transition-all"
                         placeholder="Display name"
                         autoFocus
                       />
@@ -535,7 +564,7 @@ export default function MoreInfoPage() {
                     <button
                       type="button"
                       onClick={handleUpgrade}
-                      className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3 hover:border-emerald-500/40 transition-colors group cursor-pointer block text-left w-full"
+                      className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 hover:border-emerald-500/40 hover:bg-white/[0.04] transition-colors group cursor-pointer block text-left w-full"
                     >
                       <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
                         <Shield className="w-4 h-4" strokeWidth={1.5} />
@@ -549,7 +578,7 @@ export default function MoreInfoPage() {
                       </p>
                     </button>
                   ) : (
-                    <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                       <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
                         <Shield className="w-4 h-4" strokeWidth={1.5} />
                         Account Type
@@ -559,7 +588,7 @@ export default function MoreInfoPage() {
                       </span>
                     </div>
                   )}
-                  <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
                       <Calendar className="w-4 h-4" strokeWidth={1.5} />
                       Member Since
@@ -568,7 +597,7 @@ export default function MoreInfoPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                   <div>
                     <p className="text-gray-400 text-sm mb-0.5">User ID</p>
                     <p className="text-base text-white font-mono">{truncatedId}</p>
@@ -611,7 +640,7 @@ export default function MoreInfoPage() {
                     <button
                       type="button"
                       onClick={() => { setIsEditing(false); setEditStatus(null); }}
-                      className="rounded-md border border-[#2a2a3d] px-3 py-2.5 text-gray-400 text-base font-medium hover:border-red-500/40 hover:text-red-400 transition-all"
+                      className="rounded-xl border border-white/[0.08] px-3 py-2.5 text-gray-400 text-base font-medium hover:border-red-500/40 hover:text-red-400 transition-all bg-black/20"
                     >
                       Cancel
                     </button>
@@ -635,7 +664,7 @@ export default function MoreInfoPage() {
             ) : (
               <p className="text-gray-500 text-base">Sign in to view your profile</p>
             )}
-          </div>
+          </motion.div>
 
         </div>{/* close grid */}
 

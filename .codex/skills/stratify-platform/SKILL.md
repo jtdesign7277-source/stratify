@@ -139,15 +139,20 @@ const springSmooth = { type: 'spring', stiffness: 200, damping: 25 }
 const springButton = { type: 'spring', stiffness: 500, damping: 30 }
 ```
 
-### Hover Lift (Cards)
+### Hover Lift (Cards, Tabs, Panels)
+
+Every card, tab, and panel on Stratify should use this hover scale + lift. Element grows slightly and rises (lifts off the page).
 
 ```jsx
 <motion.div
-  whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+  whileHover={{ scale: 1.03, y: -2 }}
   whileTap={{ scale: 0.98 }}
   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
 >
 ```
+
+- **Hover scale** — element grows (scale: 1.03).
+- **Hover lift** — grows + rises (y: -2). Apply on More Info page to profile, FAQ, contact, and chat cards.
 
 ### Button Press Physics
 

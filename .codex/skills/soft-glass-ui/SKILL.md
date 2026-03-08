@@ -142,6 +142,23 @@ For Stratify's dark theme (`bg-[#0a0a0f]`), use these calibrated values:
 </div>
 ```
 
+### Hover Scale & Hover Lift (Micro-interaction)
+
+Use on every card, tab, and panel so the element grows slightly and rises on hover (lifts off the page). Framer Motion:
+
+```jsx
+<motion.div
+  whileHover={{ scale: 1.03, y: -2 }}
+  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+>
+  {/* card / tab / panel content */}
+</motion.div>
+```
+
+- **Hover scale** — element grows slightly (e.g. 1.03).
+- **Hover lift** — grows + rises (y: -2).
+- **Micro-interaction** — the broader term for small responsive animations like this.
+
 ### Inset Data Field (for inputs, search bars, code blocks)
 
 ```jsx
@@ -192,6 +209,7 @@ For Stratify's dark theme (`bg-[#0a0a0f]`), use these calibrated values:
 6. Backdrop blur is non-negotiable. Always add `backdrop-blur-xl` or higher. It's what makes the glass effect work.
 7. Inner content inherits softness. Nested elements inside soft glass cards should use the inset style for inputs, or slightly more transparent glass for sub-sections.
 8. Transitions on everything. Always add `transition-all duration-300` so depth changes feel smooth, not jarring.
+9. **Hover scale & hover lift (micro-interaction).** Every card, tab, and panel should respond to hover with a slight grow + rise so it feels like it lifts off the page. In Framer Motion: `whileHover={{ scale: 1.03, y: -2 }}` with `transition={{ type: 'spring', stiffness: 400, damping: 30 }}`. This is the standard Stratify hover lift — apply to all interactive cards, tabs, and panels.
 
 ## Anti-Patterns (What Makes Things Look Flat)
 
