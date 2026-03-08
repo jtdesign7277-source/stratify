@@ -18,6 +18,7 @@ import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
 import AppErrorBoundary from './components/shared/AppErrorBoundary';
 import StrategyRadarPage from './components/dashboard/StrategyRadarPage';
 import SportsOddsPage from './pages/SportsOddsPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProModal from './components/dashboard/ProModal';
 import { Radar } from 'lucide-react';
 import {
@@ -1047,6 +1048,7 @@ function StratifyAppContent() {
     if (normalizedPath === '/tokens') return 'tokens';
     if (normalizedPath === '/radar' || normalizedPath === '/radar/') return 'radar';
     if (normalizedPath === '/sports' || normalizedPath === '/sports/') return 'sports';
+    if (normalizedPath === '/reset-password' || normalizedPath === '/reset-password/') return 'reset-password';
     if (normalizedPath === '/dashboard' || normalizedPath === '/dashboard/') return 'dashboard';
     if (isLegacyXrayPath(path)) return 'dashboard';
 
@@ -1562,7 +1564,9 @@ function StratifyAppContent() {
   }, [isProUser, user?.id]);
 
   const mainContent =
-    currentPage === 'whitepaper' ? (
+    currentPage === 'reset-password' ? (
+      <ResetPasswordPage />
+    ) : currentPage === 'whitepaper' ? (
       <WhitePaperPage
         onBackHome={() => navigateToPage('landing')}
         onGetStarted={() => navigateToPage('auth')}
@@ -1715,6 +1719,11 @@ function StratifyAppContent() {
 
       if (path === '/sports' || path === '/sports/') {
         setCurrentPage('sports');
+        return;
+      }
+
+      if (path === '/reset-password' || path === '/reset-password/') {
+        setCurrentPage('reset-password');
         return;
       }
 

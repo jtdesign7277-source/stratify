@@ -641,7 +641,7 @@ const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false 
           animation-play-state: paused;
         }
       `}</style>
-      <div className="topbar-ticker-track pl-2 pr-2">
+      <div className="topbar-ticker-track pl-2 pr-2 pt-1">
         <div className="topbar-ticker-content">
           {duplicatedRows.map((row, idx) => {
             const hasPct = row.changePercent !== null;

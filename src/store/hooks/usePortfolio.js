@@ -327,54 +327,30 @@ export const usePortfolio = (prices = new Map()) => {
       const localState = loadPortfolioFromStorage(userId);
 
       try {
-        let profileData = null;
-        const query = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
-          .select(`${PROFILE_COLUMN}, user_state`)
+          .select('paper_cash')
           .eq('id', userId)
           .maybeSingle();
 
-        if (query.error) {
-          if (!isMissingColumnError(query.error, PROFILE_COLUMN)) {
-            console.warn('[PortfolioSync] Load error:', query.error.message);
-          }
-
-          const fallback = await supabase
-            .from('profiles')
-            .select('user_state')
-            .eq('id', userId)
-            .maybeSingle();
-
-          if (fallback.error) {
-            console.warn('[PortfolioSync] Fallback load error:', fallback.error.message);
-            profileData = null;
-          } else {
-            profileData = fallback.data;
-          }
-        } else {
-          profileData = query.data;
-        }
-
-        const remoteRaw = profileData?.[PROFILE_COLUMN] && typeof profileData[PROFILE_COLUMN] === 'object'
-          ? profileData[PROFILE_COLUMN]
-          : (profileData?.user_state?.[USER_STATE_KEY] && typeof profileData.user_state[USER_STATE_KEY] === 'object'
-            ? profileData.user_state[USER_STATE_KEY]
-            : null);
-
-        const remoteState = normalizePortfolioState(remoteRaw);
-        const useLocal = !hasPortfolioData(remoteState) && hasPortfolioData(localState);
-        const resolved = useLocal ? localState : remoteState;
+        const { data: positions } = await supabase
+          .from('paper_positions')
+          .select('*')
+          .eq('user_id', userId);
 
         if (cancelled) return;
 
+        const cash = profile?.paper_cash != null ? Number(profile.paper_cash) : DEFAULT_CASH;
+        const positionsState = (positions ?? []).map((p) => ({
+          symbol: String(p.symbol || '').trim().toUpperCase(),
+          shares: Number(p.quantity) || 0,
+          avgCost: Number(p.avg_cost) || 0,
+        })).filter((p) => p.symbol && p.shares > 0);
+
+        const resolved = { cash: Number.isFinite(cash) ? cash : DEFAULT_CASH, positions: positionsState };
         dispatch({ type: 'HYDRATE', state: resolved });
         savePortfolioToStorage(resolved, userId);
-        const serialized = JSON.stringify(resolved);
-        lastSaved.current = serialized;
-
-        if (useLocal) {
-          saveToSupabase(userId, resolved, serialized);
-        }
+        lastSaved.current = JSON.stringify(resolved);
       } catch (error) {
         if (cancelled) return;
         console.warn('[PortfolioSync] Load failed:', error);
@@ -391,33 +367,16 @@ export const usePortfolio = (prices = new Map()) => {
     return () => {
       cancelled = true;
     };
-  }, [userId, saveToSupabase]);
+  }, [userId]);
 
   useEffect(() => {
-    const payload = {
-      cash: state.cash,
-      positions: state.positions,
-    };
-
+    const payload = { cash: state.cash, positions: state.positions };
     savePortfolioToStorage(payload, userId);
     if (!loaded) return;
-
     const serialized = JSON.stringify(payload);
     if (serialized === lastSaved.current) return;
-
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      if (!userId || !supabase) {
-        lastSaved.current = serialized;
-        return;
-      }
-      saveToSupabase(userId, payload, serialized);
-    }, 1400);
-
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    };
-  }, [state.cash, state.positions, userId, loaded, saveToSupabase]);
+    lastSaved.current = serialized;
+  }, [state.cash, state.positions, userId, loaded]);
 
   const derived = useMemo(() => {
     let holdingsValue = 0;
@@ -455,9 +414,70 @@ export const usePortfolio = (prices = new Map()) => {
     };
   }, [state.positions, state.cash, prices]);
 
-  const applyTrade = useCallback((trade) => {
+  const applyTrade = useCallback(async (trade) => {
+    const parsed = parseTrade(trade);
+    if (!parsed) return;
+
+    const { symbol, shares, price } = parsed;
+    const side = shares > 0 ? 'buy' : 'sell';
+    const quantity = Math.abs(shares);
+    const newState = applyTradeToState(state, trade);
+
+    if (userId && supabase) {
+      try {
+        await supabase.from('paper_trades').insert({
+          user_id: userId,
+          symbol,
+          side,
+          quantity,
+          price,
+        });
+
+        const existing = state.positions.find((p) => p.symbol === symbol);
+
+        if (shares > 0) {
+          const cost = quantity * price;
+          if (existing) {
+            const newQty = existing.shares + quantity;
+            const newAvg = ((existing.avgCost * existing.shares) + cost) / newQty;
+            await supabase
+              .from('paper_positions')
+              .update({ quantity: newQty, avg_cost: newAvg, updated_at: new Date().toISOString() })
+              .eq('user_id', userId)
+              .eq('symbol', symbol);
+          } else {
+            await supabase.from('paper_positions').insert({
+              user_id: userId,
+              symbol,
+              quantity,
+              avg_cost: price,
+            });
+          }
+          const newCash = state.cash - cost;
+          await supabase.from('profiles').upsert({ id: userId, paper_cash: newCash }, { onConflict: 'id' });
+        } else {
+          if (existing) {
+            const newQty = existing.shares - quantity;
+            if (newQty <= 0) {
+              await supabase.from('paper_positions').delete().eq('user_id', userId).eq('symbol', symbol);
+            } else {
+              await supabase
+                .from('paper_positions')
+                .update({ quantity: newQty, updated_at: new Date().toISOString() })
+                .eq('user_id', userId)
+                .eq('symbol', symbol);
+            }
+          }
+          const newCash = state.cash + quantity * price;
+          await supabase.from('profiles').upsert({ id: userId, paper_cash: newCash }, { onConflict: 'id' });
+        }
+      } catch (err) {
+        console.warn('[PortfolioSync] Persist trade failed:', err);
+      }
+    }
+
     dispatch({ type: 'APPLY_TRADE', trade });
-  }, []);
+  }, [userId, state]);
 
   return {
     positions: derived.positions,

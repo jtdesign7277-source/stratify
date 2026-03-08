@@ -1,7 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-
-const LOCAL_KEY = 'stratify-watchlist';
 
 const DEFAULT_WATCHLIST = [
   { symbol: 'AAPL', name: 'Apple Inc.' },
@@ -14,146 +12,79 @@ const DEFAULT_WATCHLIST = [
 ];
 
 /**
- * useWatchlistSync - Manages watchlist with Supabase persistence
- * 
- * - Authenticated users: reads/writes to Supabase `profiles.watchlist` (JSONB)
- * - Guest users: falls back to localStorage
- * - On first login, merges any localStorage watchlist into Supabase
- * - Debounces saves to avoid hammering the DB on rapid changes
+ * useWatchlistSync - Manages watchlist with Supabase persistence (watchlist table)
  */
 export default function useWatchlistSync(user) {
-  const [watchlist, setWatchlist] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.length > 0 ? parsed : DEFAULT_WATCHLIST;
-      }
-      return DEFAULT_WATCHLIST;
-    } catch {
-      return DEFAULT_WATCHLIST;
-    }
-  });
-
+  const [watchlist, setWatchlist] = useState(DEFAULT_WATCHLIST);
   const [loaded, setLoaded] = useState(false);
-  const saveTimer = useRef(null);
-  const lastSaved = useRef(null);
 
-  // Load watchlist from Supabase when user logs in
+  // Load watchlist from Supabase watchlist table when user is available
   useEffect(() => {
-    if (!user || !supabase) {
+    if (!user?.id || !supabase) {
       setLoaded(true);
       return;
     }
 
+    let cancelled = false;
+
     const loadFromSupabase = async () => {
       try {
         const { data, error } = await supabase
-          .from('profiles')
-          .select('watchlist')
-          .eq('id', user.id)
-          .single();
+          .from('watchlist')
+          .select('symbol, sort_order')
+          .eq('user_id', user.id)
+          .order('sort_order');
 
+        if (cancelled) return;
         if (error) {
           console.warn('[WatchlistSync] Error loading from Supabase:', error.message);
           setLoaded(true);
           return;
         }
 
-        if (data?.watchlist && Array.isArray(data.watchlist) && data.watchlist.length > 0) {
-          // Supabase has a saved watchlist — use it
-          setWatchlist(data.watchlist);
-          localStorage.setItem(LOCAL_KEY, JSON.stringify(data.watchlist));
-          console.log('[WatchlistSync] Loaded from Supabase:', data.watchlist.length, 'items');
-        } else {
-          // No watchlist in Supabase yet — push localStorage version up
-          const local = getLocalWatchlist();
-          if (local.length > 0) {
-            await saveToSupabase(user.id, local);
-            console.log('[WatchlistSync] Pushed localStorage watchlist to Supabase');
-          }
-        }
+        const symbols = Array.isArray(data) ? data.map((r) => r.symbol) : [];
+        setWatchlist(symbols.length > 0 ? symbols.map((s) => ({ symbol: s, name: s })) : DEFAULT_WATCHLIST);
       } catch (err) {
-        console.warn('[WatchlistSync] Failed to load:', err);
+        if (!cancelled) console.warn('[WatchlistSync] Failed to load:', err);
       }
-      setLoaded(true);
+      if (!cancelled) setLoaded(true);
     };
 
     loadFromSupabase();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
-  // Save to Supabase (debounced)
-  const saveToSupabase = useCallback(async (userId, items) => {
-    if (!supabase || !userId) return;
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ watchlist: items, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+  const addToWatchlist = useCallback(async (item) => {
+    const normalized = typeof item === 'string' ? { symbol: item, name: item } : item;
+    const newSymbol = (normalized?.symbol || normalized).toString().trim().toUpperCase();
+    if (!newSymbol) return;
 
-      if (error) {
-        console.warn('[WatchlistSync] Save error:', error.message);
-      } else {
-        lastSaved.current = JSON.stringify(items);
-        console.log('[WatchlistSync] Saved to Supabase');
-      }
-    } catch (err) {
-      console.warn('[WatchlistSync] Save failed:', err);
-    }
-  }, []);
-
-  // Debounced save whenever watchlist changes
-  useEffect(() => {
-    // Always save to localStorage immediately
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(watchlist));
-
-    // If logged in, debounce save to Supabase
-    if (user && supabase && loaded) {
-      const serialized = JSON.stringify(watchlist);
-      if (serialized === lastSaved.current) return; // No change
-
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        saveToSupabase(user.id, watchlist);
-      }, 2000); // 2s debounce
-    }
-
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    };
-  }, [watchlist, user, loaded, saveToSupabase]);
-
-  // Helper: get localStorage watchlist
-  const getLocalWatchlist = () => {
-    try {
-      const saved = localStorage.getItem(LOCAL_KEY);
-      return saved ? JSON.parse(saved) : DEFAULT_WATCHLIST;
-    } catch {
-      return DEFAULT_WATCHLIST;
-    }
-  };
-
-  // Watchlist mutation helpers (same API as before)
-  const addToWatchlist = useCallback((item) => {
-    setWatchlist(prev => {
-      const normalized = typeof item === 'string'
-        ? { symbol: item, name: item }
-        : item;
-      const exists = prev.some(w => {
-        const symbol = typeof w === 'string' ? w : w.symbol;
-        return symbol === normalized.symbol;
-      });
-      if (exists) return prev;
-      return [normalized, ...prev];
+    setWatchlist((prev) => {
+      const exists = prev.some((w) => (typeof w === 'string' ? w : w.symbol) === newSymbol);
+      return exists ? prev : [normalized, ...prev];
     });
-  }, []);
 
-  const removeFromWatchlist = useCallback((symbol) => {
-    setWatchlist(prev => prev.filter(w => {
-      const itemSymbol = typeof w === 'string' ? w : w.symbol;
-      return itemSymbol !== symbol;
-    }));
-  }, []);
+    if (user?.id && supabase) {
+      const sortOrder = watchlist.length;
+      const { error } = await supabase.from('watchlist').insert({
+        user_id: user.id,
+        symbol: newSymbol,
+        sort_order: sortOrder,
+      });
+      if (error) console.warn('[WatchlistSync] Add error:', error.message);
+    }
+  }, [user?.id, watchlist.length]);
+
+  const removeFromWatchlist = useCallback(async (symbol) => {
+    const sym = (symbol || '').toString().trim().toUpperCase();
+    if (!sym) return;
+
+    setWatchlist((prev) => prev.filter((w) => (typeof w === 'string' ? w : w.symbol) !== sym));
+
+    if (!user?.id || !supabase) return;
+    const { error } = await supabase.from('watchlist').delete().eq('user_id', user.id).eq('symbol', sym);
+    if (error) console.warn('[WatchlistSync] Remove error:', error.message);
+  }, [user?.id]);
 
   const reorderWatchlist = useCallback((sourceIndexOrOrder, destIndex) => {
     if (Array.isArray(sourceIndexOrOrder)) {

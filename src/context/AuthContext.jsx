@@ -45,11 +45,21 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       if (!isMounted) return;
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
       setLoading(false);
+      if (nextSession?.user?.id) {
+        try {
+          await supabase.from('profiles').upsert(
+            { id: nextSession.user.id, paper_cash: 100000 },
+            { onConflict: 'id', ignoreDuplicates: true }
+          );
+        } catch (e) {
+          // Non-fatal; profile may already exist
+        }
+      }
     });
 
     loadSession();

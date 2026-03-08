@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import TermsModal from '../legal/TermsModal';
+import PrivacyModal from '../legal/PrivacyModal';
 
 const LEFT_POINTS = [
   'Live market context and execution in one workspace.',
@@ -35,26 +37,161 @@ function AppleGlyph() {
   );
 }
 
+// NYSE logo: white "NYSE" text + official-style blue L graphic (matches other logo styling)
+function NyseLogoIcon() {
+  return (
+    <svg viewBox="0 0 62 20" className="w-full h-full" fill="none" aria-hidden="true">
+      <text x="0" y="14" fill="rgba(255,255,255,0.9)" fontFamily="system-ui, Arial, sans-serif" fontWeight="700" fontSize="12" letterSpacing="0.02em">NYSE</text>
+      <path fill="#5EB3E0" d="M42 0h2v8h6v2h-8V0z" />
+    </svg>
+  );
+}
+
 export default function SignUpPage({ onSuccess, onBackToLanding }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const leftPanelCanvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = leftPanelCanvasRef.current;
+    const container = canvas?.parentElement;
+    if (!canvas || !container) return;
+
+    const setSize = () => {
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+    };
+    setSize();
+    const resizeObserver = new ResizeObserver(setSize);
+    resizeObserver.observe(container);
+
+    const tickerStrings = ['$AAPL +1.2%', '$TSLA -0.8%', '$NVDA +2.4%', '$SPY +0.3%', '$BTC +3.1%', '$ETH -1.5%', '$GOOGL +0.5%', '$MSFT -0.2%', '$META +1.1%', '$AMZN +0.7%'];
+    const candleCount = 50;
+    const tickerCount = 10;
+    let candles = Array.from({ length: candleCount }, () => ({
+      x: Math.random() * (container.clientWidth || 800),
+      y: Math.random() * (container.clientHeight || 600),
+      bodyH: 8 + Math.random() * 12,
+      isGreen: Math.random() > 0.5,
+    }));
+    let tickers = Array.from({ length: tickerCount }, (_, i) => ({
+      text: tickerStrings[i % tickerStrings.length],
+      x: Math.random() * (container.clientWidth || 800),
+      y: Math.random() * (container.clientHeight || 600),
+      speed: 0.2 + Math.random() * 0.3,
+    }));
+    const driftPerFrame = 0.3;
+    const startTime = performance.now();
+
+    let rafId;
+    const draw = () => {
+      const w = canvas.width;
+      const h = canvas.height;
+      if (!w || !h) { rafId = requestAnimationFrame(draw); return; }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { rafId = requestAnimationFrame(draw); return; }
+      ctx.clearRect(0, 0, w, h);
+
+      for (let i = 0; i < h; i += 40) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(w, i);
+        ctx.stroke();
+      }
+
+      const pulse = 0.04 + 0.04 * Math.sin((performance.now() - startTime) / 4000 * 2 * Math.PI);
+      const gradient = ctx.createRadialGradient(0, h, 0, 0, h, 300);
+      gradient.addColorStop(0, `rgba(16,185,129,${pulse})`);
+      gradient.addColorStop(1, 'rgba(16,185,129,0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      const bodyW = 3;
+      const wickW = 1;
+      candles.forEach((c) => {
+        c.y -= driftPerFrame;
+        if (c.y + c.bodyH < 0) {
+          c.y = h + c.bodyH;
+          c.x = Math.random() * w;
+          c.bodyH = 8 + Math.random() * 12;
+          c.isGreen = Math.random() > 0.5;
+        }
+        const openY = c.y + c.bodyH;
+        const closeY = c.y;
+        ctx.fillStyle = c.isGreen ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+        ctx.fillRect(c.x - bodyW / 2, Math.min(openY, closeY), bodyW, Math.abs(c.bodyH));
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(c.x - wickW / 2, c.y, wickW, c.bodyH);
+      });
+
+      ctx.font = '12px monospace';
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      tickers.forEach((t) => {
+        t.y -= t.speed;
+        if (t.y < -20) {
+          t.y = h + 20;
+          t.x = Math.random() * w;
+        }
+        ctx.fillText(t.text, t.x, t.y);
+      });
+
+      rafId = requestAnimationFrame(draw);
+    };
+    rafId = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   const handleGoogleAuth = async () => {
     setError('');
-    const { error: signInError } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-    if (signInError) setError(signInError.message);
+    setOauthLoading(true);
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined },
+      });
+      if (signInError) {
+        setError(signInError.message || 'Could not start Google sign-in.');
+        return;
+      }
+      if (data?.url) window.location.href = data.url;
+    } finally {
+      setOauthLoading(false);
+    }
   };
 
   const handleAppleAuth = async () => {
     setError('');
-    const { error: signInError } = await supabase.auth.signInWithOAuth({ provider: 'apple' });
-    if (signInError) setError(signInError.message);
+    setOauthLoading(true);
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined },
+      });
+      if (signInError) {
+        setError(signInError.message || 'Could not start Apple sign-in.');
+        return;
+      }
+      if (data?.url) window.location.href = data.url;
+    } finally {
+      setOauthLoading(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -72,6 +209,10 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
       }
 
       if (mode === 'signup') {
+        if (password !== confirmPassword) {
+          setError('Passwords do not match.');
+          return;
+        }
         const { error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
         setMessage('Check your email to confirm your account.');
@@ -92,6 +233,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
     setMode(next);
     setError('');
     setMessage('');
+    setConfirmPassword('');
   };
 
   const heading = {
@@ -114,19 +256,39 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
     forgot: 'Send reset link',
   }[mode];
 
-  const inputClassName =
-    'h-[48px] w-full rounded-lg border border-white/20 bg-white/5 px-4 text-[clamp(0.94rem,0.98vw,1.06rem)] text-white outline-none transition-colors placeholder:text-white/40 focus:border-white/40';
-  const outlineButtonClassName =
-    'h-[48px] w-full rounded-lg border border-white/80 bg-transparent px-6 text-[clamp(0.95rem,1vw,1.06rem)] font-semibold text-white transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50';
-  // Same bordered box as Email/Password inputs so they look like clickable tabs
-  const socialButtonClassName =
-    `${inputClassName} flex items-center justify-center gap-3 font-medium cursor-pointer hover:bg-white/10 focus:border-white/50`;
+  const inputStyle = {
+    height: 48,
+    width: '100%',
+    borderRadius: 10,
+    border: '1px solid #555',
+    background: '#252525',
+    padding: '0 16px',
+    fontSize: 'clamp(0.94rem, 0.98vw, 1.06rem)',
+    color: '#fff',
+    outline: 'none',
+  };
+  const tabStyle = {
+    height: 48,
+    width: '100%',
+    borderRadius: 10,
+    border: '1px solid #555',
+    background: '#252525',
+    padding: '0 16px',
+    fontSize: 'clamp(0.94rem, 0.98vw, 1.06rem)',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    cursor: 'pointer',
+    fontWeight: 500,
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto grid min-h-screen w-full lg:grid-cols-[1.08fr_0.92fr]">
-        <aside className="hidden border-r border-white/10 px-14 py-16 lg:flex lg:flex-col lg:justify-between">
-          <div className="space-y-12">
+        <aside className="hidden border-r border-white/10 px-14 py-16 lg:flex lg:flex-col lg:justify-between relative">
+          <canvas ref={leftPanelCanvasRef} className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }} />
+          <div className="relative z-10 space-y-12">
             <button
               type="button"
               onClick={onBackToLanding}
@@ -138,23 +300,25 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
 
             <div className="max-w-[620px] space-y-7">
               <p className="text-[11px] uppercase tracking-[0.32em] text-white/45">Stratify Platform</p>
-              <h2 className="text-[clamp(2.5rem,4vw,4.7rem)] font-semibold leading-[0.96]">
-                One workspace. Every market.
-              </h2>
-              <p className="text-[clamp(1rem,1.2vw,1.18rem)] leading-relaxed text-white/65">
-                Build, test, and deploy smarter execution with live market context and AI-assisted workflows.
-              </p>
-              <div className="space-y-4">
-                {LEFT_POINTS.map((point) => (
-                  <div key={point} className="text-[clamp(0.96rem,1.02vw,1.08rem)] text-white/80">
-                    {point}
-                  </div>
-                ))}
+              <div className="relative z-10 bg-gradient-to-r from-black/50 via-black/30 to-transparent rounded-2xl px-6 py-4">
+                <h2 className="text-[clamp(2.5rem,4vw,4.7rem)] font-semibold leading-[0.96]">
+                  One workspace. Every market.
+                </h2>
+                <p className="mt-5 text-[clamp(1rem,1.2vw,1.18rem)] leading-relaxed text-white/65">
+                  Build, test, and deploy smarter execution with live market context and AI-assisted workflows.
+                </p>
+                <div className="mt-5 space-y-4">
+                  {LEFT_POINTS.map((point) => (
+                    <div key={point} className="text-[clamp(0.96rem,1.02vw,1.08rem)] text-white/80">
+                      {point}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="max-w-[320px] px-2 py-2 overflow-hidden mt-auto">
+          <div className="relative z-10 max-w-[320px] px-2 py-2 overflow-visible mt-auto">
             <style>{`
               @keyframes signup-fade-in {
                 from { opacity: 0; transform: translateY(4px); }
@@ -162,7 +326,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
               }
               .signup-fade-item { animation: signup-fade-in 0.5s ease-out forwards; }
             `}</style>
-            <div className="grid grid-cols-5 gap-2 items-center justify-items-center">
+            <div className="grid grid-cols-5 gap-3 items-center justify-items-center">
               {LEAGUE_LOGOS.map((league, i) => (
                 <div
                   key={league.id}
@@ -177,18 +341,20 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 </div>
               ))}
               <div
-                className="signup-fade-item flex items-center justify-center opacity-0 w-7 h-7 flex-shrink-0"
+                className="signup-fade-item flex items-center justify-center opacity-0 w-[5rem] h-7 flex-shrink-0 ml-8"
                 style={{ animationDelay: `${LEAGUE_LOGOS.length * 80}ms` }}
               >
-                <span className="flex w-full h-full items-center justify-center font-mono text-base font-semibold text-white/90 leading-none">₿</span>
+                <div className="w-full h-full flex items-center justify-center opacity-90 hover:opacity-100 transition-opacity duration-300">
+                  <NyseLogoIcon />
+                </div>
               </div>
             </div>
           </div>
         </aside>
 
         <main className="flex max-h-screen items-start justify-center overflow-y-auto px-5 py-4 sm:px-8 lg:items-center lg:px-12 xl:px-14">
-          <div className="w-full max-w-[646px]">
-            <div className="mb-6 flex items-center justify-between lg:mb-8">
+          <div className="w-full max-w-[420px]">
+            <header className="mb-6 flex items-center justify-between lg:mb-8">
               <button
                 type="button"
                 onClick={onBackToLanding}
@@ -197,36 +363,45 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
                 Back
               </button>
-              <div className="text-[11px] font-normal uppercase tracking-[0.32em] text-white/75">STRATIFY</div>
-            </div>
+              <span className="text-[11px] font-normal uppercase tracking-[0.32em] text-white/75">STRATIFY</span>
+            </header>
 
-            <div className="mb-6 space-y-1 lg:mb-8">
+            <section className="mb-6 lg:mb-8">
               <h1 className="text-[clamp(1.75rem,2.4vw,2.5rem)] font-semibold leading-tight text-white">
                 {mode === 'forgot' ? heading : welcomeHeading}
               </h1>
-              <p className="text-[clamp(0.9rem,0.96vw,1rem)] text-white/55">{subtext}</p>
-            </div>
+              <p className="mt-1 text-[clamp(0.9rem,0.96vw,1rem)] text-white/55">{subtext}</p>
+            </section>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode !== 'forgot' && (
                 <>
-                  <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={handleAppleAuth}
-                      className={socialButtonClassName}
-                    >
-                      <AppleGlyph />
-                      Continue with Apple
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleGoogleAuth}
-                      className={socialButtonClassName}
-                    >
-                      <GoogleGlyph />
-                      Continue with Google
-                    </button>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-white/80">Sign in with</label>
+                    <div className="space-y-3">
+                      <button
+                        type="button"
+                        onClick={handleAppleAuth}
+                        disabled={oauthLoading}
+                        style={tabStyle}
+                        onMouseOver={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#666'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = '#252525'; e.currentTarget.style.borderColor = '#555'; }}
+                      >
+                        <AppleGlyph />
+                        {oauthLoading ? 'Redirecting…' : 'Continue with Apple'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGoogleAuth}
+                        disabled={oauthLoading}
+                        style={tabStyle}
+                        onMouseOver={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#666'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = '#252525'; e.currentTarget.style.borderColor = '#555'; }}
+                      >
+                        <GoogleGlyph />
+                        {oauthLoading ? 'Redirecting…' : 'Continue with Google'}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-white/20" />
@@ -236,21 +411,21 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 </>
               )}
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-white/80">Email</label>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-white/80">Email</label>
                 <input
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className={inputClassName}
+                  style={inputStyle}
                   required
                 />
               </div>
 
               {mode !== 'forgot' && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
                     <label className="block text-sm font-medium text-white/80">Password</label>
                     {mode === 'login' && (
                       <button
@@ -266,18 +441,42 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={(event) => setPassword(event.target.value)}
+                      onChange={(e) => setPassword(e.target.value)}
                       placeholder={mode === 'signup' ? 'Create password' : 'Password'}
-                      className={`${inputClassName} pr-12`}
+                      style={{ ...inputStyle, paddingRight: 48 }}
                       required
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
+                      onClick={() => setShowPassword((p) => !p)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" strokeWidth={1.5} /> : <Eye className="h-5 w-5" strokeWidth={1.5} />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {mode === 'signup' && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-white/80">Re-enter password</label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      style={{ ...inputStyle, paddingRight: 48 }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((p) => !p)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition"
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" strokeWidth={1.5} /> : <Eye className="h-5 w-5" strokeWidth={1.5} />}
                     </button>
                   </div>
                 </div>
@@ -288,48 +487,50 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                   <input
                     type="checkbox"
                     checked={rememberMe}
-                    onChange={(event) => setRememberMe(event.target.checked)}
-                    className="h-4 w-4 rounded border border-white/40 bg-white/5 accent-emerald-500"
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 rounded border border-white/40 bg-white/5 accent-[#609968]"
                   />
                   Keep me logged in for up to 30 days
                 </label>
               )}
 
-              {error ? (
+              {error && (
                 <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                   {error}
                 </div>
-              ) : null}
-              {message ? (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+              )}
+              {message && (
+                <div className="rounded-lg border border-[#609968]/50 bg-[#609968]/15 px-3 py-2 text-sm text-[#8fbc97]">
                   {message}
                 </div>
-              ) : null}
+              )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="h-[48px] w-full rounded-lg bg-emerald-500 px-6 text-[clamp(0.95rem,1vw,1.06rem)] font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-black"
+                className="h-12 w-full rounded-lg bg-[#609968] px-6 text-[clamp(0.95rem,1vw,1.06rem)] font-semibold text-white transition hover:bg-[#4d7a54] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#609968] focus:ring-offset-2 focus:ring-offset-black"
               >
                 {loading ? 'Processing...' : submitLabel}
               </button>
 
               <div className="text-center text-sm text-white/60">
-                {mode === 'signup' ? (
+                {mode === 'signup' && (
                   <span>
                     Already have an account?{' '}
                     <button type="button" onClick={() => switchMode('login')} className="font-medium text-white hover:underline">
                       Sign in
                     </button>
                   </span>
-                ) : mode === 'login' ? (
+                )}
+                {mode === 'login' && (
                   <span>
                     Don&apos;t have an account?{' '}
                     <button type="button" onClick={() => switchMode('signup')} className="font-medium text-white hover:underline">
                       Sign up now
                     </button>
                   </span>
-                ) : (
+                )}
+                {mode === 'forgot' && (
                   <button type="button" onClick={() => switchMode('login')} className="font-medium text-white hover:underline">
                     Back to sign in
                   </button>
@@ -337,12 +538,22 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
               </div>
 
               <p className="text-[clamp(0.72rem,0.8vw,0.85rem)] leading-relaxed text-white/40 text-center">
-                By continuing, you agree to Stratify&apos;s Terms of Service and Privacy Policy.
+                By continuing, you agree to Stratify&apos;s{' '}
+                <button type="button" onClick={() => setShowTerms(true)} className="text-[#609968] cursor-pointer hover:text-[#7ab88a] underline underline-offset-2 transition-colors">
+                  Terms of Service
+                </button>
+                {' '}and{' '}
+                <button type="button" onClick={() => setShowPrivacy(true)} className="text-[#609968] cursor-pointer hover:text-[#7ab88a] underline underline-offset-2 transition-colors">
+                  Privacy Policy
+                </button>
+                .
               </p>
             </form>
           </div>
         </main>
       </div>
+      <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
+      <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
     </div>
   );
 }
