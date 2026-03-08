@@ -24,6 +24,7 @@ import { SessionHighlightPlugin } from '../../plugins/SessionHighlightPlugin';
 import { PriceAlertsPlugin } from '../../plugins/PriceAlertsPlugin';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
+import LiveOddsPanel from './LiveOddsPanel';
 
 function newsTimeAgo(dateStr) {
   if (!dateStr) return '';
@@ -1709,6 +1710,8 @@ export default function TraderPage({
   const [isNewsOpen, setIsNewsOpen] = useState(true);
   const [newsArticleExpanded, setNewsArticleExpanded] = useState(false);
   const [drawerArticle, setDrawerArticle] = useState(null);
+  const [isArticleOpen, setIsArticleOpen] = useState(false);
+  const [selectedGames, setSelectedGames] = useState([]);
   const [isArticleDrawerExtendedToChartTop, setIsArticleDrawerExtendedToChartTop] = useState(false);
   const [chartViewportHeight, setChartViewportHeight] = useState(0);
   const [hydratedArticlesByUrl, setHydratedArticlesByUrl] = useState({});
@@ -4158,6 +4161,7 @@ export default function TraderPage({
             {GAME_PILL_SLOTS.map((slot) => {
               const game = pinnedGames?.[slot] || null;
               const isDropActive = activeGameDropSlot === slot;
+              const isSelected = game && selectedGames.some((g) => String(g.espnId) === String(game.id));
               return (
                 <div
                   key={`trader-game-slot-${slot}`}
@@ -4167,7 +4171,15 @@ export default function TraderPage({
                       : 'min-w-[80px] border border-dashed border-white/15 bg-white/[0.03]'
                   } ${
                     isDropActive ? 'ring-1 ring-emerald-400/75 border-emerald-400/60 bg-emerald-500/10' : ''
-                  }`}
+                  } ${isSelected ? 'ring-1 ring-emerald-400/40 brightness-125' : ''}`}
+                  onClick={game ? (e) => {
+                    e.stopPropagation();
+                    setSelectedGames((prev) => {
+                      const has = prev.some((g) => String(g.espnId) === String(game.id));
+                      if (has) return prev.filter((g) => String(g.espnId) !== String(game.id));
+                      return [...prev, { espnId: game.id, homeAbbrev: game.homeTeam, awayAbbrev: game.awayTeam }];
+                    });
+                  } : undefined}
                   onDragEnter={(event) => {
                     if (!hasGameTransferData(event.dataTransfer)) return;
                     event.preventDefault();
@@ -5313,6 +5325,7 @@ export default function TraderPage({
                                 onClick={() => {
                                   setDrawerArticle(article);
                                   setNewsArticleExpanded(true);
+                                  setIsArticleOpen(true);
                                 }}
                                 className={`w-full text-left group flex rounded-none hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/[0.06] cursor-pointer ${drawerArticle ? 'gap-3 p-3' : 'gap-2 px-2.5 py-2'}`}
                               >
@@ -5419,7 +5432,7 @@ export default function TraderPage({
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); setIsArticleDrawerExtendedToChartTop(false); }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerArticle(null); setNewsArticleExpanded(false); setIsArticleOpen(false); setIsArticleDrawerExtendedToChartTop(false); }}
                             className="p-2 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
                             aria-label="Close article"
                           >
@@ -5530,6 +5543,12 @@ export default function TraderPage({
                     );
                   })() : null}
                 </AnimatePresence>
+                {!drawerArticle && (
+                  <LiveOddsPanel
+                    selectedGames={selectedGames}
+                    isArticleOpen={isArticleOpen}
+                  />
+                )}
                   </div>
               </div>
             </div>
