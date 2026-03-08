@@ -180,7 +180,7 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
   const [activeLeague, setActiveLeague] = useState('nba');
 
   const hasLiveGame = events.some((e) => isGameLive(e.commence_time));
-  const sportParam = activeLeague === 'nhl' ? 'icehockey_nhl' : 'basketball_nba';
+  const sportParam = activeLeague === 'nhl' ? 'ice_hockey_nhl' : 'basketball_nba';
 
   useEffect(() => {
     if (isBottomPanelExpanded) setIsExpanded(true);
@@ -190,7 +190,7 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
     let cancelled = false;
     setLoading(true);
     setError('');
-    fetch(`${ODDS_API}?sport=${sportParam}&regions=us&oddsFormat=american&markets=h2h`)
+    fetch(`${ODDS_API}?sport=${sportParam}&regions=us&oddsFormat=american`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;

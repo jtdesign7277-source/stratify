@@ -1592,7 +1592,7 @@ function StratifyAppContent() {
         }}
         onBackToLanding={() => navigateToPage('landing')}
       />
-    ) : currentPage === 'sports' ? (
+    ) : currentPage === 'sports' && (!isAuthenticated || !isProUser) ? (
       <SportsOddsPage onBack={() => navigateToPage('dashboard')} />
     ) : !isAuthenticated ? (
       <LandingPage
@@ -1671,7 +1671,7 @@ function StratifyAppContent() {
       </div>
     ) : (
       <Dashboard
-        initialTab={currentPage === 'radar' ? 'radar' : undefined}
+        initialTab={currentPage === 'radar' ? 'radar' : currentPage === 'sports' ? 'sports' : undefined}
         setCurrentPage={navigateToPage}
         openProModal={() => setShowProModal(true)}
         isSocialFeedOpen={isSocialFeedOpen}

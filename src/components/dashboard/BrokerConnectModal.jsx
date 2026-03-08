@@ -407,7 +407,8 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(data?.error || 'Connection failed');
+          const msg = data?.error || (response.status === 401 ? 'Not signed in. Please sign in and try again.' : response.status === 504 ? 'Request timed out. Try again.' : `Connection failed (${response.status}).`);
+          throw new Error(msg);
         }
 
         onConnect({
@@ -431,7 +432,11 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
       setSecretKey('');
       setIsPaper(true);
     } catch (error) {
-      setConnectError(error.message || 'Connection failed');
+      const msg = error?.message || '';
+      const isNetworkError = msg === 'Failed to fetch' || error?.name === 'TypeError';
+      setConnectError(isNetworkError
+        ? 'Could not reach the server. Check your connection and that you\'re signed in. If running locally, use the same app that serves the API (e.g. npm run dev).'
+        : (msg || 'Connection failed'));
     } finally {
       flowSettled = true;
       if (failSafeTimerId) {

@@ -2537,8 +2537,9 @@ export default function Dashboard({
               return;
             }
 
-            if (tabId === 'sports' && typeof setCurrentPage === 'function') {
-              setCurrentPage('sports');
+            if (tabId === 'sports') {
+              setActiveTab('sports');
+              if (typeof setCurrentPage === 'function') setCurrentPage('sports');
               return;
             }
           }}

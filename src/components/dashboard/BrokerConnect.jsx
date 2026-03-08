@@ -358,9 +358,10 @@ const BrokerConnect = ({ onConnected }) => {
         window.clearTimeout(timeoutId);
       }
 
-      const data = await resp.json();
+      const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        setError(data.error || 'Connection failed');
+        const msg = data?.error || (resp.status === 401 ? 'Not signed in. Please sign in and try again.' : resp.status === 504 ? 'Request timed out. Try again.' : `Connection failed (${resp.status}).`);
+        setError(msg);
         return;
       }
 
@@ -373,7 +374,11 @@ const BrokerConnect = ({ onConnected }) => {
         window.location.reload();
       }, 2000);
     } catch (err) {
-      setError(err.message);
+      const msg = err?.message || '';
+      const isNetworkError = msg === 'Failed to fetch' || err?.name === 'TypeError';
+      setError(isNetworkError
+        ? 'Could not reach the server. Check your connection and that you\'re signed in. If running locally, use the same app that serves the API (e.g. npm run dev).'
+        : (msg || 'Connection failed'));
     } finally {
       flowSettled = true;
       if (failSafeTimerId) {

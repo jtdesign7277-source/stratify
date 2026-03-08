@@ -167,7 +167,9 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
         options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined },
       });
       if (signInError) {
-        setError(signInError.message || 'Could not start Google sign-in.');
+        const m = String(signInError.message || 'Could not start Google sign-in.');
+        const connectionErr = /fetch|network|connection|refused|failed to load/i.test(m) || signInError?.name === 'TypeError';
+        setError(connectionErr ? "Can't reach the server. Check your connection and try again." : m);
         return;
       }
       if (data?.url) window.location.href = data.url;
@@ -185,7 +187,9 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
         options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined },
       });
       if (signInError) {
-        setError(signInError.message || 'Could not start Apple sign-in.');
+        const m = String(signInError.message || 'Could not start Apple sign-in.');
+        const connectionErr = /fetch|network|connection|refused|failed to load/i.test(m) || signInError?.name === 'TypeError';
+        setError(connectionErr ? "Can't reach the server. Check your connection and try again." : m);
         return;
       }
       if (data?.url) window.location.href = data.url;
@@ -223,7 +227,9 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
       if (signInError) throw signInError;
       onSuccess?.();
     } catch (submitError) {
-      setError(String(submitError?.message || 'Unable to process your request.'));
+      const msg = String(submitError?.message || 'Unable to process your request.');
+      const isConnectionError = /fetch|network|connection|refused|failed to load/i.test(msg) || submitError?.name === 'TypeError';
+      setError(isConnectionError ? "Can't reach the server. Check your connection and try again." : msg);
     } finally {
       setLoading(false);
     }

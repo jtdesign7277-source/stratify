@@ -1535,7 +1535,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             query: aiIdeasQuery,
-            refreshNonce: ideaRefreshNonce,
+            refreshNonce: `${ideaRefreshNonce}-${Date.now()}`,
             interests: {
               trackedSymbols: heldSymbols,
               filter: 'portfolio',
@@ -2240,6 +2240,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
             </div>
             <button
               onClick={() => {
+                setAiIdeas((prev) => ({ ...prev, loading: true, error: '' }));
                 setIdeaRefreshNonce((value) => value + 1);
               }}
               disabled={aiIdeas.loading}

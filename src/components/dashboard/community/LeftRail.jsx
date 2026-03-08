@@ -174,12 +174,13 @@ const LeftRail = ({
     );
   }
 
+  const railWidth = 220;
   return (
     <motion.aside
       initial={false}
-      animate={{ width: 300 }}
+      animate={{ width: railWidth }}
       className="h-full flex-shrink-0 flex flex-col border-r overflow-y-auto"
-      style={{ borderColor: T.border, backgroundColor: T.bg, minWidth: 300, maxWidth: 300 }}
+      style={{ borderColor: T.border, backgroundColor: T.bg, minWidth: railWidth, maxWidth: railWidth }}
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b flex-shrink-0" style={{ borderColor: T.border }}>

@@ -81,7 +81,7 @@ const Sidebar = ({
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'xray', label: 'X-Ray', icon: Microscope },
-    { id: 'market', label: 'Market', icon: TrendingUp, isNew: true },
+    { id: 'market', label: 'Heat Map', icon: TrendingUp, isNew: true },
     { id: 'trade', label: 'Community', icon: SlidersHorizontal },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
@@ -148,9 +148,6 @@ const Sidebar = ({
                     <div className="relative z-10 flex items-center gap-2 overflow-hidden">
                       <span className="whitespace-nowrap">{item.label}</span>
                       {item.badge ? <span className="text-linear-xs text-linear-accent">{item.badge}</span> : null}
-                      {item.isNew && (
-                        <span className="text-linear-xs uppercase tracking-wider text-linear-accent">new</span>
-                      )}
                     </div>
                   )}
                 </motion.button>
