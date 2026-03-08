@@ -162,7 +162,7 @@ const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const HIDDEN_TABS = new Set(['predictions']);
 const TOPBAR_COLLAPSE_STORAGE_KEY = 'stratify-topbar-collapsed';
-const TOPBAR_COLLAPSED_HEIGHT = 40;
+const TOPBAR_COLLAPSED_HEIGHT = 36;
 const COMMUNITY_WATCHLIST_V3_STORAGE_KEY = 'stratify-community-watchlist-v3';
 const TOPBAR_TICKER_TAPE_CONTAINER_ID = 'dashboard-topbar-ticker-tape-widget';
 const TOPBAR_TICKER_TAPE_MAX_SYMBOLS = 24;
@@ -2493,9 +2493,9 @@ export default function Dashboard({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={TOPBAR_ANIMATION}
-              className="absolute inset-x-0 top-0 h-10 border-b border-[rgba(255,255,255,0.06)] bg-[#1a1a1a] flex items-center"
+              className="absolute inset-x-0 top-0 h-9 border-b border-[rgba(255,255,255,0.06)] bg-[#1a1a1a] flex items-center"
             >
-              <div className="relative h-full w-full flex items-center">
+              <div className="relative h-full w-full flex items-center min-h-0">
                 <TopBarTickerTapeWidget
                   symbols={topBarTickerTapeSymbols}
                   quotesBySymbol={watchlistQuotesBySymbol}

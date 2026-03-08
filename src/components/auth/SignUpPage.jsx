@@ -8,11 +8,12 @@ const LEFT_POINTS = [
   'Risk-aware tooling with clear session-level controls.',
 ];
 
-const LEFT_MARKET_ROWS = [
-  { symbol: '$SPY', note: 'US index pulse and liquidity context' },
-  { symbol: '$QQQ', note: 'Large-cap tech breadth confirmation' },
-  { symbol: '$BTC', note: '24/7 crypto risk-on risk-off signal' },
-  { symbol: '$NVDA', note: 'Momentum benchmark for AI complex' },
+// Official league logos (Wikimedia Commons / Wikipedia)
+const LEAGUE_LOGOS = [
+  { id: 'nba', alt: 'NBA', src: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/NBA_script.svg' },
+  { id: 'nhl', alt: 'NHL', src: 'https://upload.wikimedia.org/wikipedia/de/1/19/Logo-NHL.svg' },
+  { id: 'mlb', alt: 'MLB', src: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Major_League_Baseball_logo.svg' },
+  { id: 'nfl', alt: 'NFL', src: 'https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg' },
 ];
 
 function GoogleGlyph() {
@@ -22,6 +23,14 @@ function GoogleGlyph() {
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+  );
+}
+
+function AppleGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
     </svg>
   );
 }
@@ -39,6 +48,12 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
   const handleGoogleAuth = async () => {
     setError('');
     const { error: signInError } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (signInError) setError(signInError.message);
+  };
+
+  const handleAppleAuth = async () => {
+    setError('');
+    const { error: signInError } = await supabase.auth.signInWithOAuth({ provider: 'apple' });
     if (signInError) setError(signInError.message);
   };
 
@@ -86,10 +101,12 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
   }[mode];
 
   const subtext = {
-    signup: 'Start with live data, AI workflows, and execution-ready tooling.',
-    login: 'Access your dashboard, signals, and live market context.',
+    signup: 'Create your account to get started.',
+    login: 'Sign in to your account',
     forgot: "Enter your email and we'll send you a reset link.",
   }[mode];
+
+  const welcomeHeading = mode === 'login' ? 'Welcome back' : mode === 'signup' ? 'Create your account' : heading;
 
   const submitLabel = {
     signup: 'Create account',
@@ -98,9 +115,12 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
   }[mode];
 
   const inputClassName =
-    'h-[48px] w-full rounded-[10px] border border-white/60 bg-black px-4 text-[clamp(0.94rem,0.98vw,1.06rem)] text-white outline-none transition-colors placeholder:text-white/25 focus:border-white';
+    'h-[48px] w-full rounded-lg border border-white/20 bg-white/5 px-4 text-[clamp(0.94rem,0.98vw,1.06rem)] text-white outline-none transition-colors placeholder:text-white/40 focus:border-white/40';
   const outlineButtonClassName =
-    'h-[48px] w-full rounded-full border border-white/80 bg-transparent px-6 text-[clamp(0.95rem,1vw,1.06rem)] font-semibold text-white transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50';
+    'h-[48px] w-full rounded-lg border border-white/80 bg-transparent px-6 text-[clamp(0.95rem,1vw,1.06rem)] font-semibold text-white transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50';
+  // Same bordered box as Email/Password inputs so they look like clickable tabs
+  const socialButtonClassName =
+    `${inputClassName} flex items-center justify-center gap-3 font-medium cursor-pointer hover:bg-white/10 focus:border-white/50`;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -134,15 +154,34 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
             </div>
           </div>
 
-          <div className="max-w-[620px] border border-white/12 px-6 py-5">
-            <div className="mb-4 text-xs uppercase tracking-[0.2em] text-white/40">Live context</div>
-            <div className="space-y-3">
-              {LEFT_MARKET_ROWS.map((row) => (
-                <div key={row.symbol} className="flex items-start justify-between gap-4">
-                  <div className="font-mono text-base text-white">{row.symbol}</div>
-                  <div className="text-right text-sm text-white/55">{row.note}</div>
+          <div className="max-w-[320px] px-2 py-2 overflow-hidden mt-auto">
+            <style>{`
+              @keyframes signup-fade-in {
+                from { opacity: 0; transform: translateY(4px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+              .signup-fade-item { animation: signup-fade-in 0.5s ease-out forwards; }
+            `}</style>
+            <div className="grid grid-cols-5 gap-2 items-center justify-items-center">
+              {LEAGUE_LOGOS.map((league, i) => (
+                <div
+                  key={league.id}
+                  className="signup-fade-item flex items-center justify-center opacity-0 w-7 h-7 flex-shrink-0"
+                  style={{ animationDelay: `${i * 80}ms` }}
+                >
+                  <img
+                    src={league.src}
+                    alt={league.alt}
+                    className="w-full h-full object-contain opacity-90 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                  />
                 </div>
               ))}
+              <div
+                className="signup-fade-item flex items-center justify-center opacity-0 w-7 h-7 flex-shrink-0"
+                style={{ animationDelay: `${LEAGUE_LOGOS.length * 80}ms` }}
+              >
+                <span className="flex w-full h-full items-center justify-center font-mono text-base font-semibold text-white/90 leading-none">₿</span>
+              </div>
             </div>
           </div>
         </aside>
@@ -158,22 +197,52 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
                 Back
               </button>
-              <div className="text-sm font-semibold tracking-wide text-white/75 lg:text-base">Stratify</div>
+              <div className="text-[11px] font-normal uppercase tracking-[0.32em] text-white/75">STRATIFY</div>
             </div>
 
-            <div className="mb-6 space-y-2 lg:mb-8">
-              <h1 className="text-[clamp(1.7rem,2.4vw,2.5rem)] font-semibold leading-[1.08]">{heading}</h1>
-              <p className="text-[clamp(0.9rem,0.96vw,1rem)] text-white/60">{subtext}</p>
+            <div className="mb-6 space-y-1 lg:mb-8">
+              <h1 className="text-[clamp(1.75rem,2.4vw,2.5rem)] font-semibold leading-tight text-white">
+                {mode === 'forgot' ? heading : welcomeHeading}
+              </h1>
+              <p className="text-[clamp(0.9rem,0.96vw,1rem)] text-white/55">{subtext}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {mode !== 'forgot' && (
+                <>
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={handleAppleAuth}
+                      className={socialButtonClassName}
+                    >
+                      <AppleGlyph />
+                      Continue with Apple
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGoogleAuth}
+                      className={socialButtonClassName}
+                    >
+                      <GoogleGlyph />
+                      Continue with Google
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-white/20" />
+                    <span className="text-sm text-white/50">or</span>
+                    <div className="h-px flex-1 bg-white/20" />
+                  </div>
+                </>
+              )}
+
               <div className="space-y-2">
-                <label className="block text-[clamp(0.95rem,0.98vw,1.03rem)] font-medium text-white">Email</label>
+                <label className="block text-sm font-medium text-white/80">Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@email.com"
+                  placeholder="you@example.com"
                   className={inputClassName}
                   required
                 />
@@ -181,7 +250,18 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
 
               {mode !== 'forgot' && (
                 <div className="space-y-2">
-                  <label className="block text-[clamp(0.95rem,0.98vw,1.03rem)] font-medium text-white">Password</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-white/80">Password</label>
+                    {mode === 'login' && (
+                      <button
+                        type="button"
+                        onClick={() => switchMode('forgot')}
+                        className="text-sm text-white/60 hover:text-white transition"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -194,7 +274,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                     <button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/75 transition hover:text-white"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" strokeWidth={1.5} /> : <Eye className="h-5 w-5" strokeWidth={1.5} />}
@@ -204,94 +284,60 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
               )}
 
               {mode === 'login' && (
-                <label className="mt-0.5 inline-flex items-center gap-2.5 text-[clamp(0.86rem,0.92vw,0.96rem)] text-white/90">
+                <label className="inline-flex items-center gap-2.5 text-sm text-white/80">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(event) => setRememberMe(event.target.checked)}
-                    className="h-5 w-5 rounded border border-white/60 bg-black accent-white"
+                    className="h-4 w-4 rounded border border-white/40 bg-white/5 accent-emerald-500"
                   />
                   Keep me logged in for up to 30 days
                 </label>
               )}
 
-              {mode === 'login' && (
-                <button
-                  type="button"
-                  onClick={() => switchMode('forgot')}
-                  className="text-[clamp(0.86rem,0.9vw,0.95rem)] text-white/75 underline-offset-4 transition hover:text-white hover:underline"
-                >
-                  Forgot password?
-                </button>
-              )}
-
               {error ? (
-                <div className="border border-red-500/45 bg-red-500/8 px-3 py-2 text-xs text-red-300">
+                <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                   {error}
                 </div>
               ) : null}
               {message ? (
-                <div className="border border-emerald-500/45 bg-emerald-500/8 px-3 py-2 text-xs text-emerald-300">
+                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
                   {message}
                 </div>
               ) : null}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button type="submit" disabled={loading} className={outlineButtonClassName}>
-                  {loading ? 'Processing...' : submitLabel}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMode(mode === 'forgot' ? 'login' : 'forgot')}
-                  className={outlineButtonClassName}
-                >
-                  Help
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="h-[48px] w-full rounded-lg bg-emerald-500 px-6 text-[clamp(0.95rem,1vw,1.06rem)] font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-black"
+              >
+                {loading ? 'Processing...' : submitLabel}
+              </button>
 
-              {mode !== 'forgot' && (
-                <>
-                  <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-white/18" />
-                    <span className="text-base text-white/50">or</span>
-                    <div className="h-px flex-1 bg-white/18" />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleGoogleAuth}
-                    className={`${outlineButtonClassName} flex w-full items-center justify-center gap-3 sm:w-[360px]`}
-                  >
-                    <GoogleGlyph />
-                    {mode === 'signup' ? 'Sign up with Google' : 'Log in with Google'}
-                  </button>
-                </>
-              )}
-
-              <div className="pt-1 text-[clamp(0.86rem,0.9vw,0.98rem)] text-white/75">
+              <div className="text-center text-sm text-white/60">
                 {mode === 'signup' ? (
                   <span>
                     Already have an account?{' '}
-                    <button type="button" onClick={() => switchMode('login')} className="font-semibold text-white underline underline-offset-4">
+                    <button type="button" onClick={() => switchMode('login')} className="font-medium text-white hover:underline">
                       Sign in
                     </button>
                   </span>
                 ) : mode === 'login' ? (
                   <span>
-                    Not on Stratify?{' '}
-                    <button type="button" onClick={() => switchMode('signup')} className="font-semibold text-white underline underline-offset-4">
-                      Create an account
+                    Don&apos;t have an account?{' '}
+                    <button type="button" onClick={() => switchMode('signup')} className="font-medium text-white hover:underline">
+                      Sign up now
                     </button>
                   </span>
                 ) : (
-                  <button type="button" onClick={() => switchMode('login')} className="font-semibold text-white underline underline-offset-4">
+                  <button type="button" onClick={() => switchMode('login')} className="font-medium text-white hover:underline">
                     Back to sign in
                   </button>
                 )}
               </div>
 
-              <p className="text-[clamp(0.76rem,0.82vw,0.9rem)] leading-relaxed text-white/45">
-                This site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply.
+              <p className="text-[clamp(0.72rem,0.8vw,0.85rem)] leading-relaxed text-white/40 text-center">
+                By continuing, you agree to Stratify&apos;s Terms of Service and Privacy Policy.
               </p>
             </form>
           </div>
