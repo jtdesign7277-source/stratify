@@ -44,7 +44,7 @@ async function fetchJson(url) {
 
 export default function SportsOddsPage({ onBack }) {
   const [sports, setSports] = useState([]);
-  const [sportKey, setSportKey] = useState('americanfootball_nfl');
+  const [sportKey, setSportKey] = useState('basketball_nba');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
