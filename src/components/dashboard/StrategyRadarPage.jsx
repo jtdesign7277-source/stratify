@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart2, Bell, Clock, Search, ChevronsLeft, ChevronsRight, Check, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { AlarmClock, BarChart2, Clock, Plus, Search, ChevronsLeft, ChevronsRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 import { createLineToolsPlugin } from 'lightweight-charts-line-tools-core';
 import { LineToolTrendLine, LineToolHorizontalLine, LineToolVerticalLine, LineToolRay } from 'lightweight-charts-line-tools-lines';
@@ -27,6 +27,7 @@ import gsap from 'gsap';
 import CountUp from 'react-countup';
 import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
 import { normalizeSymbol as normalizeTicker } from '../../lib/twelvedata';
+import CreateAlertModal from './CreateAlertModal';
 
 // ── Supabase Client ──────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -237,6 +238,7 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   const [highlightIdx, setHighlightIdx] = useState(-1);
   const [searched, setSearched] = useState(false);
   const [recentSearches, setRecentSearches] = useState(loadRecentSearches);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 352 });
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
   const containerRef = useRef(null);
@@ -307,6 +309,13 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
   const showNoResults = searched && query.length >= 2 && results.length === 0 && !isLoading;
   const showDropdown = isOpen && (results.length > 0 || showRecents || showNoResults);
 
+  useLayoutEffect(() => {
+    if (showDropdown && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setDropdownPosition({ top: rect.bottom + 8, left: rect.left, width: Math.max(rect.width, 320) });
+    }
+  }, [showDropdown, results.length, query.length]);
+
   return (
     <div ref={containerRef} className="w-full max-w-[22rem] mx-4 relative flex-shrink min-w-0">
       <motion.div
@@ -344,50 +353,50 @@ function RadarSearchBar({ selectedTicker, onSelect }) {
         </div>
       </motion.div>
 
-      <AnimatePresence>
-        {showDropdown && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.15 } }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl bg-[#0a0a0f] border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl max-h-80 overflow-y-auto"
-          >
-            {results.length > 0 && (
-              <div>
-                {results.map((r, i) => (
-                  <button key={r.symbol}
-                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(r.symbol); }}
-                    onMouseEnter={() => setHighlightIdx(i)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer transition-all duration-150 ${highlightIdx === i ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]'}`}
-                  >
-                    <span className="text-sm text-white font-semibold font-mono w-20 flex-shrink-0">{r.symbol}</span>
-                    <span className="text-sm text-gray-400 flex-1 truncate">{r.name}</span>
-                    <span className="text-sm text-gray-500 flex-shrink-0">{r.exchange}</span>
-                  </button>
+      {showDropdown && createPortal(
+        <motion.div
+          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.15 } }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          className="fixed z-[10001] rounded-2xl bg-[#0a0a0f] border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden flex flex-col"
+          style={{ top: dropdownPosition.top, left: dropdownPosition.left, width: dropdownPosition.width, maxHeight: 'min(20rem, 60vh)' }}
+        >
+          {results.length > 0 && (
+            <div className="overflow-y-auto overflow-x-hidden flex-1 min-h-0 py-1" style={{ scrollbarGutter: 'stable' }}>
+              {results.map((r, i) => (
+                <button key={r.symbol}
+                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(r.symbol); }}
+                  onMouseEnter={() => setHighlightIdx(i)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer transition-all duration-150 ${highlightIdx === i ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]'}`}
+                >
+                  <span className="text-sm text-white font-semibold font-mono w-20 flex-shrink-0">{r.symbol}</span>
+                  <span className="text-sm text-gray-400 flex-1 truncate">{r.name}</span>
+                  <span className="text-sm text-gray-500 flex-shrink-0">{r.exchange}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {showNoResults && (
+            <div className="px-4 py-3 text-sm text-gray-500 shrink-0">No results found</div>
+          )}
+          {showRecents && (
+            <div className={`shrink-0 ${results.length > 0 ? 'border-t border-white/[0.06]' : ''}`}>
+              <div className="px-4 pt-2 pb-1"><span className="text-sm text-gray-600 uppercase tracking-widest">Recent</span></div>
+              <div className="flex flex-wrap gap-1 px-4 pb-2.5">
+                {recentSearches.map((t, i) => (
+                  <button key={t}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(t); }}
+                    onMouseEnter={() => setHighlightIdx(results.length + i)}
+                    className={`px-2.5 py-1 text-sm font-mono transition-all duration-150 rounded-md cursor-pointer ${highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'}`}
+                  >{t}</button>
                 ))}
               </div>
-            )}
-            {showNoResults && (
-              <div className="px-4 py-3 text-sm text-gray-500">No results found</div>
-            )}
-            {showRecents && (
-              <div className={results.length > 0 ? 'border-t border-white/[0.06]' : ''}>
-                <div className="px-4 pt-2 pb-1"><span className="text-sm text-gray-600 uppercase tracking-widest">Recent</span></div>
-                <div className="flex flex-wrap gap-1 px-4 pb-2.5">
-                  {recentSearches.map((t, i) => (
-                    <button key={t}
-                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); selectTicker(t); }}
-                      onMouseEnter={() => setHighlightIdx(results.length + i)}
-                      className={`px-2.5 py-1 text-sm font-mono transition-all duration-150 rounded-md cursor-pointer ${highlightIdx === results.length + i ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'}`}
-                    >{t}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          )}
+        </motion.div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -475,7 +484,7 @@ async function fetchCandles(ticker, timeframe) {
 // RADAR CHART
 // ══════════════════════════════════════════════════════════════════════════════
 
-function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors, chartDisplayMode = 'solid', volumeProfileRef, sessionHighlightRef, priceAlertsRef, onAlertTriggered }) {
+function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bosEvents, selectedTicker, selectedTimeframe, candleColors, chartDisplayMode = 'solid', volumeProfileRef, volumeProfileVisible = true, sessionHighlightRef, priceAlertsRef, onAlertTriggered }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -543,7 +552,7 @@ function RadarChart({ candles, orderBlocks, msbEvents, signals, chochEvents, bos
     lineToolsPlugin.registerLineTool('ParallelChannel', LineToolParallelChannel);
     lineToolsRef.current = lineToolsPlugin;
 
-    const vp = new VolumeProfilePlugin(candleSeries, []);
+    const vp = new VolumeProfilePlugin(candleSeries, [], { visible: volumeProfileVisible });
     try {
       if (chart.panes && chart.panes()[0]) chart.panes()[0].attachPrimitive(vp);
     } catch (_) {}
@@ -1512,8 +1521,7 @@ function StrategyRadarContent() {
   const sessionHighlightRef = useRef(null);
   const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
   const priceAlertsRef = useRef(null);
-  const [alertPrice, setAlertPrice] = useState('');
-  const [alertDirection, setAlertDirection] = useState('above');
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
   const [hasAlerts, setHasAlerts] = useState(false);
   const [alertPopup, setAlertPopup] = useState(null);
   useEffect(() => {
@@ -2048,7 +2056,7 @@ function StrategyRadarContent() {
                 className={`flex flex-col items-center justify-center shrink-0 transition-colors ${volumeProfileVisible ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
                 title="Volume Profile"
               >
-                <BarChart2 className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                <BarChart2 className={`h-4 w-4 shrink-0 ${volumeProfileVisible ? 'text-emerald-400' : ''}`} strokeWidth={1.5} />
                 <span className="text-[10px] mt-0.5">Vol Profile</span>
               </motion.button>
               <motion.button
@@ -2067,103 +2075,88 @@ function StrategyRadarContent() {
                 <span className="text-[10px] mt-0.5">Sessions</span>
               </motion.button>
               <span className="flex items-center gap-1.5 shrink-0">
-                <input
-                  type="text"
-                  value={alertPrice}
-                  onChange={(e) => setAlertPrice(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const price = parseFloat(alertPrice);
-                      if (!isNaN(price) && priceAlertsRef.current) {
-                        priceAlertsRef.current.addAlert(price, alertDirection, 'eod');
-                        setAlertPrice('');
-                        setHasAlerts(true);
-                        setAlertPopup({ message: `Alert set at $${price.toFixed(2)} (${alertDirection})`, variant: 'set' });
-                      }
-                    }
-                  }}
-                  placeholder="Alert price"
-                  className="bg-transparent border border-white/10 rounded text-xs text-white px-2 py-1 w-24 focus:outline-none focus:border-emerald-400/50"
-                />
-                <select
-                  value={alertDirection}
-                  onChange={(e) => setAlertDirection(e.target.value)}
-                  className="bg-[#0a0a0f] border border-white/10 rounded text-xs text-gray-400 px-2 py-1"
-                >
-                  <option value="above">Above</option>
-                  <option value="below">Below</option>
-                </select>
-                <button
+                <motion.button
                   type="button"
-                  onClick={() => {
-                    const price = parseFloat(alertPrice);
-                    if (!isNaN(price) && priceAlertsRef.current) {
-                      priceAlertsRef.current.addAlert(price, alertDirection, 'eod');
-                      setAlertPrice('');
-                      setHasAlerts(true);
-                      setAlertPopup({ message: `Alert set at $${price.toFixed(2)} (${alertDirection})`, variant: 'set' });
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+                  onClick={() => setAlertModalOpen(true)}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  className="flex flex-col items-center justify-center shrink-0 transition-colors text-gray-500 hover:text-white"
+                  title="Create alert"
                 >
-                  <Bell className="w-4 h-4" strokeWidth={1.5} />
-                  Set Alert
-                </button>
-                {(hasAlerts || (priceAlertsRef.current?.getAlertCount?.() ?? 0) > 0) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      priceAlertsRef.current?.clearAlerts();
-                      setHasAlerts(false);
-                    }}
-                    className="text-gray-500 hover:text-red-400"
-                    title="Clear all alerts"
-                  >
-                    <X className="w-4 h-4" strokeWidth={1.5} />
-                  </button>
-                )}
+                  <span className="relative inline-flex items-center justify-center">
+                    <AlarmClock className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                    <Plus className="absolute w-2.5 h-2.5 shrink-0" strokeWidth={2.5} style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                  </span>
+                  <span className="text-[10px] mt-0.5">Alert</span>
+                </motion.button>
               </span>
-            </div>
-            <div className="relative shrink-0" ref={timeframeDropdownRef}>
-              <motion.button
-                type="button"
-                onClick={() => setTimeframeDropdownOpen((o) => !o)}
-                whileTap={{ scale: 0.96 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                className={`flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${timeframeDropdownOpen ? 'border-[#00C2FF] text-[#00C2FF]' : 'border-white/[0.14] text-gray-400 hover:bg-white/[0.08] hover:text-gray-300'}`}
-                aria-expanded={timeframeDropdownOpen}
-              >
-                <span className="font-mono">{settings.timeframe || '1D'}</span>
-                <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${timeframeDropdownOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
-              </motion.button>
-              {timeframeDropdownOpen && timeframeDropdownPosition && createPortal(
-                <div
-                  ref={timeframeDropdownPanelRef}
-                  className="min-w-[5rem] rounded border border-white/10 bg-[#0b0b0b] py-1 shadow-lg"
-                  style={{
-                    position: 'fixed',
-                    top: timeframeDropdownPosition.top,
-                    left: timeframeDropdownPosition.left,
-                    zIndex: 9999,
-                  }}
+              <CreateAlertModal
+                open={alertModalOpen}
+                onClose={() => setAlertModalOpen(false)}
+                symbol={selectedTicker}
+                defaultPrice={Number.isFinite(displayPrice) ? displayPrice : ''}
+                getAlerts={() => priceAlertsRef.current?.getAlerts() ?? []}
+                getAllAlerts={() => PriceAlertsPlugin.getAllAlertsFromStorage()}
+                onAlertToggle={(sym, price, direction, enabled) => {
+                  PriceAlertsPlugin.setAlertEnabledInStorage(sym, price, direction, enabled);
+                  if (selectedTicker && String(sym).toUpperCase() === String(selectedTicker).toUpperCase()) {
+                    priceAlertsRef.current?.loadFromStorage?.();
+                    setHasAlerts(priceAlertsRef.current?.getAlertCount() > 0);
+                  }
+                }}
+                onCreate={(price, direction, hoursOrEod, options) => {
+                  if (priceAlertsRef.current) {
+                    priceAlertsRef.current.addAlert(price, direction, hoursOrEod, options);
+                    setHasAlerts(true);
+                    setAlertPopup({ message: `Alert set at $${Number(price).toFixed(2)} (${direction})`, variant: 'set' });
+                  }
+                }}
+              />
+              <div className="relative shrink-0" ref={timeframeDropdownRef}>
+                <motion.button
+                  type="button"
+                  onClick={() => setTimeframeDropdownOpen((o) => !o)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  className={`flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
+                    timeframeDropdownOpen
+                      ? 'border-emerald-400 text-emerald-400'
+                      : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                  }`}
+                  aria-expanded={timeframeDropdownOpen}
                 >
-                  {TIMEFRAMES.map(tf => (
-                    <button
-                      key={tf}
-                      type="button"
-                      onClick={() => {
-                        handleSettingsUpdate({ timeframe: tf });
-                        setTimeframeDropdownOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-center px-3 py-1.5 text-[11px] font-mono transition-colors hover:bg-white/[0.08] ${settings.timeframe === tf ? 'bg-white/10 text-[#00C2FF]' : 'text-gray-400'}`}
-                    >
-                      {tf}
-                    </button>
-                  ))}
-                </div>,
-                document.body
-              )}
+                  <span>{settings.timeframe || '1D'}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${timeframeDropdownOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
+                </motion.button>
+                {timeframeDropdownOpen && timeframeDropdownPosition && createPortal(
+                  <div
+                    ref={timeframeDropdownPanelRef}
+                    className="min-w-[5rem] rounded border border-white/10 bg-[#0b0b0b] py-1 shadow-lg"
+                    style={{
+                      position: 'fixed',
+                      top: timeframeDropdownPosition.top,
+                      left: timeframeDropdownPosition.left,
+                      zIndex: 9999,
+                    }}
+                  >
+                    {TIMEFRAMES.map(tf => (
+                      <button
+                        key={tf}
+                        type="button"
+                        onClick={() => {
+                          handleSettingsUpdate({ timeframe: tf });
+                          setTimeframeDropdownOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-center px-3 py-1.5 text-[11px] font-medium transition-colors hover:bg-white/[0.08] ${settings.timeframe === tf ? 'bg-white/10 text-emerald-400' : 'text-gray-400'}`}
+                      >
+                        {tf}
+                      </button>
+                    ))}
+                  </div>,
+                  document.body
+                )}
+              </div>
             </div>
           </div>
 
@@ -2203,6 +2196,7 @@ function StrategyRadarContent() {
               candleColors={candleColors}
               chartDisplayMode={chartDisplayMode}
               volumeProfileRef={volumeProfileRef}
+              volumeProfileVisible={volumeProfileVisible}
               sessionHighlightRef={sessionHighlightRef}
               priceAlertsRef={priceAlertsRef}
               onAlertTriggered={(alert) => setAlertPopup({ message: `Price alert! $${Number(alert.price).toFixed(2)} ${alert.direction}`, variant: 'triggered' })}

@@ -229,8 +229,8 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         WebkitBackdropFilter: 'blur(8px)',
       }}
     >
-      {/* Tab bar: Live Lines first, then NBA | NHL — match news panel look */}
-      <div className="flex flex-row gap-1 px-3 pt-3 pb-0 border-b border-white/[0.06] shrink-0">
+      {/* Tab bar: fixed height so horizontal line aligns with News header */}
+      <div className="flex flex-row h-10 items-center gap-1 px-3 border-b border-white/[0.06] shrink-0">
         <button
           type="button"
           onClick={() => {

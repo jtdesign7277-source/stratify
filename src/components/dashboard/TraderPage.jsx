@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import { Activity, BarChart2, Bell, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { Activity, AlarmClock, BarChart2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
@@ -25,6 +25,7 @@ import { PriceAlertsPlugin } from '../../plugins/PriceAlertsPlugin';
 import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage';
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 import LiveOddsPanel from './LiveOddsPanel';
+import CreateAlertModal from './CreateAlertModal';
 
 function newsTimeAgo(dateStr) {
   if (!dateStr) return '';
@@ -1723,12 +1724,6 @@ export default function TraderPage({
   const articleBodyScrollRef = useRef(null);
   const articleHydrationInFlightRef = useRef(new Set());
 
-  const scrollNewsList = useCallback((delta) => {
-    const el = newsListScrollRef.current;
-    if (el) {
-      el.scrollTop = Math.max(0, Math.min(el.scrollTop + delta, el.scrollHeight - el.clientHeight));
-    }
-  }, []);
   const scrollArticleBody = useCallback((delta) => {
     const el = articleBodyScrollRef.current;
     if (el) {
@@ -1841,8 +1836,7 @@ export default function TraderPage({
   const sessionHighlightRef = useRef(null);
   const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
   const priceAlertsRef = useRef(null);
-  const [alertPrice, setAlertPrice] = useState('');
-  const [alertDirection, setAlertDirection] = useState('above');
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
   const [hasAlerts, setHasAlerts] = useState(false);
   const [alertPopup, setAlertPopup] = useState(null);
 
@@ -4993,7 +4987,7 @@ export default function TraderPage({
                     className={`flex flex-col items-center justify-center shrink-0 transition-colors ${volumeProfileVisible ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
                     title="Volume Profile"
                   >
-                    <BarChart2 className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                    <BarChart2 className={`h-4 w-4 shrink-0 ${volumeProfileVisible ? 'text-emerald-400' : ''}`} strokeWidth={1.5} />
                     <span className="text-[10px] mt-0.5">Vol Profile</span>
                   </motion.button>
                   <motion.button
@@ -5012,65 +5006,45 @@ export default function TraderPage({
                     <span className="text-[10px] mt-0.5">Sessions</span>
                   </motion.button>
                   <span className="flex items-center gap-1.5 shrink-0">
-                    <input
-                      type="text"
-                      value={alertPrice}
-                      onChange={(e) => setAlertPrice(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const price = parseFloat(alertPrice);
-                          if (!isNaN(price) && priceAlertsRef.current) {
-                            priceAlertsRef.current.addAlert(price, alertDirection, 'eod');
-                            setAlertPrice('');
-                            setHasAlerts(true);
-                            setAlertPopup({ message: `Alert set at $${price.toFixed(2)} (${alertDirection})`, variant: 'set' });
-                            window.dispatchEvent(new CustomEvent('stratify-chart-alerts-updated'));
-                          }
-                        }
-                      }}
-                      placeholder="Alert price"
-                      className="bg-transparent border border-white/10 rounded text-xs text-white px-2 py-1 w-24 focus:outline-none focus:border-emerald-400/50"
-                    />
-                    <select
-                      value={alertDirection}
-                      onChange={(e) => setAlertDirection(e.target.value)}
-                      className="bg-[#0a0a0f] border border-white/10 rounded text-xs text-gray-400 px-2 py-1"
-                    >
-                      <option value="above">Above</option>
-                      <option value="below">Below</option>
-                    </select>
-                    <button
+                    <motion.button
                       type="button"
-                      onClick={() => {
-                        const price = parseFloat(alertPrice);
-                        if (!isNaN(price) && priceAlertsRef.current) {
-                          priceAlertsRef.current.addAlert(price, alertDirection, 'eod');
-                          setAlertPrice('');
-                          setHasAlerts(true);
-                          setAlertPopup({ message: `Alert set at $${price.toFixed(2)} (${alertDirection})`, variant: 'set' });
-                          window.dispatchEvent(new CustomEvent('stratify-chart-alerts-updated'));
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+                      onClick={() => setAlertModalOpen(true)}
+                      whileTap={{ scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      className="flex flex-col items-center justify-center shrink-0 transition-colors text-gray-500 hover:text-white"
+                      title="Create alert"
                     >
-                      <Bell className="w-4 h-4" strokeWidth={1.5} />
-                      Set Alert
-                    </button>
-                    {(hasAlerts || (priceAlertsRef.current?.getAlertCount?.() ?? 0) > 0) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          priceAlertsRef.current?.clearAlerts();
-                          setHasAlerts(false);
-                        }}
-                        className="text-gray-500 hover:text-red-400"
-                        title="Clear all alerts"
-                      >
-                        <X className="w-4 h-4" strokeWidth={1.5} />
-                      </button>
-                    )}
+                      <span className="relative inline-flex items-center justify-center">
+                        <AlarmClock className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                        <Plus className="absolute w-2.5 h-2.5 shrink-0" strokeWidth={2.5} style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                      </span>
+                      <span className="text-[10px] mt-0.5">Alert</span>
+                    </motion.button>
                   </span>
+                  <CreateAlertModal
+                    open={alertModalOpen}
+                    onClose={() => setAlertModalOpen(false)}
+                    symbol={selectedSymbol}
+                    defaultPrice={selectedMarketPrice ?? ''}
+                    getAlerts={() => priceAlertsRef.current?.getAlerts() ?? []}
+                    getAllAlerts={() => PriceAlertsPlugin.getAllAlertsFromStorage()}
+                    onAlertToggle={(sym, price, direction, enabled) => {
+                      PriceAlertsPlugin.setAlertEnabledInStorage(sym, price, direction, enabled);
+                      if (selectedSymbol && String(sym).toUpperCase() === String(selectedSymbol).toUpperCase()) {
+                        priceAlertsRef.current?.loadFromStorage?.();
+                        setHasAlerts(priceAlertsRef.current?.getAlertCount() > 0);
+                      }
+                      window.dispatchEvent(new CustomEvent('stratify-chart-alerts-updated'));
+                    }}
+                    onCreate={(price, direction, hoursOrEod, options) => {
+                      if (priceAlertsRef.current) {
+                        priceAlertsRef.current.addAlert(price, direction, hoursOrEod, options);
+                        setHasAlerts(true);
+                        setAlertPopup({ message: `Alert set at $${Number(price).toFixed(2)} (${direction})`, variant: 'set' });
+                        window.dispatchEvent(new CustomEvent('stratify-chart-alerts-updated'));
+                      }
+                    }}
+                  />
                   <div className="relative shrink-0" ref={timeframeDropdownRef}>
                     <motion.button
                       type="button"
@@ -5206,32 +5180,42 @@ export default function TraderPage({
                 )}
               </div>
 
-              {/* News toggle bar — only when no article open; when article is open, hide so it can't expand drawer into chart */}
+              {/* News / Sportsbook toggle bar — same line: News left, Sportsbook right (above Live Lines); both open/toggle panel */}
               {!drawerArticle && (
-              <button
-                type="button"
-                onClick={toggleNewsPanelCollapsed}
-                className="relative z-[420] flex h-8 shrink-0 items-center justify-between px-4 transition-colors hover:bg-white/[0.04] cursor-pointer pointer-events-auto w-full"
+              <div
+                className="relative z-[420] flex h-9 shrink-0 items-center justify-between px-3 pointer-events-auto w-full border-t border-white/[0.06]"
                 style={{
-                  background: 'transparent',
-                  borderTop: '1px solid rgba(255,255,255,0.06)',
-                  borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  borderBottom: isNewsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none',
                 }}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">
-                    News
-                  </span>
-                  <span className="text-[10px] text-gray-500 font-mono">
+                <button
+                  type="button"
+                  onClick={toggleNewsPanelCollapsed}
+                  className="flex items-center gap-2 transition-colors hover:bg-white/[0.03] cursor-pointer rounded py-1 px-1 -mx-1"
+                >
+                  <Newspaper className="w-3.5 h-3.5 text-white" strokeWidth={1.5} />
+                  <span className="text-xs font-medium text-white">News</span>
+                  <span className="text-xs text-gray-500 font-mono">
                     {selectedTicker ? `$${selectedTicker}` : ''}
                   </span>
-                </div>
-                <ChevronsDown
-                  className="h-4 w-4 text-emerald-400 transition-transform duration-300"
-                  style={{ transform: isNewsOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
-                  strokeWidth={1.7}
-                />
-              </button>
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleNewsPanelCollapsed}
+                  className="flex items-center gap-2 transition-colors hover:bg-white/[0.03] cursor-pointer rounded py-1 px-2"
+                  aria-label="Open Sportsbook panel"
+                >
+                  <span className="text-xs font-medium text-white">Sportsbook</span>
+                  <ChevronsDown
+                    className="h-4 w-4 text-gray-500 transition-transform duration-300"
+                    style={{ transform: isNewsOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
+                    strokeWidth={1.7}
+                  />
+                </button>
+              </div>
               )}
 
               {/* News panel — shrunk when no article; full height when article open */}
@@ -5258,57 +5242,23 @@ export default function TraderPage({
                     boxShadow: "none",
                   }}
                 >
-                  {/* Left: article list — fixed 50% width, never resizes when article opens */}
+                  {/* Left: article list — fixed 50% width; same soft-glass look as Live Lines panel */}
                   <div
+                    className="flex flex-col h-full min-h-0 overflow-hidden"
                     style={{
                       width: "50%",
                       flexShrink: 0,
-                      display: "flex",
-                      flexDirection: "column",
-                      overflow: "hidden",
-                      borderRight: "1px solid rgba(255,255,255,0.06)",
+                      background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      borderRight: '1px solid rgba(255,255,255,0.06)',
                     }}
                   >
-                  <ErrorBoundary><div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-                    {/* Header — scroll/refresh controls live in the article drawer (right panel) when open */}
-                    <div className="flex h-10 shrink-0 items-center justify-between overflow-hidden px-3 border-b border-white/[0.06] relative z-[150]">
-                      <span className="text-[11px] text-gray-500">
-                        News for <span className="text-blue-400 font-mono font-medium">${selectedTicker || '—'}</span>
-                      </span>
-                      {!drawerArticle ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(-120); }}
-                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                            aria-label="Scroll news up"
-                          >
-                            <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(120); }}
-                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                            aria-label="Scroll news down"
-                          >
-                            <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => refetchNews()}
-                            disabled={newsLoading}
-                            className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors disabled:opacity-50"
-                            aria-label="Refresh news"
-                          >
-                            <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                    {/* Scrollable article list — when no article open (shrunk panel) show ~2; when article open use full height so more visible */}
+                  <ErrorBoundary><div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                    {/* Scrollable article list — no duplicate header (ticker/News shown elsewhere) */}
                     <div
                       ref={newsListScrollRef}
-                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y pt-2"
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide pointer-events-auto touch-pan-y px-3 pt-3 pb-3"
                       style={{
                         touchAction: 'pan-y',
                         flex: '1 1 0%',
@@ -5317,21 +5267,21 @@ export default function TraderPage({
                       }}
                     >
                       {newsLoading && !newsArticles?.length ? (
-                        <div className="flex items-center justify-center py-8 gap-2">
-                          <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                          <span className="text-[11px] text-gray-600">Loading news...</span>
+                        <div className="flex items-center justify-center py-12 gap-2">
+                          <div className="w-6 h-6 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+                          <span className="text-xs text-gray-500">Loading news...</span>
                         </div>
                       ) : newsError ? (
-                        <div className="flex flex-col items-center justify-center py-8 gap-2">
-                          <span className="text-[11px] text-red-400/70">Failed to load news</span>
-                          <button type="button" onClick={() => refetchNews()} className="text-[10px] text-blue-400 hover:underline">Try again</button>
+                        <div className="flex flex-col items-center justify-center py-12 gap-2">
+                          <span className="text-xs text-red-400/80 text-center">Failed to load news</span>
+                          <button type="button" onClick={() => refetchNews()} className="text-xs text-blue-400 hover:underline">Try again</button>
                         </div>
                       ) : !newsArticles?.length ? (
                         <div className="flex items-center justify-center py-8">
-                          <span className="text-[11px] text-gray-600">No articles for ${selectedTicker || '—'}</span>
+                          <span className="text-xs text-gray-500">No articles for ${selectedTicker || '—'}</span>
                         </div>
                       ) : (
-                        <div className="divide-y divide-white/[0.03]">
+                        <div className="divide-y divide-white/[0.06]">
                           {(newsArticles || []).map((article) => {
                             const score = article.sentiment ?? article.sentiment_score ?? null;
                             const timeAgo = newsTimeAgo(article.publishedAt ?? article.published_at);
@@ -5346,22 +5296,22 @@ export default function TraderPage({
                                   setNewsArticleExpanded(true);
                                   setIsArticleOpen(true);
                                 }}
-                                className={`w-full text-left group flex rounded-none hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/[0.06] cursor-pointer ${drawerArticle ? 'gap-3 p-3' : 'gap-2 px-2.5 py-2'}`}
+                                className="w-full text-left group flex gap-3 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer"
                               >
                                 <div
                                   className="flex-shrink-0 w-1 rounded-full self-stretch mt-0.5"
                                   style={{
-                                    backgroundColor: score >= 0.2 ? 'rgba(52, 211, 153, 0.6)' : score <= -0.2 ? 'rgba(248, 113, 113, 0.6)' : 'rgba(107, 114, 128, 0.3)',
+                                    backgroundColor: score >= 0.2 ? 'rgba(52, 211, 153, 0.5)' : score <= -0.2 ? 'rgba(248, 113, 113, 0.5)' : 'rgba(107, 114, 128, 0.25)',
                                   }}
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <h4 className={`font-medium text-gray-200 leading-snug group-hover:text-white transition-colors break-words ${drawerArticle ? 'text-[15px] line-clamp-3 pr-1.5' : 'text-[13px] line-clamp-2 pr-1'}`}>
+                                  <h4 className="text-sm font-medium text-white leading-snug group-hover:text-white break-words line-clamp-2">
                                     {article.title}
                                   </h4>
-                                  <div className={`flex items-center gap-2 ${drawerArticle ? 'mt-1.5' : 'mt-0.5'} ${!drawerArticle ? 'text-[11px]' : ''}`}>
-                                    <span className={`text-gray-500 font-medium uppercase tracking-wide ${drawerArticle ? 'text-[13px]' : 'text-[11px]'}`}>{sourceLabel}</span>
-                                    <span className="text-gray-700">·</span>
-                                    <span className={`text-gray-600 ${drawerArticle ? 'text-[13px]' : 'text-[11px]'}`}>{timeAgo}</span>
+                                  <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                                    <span className="uppercase tracking-wide">{sourceLabel}</span>
+                                    <span>·</span>
+                                    <span>{timeAgo}</span>
                                   </div>
                                 </div>
                               </button>
@@ -5486,55 +5436,6 @@ export default function TraderPage({
                             <span className="text-[11px] text-gray-500 ml-1">
                               {currentIndex >= 0 ? `${currentIndex + 1} / ${articles.length}` : '—'}
                             </span>
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 flex-wrap items-center gap-3 px-4 py-2 border-b border-white/[0.06]">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-500 uppercase">Scroll list:</span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(-120); }}
-                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                              aria-label="Scroll news list up"
-                            >
-                              <ChevronUp className="w-4 h-4 text-emerald-400" strokeWidth={1.8} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollNewsList(120); }}
-                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                              aria-label="Scroll news list down"
-                            >
-                              <ChevronDown className="w-4 h-4 text-emerald-400" strokeWidth={1.8} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => refetchNews()}
-                              disabled={newsLoading}
-                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors disabled:opacity-50"
-                              aria-label="Refresh news"
-                            >
-                              <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-500 uppercase">Scroll article:</span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollArticleBody(-200); }}
-                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                              aria-label="Scroll article up"
-                            >
-                              <ChevronUp className="w-4 h-4" strokeWidth={1.8} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); scrollArticleBody(200); }}
-                              className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors cursor-pointer"
-                              aria-label="Scroll article down"
-                            >
-                              <ChevronDown className="w-4 h-4" strokeWidth={1.8} />
-                            </button>
                           </div>
                         </div>
                         <div

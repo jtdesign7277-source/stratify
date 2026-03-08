@@ -1,14 +1,15 @@
 /**
  * Price Alerts pane primitive for Lightweight Charts v5.
- * Renders dashed horizontal lines at user-set price levels; emerald for above, red for below.
+ * Renders dashed horizontal lines at user-set price levels in blue, with a bell icon above each.
  * Labels show price + time remaining; auto-expires after 24h; flashes and removes on cross.
  * Persists to localStorage keyed by ticker.
  */
 
 export const STORAGE_KEY_PREFIX = 'stratify-price-alerts-';
-const EMERALD = 'rgba(16, 185, 129, 0.9)';
-const RED = 'rgba(248, 113, 113, 0.9)';
+const BLUE = 'rgba(59, 130, 246, 0.9)';
 const LABEL_FONT = '11px sans-serif';
+const BELL_SIZE = 12;
+const BELL_OFFSET_Y = 18;
 
 export class PriceAlertsPlugin {
   constructor(symbol, options = {}) {
@@ -42,21 +43,40 @@ export class PriceAlertsPlugin {
               }
               const y = priceToY(a.price);
               if (y == null || !Number.isFinite(y)) return;
-              const color = a.direction === 'above' ? EMERALD : RED;
+              const ry = Math.round(y);
               ctx.save();
-              ctx.strokeStyle = color;
+              ctx.strokeStyle = BLUE;
+              ctx.fillStyle = BLUE;
               ctx.setLineDash([6, 4]);
               ctx.lineWidth = 1;
               ctx.beginPath();
-              ctx.moveTo(0, Math.round(y));
-              ctx.lineTo(width, Math.round(y));
+              ctx.moveTo(0, ry);
+              ctx.lineTo(width, ry);
               ctx.stroke();
               ctx.setLineDash([]);
               const label = `${a.price.toFixed(2)} · ${Math.max(0, Math.ceil((expiresAt - now) / 3600000))}h`;
               ctx.font = LABEL_FONT;
-              ctx.fillStyle = color;
               ctx.textAlign = 'right';
-              ctx.fillText(label, width - 4, Math.round(y) - 4);
+              ctx.fillText(label, width - 4, ry - 4);
+              const cx = 4 + BELL_SIZE;
+              const cy = ry - BELL_OFFSET_Y;
+              const s = BELL_SIZE / 12;
+              ctx.strokeStyle = BLUE;
+              ctx.fillStyle = 'transparent';
+              ctx.lineWidth = 1.25;
+              ctx.lineCap = 'round';
+              ctx.lineJoin = 'round';
+              ctx.beginPath();
+              ctx.moveTo(cx - 2.5 * s, cy - 5 * s);
+              ctx.lineTo(cx + 2.5 * s, cy - 5 * s);
+              ctx.quadraticCurveTo(cx + 4 * s, cy - 2 * s, cx + 3 * s, cy + 3 * s);
+              ctx.quadraticCurveTo(cx + 1 * s, cy + 5 * s, cx, cy + 5 * s);
+              ctx.quadraticCurveTo(cx - 1 * s, cy + 5 * s, cx - 3 * s, cy + 3 * s);
+              ctx.quadraticCurveTo(cx - 4 * s, cy - 2 * s, cx - 2.5 * s, cy - 5 * s);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.ellipse(cx, cy + 5.6 * s, 0.6 * s, 1 * s, 0, 0, Math.PI * 2);
+              ctx.stroke();
               ctx.restore();
             });
             toRemove.forEach((a) => self._removeAlert(a));
@@ -110,7 +130,7 @@ export class PriceAlertsPlugin {
     this._requestUpdate?.();
   }
 
-  addAlert(price, direction, hoursOrEod = 24) {
+  addAlert(price, direction, hoursOrEod = 24, options = {}) {
     if (!Number.isFinite(price)) return;
     let expiresAt;
     if (hoursOrEod === 'eod' || hoursOrEod === 0) {
@@ -120,7 +140,9 @@ export class PriceAlertsPlugin {
     } else {
       expiresAt = Date.now() + (hoursOrEod || 24) * 3600000;
     }
-    this._alerts.push({ price, direction: direction || 'above', expiresAt, enabled: true });
+    const enabled = options.enabled !== false;
+    const message = options.message != null ? String(options.message) : '';
+    this._alerts.push({ price, direction: direction || 'above', expiresAt, enabled, message });
     this._save();
     this._requestUpdate?.();
   }
@@ -157,6 +179,44 @@ export class PriceAlertsPlugin {
       this._save();
       this._requestUpdate?.();
     }
+  }
+
+  /** Get all alerts from every symbol in localStorage (for Folder tab). Each item includes symbol. */
+  static getAllAlertsFromStorage() {
+    const now = Date.now();
+    const out = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith(STORAGE_KEY_PREFIX)) continue;
+        const symbol = key.slice(STORAGE_KEY_PREFIX.length);
+        const raw = localStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) continue;
+        arr.forEach((a) => {
+          if (!a || !Number.isFinite(a.price)) return;
+          if (a.expiresAt != null && a.expiresAt <= now) return;
+          out.push({ ...a, symbol });
+        });
+      }
+    } catch {}
+    return out.sort((a, b) => (a.symbol || '').localeCompare(b.symbol || '') || Number(a.price) - Number(b.price));
+  }
+
+  /** Update enabled state for an alert in localStorage by symbol (for Folder tab toggle). */
+  static setAlertEnabledInStorage(symbol, price, direction, enabled) {
+    if (!symbol) return;
+    try {
+      const key = STORAGE_KEY_PREFIX + symbol;
+      const raw = localStorage.getItem(key);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) return;
+      const a = arr.find((x) => Number(x.price) === Number(price) && (x.direction || 'above') === (direction || 'above'));
+      if (a) {
+        a.enabled = !!enabled;
+        localStorage.setItem(key, JSON.stringify(arr));
+      }
+    } catch {}
   }
 
   getAlertCount() {

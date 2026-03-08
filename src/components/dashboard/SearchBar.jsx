@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { API_URL } from '../../config';
 
 // Popular stocks for instant results
@@ -64,6 +65,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -75,6 +77,13 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isOpen && results.length > 0 && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setDropdownPosition({ top: rect.bottom + 12, left: rect.left });
+    }
+  }, [isOpen, results.length]);
 
   const getLocalResults = useCallback((q) => {
     if (!q) return [];
@@ -291,11 +300,14 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
         )}
       </div>
       
-      {/* Premium Dropdown */}
-      {isOpen && results.length > 0 && (
-        <div className="absolute top-full mt-3 w-[420px] bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
+      {/* Premium Dropdown — portaled so it is never clipped by parent overflow */}
+      {isOpen && results.length > 0 && createPortal(
+        <div
+          className="fixed w-[420px] bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl shadow-2xl shadow-black/50 z-[10001] overflow-hidden backdrop-blur-xl"
+          style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+        >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <TrendingIcon />
               <span className="text-xs font-medium text-gray-400">Results for "{query}"</span>
@@ -303,8 +315,8 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
             <span className="text-[10px] text-gray-600">{results.length} found</span>
           </div>
           
-          {/* Results */}
-          <div className="max-h-80 overflow-y-auto scrollbar-hide">
+          {/* Results — scrollable with visible scrollbar */}
+          <div className="max-h-[min(20rem,60vh)] overflow-y-auto overflow-x-hidden py-1" style={{ scrollbarGutter: 'stable' }}>
             {results.map((stock, index) => (
               <div
                 key={stock.symbol}
@@ -395,7 +407,8 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
               </span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* No results state */}

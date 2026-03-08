@@ -79,12 +79,13 @@ function buildProfile(bars) {
 }
 
 export class VolumeProfilePlugin {
-  constructor(series, initialData = []) {
+  constructor(series, initialData = [], options = {}) {
     this.series = series;
     this._data = Array.isArray(initialData) ? initialData : [];
-    this._visible = true;
+    this._visible = options.visible !== false;
     this._chart = null;
     this._requestUpdate = null;
+    this._greenOnly = !!options.greenOnly;
     const self = this;
     this._paneView = {
       renderer: () => ({
@@ -124,16 +125,20 @@ export class VolumeProfilePlugin {
                 const y = self.series.priceToCoordinate(bin.price);
                 if (y == null || !Number.isFinite(y)) continue;
                 const yTop = Math.round(y) - BAR_HEIGHT_PX / 2;
-                const yBot = Math.round(y) + BAR_HEIGHT_PX / 2;
-                const upRatio = bin.upVolume / total;
-                const upW = barW * upRatio;
-                if (upW >= 0.5) {
+                if (self._greenOnly) {
                   ctx.fillStyle = EMERALD;
-                  ctx.fillRect(xLeft, yTop, upW, BAR_HEIGHT_PX);
-                }
-                if (barW - upW >= 0.5) {
-                  ctx.fillStyle = RED;
-                  ctx.fillRect(xLeft + upW, yTop, barW - upW, BAR_HEIGHT_PX);
+                  ctx.fillRect(xLeft, yTop, barW, BAR_HEIGHT_PX);
+                } else {
+                  const upRatio = bin.upVolume / total;
+                  const upW = barW * upRatio;
+                  if (upW >= 0.5) {
+                    ctx.fillStyle = EMERALD;
+                    ctx.fillRect(xLeft, yTop, upW, BAR_HEIGHT_PX);
+                  }
+                  if (barW - upW >= 0.5) {
+                    ctx.fillStyle = RED;
+                    ctx.fillRect(xLeft + upW, yTop, barW - upW, BAR_HEIGHT_PX);
+                  }
                 }
               }
 
