@@ -255,7 +255,8 @@ const buildFallbackIdeas = (heldSymbols = []) => {
       percentChange: null,
       rationale: 'Your current holding — monitor for momentum and risk management.',
     };
-    return [userRow, ...others].slice(0, 8);
+    // Put suggested ideas first so refresh shows new stocks; append user holding at end
+    return [...others, userRow].slice(0, 8);
   }
 
   return others;
@@ -601,6 +602,7 @@ const formatTradeTime = (value) => {
 };
 
 const panelClass = 'rounded-xl border border-[#1f1f1f] bg-[#0b0b0b]';
+const unifiedPageCardClass = 'rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl';
 const starfieldBaseStyle = {
   backgroundImage:
     'radial-gradient(circle at 50% 50%, rgba(6,13,24,0.96) 0%, rgba(4,9,18,0.98) 55%, rgba(2,6,14,1) 100%), radial-gradient(circle at 14% 18%, rgba(16,185,129,0.08), transparent 34%), radial-gradient(circle at 82% 72%, rgba(148,163,184,0.08), transparent 36%)',
@@ -883,8 +885,8 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
     [selectedIdeaSymbols]
   );
 
-  const aiIdeaRowsLive = useMemo(
-    () => aiIdeaRows.map((idea) => {
+  const aiIdeaRowsLive = useMemo(() => {
+    const withLive = aiIdeaRows.map((idea) => {
       const symbol = normalizeSymbol(idea?.symbol);
       const key = toSymbolKey(symbol);
       const live = key ? radarLiveQuotes[key] : null;
@@ -895,9 +897,13 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
         price: Number.isFinite(livePrice) && livePrice > 0 ? livePrice : idea?.price,
         percentChange: Number.isFinite(livePercent) ? livePercent : idea?.percentChange,
       };
-    }),
-    [aiIdeaRows, radarLiveQuotes]
-  );
+    });
+    // Ensure "Your current holding" is never first — sort it to the end so refresh always shows new ideas first
+    const isUserHolding = (r) => String(r?.rationale || '').includes('Your current holding');
+    const others = withLive.filter((r) => !isUserHolding(r));
+    const userHolding = withLive.filter(isUserHolding);
+    return [...others, ...userHolding];
+  }, [aiIdeaRows, radarLiveQuotes]);
 
   const whatIfResultsLive = useMemo(
     () => whatIfResults.map((result) => {
@@ -1572,7 +1578,9 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           .slice(0, 8);
 
         let nextRows;
-        if (heldSymbols.length === 1) {
+        if (mappedRows.length >= 8) {
+          nextRows = mappedRows;
+        } else if (heldSymbols.length === 1 && mappedRows.length < 8) {
           const userSym = normalizeSymbol(heldSymbols[0]);
           const userSnapshot = userSym ? (tickerSnapshots[userSym] || {}) : {};
           const userRow = {
@@ -1582,7 +1590,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
             rationale: 'Your current holding — monitor for momentum and risk management.',
           };
           const others = mappedRows.length > 0 ? mappedRows : (Array.isArray(fallbackAiIdeas) ? fallbackAiIdeas : []).filter((r) => r?.symbol !== userSym);
-          nextRows = [userRow, ...others].slice(0, 8);
+          nextRows = [...others, userRow].slice(0, 8);
         } else {
           nextRows = mappedRows.length > 0 ? mappedRows : fallbackAiIdeas;
         }
@@ -1602,13 +1610,16 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
         }
       } catch {
         if (abortController.signal.aborted || cancelled) return;
+        const fallbackRows = Array.isArray(fallbackAiIdeas) ? fallbackAiIdeas : [];
         setAiIdeas({
           loading: false,
           error: 'Live AI ideas are reconnecting. Showing fallback watchlist ideas.',
-          rows: fallbackAiIdeas,
+          rows: fallbackRows,
           summary: '',
           generatedAt: new Date().toISOString(),
         });
+        const fallbackSymbols = fallbackRows.map((r) => normalizeSymbol(r?.symbol)).filter(Boolean);
+        if (fallbackSymbols.length > 0) setSelectedIdeaSymbols(fallbackSymbols);
       }
     };
 
@@ -1960,8 +1971,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
   }
 
   return (
-    <div ref={scrollContainerRef} className="relative h-full min-h-0 flex-1 overflow-y-auto bg-[#060d18] text-[#f8fbff]" style={starfieldBaseStyle}>
-      <div className="pointer-events-none absolute inset-0 opacity-70" style={starfieldDotsStyle} />
+    <div ref={scrollContainerRef} className="relative h-full min-h-0 flex-1 overflow-y-auto bg-[#0a0a0a] text-[#f8fbff]">
       <div className="relative z-10 p-4">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -1982,31 +1992,19 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           >
             {splitViewEnabled ? 'Full Width' : 'Split View'}
           </button>
-          <button
-            onClick={() => {
-              if (!splitViewEnabled) setSplitViewEnabled(true);
-              setIdeaRefreshNonce((value) => value + 1);
-            }}
-            disabled={aiIdeas.loading}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff] disabled:cursor-not-allowed disabled:opacity-50"
-            title="Generate new stock ideas for backtest and watchlist simulations"
-          >
-            <RefreshCw size={12} className={aiIdeas.loading ? 'animate-spin' : ''} /> Ideas
-          </button>
         </div>
       </div>
 
       <div className={splitViewEnabled ? 'mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,56%)_minmax(340px,44%)]' : 'mt-3'}>
-      <div className={splitViewEnabled ? 'min-w-0' : ''}>
-      <div className="space-y-3">
+      <div className={splitViewEnabled ? 'min-w-0 pl-4 pr-4' : ''}>
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-50px' }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className={`${panelClass} p-3`}
+        className={`${unifiedPageCardClass} p-5 ${splitViewEnabled ? 'pr-6' : ''}`}
       >
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Holdings</div>
           <button
             type="button"
@@ -2018,17 +2016,17 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className={`overflow-x-auto ${splitViewEnabled ? 'pr-4' : 'pr-3'}`}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#1f1f1f] text-[10px] uppercase tracking-[0.14em] text-gray-500">
+              <tr className="border-b border-white/[0.08] text-[10px] uppercase tracking-[0.14em] text-gray-500">
                 <th className="px-2 py-2 text-left">Symbol</th>
                 <th className="px-2 py-2 text-right">Qty</th>
                 <th className="px-2 py-2 text-right">Avg</th>
                 <th className="px-2 py-2 text-right">Price</th>
                 <th className="px-2 py-2 text-right">Value</th>
-                <th className="px-2 py-2 text-right">P&L</th>
-                <th className="px-2 py-2 text-right">P&L %</th>
+                <th className={splitViewEnabled ? 'pl-2 pr-4 py-2 text-right' : 'pl-2 pr-3 py-2 text-right'}>P&L</th>
+                <th className={splitViewEnabled ? 'pl-2 pr-4 py-2 text-right' : 'pl-2 pr-3 py-2 text-right'}>P&L %</th>
               </tr>
             </thead>
             <tbody>
@@ -2036,11 +2034,11 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
                 <React.Fragment key={section.id}>
                   {sectionIndex > 0 ? (
                     <tr>
-                      <td colSpan={7} className="border-t-2 border-[#334155] px-0 py-0" />
+                      <td colSpan={7} className="border-t border-white/[0.06] px-0 py-0" />
                     </tr>
                   ) : null}
 
-                  <tr className="border-b border-[#1f1f1f] bg-[#0a0a0a]/35">
+                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
                     <td colSpan={7} className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">
                       {section.label}
                     </td>
@@ -2051,38 +2049,38 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
                       const pnl = Number(position?.pnl || 0);
                       const isProfit = pnl >= 0;
                       return (
-                        <tr key={`${section.id}-${position.symbol}`} className="border-b border-[#1f1f1f]/60">
+                        <tr key={`${section.id}-${position.symbol}`} className="border-b border-white/[0.05]">
                           <td className="px-2 py-2 font-mono">${position.symbol}</td>
                           <td className="px-2 py-2 text-right font-mono">{fmtQty(position.quantity)}</td>
                           <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.avg_cost_basis)}</td>
                           <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.current_price)}</td>
                           <td className="px-2 py-2 text-right font-mono">{fmtMoney(position.market_value)}</td>
-                          <td className={`px-2 py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                          <td className={`${splitViewEnabled ? 'pl-2 pr-4' : 'pl-2 pr-3'} py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
                             {isProfit ? '+' : ''}{fmtMoney(pnl)}
                           </td>
-                          <td className={`px-2 py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                          <td className={`${splitViewEnabled ? 'pl-2 pr-4' : 'pl-2 pr-3'} py-2 text-right font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
                             {fmtPct(position.pnl_percent)}
                           </td>
                         </tr>
                       );
                     })
                   ) : (
-                    <tr className="border-b border-[#1f1f1f]/60">
+                    <tr className="border-b border-white/[0.05]">
                       <td colSpan={7} className="px-2 py-2 text-xs text-gray-500">
                         No {section.label.toLowerCase()}.
                       </td>
                     </tr>
                   )}
 
-                  <tr className="border-b border-[#1f1f1f]/80 bg-[#0a0a0a]/30">
+                  <tr className="border-b border-white/[0.06] bg-white/[0.03]">
                     <td className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400" colSpan={4}>
                       {section.label} Totals
                     </td>
                     <td className="px-2 py-2 text-right font-mono text-[#f8fbff]">{fmtMoney(section.summary.value)}</td>
-                    <td className={`px-2 py-2 text-right font-mono ${section.summary.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <td className={`${splitViewEnabled ? 'pl-2 pr-4' : 'pl-2 pr-3'} py-2 text-right font-mono ${section.summary.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {section.summary.pnl >= 0 ? '+' : ''}{fmtMoney(section.summary.pnl)}
                     </td>
-                    <td className={`px-2 py-2 text-right font-mono ${section.summary.pnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <td className={`${splitViewEnabled ? 'pl-2 pr-4' : 'pl-2 pr-3'} py-2 text-right font-mono ${section.summary.pnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {fmtPct(section.summary.pnlPct)}
                     </td>
                   </tr>
@@ -2092,10 +2090,10 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           </table>
         </div>
 
-        <div className="mt-3 border-t-2 border-[#334155] pt-3">
+        <div className="mt-5 pt-5 border-t border-white/[0.06]">
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Strategy Trade Log</div>
           {strategyTrades.length > 0 ? (
-            <div className="divide-y divide-[#1f1f1f]/60">
+            <div className="divide-y divide-white/[0.05]">
               {strategyTrades.slice(0, 12).map((trade, index) => {
                 const side = String(trade?.side || '').toLowerCase();
                 const qty = Number(trade?.shares ?? trade?.quantity ?? trade?.qty ?? 0);
@@ -2129,116 +2127,97 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           )}
         </div>
 
-        <div className="mt-3 border-t-2 border-[#334155] pt-3" style={{ transition: 'all 0.6s ease' }}>
-          <div className="flex items-center justify-between text-xs">
-            <span className="uppercase tracking-[0.12em] text-gray-500">Portfolio Value</span>
-            <span className="font-mono text-sm text-[#f8fbff]" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(totalValue)}</span>
+        <div className={`mt-5 pt-5 border-t border-white/[0.06] ${splitViewEnabled ? 'pr-1' : ''}`} style={{ transition: 'all 0.6s ease' }}>
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Portfolio Value</span>
+            <span className="font-mono text-sm text-[#f8fbff] shrink-0 pl-2" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(totalValue)}</span>
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-xs">
-            <span className="uppercase tracking-[0.12em] text-gray-500">Buying Power</span>
-            <span className="font-mono text-sm text-[#f8fbff]" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(cashBalance)}</span>
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Buying Power</span>
+            <span className="font-mono text-sm text-[#f8fbff] shrink-0 pl-2" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(cashBalance)}</span>
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-xs">
-            <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L</span>
-            <span className={`font-mono text-sm ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Total P&L</span>
+            <span className={`font-mono text-sm shrink-0 pl-2 ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
               {totalPnl >= 0 ? '+' : ''}{fmtMoney(totalPnl)}
             </span>
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-xs">
-            <span className="uppercase tracking-[0.12em] text-gray-500">Total P&L %</span>
-            <span className={`font-mono text-sm ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Total P&L %</span>
+            <span className={`font-mono text-sm shrink-0 pl-2 ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
               {fmtPct(totalPnlPct)}
             </span>
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-xs">
-            <span className="uppercase tracking-[0.12em] text-gray-500">Total gain / loss</span>
-            <span className={`font-mono text-sm ${(Number(paperTotalGainLoss?.dollar) ?? totalPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+          <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2 text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Total gain / loss</span>
+            <span className={`font-mono text-sm shrink-0 pl-2 ${(Number(paperTotalGainLoss?.dollar) ?? totalPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
               {(Number(paperTotalGainLoss?.dollar) ?? totalPnl) >= 0 ? '+' : ''}{fmtMoney(Number(paperTotalGainLoss?.dollar) ?? totalPnl)} ({((Number(paperTotalGainLoss?.percent) ?? totalPnlPct) >= 0 ? '+' : '')}{fmtPct(Number(paperTotalGainLoss?.percent) ?? totalPnlPct)})
             </span>
           </div>
         </div>
-      </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-50px' }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className={`${panelClass} p-3`}
-      >
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Performance</div>
-        {performanceState.loading ? (
-          <div className="flex h-[280px] items-center justify-center text-sm text-gray-500">
-            Loading performance...
+        <div className="mt-5 pt-5 border-t border-white/[0.06]">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Performance</div>
+          {performanceState.loading ? (
+            <div className="flex h-[280px] items-center justify-center text-sm text-gray-500">
+              Loading performance...
+            </div>
+          ) : performanceState.hasTradeHistory ? (
+            <HighchartsReact highcharts={Highcharts} options={walletChartOptions} />
+          ) : (
+            <div className="flex h-[280px] items-center justify-center text-sm text-gray-400">
+              Make your first trade to see performance
+            </div>
+          )}
+          {performanceState.error ? (
+            <div className="mt-2 text-xs text-red-300">{performanceState.error}</div>
+          ) : null}
+        </div>
+
+        <div className="mt-5 pt-5 border-t border-white/[0.06] grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Allocation View</div>
+            <HighchartsReact highcharts={Highcharts} options={allocationPieOptions} />
           </div>
-        ) : performanceState.hasTradeHistory ? (
-          <HighchartsReact highcharts={Highcharts} options={walletChartOptions} />
-        ) : (
-          <div className="flex h-[280px] items-center justify-center text-sm text-gray-400">
-            Make your first trade to see performance
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Metrics</div>
+            <HighchartsReact highcharts={Highcharts} options={metricsBarOptions} />
           </div>
-        )}
-        {performanceState.error ? (
-          <div className="mt-2 text-xs text-red-300">{performanceState.error}</div>
+        </div>
+
+        {Array.isArray(trades) && trades.length > 0 ? (
+          <div className="mt-5 pt-5 border-t border-white/[0.06]">
+            <div className="mb-2 text-sm font-semibold uppercase tracking-[0.14em] text-gray-400">Recent Trades</div>
+            <div className="space-y-1.5">
+              {trades.slice(0, 8).map((trade, index) => {
+                const side = String(trade?.side || '').toLowerCase();
+                const value = asTradeValue(trade);
+                return (
+                  <div key={trade?.id || `${trade?.symbol || 'trade'}-${index}`} className="flex items-center justify-between rounded border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-mono font-semibold uppercase tracking-[0.12em] ${side === 'buy' ? 'text-emerald-300' : 'text-red-300'}`}>
+                        {side || 'trade'}
+                      </span>
+                      <span className="font-mono text-[#f8fbff]">${normalizeSymbol(trade?.symbol)}</span>
+                      <span className="font-mono text-gray-500">x{fmtQty(trade?.quantity)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-[#f8fbff]">@ {fmtMoney(trade?.price)}</span>
+                      <span className="font-mono text-[#f8fbff]">{fmtMoney(value)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : null}
       </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-50px' }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="grid grid-cols-1 gap-3 lg:grid-cols-2"
-      >
-        <div className={`${panelClass} p-3`}>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Allocation View</div>
-          <HighchartsReact highcharts={Highcharts} options={allocationPieOptions} />
-        </div>
-        <div className={`${panelClass} p-3`}>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Portfolio Metrics</div>
-          <HighchartsReact highcharts={Highcharts} options={metricsBarOptions} />
-        </div>
-      </motion.div>
-
-      {Array.isArray(trades) && trades.length > 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className={`${panelClass} p-3`}
-        >
-          <div className="mb-2 text-sm font-semibold uppercase tracking-[0.14em] text-gray-400">Recent Trades</div>
-          <div className="space-y-1.5">
-            {trades.slice(0, 8).map((trade, index) => {
-              const side = String(trade?.side || '').toLowerCase();
-              const value = asTradeValue(trade);
-              return (
-                <div key={trade?.id || `${trade?.symbol || 'trade'}-${index}`} className="flex items-center justify-between rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2.5 py-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className={`font-mono font-semibold uppercase tracking-[0.12em] ${side === 'buy' ? 'text-emerald-300' : 'text-red-300'}`}>
-                      {side || 'trade'}
-                    </span>
-                    <span className="font-mono text-[#f8fbff]">${normalizeSymbol(trade?.symbol)}</span>
-                    <span className="font-mono text-gray-500">x{fmtQty(trade?.quantity)}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-[#f8fbff]">@ {fmtMoney(trade?.price)}</span>
-                    <span className="font-mono text-[#f8fbff]">{fmtMoney(value)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-      ) : null}
 
       {error ? (
         <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
           <AlertTriangle size={14} /> {error}
         </div>
       ) : null}
-      </div>
       </div>
 
       {splitViewEnabled ? (
@@ -2247,7 +2226,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className={`${panelClass} min-w-0 p-3`}
+          className={`${unifiedPageCardClass} min-w-0 p-5`}
         >
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -2259,6 +2238,16 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
                 <div className="mt-1 text-sm uppercase tracking-[0.14em] text-gray-500">Updated {aiIdeasUpdatedLabel}</div>
               ) : null}
             </div>
+            <button
+              onClick={() => {
+                setIdeaRefreshNonce((value) => value + 1);
+              }}
+              disabled={aiIdeas.loading}
+              className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 py-1.5 text-xs text-[#f8fbff] hover:text-[#ffffff] disabled:cursor-not-allowed disabled:opacity-50"
+              title="Generate new stock ideas for backtest and watchlist simulations"
+            >
+              <RefreshCw size={12} className={aiIdeas.loading ? 'animate-spin' : ''} /> Refresh
+            </button>
           </div>
 
           {aiIdeas.error ? (
@@ -2323,7 +2312,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
             })}
           </div>
 
-          <div className="mt-4 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]/70 p-3">
+          <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-500">Radar Watchlist Simulator</div>
@@ -2546,14 +2535,14 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
                       </div>
                     </div>
 
-                    <div className="mt-2 overflow-x-auto rounded-md border border-[#1f1f1f]">
+                    <div className="mt-2 overflow-x-auto pr-3 rounded-md border border-[#1f1f1f]">
                       <table className="min-w-full text-sm">
                         <thead>
                           <tr className="border-b border-[#1f1f1f] text-sm uppercase tracking-[0.14em] text-gray-500">
                             <th className="px-2 py-1.5 text-left">Symbol</th>
                             <th className="px-2 py-1.5 text-right" title="Closing price on the simulated buy date">Buy Price</th>
                             <th className="px-2 py-1.5 text-right">Now</th>
-                            <th className="px-2 py-1.5 text-right">P&L</th>
+                            <th className="pl-2 pr-3 py-1.5 text-right">P&L</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2562,7 +2551,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
                               <td className="px-2 py-1.5 font-mono text-[#f8fbff]">${normalizeSymbol(row.symbol)}</td>
                               <td className="px-2 py-1.5 text-right font-mono text-emerald-300">{fmtMoney(row.entryClose)}</td>
                               <td className="px-2 py-1.5 text-right font-mono text-emerald-300">{fmtMoney(row.currentPrice)}</td>
-                              <td className={`px-2 py-1.5 text-right font-mono ${Number(row.pct || row.pnlPct || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                              <td className={`pl-2 pr-3 py-1.5 text-right font-mono ${Number(row.pct || row.pnlPct || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                                 {fmtPct(row.pct || row.pnlPct || 0)}
                               </td>
                             </tr>

@@ -1587,7 +1587,7 @@ function StratifyAppContent() {
         onBackToLanding={() => navigateToPage('landing')}
       />
     ) : currentPage === 'sports' ? (
-      <SportsOddsPage />
+      <SportsOddsPage onBack={() => navigateToPage('dashboard')} />
     ) : !isAuthenticated ? (
       <LandingPage
         onEnter={() => navigateToPage('auth')}

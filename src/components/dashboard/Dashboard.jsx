@@ -111,6 +111,7 @@ import TickerPill from './TickerPill';
 import FredPage from './FredPage';
 import EconomicsCalendarPage from './EconomicsCalendarPage';
 import XRayPage from '../xray/XRayPage';
+import SportsOddsPage from '../../pages/SportsOddsPage';
 import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
@@ -2522,7 +2523,7 @@ export default function Dashboard({
         </motion.button>
       </motion.div>
       {/* Linear-style app window: fills viewport edge-to-edge (no outer margins) */}
-      <div className="flex-1 flex flex-row min-h-0 min-w-0 rounded-none bg-linear-canvas border-0 border-t border-[rgba(255,255,255,0.06)] shadow-none overflow-hidden">
+      <div className="flex-1 flex flex-row min-h-0 min-w-0 rounded-none bg-[#0a0a0a] border-0 border-t border-[rgba(255,255,255,0.06)] shadow-none overflow-hidden">
         <Sidebar
           expanded={sidebarExpanded}
           onToggle={(val) => setSidebarExpanded(val)}
@@ -2538,6 +2539,11 @@ export default function Dashboard({
               setActiveTab('radar');
               return;
             }
+
+            if (tabId === 'sports' && typeof setCurrentPage === 'function') {
+              setCurrentPage('sports');
+              return;
+            }
           }}
           savedStrategies={savedStrategies}
           deployedStrategies={deployedStrategies}
@@ -2548,10 +2554,10 @@ export default function Dashboard({
           onLogout={() => setCurrentPage('landing')}
         />
         
-        {/* Main Content Area — content pane inside window */}
+        {/* Main Content Area — same background as sidebar for seamless look */}
         <div 
           id="main-content-area" 
-          className="flex-1 flex flex-col min-w-0 bg-linear-canvas overflow-hidden relative border-l border-[rgba(255,255,255,0.06)]"
+          className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#0a0a0a]"
         >
           {/* Tab-based Views — Linear enter/exit: scale + opacity */}
           <AnimatePresence mode="wait">
@@ -2817,6 +2823,11 @@ export default function Dashboard({
               onSymbolChange={setXraySymbol}
               onBack={() => setActiveTab('watchlist')}
             />
+          )}
+          {activeTab === 'sports' && (
+            <AppErrorBoundary>
+              <SportsOddsPage />
+            </AppErrorBoundary>
           )}
           {activeTab === 'more' && <MoreInfoPage />}
               </motion.div>

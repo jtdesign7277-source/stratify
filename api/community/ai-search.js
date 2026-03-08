@@ -259,15 +259,32 @@ function parseQuoteResponse(payload, requestedSymbols = []) {
   return parsed;
 }
 
-async function fetchTwelveDataQuotes(symbols = []) {
+const QUOTES_CACHE_TTL_SECONDS = 60;
+const QUOTES_CACHE_KEY_PREFIX = 'ai-search:quotes:';
+
+async function fetchTwelveDataQuotes(symbols = [], redis = null) {
+  const normalized = [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))].slice(0, 40);
+  if (normalized.length === 0) return {};
+
+  const quotesCacheKey = QUOTES_CACHE_KEY_PREFIX + createHash('sha256').update(normalized.sort().join(',')).digest('hex').slice(0, 32);
+  if (redis) {
+    try {
+      const cached = await redis.get(quotesCacheKey);
+      if (cached) {
+        const data = typeof cached === 'string' ? JSON.parse(cached) : cached;
+        return data && typeof data === 'object' ? data : {};
+      }
+    } catch (e) {
+      // ignore cache read errors
+    }
+  }
+
   const apiKey = String(
     process.env.TWELVEDATA_API_KEY
     || process.env.TWELVE_DATA_API_KEY
     || ''
   ).trim();
-
-  const normalized = [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))].slice(0, 40);
-  if (!apiKey || normalized.length === 0) return {};
+  if (!apiKey) return {};
 
   const params = new URLSearchParams({
     symbol: normalized.join(','),
@@ -280,7 +297,15 @@ async function fetchTwelveDataQuotes(symbols = []) {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload?.status === 'error') return {};
-    return parseQuoteResponse(payload, normalized);
+    const result = parseQuoteResponse(payload, normalized);
+    if (redis && Object.keys(result).length > 0) {
+      try {
+        await redis.set(quotesCacheKey, JSON.stringify(result), { ex: QUOTES_CACHE_TTL_SECONDS });
+      } catch (e) {
+        // ignore cache write errors
+      }
+    }
+    return result;
   } catch {
     return {};
   }
@@ -385,19 +410,23 @@ function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol
     .sort((a, b) => b[1].count - a[1].count)
     .map(([symbol]) => symbol);
 
-  const tracked = [...new Set(
+  const trackedSet = new Set(
     (Array.isArray(interests?.trackedSymbols) ? interests.trackedSymbols : [])
       .map((symbol) => normalizeSymbol(symbol))
       .filter(Boolean)
-  )];
+  );
+  const tracked = [...trackedSet];
 
   const hasPortfolioInterests = Array.isArray(interests?.trackedSymbols) && interests.trackedSymbols.length > 0;
   let candidates = [...new Set([
     ...fromNews,
-    ...tracked,
     ...(isMomentum ? MOMENTUM_FALLBACK_SYMBOLS : []),
     ...(hasPortfolioInterests ? IDEAS_DIVERSITY_SYMBOLS : []),
-  ])].slice(0, 40);
+  ])].filter((s) => !trackedSet.has(s)).slice(0, 40);
+
+  if (candidates.length === 0) {
+    candidates = [...(isMomentum ? MOMENTUM_FALLBACK_SYMBOLS : IDEAS_DIVERSITY_SYMBOLS)].filter((s) => !trackedSet.has(s)).slice(0, 40);
+  }
 
   if (candidates.length === 0) return [];
 
@@ -426,10 +455,11 @@ function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol
     } else {
       ranked = source;
     }
-    return ranked.slice(0, 8).map((entry) => entry.symbol);
+    const out = ranked.slice(0, 8).map((entry) => entry.symbol).filter((s) => !trackedSet.has(s));
+    return out;
   }
 
-  return candidates.slice(0, 8);
+  return candidates.filter((s) => !trackedSet.has(s)).slice(0, 8);
 }
 
 function buildSources(articles = []) {
@@ -517,7 +547,7 @@ export default async function handler(req, res) {
       ...(isMomentum ? MOMENTUM_FALLBACK_SYMBOLS : []),
     ])].slice(0, 40);
 
-    const quoteBySymbol = await fetchTwelveDataQuotes(allSymbols);
+    const quoteBySymbol = await fetchTwelveDataQuotes(allSymbols, redis);
     const relatedTickers = chooseRelatedTickers({
       isMomentum,
       tickerMeta,

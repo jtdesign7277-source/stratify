@@ -5,10 +5,14 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const defaultApiTarget =
+    mode === 'development'
+      ? 'http://localhost:3000'  // vercel dev; run "vercel dev" then "npm run dev"
+      : 'https://stratify.associates';
   const apiProxyTarget = String(
     env.VITE_API_PROXY_TARGET
     || env.VITE_API_BASE
-    || 'https://stratify.associates'
+    || defaultApiTarget
   ).replace(/\/$/, '');
 
   return {
