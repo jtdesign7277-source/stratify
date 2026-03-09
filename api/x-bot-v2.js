@@ -730,10 +730,19 @@ export default async function handler(req, res) {
     // Post to X
     const result = await postTweet(tweet);
 
-    const discordWebhook = process.env.DISCORD_WEBHOOK_URL;
-    if (discordWebhook) {
+    let webhookUrl;
+    if (type === 'premarket' || type === 'market-open' || type === 'midday' || type === 'market-close') {
+      webhookUrl = process.env.DISCORD_WEBHOOK_MARKET_TALK;
+    } else if (type === 'breaking') {
+      webhookUrl = process.env.DISCORD_WEBHOOK_ANNOUNCEMENTS;
+    } else if (type === 'signal' || type === 'trade-setup') {
+      webhookUrl = process.env.DISCORD_WEBHOOK_TRADE_SETUPS;
+    } else {
+      webhookUrl = process.env.DISCORD_WEBHOOK_MARKET_TALK;
+    }
+    if (webhookUrl) {
       try {
-        await fetch(discordWebhook, {
+        await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -749,20 +758,6 @@ export default async function handler(req, res) {
         });
       } catch (e) {
         console.error('Discord webhook failed:', e.message);
-      }
-    }
-
-    if (type === 'breaking') {
-      try {
-        await postToDiscord('marketTalk', {
-          embeds: [{
-            title: 'Breaking News',
-            description: tweet,
-            color: 0xff0000,
-          }],
-        });
-      } catch (discordErr) {
-        console.error('Discord breaking post failed:', discordErr);
       }
     }
 
