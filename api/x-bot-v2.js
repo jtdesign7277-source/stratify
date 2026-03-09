@@ -3,6 +3,8 @@
 // AI NEVER generates facts. AI only formats verified data into tweets.
 
 import crypto from 'crypto';
+import { Redis } from '@upstash/redis';
+import { postToDiscord } from './lib/discord.js';
 
 // ============================================================
 // APPROVED TICKERS — Bot ONLY posts about these. Period.
@@ -34,6 +36,60 @@ const TRUSTED_SOURCES = [
   'wsj', 'financial times', 'barrons', 'marketwatch', 'ap news', 'afp',
   'the new york times', 'washington post', 'bbc', 'cnn business',
 ];
+
+// ============================================================
+// BREAKING NEWS — Dynamic hooks and flags (never same hook twice)
+// ============================================================
+const BREAKING_HOOKS = [
+  '🚨 BREAKING:',
+  '🚨 BREAKING NEWS:',
+  '💥 JUST IN:',
+  '⚠️ ALERT:',
+  '🔴 DEVELOPING:',
+  'BREAKING:',
+  'JUST IN:',
+];
+
+const FLAG_KEYWORDS = [
+  { flags: '🇮🇷', keywords: ['iran', 'tehran', 'persian'] },
+  { flags: '🇷🇺', keywords: ['russia', 'moscow', 'putin', 'kremlin'] },
+  { flags: '🇺🇦', keywords: ['ukraine', 'kyiv', 'zelensky'] },
+  { flags: '🇨🇳', keywords: ['china', 'beijing', 'xi'] },
+  { flags: '🇮🇱', keywords: ['israel', 'gaza', 'tel aviv', 'hamas'] },
+  { flags: '🇹🇷', keywords: ['turkey', 'ankara', 'erdogan'] },
+  { flags: '🇰🇵', keywords: ['north korea', 'kim'] },
+  { flags: '🏦', keywords: ['fed', 'treasury', 'powell', 'rates', 'inflation'] },
+  { flags: '🪙', keywords: ['crypto', 'bitcoin', 'btc', 'ethereum'] },
+  { flags: '🛢️', keywords: ['oil', 'energy', 'opec'] },
+  { flags: '🇺🇸', keywords: ['trump', 'white house', 'congress', 'senate'] },
+  { flags: '📉', keywords: ['market', 'stocks', 'crash', 'halt', 'circuit'] },
+  { flags: '🇺🇸', keywords: ['war', 'attack', 'missile', 'strike', 'troops'] },
+];
+
+const CASHTAG_BY_TOPIC = [
+  { keywords: ['oil', 'energy', 'opec'], tags: ['$USO', '$XOM'] },
+  { keywords: ['fed', 'treasury', 'powell', 'rates', 'inflation'], tags: ['$SPY', '$QQQ', '$TLT'] },
+  { keywords: ['crypto', 'bitcoin', 'btc', 'ethereum'], tags: ['$BTC', '$ETH', '$COIN'] },
+  { keywords: ['market', 'stocks', 'crash', 'halt', 'circuit'], tags: ['$SPY', '$QQQ'] },
+  { keywords: ['trump', 'white house', 'congress', 'senate'], tags: ['$SPY'] },
+];
+
+const BREAKING_LAST_HOOK_KEY = 'breaking:last_hook';
+const BREAKING_HOURLY_COUNT_KEY = 'breaking:hourly_count';
+const BREAKING_SEEN_PREFIX = 'breaking:seen:';
+const BREAKING_TTL_1H = 3600;
+const BREAKING_SEEN_TTL = 86400; // 24h
+
+function getRedis() {
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  try {
+    return new Redis({ url, token });
+  } catch {
+    return null;
+  }
+}
 
 // ============================================================
 // X API v2 — OAuth 1.0a signing
@@ -334,48 +390,137 @@ Note which are leading and lagging today.`;
   return tweet;
 }
 
-async function generateBreakingNews() {
-  const articles = await fetchMarketauxNews();
+async function pickBreakingHook(redis) {
+  let lastHook = null;
+  if (redis) {
+    try {
+      lastHook = await redis.get(BREAKING_LAST_HOOK_KEY);
+    } catch {
+      lastHook = null;
+    }
+  }
+  const others = lastHook ? BREAKING_HOOKS.filter(h => h !== lastHook) : BREAKING_HOOKS;
+  const hook = others[Math.floor(Math.random() * others.length)] || BREAKING_HOOKS[0];
+  if (redis && hook) {
+    try {
+      await redis.set(BREAKING_LAST_HOOK_KEY, hook, { ex: BREAKING_TTL_1H });
+    } catch {
+      // ignore
+    }
+  }
+  return hook;
+}
 
+function getFlagsForHeadline(headline) {
+  const lower = (headline || '').toLowerCase();
+  const flags = new Set();
+  for (const { flags: f, keywords } of FLAG_KEYWORDS) {
+    if (keywords.some(kw => lower.includes(kw))) flags.add(f);
+  }
+  return [...flags].join('');
+}
+
+function getCashtagsForHeadline(headline, entityTickers) {
+  const lower = (headline || '').toLowerCase();
+  const tags = new Set();
+  for (const { keywords, tags: t } of CASHTAG_BY_TOPIC) {
+    if (keywords.some(kw => lower.includes(kw))) t.forEach(tag => tags.add(tag));
+  }
+  (entityTickers || []).filter(t => ALL_STOCK_TICKERS.includes(t)).forEach(t => tags.add('$' + t));
+  return [...tags].slice(0, 5).join(' ');
+}
+
+async function generateBreakingNews() {
+  const redis = getRedis();
+
+  if (redis) {
+    try {
+      const count = parseInt(await redis.get(BREAKING_HOURLY_COUNT_KEY), 10) || 0;
+      if (count >= 2) {
+        console.log('Max 2 breaking posts per hour, skipping');
+        return null;
+      }
+    } catch {
+      // continue
+    }
+  }
+
+  const articles = await fetchMarketauxNews();
   if (!articles || articles.length === 0) return null;
 
-  // Filter for trusted sources only
   const trusted = articles.filter(a => {
     const source = (a.source || '').toLowerCase();
     return TRUSTED_SOURCES.some(ts => source.includes(ts));
   });
 
-  // Use first trusted article, or skip if none
   const article = trusted[0] || null;
   if (!article) {
     console.log('No trusted source articles found, skipping breaking news');
     return null;
   }
 
-  // Extract tickers mentioned
-  const tickers = (article.entities || [])
+  const headline = (article.title || '').trim();
+  if (!headline) return null;
+
+  const headlineHash = crypto.createHash('sha256').update(headline.toLowerCase()).digest('hex').slice(0, 16);
+  if (redis) {
+    try {
+      const seen = await redis.get(BREAKING_SEEN_PREFIX + headlineHash);
+      if (seen) {
+        console.log('Breaking headline already posted (dedupe), skipping');
+        return null;
+      }
+      await redis.set(BREAKING_SEEN_PREFIX + headlineHash, '1', { ex: BREAKING_SEEN_TTL });
+    } catch {
+      // continue
+    }
+  }
+
+  const hook = await pickBreakingHook(redis);
+  const flags = getFlagsForHeadline(headline);
+  let body = headline.length <= 100 ? headline.toUpperCase() : headline.slice(0, 200).trim();
+  if (headline.length > 100 && body.length < headline.length) body = body + '…';
+
+  const entityTickers = (article.entities || [])
     .filter(e => e.type === 'equity' && ALL_STOCK_TICKERS.includes(e.symbol))
     .map(e => e.symbol);
+  const cashtags = getCashtagsForHeadline(headline, entityTickers);
+  const tweet = [hook, flags, body, cashtags ? '\n' + cashtags : '']
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  const prompt = `REAL DATA (use ONLY this):
-Headline: "${article.title}"
-Source: ${article.source}
-Tickers mentioned: ${tickers.length > 0 ? tickers.map(t => '$' + t).join(', ') : 'None from our watchlist'}
-Published: ${article.published_at}
-
-Write a breaking news tweet. Start with 🚨 JUST IN:
-Summarize the headline in your own words — do NOT copy it verbatim.
-If tickers are mentioned, include them.
-Attribute to the source.
-Do NOT add any claims or context not in the headline.`;
-
-  const tweet = await formatWithClaude(prompt);
-  if (!tweet) return null;
+  if (tweet.length > 280) {
+    const truncated = tweet.slice(0, 277) + '…';
+    const verification = verifyTweet(truncated, {});
+    if (!verification.approved) return null;
+    if (redis) {
+      try {
+        const key = BREAKING_HOURLY_COUNT_KEY;
+        const n = parseInt(await redis.get(key), 10) || 0;
+        await redis.set(key, String(n + 1), { ex: BREAKING_TTL_1H });
+      } catch {
+        // ignore
+      }
+    }
+    return truncated;
+  }
 
   const verification = verifyTweet(tweet, {});
   if (!verification.approved) {
     console.log('Tweet failed verification:', verification.errors);
     return null;
+  }
+
+  if (redis) {
+    try {
+      const key = BREAKING_HOURLY_COUNT_KEY;
+      const n = parseInt(await redis.get(key), 10) || 0;
+      await redis.set(key, String(n + 1), { ex: BREAKING_TTL_1H });
+    } catch {
+      // ignore
+    }
   }
 
   return tweet;
@@ -551,6 +696,20 @@ export default async function handler(req, res) {
 
     // Post to X
     const result = await postTweet(tweet);
+
+    if (type === 'breaking') {
+      try {
+        await postToDiscord('marketTalk', {
+          embeds: [{
+            title: 'Breaking News',
+            description: tweet,
+            color: 0xff0000,
+          }],
+        });
+      } catch (discordErr) {
+        console.error('Discord breaking post failed:', discordErr);
+      }
+    }
 
     return res.status(200).json({
       status: 'posted',
