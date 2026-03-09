@@ -1583,12 +1583,7 @@ function StratifyAppContent() {
       <TokensPage onBack={() => navigateToPage('landing')} />
     ) : currentPage === 'auth' ? (
       <SignUpPage
-        onSuccess={() => {
-          const search = typeof window !== 'undefined' && window.location.search.includes('intent=checkout')
-            ? '?intent=checkout'
-            : '';
-          navigateToPage('dashboard', { search });
-        }}
+        onSuccess={() => { window.location.replace('/dashboard'); }}
         onBackToLanding={() => navigateToPage('landing')}
       />
     ) : currentPage === 'sports' && (!isAuthenticated || !isProUser) ? (
@@ -1754,7 +1749,7 @@ function StratifyAppContent() {
   if (authGateTimedOut && !isAuthenticated) {
     return (
       <SignUpPage
-        onSuccess={() => navigateToPage('dashboard')}
+        onSuccess={() => { window.location.replace('/dashboard'); }}
         onBackToLanding={() => navigateToPage('landing')}
       />
     );

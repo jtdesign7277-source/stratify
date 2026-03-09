@@ -77,7 +77,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'signin' }) {
         }
       }
 
-      onClose?.();
+      window.location.replace('/dashboard');
     } finally {
       setIsSubmitting(false);
     }
@@ -97,7 +97,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'signin' }) {
         setError(googleError.message || 'Unable to sign in with Google.');
         return;
       }
-      onClose?.();
+      window.location.replace('/dashboard');
     } finally {
       setIsGoogleLoading(false);
     }

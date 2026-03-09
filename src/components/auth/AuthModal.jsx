@@ -39,7 +39,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'signin' }) {
         setError(signInError.message || 'Unable to sign in.');
         return;
       }
-      onClose?.();
+      window.location.replace('/dashboard');
       return;
     }
 
@@ -54,7 +54,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'signin' }) {
       return;
     }
 
-    onClose?.();
+    window.location.replace('/dashboard');
   };
 
   return (

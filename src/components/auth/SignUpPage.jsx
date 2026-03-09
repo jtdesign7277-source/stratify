@@ -163,7 +163,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
     try {
       const { data, error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined },
+        options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined },
       });
       if (signInError) {
         const m = String(signInError.message || 'Could not start Google sign-in.');
@@ -183,7 +183,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
     try {
       const { data, error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
-        options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined },
+        options: { redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined },
       });
       if (signInError) {
         const m = String(signInError.message || 'Could not start Apple sign-in.');
@@ -224,7 +224,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
 
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
-      onSuccess?.();
+      window.location.replace('/dashboard');
     } catch (submitError) {
       const msg = String(submitError?.message || 'Unable to process your request.');
       const isConnectionError = /fetch|network|connection|refused|failed to load/i.test(msg) || submitError?.name === 'TypeError';
