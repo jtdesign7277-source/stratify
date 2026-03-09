@@ -471,6 +471,22 @@ Keep it factual and tight.`;
 }
 
 // ============================================================
+// TIME-AWARENESS — ET session: premarket / regular / afterhours / closed
+// ============================================================
+function getETSession() {
+  const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false });
+  const parts = formatter.formatToParts(new Date());
+  const hour = parseInt(parts.find(p => p.type === 'hour').value, 10);
+  const minute = parseInt(parts.find(p => p.type === 'minute').value, 10);
+  const etMinutes = hour * 60 + minute;
+  // 4:00AM-9:29AM → premarket; 9:30AM-4:00PM → regular; 4:01PM-8:00PM → afterhours; 8:01PM-3:59AM → closed
+  if (etMinutes >= 4 * 60 && etMinutes < 9 * 60 + 30) return 'premarket';
+  if (etMinutes >= 9 * 60 + 30 && etMinutes < 16 * 60) return 'regular';
+  if (etMinutes >= 16 * 60 + 1 && etMinutes <= 20 * 60) return 'afterhours';
+  return 'closed';
+}
+
+// ============================================================
 // MAIN HANDLER — Vercel serverless function
 // ============================================================
 export default async function handler(req, res) {
@@ -482,13 +498,26 @@ export default async function handler(req, res) {
     }
   }
 
-  const type = req.query.type || 'market-open';
+  const session = getETSession();
+  if (session === 'closed') {
+    return res.status(200).json({
+      status: 'skipped',
+      reason: 'Outside posting hours (8:01PM–3:59AM ET)',
+    });
+  }
+
+  let type = req.query.type || 'market-open';
+  if (session === 'premarket') type = 'premarket';
+  if (session === 'afterhours') type = 'market-close';
 
   try {
     let tweet = null;
 
     switch (type) {
       case 'market-open':
+        tweet = await generateMarketOpen();
+        break;
+      case 'premarket':
         tweet = await generateMarketOpen();
         break;
       case 'mag7':
@@ -516,6 +545,9 @@ export default async function handler(req, res) {
         reason: 'No data available or verification failed',
       });
     }
+
+    if (session === 'premarket') tweet = 'PRE-MARKET UPDATE\n' + tweet;
+    if (session === 'afterhours') tweet = 'AFTER HOURS\n' + tweet;
 
     // Post to X
     const result = await postTweet(tweet);
