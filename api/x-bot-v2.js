@@ -730,6 +730,28 @@ export default async function handler(req, res) {
     // Post to X
     const result = await postTweet(tweet);
 
+    const discordWebhook = process.env.DISCORD_WEBHOOK_URL;
+    if (discordWebhook) {
+      try {
+        await fetch(discordWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            embeds: [{
+              description: tweet,
+              color: 0x00ff88,
+              footer: {
+                text: '⏰ ' + new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York' }) + ' ET | Stratify | Not financial advice'
+              },
+              timestamp: new Date().toISOString()
+            }]
+          })
+        });
+      } catch (e) {
+        console.error('Discord webhook failed:', e.message);
+      }
+    }
+
     if (type === 'breaking') {
       try {
         await postToDiscord('marketTalk', {
