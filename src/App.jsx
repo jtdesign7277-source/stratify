@@ -1187,7 +1187,7 @@ function StratifyAppContent() {
     navigateToPage('landing');
   }, [navigateToPage, user?.id]);
 
-  const signOutAndExit = useCallback(async () => {
+  const signOutAndExit = useCallback(() => {
     setCheckoutError('');
     setIsCheckoutRedirecting(false);
     setIsCheckoutVerifying(false);
@@ -1196,13 +1196,12 @@ function StratifyAppContent() {
     handledCheckoutSessionsRef.current.clear();
     attemptedSubscriptionRestoreRef.current.clear();
 
-    try {
-      await signOut?.();
-    } catch (error) {
-      console.error('[Auth] Sign out failed while exiting subscription gate:', error);
-    }
-
+    // Navigate first so user isn't stuck on "Checking your session..." (signOut sets loading=true)
     navigateToPage('landing');
+
+    signOut?.().catch((error) => {
+      console.error('[Auth] Sign out failed while exiting:', error);
+    });
   }, [navigateToPage, signOut]);
 
   const isCheckingSession = loading || (isAuthenticated && subscriptionLoading && !isProUser);

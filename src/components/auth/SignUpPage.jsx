@@ -37,12 +37,11 @@ function AppleGlyph() {
   );
 }
 
-// NYSE logo: white "NYSE" text + official-style blue L graphic (matches other logo styling)
-function NyseLogoIcon() {
+// Nasdaq logo: text only
+function NasdaqLogoIcon() {
   return (
-    <svg viewBox="0 0 62 20" className="w-full h-full" fill="none" aria-hidden="true">
-      <text x="0" y="14" fill="rgba(255,255,255,0.9)" fontFamily="system-ui, Arial, sans-serif" fontWeight="700" fontSize="12" letterSpacing="0.02em">NYSE</text>
-      <path fill="#5EB3E0" d="M42 0h2v8h6v2h-8V0z" />
+    <svg viewBox="0 0 80 28" className="w-full h-full" fill="none" aria-hidden="true">
+      <text x="0" y="20" fill="rgba(255,255,255,0.95)" fontFamily="system-ui, Arial, sans-serif" fontWeight="600" fontSize="18" letterSpacing="0.02em">Nasdaq</text>
     </svg>
   );
 }
@@ -342,7 +341,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                   <img
                     src={league.src}
                     alt={league.alt}
-                    className="w-full h-full object-contain opacity-90 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                    className={`w-full h-full object-contain grayscale hover:grayscale-0 transition-all duration-300 ${league.id === 'nba' ? 'opacity-100 brightness-110' : 'opacity-90 hover:opacity-100'}`}
                   />
                 </div>
               ))}
@@ -351,7 +350,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
                 style={{ animationDelay: `${LEAGUE_LOGOS.length * 80}ms` }}
               >
                 <div className="w-full h-full flex items-center justify-center opacity-90 hover:opacity-100 transition-opacity duration-300">
-                  <NyseLogoIcon />
+                  <NasdaqLogoIcon />
                 </div>
               </div>
             </div>
