@@ -145,10 +145,15 @@ async function postTweet(text) {
 // ============================================================
 // DATA FETCHERS — Real data only, no AI involved
 // ============================================================
-async function fetchTwelveDataQuotes(symbols) {
+async function fetchTwelveDataQuotes(symbols, options = {}) {
   const symbolStr = symbols.join(',');
+  const params = new URLSearchParams({
+    symbol: symbolStr,
+    apikey: process.env.TWELVE_DATA_API_KEY || '',
+  });
+  if (options.prepost === true) params.set('prepost', 'true');
   const res = await fetch(
-    `https://api.twelvedata.com/quote?symbol=${symbolStr}&apikey=${process.env.TWELVE_DATA_API_KEY}`
+    `https://api.twelvedata.com/quote?${params.toString()}`
   );
   const data = await res.json();
 
@@ -272,10 +277,10 @@ function verifyTweet(tweet, rawData) {
 // TWEET GENERATORS — Each type has its own data→format pipeline
 // ============================================================
 
-async function generateMarketOpen() {
-  // Fetch Mag 7 + top retail
+async function generateMarketOpen(options = {}) {
+  // Fetch Mag 7 + top retail (prepost=true for pre-market session)
   const watchlist = [...APPROVED_TICKERS.mag7, ...APPROVED_TICKERS.indices];
-  const quotes = await fetchTwelveDataQuotes(watchlist);
+  const quotes = await fetchTwelveDataQuotes(watchlist, { prepost: options.prepost === true });
 
   if (Object.keys(quotes).length === 0) {
     console.log('No quote data available, skipping');
@@ -295,7 +300,18 @@ async function generateMarketOpen() {
     return `${sym}: $${price} (${direction}${pct}%)`;
   }).join('\n');
 
-  const prompt = `REAL DATA (use ONLY this):
+  const isPremarket = options.prepost === true;
+  const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+  const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
+
+  const prompt = isPremarket
+    ? `REAL DATA (use ONLY this):
+${dataBlock}
+
+These are PRE-MARKET prices as of ${etTime} ET on ${etDate}. Friday's close is shown if no pre-market trading has occurred yet for that ticker.
+Write a market update tweet. Label the post PRE-MARKET UPDATE and note if prices reflect Friday's close due to no pre-market activity.
+Show the top movers with their exact prices and percentages from the data above. Format prices cleanly. Keep it tight and punchy. Start with 🚨 JUST IN:`
+    : `REAL DATA (use ONLY this):
 ${dataBlock}
 
 Write a market update tweet. Start with 🚨 JUST IN:
@@ -680,7 +696,7 @@ export default async function handler(req, res) {
         tweet = await generateMarketOpen();
         break;
       case 'premarket':
-        tweet = await generateMarketOpen();
+        tweet = await generateMarketOpen({ prepost: true });
         break;
       case 'mag7':
         tweet = await generateMag7Update();
