@@ -1761,13 +1761,13 @@ function StratifyAppContent() {
   }
 
   const hardSignOutAndRedirect = useCallback(() => {
-    supabase.auth.signOut().finally(() => {
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch (_) {}
-      window.location.href = '/';
+    supabase.auth.signOut();
+    localStorage.clear();
+    sessionStorage.clear();
+    document.cookie.split(';').forEach((c) => {
+      document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
     });
+    window.location.href = '/';
   }, []);
 
   if (isCheckingSession) {

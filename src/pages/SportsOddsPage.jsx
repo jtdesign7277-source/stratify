@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Zap,
   TrendingUp,
   ExternalLink,
   ChevronRight,
@@ -935,11 +934,10 @@ export default function SportsOddsPage() {
       transition={SPRING}
       className="min-h-screen bg-[#0a0a0f] text-white px-4 py-5 flex flex-col gap-4"
     >
-      {/* Top: Header with Zap, Live pulse, Refresh, book selector, Bet CTA */}
+      {/* Top: Header with Live pulse, Refresh, book selector, Bet CTA */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <Zap className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
             <h1 className="text-xl font-bold tracking-tight">Sports Lines</h1>
             <span className="flex items-center gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
