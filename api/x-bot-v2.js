@@ -655,6 +655,23 @@ export default async function handler(req, res) {
   if (session === 'premarket') type = 'premarket';
   if (session === 'afterhours') type = 'market-close';
 
+  const redisLock = getRedis();
+  if (redisLock) {
+    try {
+      const lockKey = `xbot:lock:${type}`;
+      const existing = await redisLock.get(lockKey);
+      if (existing != null) {
+        return res.status(200).json({
+          status: 'skipped',
+          reason: 'Duplicate post prevented (lock active)',
+        });
+      }
+      await redisLock.set(lockKey, '1', { ex: 60 });
+    } catch {
+      // proceed without lock if Redis fails
+    }
+  }
+
   try {
     let tweet = null;
 
