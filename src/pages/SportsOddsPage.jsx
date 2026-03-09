@@ -1,513 +1,569 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ChevronLeft } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Zap, TrendingUp, ExternalLink, ChevronRight,
+  Activity, BarChart3, Clock, RefreshCw, Star,
+  ArrowUpRight, ArrowDownRight, Minus
+} from 'lucide-react'
 
-function formatAmerican(price) {
-  if (price == null || price === '') return '—';
-  const n = Number(price);
-  if (!Number.isFinite(n)) return '—';
-  return n > 0 ? `+${n}` : String(n);
-}
+// ─── Spring presets ───────────────────────────────────────────
+const springSnappy = { type: 'spring', stiffness: 400, damping: 30 }
+const springSmooth = { type: 'spring', stiffness: 200, damping: 25 }
 
-function formatCommenceTime(iso) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  } catch {
-    return iso;
-  }
-}
+// ─── Sport config ─────────────────────────────────────────────
+const SPORTS = [
+  { key: 'americanfootball_nfl',     label: 'NFL',   emoji: '🏈' },
+  { key: 'basketball_nba',           label: 'NBA',   emoji: '🏀' },
+  { key: 'baseball_mlb',             label: 'MLB',   emoji: '⚾' },
+  { key: 'icehockey_nhl',            label: 'NHL',   emoji: '🏒' },
+  { key: 'americanfootball_ncaaf',   label: 'CFB',   emoji: '🎓' },
+  { key: 'mma_mixed_martial_arts',   label: 'MMA',   emoji: '🥊' },
+]
 
-function formatGameTime(iso) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-    const month = d.toLocaleDateString('en-US', { month: 'short' });
-    const day = d.getDate();
-    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    return `${weekday} ${month} ${day} • ${time}`;
-  } catch {
-    return iso;
-  }
-}
+const BOOKS = [
+  { key: 'draftkings', label: 'DraftKings', color: '#00d455', deepLink: 'https://www.draftkings.com/lobby#' },
+  { key: 'fanduel',    label: 'FanDuel',    color: '#1493ff', deepLink: 'https://www.fanduel.com/sportsbook' },
+  { key: 'betmgm',     label: 'BetMGM',     color: '#c9a84c', deepLink: 'https://sports.betmgm.com/' },
+]
 
-const LIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
-function isGameLive(commenceTime) {
-  if (!commenceTime) return false;
-  const now = Date.now();
-  const commence = new Date(commenceTime).getTime();
-  return commence <= now && now - commence <= LIVE_WINDOW_MS;
-}
+const ODDS_FORMATS = ['american', 'decimal', 'fractional']
 
-async function fetchJson(url) {
-  const r = await fetch(url);
-  const contentType = r.headers.get('content-type') || '';
-  const text = await r.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = null;
-  }
-  if (!r.ok) {
-    const msg =
-      data?.error ||
-      (r.status === 404
-        ? 'Odds API not found. Run `vercel dev` in another terminal (port 3000), then refresh.'
-        : `Odds API error (${r.status}). Run \`vercel dev\` locally and set ODDS_API_KEY in .env or .env.local.`);
-    throw new Error(msg);
-  }
-  if (!contentType.includes('application/json') && data === null) {
-    throw new Error('Odds API returned invalid response.');
-  }
-  return data ?? {};
-}
+// ─── Oddspedia widget loader ──────────────────────────────────
+// The Odds API widget (iframe approach — works in any React app)
+function OddsWidget({ sport, bookmaker, oddsFormat, widgetKey }) {
+  const containerRef = useRef(null)
 
-const SPORT_PILLS = [
-  { key: 'basketball_nba', label: 'NBA', emoji: '🏀' },
-  { key: 'ice_hockey_nhl', label: 'NHL', emoji: '🏒' },
-  { key: 'americanfootball_nfl', label: 'NFL', emoji: '🏈' },
-  { key: 'baseball_mlb', label: 'MLB', emoji: '⚾' },
-];
+  // Build The Odds API widget iframe URL
+  // Uses the free widget endpoint — swap accessKey for your key
+  const iframeSrc = `https://widget.the-odds-api.com/v1/sports/${sport}/events/?accessKey=${widgetKey || 'demo'}&bookmakerKeys=${bookmaker}&oddsFormat=${oddsFormat}&markets=h2h,spreads,totals&marketNames=h2h:Moneyline,spreads:Spread,totals:Total`
 
-const NBA_TEAM_IDS = {
-  'Atlanta Hawks': 1610612737,
-  'Boston Celtics': 1610612738,
-  'Brooklyn Nets': 1610612751,
-  'Charlotte Hornets': 1610612766,
-  'Chicago Bulls': 1610612741,
-  'Cleveland Cavaliers': 1610612739,
-  'Dallas Mavericks': 1610612742,
-  'Denver Nuggets': 1610612743,
-  'Detroit Pistons': 1610612765,
-  'Golden State Warriors': 1610612744,
-  'Houston Rockets': 1610612745,
-  'Indiana Pacers': 1610612754,
-  'Los Angeles Clippers': 1610612746,
-  'Los Angeles Lakers': 1610612747,
-  'Memphis Grizzlies': 1610612763,
-  'Miami Heat': 1610612748,
-  'Milwaukee Bucks': 1610612749,
-  'Minnesota Timberwolves': 1610612750,
-  'New Orleans Pelicans': 1610612740,
-  'New York Knicks': 1610612752,
-  'Oklahoma City Thunder': 1610612760,
-  'Orlando Magic': 1610612753,
-  'Philadelphia 76ers': 1610612755,
-  'Phoenix Suns': 1610612756,
-  'Portland Trail Blazers': 1610612757,
-  'Sacramento Kings': 1610612758,
-  'San Antonio Spurs': 1610612759,
-  'Toronto Raptors': 1610612761,
-  'Utah Jazz': 1610612762,
-  'Washington Wizards': 1610612764,
-};
+  return (
+    <motion.div
+      key={`${sport}-${bookmaker}-${oddsFormat}`}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={springSmooth}
+      className="relative w-full"
+      style={{ minHeight: 520 }}
+    >
+      {/* Iframe glow border */}
+      <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-emerald-500/20 via-transparent to-blue-500/10 pointer-events-none z-10" />
 
-const NHL_ABBREV = {
-  'Anaheim Ducks': 'ANA',
-  'Arizona Coyotes': 'ARI',
-  'Boston Bruins': 'BOS',
-  'Buffalo Sabres': 'BUF',
-  'Calgary Flames': 'CGY',
-  'Carolina Hurricanes': 'CAR',
-  'Chicago Blackhawks': 'CHI',
-  'Colorado Avalanche': 'COL',
-  'Columbus Blue Jackets': 'CBJ',
-  'Dallas Stars': 'DAL',
-  'Detroit Red Wings': 'DET',
-  'Edmonton Oilers': 'EDM',
-  'Florida Panthers': 'FLA',
-  'Los Angeles Kings': 'LAK',
-  'Minnesota Wild': 'MIN',
-  'Montreal Canadiens': 'MTL',
-  'Nashville Predators': 'NSH',
-  'New Jersey Devils': 'NJD',
-  'New York Islanders': 'NYI',
-  'New York Rangers': 'NYR',
-  'Ottawa Senators': 'OTT',
-  'Philadelphia Flyers': 'PHI',
-  'Pittsburgh Penguins': 'PIT',
-  'San Jose Sharks': 'SJS',
-  'Seattle Kraken': 'SEA',
-  'St. Louis Blues': 'STL',
-  'Tampa Bay Lightning': 'TBL',
-  'Toronto Maple Leafs': 'TOR',
-  'Vancouver Canucks': 'VAN',
-  'Vegas Golden Knights': 'VGK',
-  'Winnipeg Jets': 'WPG',
-  'Washington Capitals': 'WSH',
-  'Utah Hockey Club': 'UTA',
-};
+      {/* Dark overlay at top to hide iframe header branding */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-[#0a0a0f] z-20 rounded-t-2xl" />
 
-// ESPN CDN: https://a.espncdn.com/i/teamlogos/{league}/500/{abbrev}.png (lowercase)
-const NFL_ABBREV = {
-  'Arizona Cardinals': 'ari', 'Atlanta Falcons': 'atl', 'Baltimore Ravens': 'bal', 'Buffalo Bills': 'buf',
-  'Carolina Panthers': 'car', 'Chicago Bears': 'chi', 'Cincinnati Bengals': 'cin', 'Cleveland Browns': 'cle',
-  'Dallas Cowboys': 'dal', 'Denver Broncos': 'den', 'Detroit Lions': 'det', 'Green Bay Packers': 'gb',
-  'Houston Texans': 'hou', 'Indianapolis Colts': 'ind', 'Jacksonville Jaguars': 'jax', 'Kansas City Chiefs': 'kc',
-  'Las Vegas Raiders': 'lv', 'Los Angeles Chargers': 'lac', 'Los Angeles Rams': 'lar', 'Miami Dolphins': 'mia',
-  'Minnesota Vikings': 'min', 'New England Patriots': 'ne', 'New Orleans Saints': 'no', 'New York Giants': 'nyg',
-  'New York Jets': 'nyj', 'Philadelphia Eagles': 'phi', 'Pittsburgh Steelers': 'pit', 'San Francisco 49ers': 'sf',
-  'Seattle Seahawks': 'sea', 'Tampa Bay Buccaneers': 'tb', 'Tennessee Titans': 'ten', 'Washington Commanders': 'wsh',
-};
-
-const MLB_ABBREV = {
-  'Arizona Diamondbacks': 'ari', 'Atlanta Braves': 'atl', 'Baltimore Orioles': 'bal', 'Boston Red Sox': 'bos',
-  'Chicago White Sox': 'cws', 'Chicago Cubs': 'chi', 'Cincinnati Reds': 'cin', 'Cleveland Guardians': 'cle',
-  'Colorado Rockies': 'col', 'Detroit Tigers': 'det', 'Houston Astros': 'hou', 'Kansas City Royals': 'kc',
-  'Los Angeles Angels': 'laa', 'Los Angeles Dodgers': 'lad', 'Miami Marlins': 'mia', 'Milwaukee Brewers': 'mil',
-  'Minnesota Twins': 'min', 'New York Yankees': 'nyy', 'New York Mets': 'nym', 'Oakland Athletics': 'oak',
-  'Philadelphia Phillies': 'phi', 'Pittsburgh Pirates': 'pit', 'San Diego Padres': 'sd', 'San Francisco Giants': 'sf',
-  'Seattle Mariners': 'sea', 'St. Louis Cardinals': 'stl', 'Tampa Bay Rays': 'tb', 'Texas Rangers': 'tex',
-  'Toronto Blue Jays': 'tor', 'Washington Nationals': 'wsh',
-};
-
-function teamInitials(name) {
-  if (!name || typeof name !== 'string') return '?';
-  const words = name.trim().split(/\s+/);
-  if (words.length >= 2) return words.map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
-
-function TeamLogo({ teamName, sportKey, onError }) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  const isNba = sportKey === 'basketball_nba';
-  const isNhl = sportKey === 'ice_hockey_nhl';
-  const isNfl = sportKey === 'americanfootball_nfl';
-  const isMlb = sportKey === 'baseball_mlb';
-
-  const logoUrl = isNba && NBA_TEAM_IDS[teamName]
-    ? `https://cdn.nba.com/logos/nba/${NBA_TEAM_IDS[teamName]}/primary/L/logo.svg`
-    : isNhl && NHL_ABBREV[teamName]
-      ? `https://assets.nhle.com/logos/nhl/svg/${NHL_ABBREV[teamName]}_light.svg`
-      : isNfl && NFL_ABBREV[teamName]
-        ? `https://a.espncdn.com/i/teamlogos/nfl/500/${NFL_ABBREV[teamName]}.png`
-        : isMlb && MLB_ABBREV[teamName]
-          ? `https://a.espncdn.com/i/teamlogos/mlb/500/${MLB_ABBREV[teamName]}.png`
-          : null;
-
-  const handleError = () => {
-    setLogoFailed(true);
-    onError?.();
-  };
-
-  if (logoUrl && !logoFailed) {
-    return (
-      <img
-        src={logoUrl}
-        alt=""
-        className="w-7 h-7 object-contain flex-shrink-0"
-        onError={handleError}
+      <iframe
+        title="Live Sports Odds"
+        src={iframeSrc}
+        className="w-full rounded-2xl"
+        style={{
+          height: 560,
+          border: 'none',
+          background: 'transparent',
+          colorScheme: 'dark',
+        }}
+        loading="lazy"
       />
-    );
-  }
+    </motion.div>
+  )
+}
+
+// ─── Live pulse dot ───────────────────────────────────────────
+function LivePulse() {
   return (
-    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-      {teamInitials(teamName)}
-    </div>
-  );
+    <span className="relative flex items-center gap-1.5">
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+      </span>
+      <span className="text-xs font-semibold text-emerald-400 tracking-wider uppercase">Live</span>
+    </span>
+  )
 }
 
-function getPreferredBookmaker(bookmakers) {
-  const list = bookmakers || [];
-  const fd = list.find((b) => b.key === 'fanduel' || (b.title && b.title.toLowerCase().includes('fanduel')));
-  return fd || list[0];
+// ─── Odds movement pill ───────────────────────────────────────
+function OddsMovement({ value }) {
+  if (value === 0) return <Minus className="w-3 h-3 text-gray-500" />
+  return value > 0
+    ? <span className="flex items-center gap-0.5 text-xs text-emerald-400 font-mono">
+        <ArrowUpRight className="w-3 h-3" />{value}
+      </span>
+    : <span className="flex items-center gap-0.5 text-xs text-red-400 font-mono">
+        <ArrowDownRight className="w-3 h-3" />{Math.abs(value)}
+      </span>
 }
 
-function getMarketOutcomes(book, marketKey) {
-  const market = (book.markets || []).find((m) => m.key === marketKey);
-  return market?.outcomes || [];
-}
-
-function getSpreadForTeam(outcomes, teamName) {
-  const o = outcomes.find((x) => x.name === teamName || (typeof x.name === 'string' && (x.name.includes(teamName) || teamName.includes(x.name))));
-  return o ? { point: o.point, price: o.price } : { point: null, price: null };
-}
-
-function getTotals(outcomes) {
-  const over = outcomes.find((x) => x.name && x.name.toLowerCase() === 'over');
-  const under = outcomes.find((x) => x.name && x.name.toLowerCase() === 'under');
-  const point = over?.point ?? under?.point ?? null;
-  return { over: over ? { price: over.price } : { price: null }, under: under ? { price: under.price } : { price: null }, point };
-}
-
-function getMoneylineOutcomes(book) {
-  return getMarketOutcomes(book, 'h2h');
-}
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring', stiffness: 400, damping: 30 },
-  },
-};
-
-export default function SportsOddsPage({ onBack }) {
-  const [sports, setSports] = useState([]);
-  const [sportKey, setSportKey] = useState('basketball_nba');
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [eventsLoading, setEventsLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    setError('');
-    fetchJson('/api/odds/sports')
-      .then((data) => {
-        if (cancelled) return;
-        if (data?.error) {
-          setError(data.error);
-          setSports([]);
-          return;
-        }
-        const list = Array.isArray(data) ? data.filter((s) => s.active && !s.has_outrights) : [];
-        setSports(list);
-        if (list.length && !list.some((s) => s.key === sportKey)) {
-          setSportKey(list[0].key);
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setError(e?.message || 'Failed to load sports');
-          setSports([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (!sportKey) return;
-    let cancelled = false;
-    setEventsLoading(true);
-    setError('');
-    fetchJson(`/api/odds/events?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
-      .then((data) => {
-        if (cancelled) return;
-        if (data?.error) {
-          setError(data.error);
-          setEvents([]);
-          return;
-        }
-        setEvents(Array.isArray(data) ? data : []);
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setError(e?.message || 'Failed to load odds');
-          setEvents([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setEventsLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [sportKey]);
-
-  const currentSport = sports.find((s) => s.key === sportKey);
-
+// ─── Stat card ────────────────────────────────────────────────
+function StatCard({ label, value, sub, accent }) {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-[#0a0a0f]/95 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex items-center gap-1 rounded-lg p-1.5 text-gray-400 hover:text-white transition-colors"
-              aria-label="Back to dashboard"
-            >
-              <ChevronLeft size={20} />
-            </button>
-          )}
-          <h1 className="text-lg font-semibold text-white">Sports Betting</h1>
-        </div>
-        <span className="text-xs text-gray-500">Powered by Live Odds</span>
-      </div>
-
-      {error && (
-        <div className="mx-4 mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="p-6 text-center text-gray-500 text-sm">Loading sports…</div>
-      ) : (
-        <>
-          {/* Sport selector pills */}
-          <div className="px-4 pt-4 pb-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {SPORT_PILLS.map((pill) => {
-                const isActive = sportKey === pill.key;
-                return (
-                  <button
-                    key={pill.key}
-                    type="button"
-                    onClick={() => setSportKey(pill.key)}
-                    className={`relative rounded-full px-4 py-1.5 text-sm font-medium cursor-pointer transition-colors ${
-                      isActive
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    <span className="mr-1.5">{pill.emoji}</span>
-                    {pill.label}
-                    {isActive && (
-                      <motion.div
-                        layoutId="sport-tab"
-                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400 rounded-full"
-                        style={{ originX: 0 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="px-4 pb-8">
-            {eventsLoading ? (
-              <div className="space-y-3 pt-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-28 rounded-2xl bg-white/[0.03] animate-pulse" />
-                ))}
-              </div>
-            ) : events.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <span className="text-4xl mb-3">🏆</span>
-                <p className="text-gray-500 font-medium">No games today</p>
-                <p className="text-gray-600 text-sm mt-1">Check back later for upcoming lines</p>
-              </div>
-            ) : (
-              <motion.div
-                className="space-y-3 pt-4"
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-              >
-                {events.map((event) => {
-                  const book = getPreferredBookmaker(event.bookmakers);
-                  const awayTeam = event.away_team || 'Away';
-                  const homeTeam = event.home_team || 'Home';
-                  const live = isGameLive(event.commence_time);
-
-                  const spreadOutcomes = getMarketOutcomes(book, 'spreads');
-                  const awaySpread = getSpreadForTeam(spreadOutcomes, awayTeam);
-                  const homeSpread = getSpreadForTeam(spreadOutcomes, homeTeam);
-
-                  const totalsOutcomes = getMarketOutcomes(book, 'totals');
-                  const totals = getTotals(totalsOutcomes);
-
-                  const mlOutcomes = getMoneylineOutcomes(book);
-                  const awayMl = mlOutcomes.find((o) => o.name === awayTeam || (typeof o.name === 'string' && (o.name.includes(awayTeam) || awayTeam.includes(o.name))));
-                  const homeMl = mlOutcomes.find((o) => o.name === homeTeam || (typeof o.name === 'string' && (o.name.includes(homeTeam) || homeTeam.includes(o.name))));
-
-                  const bookTitle = book?.title || '';
-
-                  return (
-                    <motion.div
-                      key={event.id}
-                      variants={itemVariants}
-                      className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] p-5 mb-3 hover:border-white/10 transition-all duration-200"
-                    >
-                      {/* Top row: time + live */}
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-xs text-gray-500">{formatGameTime(event.commence_time)}</span>
-                        {live && (
-                          <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                            <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                            </span>
-                            LIVE
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Column headers */}
-                      <div className="flex items-center gap-3 mb-1">
-                        <div className="w-7 flex-shrink-0" />
-                        <div className="flex-1 min-w-0" />
-                        <div className="flex items-center gap-2 flex-shrink-0 text-[10px] uppercase tracking-widest font-semibold text-gray-500">
-                          <span className="min-w-[72px] text-center">Spread</span>
-                          <span className="min-w-[72px] text-center">Total</span>
-                          <span className="min-w-[72px] text-center">ML</span>
-                        </div>
-                      </div>
-
-                      {/* Away team row */}
-                      <div className="flex items-center gap-3">
-                        <TeamLogo teamName={awayTeam} sportKey={sportKey} />
-                        <span className="text-sm font-semibold text-white flex-1 min-w-0 truncate">{awayTeam}</span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <OddsButton line={awaySpread.point} odds={awaySpread.price} />
-                          <OddsButton line={totals.point != null ? `O ${totals.point}` : null} odds={totals.over.price} />
-                          <OddsButton line={null} odds={awayMl?.price} />
-                        </div>
-                      </div>
-                      {/* Home team row */}
-                      <div className="flex items-center gap-3 mt-2">
-                        <TeamLogo teamName={homeTeam} sportKey={sportKey} />
-                        <span className="text-sm font-semibold text-white flex-1 min-w-0 truncate">{homeTeam}</span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <OddsButton line={homeSpread.point} odds={homeSpread.price} />
-                          <OddsButton line={totals.point != null ? `U ${totals.point}` : null} odds={totals.under.price} />
-                          <OddsButton line={null} odds={homeMl?.price} />
-                        </div>
-                      </div>
-
-                      {/* Bookmaker strip */}
-                      {bookTitle && (
-                        <p className="text-[10px] text-gray-600 text-right mt-2">{bookTitle}</p>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
+    <motion.div
+      whileHover={{ y: -2, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+      transition={springSnappy}
+      className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] p-4 flex-1 min-w-0"
+    >
+      <div className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">{label}</div>
+      <div className={`text-2xl font-bold font-mono ${accent || 'text-white'}`}>{value}</div>
+      {sub && <div className="text-xs text-gray-500 mt-1">{sub}</div>}
+    </motion.div>
+  )
 }
 
-function OddsButton({ line, odds }) {
-  const hasValue = odds != null && odds !== '' && Number.isFinite(Number(odds));
-  const hasLine = line != null && line !== '';
-
+// ─── Book deep link card ──────────────────────────────────────
+function BookCard({ book, isActive, onClick }) {
   return (
     <motion.button
-      type="button"
-      className={`min-w-[72px] rounded-xl px-3 py-2 text-center border transition-all duration-150 ${
-        hasValue || hasLine
-          ? 'bg-white/[0.06] border-white/[0.08] text-white hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-400'
-          : 'bg-transparent border-white/[0.04] text-gray-600 cursor-default'
+      onClick={onClick}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      transition={springSnappy}
+      className={`relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-all duration-200 ${
+        isActive
+          ? 'bg-gradient-to-br from-white/[0.08] to-white/[0.02] border-white/[0.15] shadow-[0_4px_16px_rgba(0,0,0,0.4)]'
+          : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04] hover:border-white/[0.08]'
       }`}
-      whileHover={hasValue || hasLine ? { scale: 1.03 } : undefined}
-      whileTap={hasValue || hasLine ? { scale: 0.97 } : undefined}
     >
-      <div className="text-xs font-medium text-white">{hasLine ? String(line) : '—'}</div>
-      <div className={`text-xs ${hasValue ? 'text-gray-400' : 'text-gray-600'}`}>
-        {hasValue ? formatAmerican(odds) : '—'}
-      </div>
+      {/* Active indicator dot */}
+      {isActive && (
+        <motion.div
+          layoutId="book-indicator"
+          className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+          style={{ backgroundColor: book.color }}
+          transition={springSnappy}
+        />
+      )}
+      <span
+        className="text-xs font-bold"
+        style={{ color: isActive ? book.color : '#6b7280' }}
+      >
+        {book.label}
+      </span>
     </motion.button>
-  );
+  )
+}
+
+// ─── Line movement ticker ─────────────────────────────────────
+const MOCK_MOVEMENTS = [
+  { team: 'Chiefs', line: '-6.5', move: -0.5, sport: 'NFL' },
+  { team: 'Lakers', line: '+110', move: 15, sport: 'NBA' },
+  { team: 'Yankees', line: '-165', move: -10, sport: 'MLB' },
+  { team: 'Celtics', line: '-8', move: 1, sport: 'NBA' },
+  { team: 'Cowboys', line: '+3.5', move: 0.5, sport: 'NFL' },
+  { team: 'Oilers', line: '-145', move: -20, sport: 'NHL' },
+  { team: 'Padres', line: '+130', move: 5, sport: 'MLB' },
+  { team: 'Panthers', line: '+4', move: -1, sport: 'NFL' },
+]
+
+function LineMovementTicker() {
+  const doubled = [...MOCK_MOVEMENTS, ...MOCK_MOVEMENTS]
+  return (
+    <div className="relative overflow-hidden h-8 flex items-center">
+      {/* Fade edges */}
+      <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
+      <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
+
+      <motion.div
+        className="flex gap-6 items-center"
+        animate={{ x: ['0%', '-50%'] }}
+        transition={{ duration: 28, ease: 'linear', repeat: Infinity }}
+      >
+        {doubled.map((item, i) => (
+          <span key={i} className="flex items-center gap-1.5 whitespace-nowrap">
+            <span className="text-xs text-gray-500 font-semibold">{item.sport}</span>
+            <span className="text-xs text-white font-mono font-medium">{item.team}</span>
+            <span className={`text-xs font-mono font-bold ${item.move > 0 ? 'text-emerald-400' : item.move < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+              {item.line}
+            </span>
+            <OddsMovement value={item.move} />
+            <span className="text-white/10 ml-1">·</span>
+          </span>
+        ))}
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────
+export default function SportsOddsPage() {
+  const [activeSport, setActiveSport] = useState(SPORTS[0])
+  const [activeBook, setActiveBook] = useState(BOOKS[0])
+  const [oddsFormat, setOddsFormat] = useState('american')
+  const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [hoveredSport, setHoveredSport] = useState(null)
+
+  // Replace with your The Odds API key from the-odds-api.com (free signup)
+  const WIDGET_API_KEY = import.meta.env.VITE_ODDS_API_KEY || ''
+
+  const handleRefresh = () => {
+    setIsRefreshing(true)
+    setTimeout(() => {
+      setLastUpdated(new Date())
+      setIsRefreshing(false)
+    }, 900)
+  }
+
+  const formatTime = (date) => date.toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+  })
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      className="min-h-screen bg-[#0a0a0f] text-white px-6 py-6 flex flex-col gap-5"
+    >
+
+      {/* ── Header ────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="relative">
+              <Zap className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
+              <div className="absolute inset-0 blur-md bg-emerald-400/40 rounded-full" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">Sports Lines</h1>
+            <LivePulse />
+          </div>
+          <p className="text-xs text-gray-500">
+            Real-time odds from DraftKings, FanDuel & more · Line movements update live
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Last updated */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+            <Clock className="w-3 h-3" />
+            <span className="font-mono">{formatTime(lastUpdated)}</span>
+          </div>
+
+          {/* Refresh */}
+          <motion.button
+            onClick={handleRefresh}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            transition={springSnappy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-gray-400 hover:text-white hover:border-white/[0.1] transition-colors"
+          >
+            <motion.div
+              animate={isRefreshing ? { rotate: 360 } : { rotate: 0 }}
+              transition={{ duration: 0.7, ease: 'easeInOut' }}
+            >
+              <RefreshCw className="w-3 h-3" />
+            </motion.div>
+            Refresh
+          </motion.button>
+
+          {/* Deep link CTA */}
+          <motion.a
+            href={activeBook.deepLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.97 }}
+            transition={springSnappy}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold text-black transition-all"
+            style={{ backgroundColor: activeBook.color }}
+          >
+            Bet on {activeBook.label}
+            <ExternalLink className="w-3 h-3" />
+          </motion.a>
+        </div>
+      </div>
+
+      {/* ── Line movement ticker ───────────────────────────── */}
+      <div className="bg-gradient-to-br from-white/[0.02] to-transparent backdrop-blur-xl rounded-xl border border-white/[0.04] shadow-[0_4px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.03)] px-4 py-1">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold tracking-widest text-gray-600 uppercase shrink-0 flex items-center gap-1.5">
+            <TrendingUp className="w-3 h-3" />
+            Lines
+          </span>
+          <div className="flex-1 overflow-hidden">
+            <LineMovementTicker />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats row ─────────────────────────────────────── */}
+      <div className="flex gap-3">
+        <StatCard label="Active Games" value="14" sub="Across all sports" />
+        <StatCard label="Best Line" value="-105" sub="DraftKings · NBA spread" accent="text-emerald-400" />
+        <StatCard label="Line Moves" value="38" sub="In the last 30 minutes" accent="text-amber-400" />
+        <StatCard label="Sharp Action" value="76%" sub="Public on Chiefs -6.5" />
+      </div>
+
+      {/* ── Sport tabs + Controls ──────────────────────────── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+
+        {/* Sport selector */}
+        <div className="flex items-center gap-1 bg-black/40 rounded-2xl p-1 border border-white/[0.04] shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)]">
+          {SPORTS.map((sport) => (
+            <motion.button
+              key={sport.key}
+              onClick={() => setActiveSport(sport)}
+              onHoverStart={() => setHoveredSport(sport.key)}
+              onHoverEnd={() => setHoveredSport(null)}
+              whileTap={{ scale: 0.96 }}
+              transition={springSnappy}
+              className="relative px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-colors duration-150"
+              style={{
+                color: activeSport.key === sport.key ? '#ffffff' : '#6b7280'
+              }}
+            >
+              {activeSport.key === sport.key && (
+                <motion.div
+                  layoutId="sport-tab"
+                  className="absolute inset-0 bg-gradient-to-br from-white/[0.1] to-white/[0.04] rounded-xl border border-white/[0.1] shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+                  transition={springSnappy}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1.5">
+                <span>{sport.emoji}</span>
+                <span>{sport.label}</span>
+              </span>
+            </motion.button>
+          ))}
+        </div>
+
+        {/* Right controls */}
+        <div className="flex items-center gap-3">
+
+          {/* Book selector */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-600 font-semibold uppercase tracking-wider mr-1">Book</span>
+            {BOOKS.map((book) => (
+              <BookCard
+                key={book.key}
+                book={book}
+                isActive={activeBook.key === book.key}
+                onClick={() => setActiveBook(book)}
+              />
+            ))}
+          </div>
+
+          {/* Odds format */}
+          <div className="flex items-center gap-0.5 bg-black/40 rounded-xl p-0.5 border border-white/[0.04]">
+            {ODDS_FORMATS.map((fmt) => (
+              <motion.button
+                key={fmt}
+                onClick={() => setOddsFormat(fmt)}
+                whileTap={{ scale: 0.96 }}
+                transition={springSnappy}
+                className={`relative px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-colors ${
+                  oddsFormat === fmt ? 'text-white' : 'text-gray-500 hover:text-gray-400'
+                }`}
+              >
+                {oddsFormat === fmt && (
+                  <motion.div
+                    layoutId="odds-format"
+                    className="absolute inset-0 bg-white/[0.08] rounded-lg border border-white/[0.08]"
+                    transition={springSnappy}
+                  />
+                )}
+                <span className="relative z-10">{fmt.slice(0, 3)}</span>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main odds panel ────────────────────────────────── */}
+      <div className="flex gap-4 flex-1">
+
+        {/* Widget container */}
+        <div className="flex-1 min-w-0">
+          <div className="relative bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] overflow-hidden">
+
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.05]">
+              <div className="flex items-center gap-2.5">
+                <BarChart3 className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
+                <span className="text-sm font-semibold">
+                  {activeSport.label} · {activeBook.label} Odds
+                </span>
+                <LivePulse />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 font-mono">
+                  Moneyline · Spread · Total
+                </span>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={springSnappy}
+                  className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
+                >
+                  <Star className="w-3 h-3" strokeWidth={1.5} />
+                  Watchlist
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Widget iframe */}
+            <div className="p-4">
+              <AnimatePresence mode="wait">
+                <OddsWidget
+                  key={`${activeSport.key}-${activeBook.key}-${oddsFormat}`}
+                  sport={activeSport.key}
+                  bookmaker={activeBook.key}
+                  oddsFormat={oddsFormat}
+                  widgetKey={WIDGET_API_KEY}
+                />
+              </AnimatePresence>
+            </div>
+
+            {/* Bottom watermark */}
+            <div className="px-5 py-2.5 border-t border-white/[0.04] flex items-center justify-between">
+              <span className="text-xs text-gray-700">
+                Data via The Odds API · Powered by Stratify
+              </span>
+              <motion.a
+                href={activeBook.deepLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ x: 2 }}
+                transition={springSnappy}
+                className="flex items-center gap-1 text-xs transition-colors"
+                style={{ color: activeBook.color }}
+              >
+                Open {activeBook.label}
+                <ChevronRight className="w-3 h-3" />
+              </motion.a>
+            </div>
+          </div>
+        </div>
+
+        {/* Right sidebar — Line movement + quick info */}
+        <div className="w-64 shrink-0 flex flex-col gap-3">
+
+          {/* Sharp money panel */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...springSmooth, delay: 0.1 }}
+            className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] p-4"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="w-3.5 h-3.5 text-amber-400" strokeWidth={1.5} />
+              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">Sharp Money</span>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {[
+                { game: 'Chiefs -6.5', pct: 76, direction: 'over', sport: 'NFL' },
+                { game: 'Celtics ML', pct: 68, direction: 'over', sport: 'NBA' },
+                { game: 'Yankees -165', pct: 61, direction: 'under', sport: 'MLB' },
+                { game: 'Oilers -145', pct: 58, direction: 'over', sport: 'NHL' },
+              ].map((item, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ ...springSnappy, delay: i * 0.05 }}
+                  className="flex flex-col gap-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white font-medium">{item.game}</span>
+                    <span className={`text-xs font-mono font-bold ${item.pct >= 65 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {item.pct}%
+                    </span>
+                  </div>
+                  <div className="relative h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${item.pct}%` }}
+                      transition={{ ...springSmooth, delay: 0.2 + i * 0.05 }}
+                      className={`absolute top-0 left-0 h-full rounded-full ${item.pct >= 65 ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                    />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Recent line moves */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...springSmooth, delay: 0.15 }}
+            className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] p-4 flex-1"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-3.5 h-3.5 text-blue-400" strokeWidth={1.5} />
+              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">Line Moves</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {MOCK_MOVEMENTS.map((item, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...springSnappy, delay: i * 0.04 }}
+                  whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.03)' }}
+                  className="flex items-center justify-between px-2 py-1.5 rounded-lg cursor-default transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs text-gray-600 font-semibold w-7 shrink-0">{item.sport}</span>
+                    <span className="text-xs text-white font-medium truncate">{item.team}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs font-mono text-gray-400">{item.line}</span>
+                    <OddsMovement value={item.move} />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Book deep links */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...springSmooth, delay: 0.2 }}
+            className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] p-4"
+          >
+            <div className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-3">Place Your Bet</div>
+            <div className="flex flex-col gap-2">
+              {BOOKS.map((book, i) => (
+                <motion.a
+                  key={book.key}
+                  href={book.deepLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...springSnappy, delay: 0.3 + i * 0.05 }}
+                  whileHover={{ x: 2, scale: 1.01 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="flex items-center justify-between px-3 py-2 rounded-xl border transition-all duration-200 group"
+                  style={{
+                    borderColor: `${book.color}20`,
+                    background: `${book.color}08`,
+                  }}
+                >
+                  <span
+                    className="text-xs font-bold group-hover:opacity-100 opacity-80 transition-opacity"
+                    style={{ color: book.color }}
+                  >
+                    {book.label}
+                  </span>
+                  <ArrowUpRight
+                    className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity"
+                    style={{ color: book.color }}
+                  />
+                </motion.a>
+              ))}
+            </div>
+          </motion.div>
+
+        </div>
+      </div>
+
+      {/* ── Footer disclaimer ──────────────────────────────── */}
+      <div className="text-xs text-gray-700 text-center">
+        Sports betting involves risk. Must be 21+ and located in a state where sports betting is legal. Please gamble responsibly.
+      </div>
+
+    </motion.div>
+  )
 }

@@ -17,7 +17,7 @@
     "@highcharts/grid-lite": "^2.2.0",
     "@highcharts/react": "^4.2.1",
     "@monaco-editor/react": "^4.7.0",
-    "@sentry/react": "^10.39.0",
+    "@sentry/react": "^10.42.0",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/postcss": "^4.1.18",
     "@upstash/redis": "^1.36.3",
