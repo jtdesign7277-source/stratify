@@ -80,6 +80,28 @@ const BREAKING_SEEN_PREFIX = 'breaking:seen:';
 const BREAKING_TTL_1H = 3600;
 const BREAKING_SEEN_TTL = 86400; // 24h
 
+// Scheduled post openers (no 🚨). Pick randomly; red/green add market-specific options.
+const SCHEDULED_OPENERS_NEUTRAL = [
+  'PRE-MARKET UPDATE:',
+  '📊 Markets this morning:',
+  '🌅 Before the bell:',
+  '⚡ What\'s moving:',
+  'Morning look at markets:',
+];
+const SCHEDULED_OPENER_RED = '📉 Tech under pressure:';
+const SCHEDULED_OPENER_GREEN = '📈 Markets moving:';
+
+function pickScheduledOpener(quotes = {}) {
+  const spy = quotes?.SPY;
+  const pct = spy && spy.percent_change != null ? parseFloat(spy.percent_change) : null;
+  const pool = [...SCHEDULED_OPENERS_NEUTRAL];
+  if (pct != null) {
+    if (pct < -0.3) pool.push(SCHEDULED_OPENER_RED);
+    else if (pct > 0.3) pool.push(SCHEDULED_OPENER_GREEN);
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function getRedis() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -103,9 +125,10 @@ function generateOAuthSignature(method, url, params, consumerSecret, tokenSecret
 }
 
 async function postTweet(text) {
-  const url = 'https://api.twitter.com/2/tweets';
-  const method = 'POST';
+  return xApiPost('https://api.twitter.com/2/tweets', { text });
+}
 
+function getOAuthHeader(method, baseUrl, extraParams = {}) {
   const oauthParams = {
     oauth_consumer_key: process.env.X_API_KEY,
     oauth_nonce: crypto.randomBytes(16).toString('hex'),
@@ -114,32 +137,191 @@ async function postTweet(text) {
     oauth_token: process.env.X_ACCESS_TOKEN,
     oauth_version: '1.0',
   };
-
+  const allParams = { ...oauthParams, ...extraParams };
   const signature = generateOAuthSignature(
-    method, url, oauthParams,
+    method, baseUrl, allParams,
     process.env.X_API_SECRET,
     process.env.X_ACCESS_TOKEN_SECRET
   );
-
-  const authHeader = 'OAuth ' + Object.entries({ ...oauthParams, oauth_signature: signature })
+  return 'OAuth ' + Object.entries({ ...oauthParams, oauth_signature: signature })
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(v)}"`)
     .join(', ');
+}
 
+async function xApiGet(baseUrl, queryParams = {}) {
+  const qs = new URLSearchParams(queryParams).toString();
+  const fullUrl = qs ? `${baseUrl}?${qs}` : baseUrl;
+  const authHeader = getOAuthHeader('GET', baseUrl, queryParams);
+  const response = await fetch(fullUrl, {
+    method: 'GET',
+    headers: { Authorization: authHeader },
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(`X API error: ${JSON.stringify(data)}`);
+  return data;
+}
+
+async function xApiPost(url, body) {
+  const authHeader = getOAuthHeader('POST', url, {});
   const response = await fetch(url, {
-    method,
+    method: 'POST',
     headers: {
-      'Authorization': authHeader,
+      Authorization: authHeader,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   });
-
   const data = await response.json();
-  if (!response.ok) {
-    throw new Error(`X API error: ${JSON.stringify(data)}`);
-  }
+  if (!response.ok) throw new Error(`X API error: ${JSON.stringify(data)}`);
   return data;
+}
+
+async function postReply(inReplyToTweetId, text) {
+  return xApiPost('https://api.twitter.com/2/tweets', {
+    text,
+    reply: { in_reply_to_tweet_id: inReplyToTweetId },
+  });
+}
+
+async function getMe() {
+  const data = await xApiGet('https://api.twitter.com/2/users/me', { 'user.fields': 'id' });
+  return data.data?.id || null;
+}
+
+async function searchTweets(query, maxResults = 5) {
+  const data = await xApiGet('https://api.twitter.com/2/tweets/search/recent', {
+    query,
+    'tweet.fields': 'public_metrics,text',
+    max_results: String(Math.min(maxResults, 10)),
+  });
+  return data.data || [];
+}
+
+async function likeTweet(userId, tweetId) {
+  return xApiPost(`https://api.twitter.com/2/users/${userId}/liking`, { tweet_id: tweetId });
+}
+
+// ============================================================
+// AUTO-ENGAGEMENT — Search, like, reply (30-min cron)
+// ============================================================
+const ENGAGEMENT_QUERY = 'algotrading OR "trading signals" OR "stock market" OR "options flow" OR "market open" OR SPY OR NVDA OR fintech';
+const ENGAGEMENT_MAX_PER_SCAN = 5;
+const ENGAGEMENT_MIN_LIKES_FOR_REPLY = 100;
+const ENGAGEMENT_MAX_REPLIES_PER_DAY = 10;
+const ENGAGEMENT_MAX_LIKES_PER_DAY = 50;
+const ENGAGED_TTL_DAYS = 7;
+
+function getEngagementDateKey() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // YYYY-MM-DD
+}
+
+function getMidnightTTL() {
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const tomorrow = new Date(et);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return Math.round((tomorrow - et) / 1000);
+}
+
+async function generateEngagementReply(tweetText) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY_XPOST,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 150,
+      system: 'You write short, genuine Twitter replies. Under 200 characters. Add value, sound human. Never spam or hard-sell.',
+      messages: [{
+        role: 'user',
+        content: `Write a short genuine reply (under 200 chars) to this tweet that adds value, sounds human, and naturally positions Stratify as an AI trading platform. Never sound spammy. Tweet: ${tweetText}`,
+      }],
+    }),
+  });
+  const data = await res.json();
+  const text = data.content?.[0]?.text?.trim() || null;
+  return text && text.length <= 200 ? text : (text ? text.slice(0, 197) + '…' : null);
+}
+
+async function runEngagement() {
+  const redis = getRedis();
+  if (!redis) return { status: 'skipped', reason: 'Redis not configured' };
+
+  const dateKey = getEngagementDateKey();
+  const replyCountKey = `engagement:reply_count:${dateKey}`;
+  const likeCountKey = `engagement:like_count:${dateKey}`;
+  const ttl = getMidnightTTL();
+
+  let replyCount = parseInt(await redis.get(replyCountKey), 10) || 0;
+  let likeCount = parseInt(await redis.get(likeCountKey), 10) || 0;
+
+  if (replyCount >= ENGAGEMENT_MAX_REPLIES_PER_DAY && likeCount >= ENGAGEMENT_MAX_LIKES_PER_DAY) {
+    return { status: 'skipped', reason: 'Daily engagement caps reached' };
+  }
+
+  let meId;
+  try {
+    meId = await getMe();
+  } catch (e) {
+    return { status: 'error', reason: e.message };
+  }
+  if (!meId) return { status: 'skipped', reason: 'Could not get X user id' };
+
+  let tweets;
+  try {
+    tweets = await searchTweets(ENGAGEMENT_QUERY, ENGAGEMENT_MAX_PER_SCAN);
+  } catch (e) {
+    return { status: 'error', reason: e.message };
+  }
+
+  const results = { liked: 0, replied: 0, errors: [] };
+
+  for (const tweet of tweets) {
+    const id = tweet.id;
+    const text = (tweet.text || '').trim();
+    const likeCountTweet = tweet.public_metrics?.like_count ?? 0;
+
+    if (likeCount < ENGAGEMENT_MAX_LIKES_PER_DAY) {
+      try {
+        await likeTweet(meId, id);
+        likeCount++;
+        await redis.set(likeCountKey, String(likeCount), { ex: ttl });
+        results.liked++;
+      } catch (e) {
+        results.errors.push(`like ${id}: ${e.message}`);
+      }
+    }
+
+    if (likeCountTweet > ENGAGEMENT_MIN_LIKES_FOR_REPLY && replyCount < ENGAGEMENT_MAX_REPLIES_PER_DAY) {
+      const engagedKey = `engaged:${id}`;
+      try {
+        const already = await redis.get(engagedKey);
+        if (already) continue;
+      } catch {
+        continue;
+      }
+
+      const replyText = await generateEngagementReply(text);
+      if (!replyText) continue;
+
+      try {
+        await postReply(id, replyText);
+        await redis.set(engagedKey, '1', { ex: ENGAGED_TTL_DAYS * 86400 });
+        replyCount++;
+        await redis.set(replyCountKey, String(replyCount), { ex: ttl });
+        results.replied++;
+      } catch (e) {
+        results.errors.push(`reply ${id}: ${e.message}`);
+      }
+    }
+  }
+
+  return { status: 'ok', ...results };
 }
 
 // ============================================================
@@ -198,7 +380,7 @@ ABSOLUTE RULES:
 8. Keep it under 280 characters
 9. Be punchy, direct, confident — not hype-y or clickbait-y
 10. No hashtags. They look desperate.
-11. Start every tweet with 🚨 JUST IN:
+11. Start with the exact opener provided in the user message (do not add 🚨 unless the opener contains it).
 
 TONE: Think Bloomberg terminal meets fintwit. Smart, fast, credible.
 You are a data reporter, not a hype man.`;
@@ -300,6 +482,7 @@ async function generateMarketOpen(options = {}) {
     return `${sym}: $${price} (${direction}${pct}%)`;
   }).join('\n');
 
+  const opener = pickScheduledOpener(quotes);
   const isPremarket = options.prepost === true;
   const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
   const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
@@ -309,13 +492,14 @@ async function generateMarketOpen(options = {}) {
 ${dataBlock}
 
 These are PRE-MARKET prices as of ${etTime} ET on ${etDate}. Friday's close is shown if no pre-market trading has occurred yet for that ticker.
-Write a market update tweet. Label the post PRE-MARKET UPDATE and note if prices reflect Friday's close due to no pre-market activity.
-Show the top movers with their exact prices and percentages from the data above. Format prices cleanly. Keep it tight and punchy. Start with 🚨 JUST IN:`
+Start the tweet with exactly: ${opener}
+Then write a market update. Note if prices reflect Friday's close due to no pre-market activity.
+Show the top movers with their exact prices and percentages from the data above. Format prices cleanly. Keep it tight and punchy.`
     : `REAL DATA (use ONLY this):
 ${dataBlock}
 
-Write a market update tweet. Start with 🚨 JUST IN:
-Show the top movers with their exact prices and percentages from the data above.
+Start the tweet with exactly: ${opener}
+Then write a market update. Show the top movers with their exact prices and percentages from the data above.
 Format prices cleanly. Keep it tight and punchy.`;
 
   const tweet = await formatWithClaude(prompt);
@@ -352,11 +536,12 @@ async function generateTopMovers() {
     return `${sym}: $${price} (${direction}${pct}%)`;
   }).join('\n');
 
+  const opener = pickScheduledOpener(quotes);
   const prompt = `REAL DATA (use ONLY this):
 ${dataBlock}
 
-Write a tweet about the top retail stock movers right now. Start with 🚨 JUST IN:
-Show each ticker with exact price and percentage from the data.
+Start the tweet with exactly: ${opener}
+Then write about the top retail stock movers right now. Show each ticker with exact price and percentage from the data.
 These are the stocks retail traders actually care about.`;
 
   const tweet = await formatWithClaude(prompt);
@@ -387,11 +572,12 @@ async function generateMag7Update() {
     return `${sym}: $${price} (${direction}${pct}%)`;
   }).join('\n');
 
+  const opener = pickScheduledOpener(quotes);
   const prompt = `REAL DATA (use ONLY this):
 ${dataBlock}
 
-Write a Mag 7 update tweet. Start with 🚨 JUST IN:
-Show all 7 stocks with their exact prices and percentages.
+Start the tweet with exactly: ${opener}
+Then write a Mag 7 update tweet. Show all 7 stocks with their exact prices and percentages.
 Note which are leading and lagging today.`;
 
   const tweet = await formatWithClaude(prompt);
@@ -558,11 +744,12 @@ async function generateCryptoUpdate() {
       return `${ticker}: $${price} (${direction}${pct}%)`;
     }).join('\n');
 
+  const opener = pickScheduledOpener({}); // no SPY for crypto
   const prompt = `REAL DATA (use ONLY this):
 ${dataBlock}
 
-Write a crypto market update tweet. Start with 🚨 JUST IN:
-Show the prices and percentages for each coin from the data above.
+Start the tweet with exactly: ${opener}
+Then write a crypto market update. Show the prices and percentages for each coin from the data above.
 Keep it clean and factual.`;
 
   const tweet = await formatWithClaude(prompt);
@@ -608,6 +795,7 @@ async function generateMarketClose() {
   const winner = sorted[0];
   const loser = sorted[sorted.length - 1];
 
+  const opener = pickScheduledOpener(quotes);
   const prompt = `REAL DATA (use ONLY this):
 INDICES:
 ${indicesBlock}
@@ -615,8 +803,8 @@ ${indicesBlock}
 TODAY'S MAG 7 WINNER: ${winner[0]}: $${parseFloat(winner[1].close).toFixed(2)} (${parseFloat(winner[1].percent_change) >= 0 ? '+' : ''}${parseFloat(winner[1].percent_change).toFixed(2)}%)
 TODAY'S MAG 7 LAGGARD: ${loser[0]}: $${parseFloat(loser[1].close).toFixed(2)} (${parseFloat(loser[1].percent_change) >= 0 ? '+' : ''}${parseFloat(loser[1].percent_change).toFixed(2)}%)
 
-Write a market close recap tweet. Start with 🚨 JUST IN:
-Show index performance, then call out the day's winner and laggard from Mag 7.
+Start the tweet with exactly: ${opener}
+Then write a market close recap. Show index performance, then call out the day's winner and laggard from Mag 7.
 Keep it factual and tight.`;
 
   const tweet = await formatWithClaude(prompt);
@@ -656,6 +844,17 @@ export default async function handler(req, res) {
     // Also allow without auth for testing (remove in production)
     if (req.method !== 'GET' && !req.query.type) {
       return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
+  // Auto-engagement: run every 30 min via cron (?type=engagement); no session check
+  if (req.query.type === 'engagement') {
+    try {
+      const result = await runEngagement();
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error('Engagement error:', error);
+      return res.status(500).json({ status: 'error', error: error.message });
     }
   }
 
@@ -723,9 +922,6 @@ export default async function handler(req, res) {
         reason: 'No data available or verification failed',
       });
     }
-
-    if (session === 'premarket') tweet = 'PRE-MARKET UPDATE\n' + tweet;
-    if (session === 'afterhours') tweet = 'AFTER HOURS\n' + tweet;
 
     // Post to X
     const result = await postTweet(tweet);
