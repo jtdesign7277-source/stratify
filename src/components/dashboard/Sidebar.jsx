@@ -25,6 +25,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import { UserAvatar } from './community/CommunityShared';
 import { readCurrentUserAvatar } from './community/communityHelpers';
 
@@ -42,6 +43,12 @@ const Sidebar = ({
   onLogout
 }) => {
   const { user, signOut, isAuthenticated } = useAuth();
+  const handleSignOut = async () => {
+    try { await supabase.auth.signOut() } catch(e) {}
+    localStorage.clear()
+    sessionStorage.clear()
+    window.location.href = "/"
+  };
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const communityAvatar = user ? readCurrentUserAvatar(displayName) : null;
   const profileUser = user
@@ -189,10 +196,7 @@ const Sidebar = ({
           {isAuthenticated && (
             <li>
               <motion.button
-                onClick={async () => {
-                  await signOut();
-                  if (onLogout) onLogout();
-                }}
+                onClick={handleSignOut}
                 whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
                 whileTap={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
                 transition={{ duration: 0.15 }}
