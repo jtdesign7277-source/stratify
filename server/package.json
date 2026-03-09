@@ -10,6 +10,7 @@
     "db:seed": "node src/db/seed.js"
   },
   "dependencies": {
+    "@upstash/redis": "^1.36.3",
     "@alpacahq/alpaca-trade-api": "^3.0.0",
     "@anthropic-ai/sdk": "^0.72.1",
     "@supabase/supabase-js": "^2.95.3",
@@ -17,6 +18,7 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "openai": "^4.28.0",
+    "node-cron": "^3.0.3",
     "pg": "^8.11.5",
     "ws": "^8.14.2",
     "yahoo-finance2": "^3.13.0"

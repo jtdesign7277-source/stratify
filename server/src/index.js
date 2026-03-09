@@ -30,6 +30,8 @@ import {
   getFlowSummary,
   isOptionsStreamConnected,
 } from './services/optionsStream.js';
+import cron from 'node-cron';
+import { runPatternScan } from '../patternEngine.js';
 
 dotenv.config();
 
@@ -580,6 +582,9 @@ setInterval(() => {
     });
   }
 }, 10000);
+
+// Pattern detection engine — every 60s during market hours (gate inside runPatternScan)
+cron.schedule('*/60 * * * * *', runPatternScan);
 
 // Market data endpoints
 app.get('/api/public/quote/:symbol', async (req, res) => {
