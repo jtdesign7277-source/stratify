@@ -431,8 +431,8 @@ export const COMMUNITY_PAGE_STYLES = `
   }
 
   #dashboard-topbar-ticker-tape-widget {
-    min-height: 56px !important;
-    padding-bottom: 16px !important;
+    min-height: 36px !important;
+    padding-bottom: 0 !important;
     overflow: visible !important;
   }
 

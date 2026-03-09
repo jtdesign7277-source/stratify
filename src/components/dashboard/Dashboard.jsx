@@ -607,7 +607,9 @@ const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false 
   const safeRows = tickerRows.length > 0
     ? tickerRows
     : [{ ticker: 'SPY', price: null, changePercent: null }];
-  const duplicatedRows = [...safeRows, ...safeRows];
+  // Repeat enough times so wide viewports never show a gap in the center (no extra tab height)
+  const repeatCount = 6;
+  const duplicatedRows = Array.from({ length: repeatCount }, () => safeRows).flat();
   const scrollDurationSeconds = Math.max(
     TOPBAR_TICKER_TAPE_MIN_SCROLL_SECONDS,
     Math.round(safeRows.length * TOPBAR_TICKER_TAPE_PER_ITEM_SECONDS),
@@ -620,7 +622,7 @@ const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false 
     >
       <style>{`
         @keyframes topbar-ticker-scroll {
-          from { transform: translateX(-50%); }
+          from { transform: translateX(-${100 / repeatCount}%); }
           to { transform: translateX(0); }
         }
         .topbar-ticker-track {
@@ -641,7 +643,7 @@ const TopBarTickerTapeWidget = ({ symbols, quotesBySymbol = {}, loading = false 
           animation-play-state: paused;
         }
       `}</style>
-      <div className="topbar-ticker-track pl-2 pr-2 pt-1">
+      <div className="topbar-ticker-track pl-2 pr-2 py-0.5">
         <div className="topbar-ticker-content">
           {duplicatedRows.map((row, idx) => {
             const hasPct = row.changePercent !== null;
