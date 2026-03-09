@@ -396,6 +396,7 @@ export async function runPatternScan() {
   } catch {}
   const spyChange = spyQuote ? toNum(spyQuote.percent_change) : null;
   const spyDown2 = spyChange != null && spyChange <= -2;
+  const blockLongOnRedDay = (pattern) => ['VWAP RECLAIM', 'BULL FLAG'].includes(pattern);
 
   const candidates = [];
 
@@ -416,7 +417,7 @@ export async function runPatternScan() {
 
     const patterns = detectPatterns(ind);
     for (const hit of patterns) {
-      if (spyDown2 && hit.direction === 'long') continue;
+      if (spyDown2 && hit.direction === 'long' && blockLongOnRedDay(hit.pattern)) continue;
       const signal = computeSignal(ind, hit);
       if (signal.rr < MIN_RR) continue;
       candidates.push({ signal, ind });
