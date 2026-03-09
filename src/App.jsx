@@ -21,6 +21,7 @@ import SportsOddsPage from './pages/SportsOddsPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProModal from './components/dashboard/ProModal';
 import { Radar } from 'lucide-react';
+import { supabase } from './lib/supabaseClient';
 import {
   clearPendingCheckoutSession,
   persistPendingCheckoutSession,
@@ -1278,13 +1279,12 @@ function StratifyAppContent() {
       return;
     }
 
-    console.error('[AuthGate] Redirecting to /auth after session check timeout.');
-    setCurrentPage('auth');
-
-    if (window.location.pathname !== '/auth') {
-      window.history.pushState({ page: 'auth' }, '', '/auth');
+    console.error('[AuthGate] Session check timed out after 5s. Redirecting to landing.');
+    navigateToPage('landing');
+    if (window.location.pathname !== '/' && !window.location.pathname.startsWith('/landing')) {
+      window.history.pushState({ page: 'landing' }, '', '/');
     }
-  }, [authGateTimedOut, isAuthenticated, loading]);
+  }, [authGateTimedOut, isAuthenticated, loading, navigateToPage]);
 
   const startCheckout = useCallback(async () => {
     if (!user?.id || !user?.email) {
@@ -1760,6 +1760,16 @@ function StratifyAppContent() {
     );
   }
 
+  const hardSignOutAndRedirect = useCallback(() => {
+    supabase.auth.signOut().finally(() => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (_) {}
+      window.location.href = '/';
+    });
+  }, []);
+
   if (isCheckingSession) {
     return (
       <div className="soft-glass-theme relative min-h-screen bg-[#0a0a0f]">
@@ -1780,7 +1790,7 @@ function StratifyAppContent() {
               </button>
               <button
                 type="button"
-                onClick={signOutAndExit}
+                onClick={hardSignOutAndRedirect}
                 className="inline-flex items-center justify-center rounded-lg border border-red-400/35 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
               >
                 Sign Out
