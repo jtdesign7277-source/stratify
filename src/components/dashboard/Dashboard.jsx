@@ -2585,7 +2585,7 @@ export default function Dashboard({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="h-full min-h-0 w-full overflow-hidden"
+                className="h-full min-h-0 w-full overflow-y-auto overflow-x-hidden"
               >
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
