@@ -1577,10 +1577,26 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           .filter(Boolean)
           .slice(0, 8);
 
+        const minRadarStocks = 5;
+        const fallbackPool = (Array.isArray(fallbackAiIdeas) ? fallbackAiIdeas : []).filter(
+          (r) => r?.symbol && !heldSet.has(normalizeSymbol(r.symbol))
+        );
+        // If API returned fewer than minRadarStocks, pad with fallback so refresh always shows multiple ideas
+        let paddedRows = mappedRows.slice(0, 8);
+        if (paddedRows.length < minRadarStocks && fallbackPool.length > 0) {
+          const bySymbol = new Map(paddedRows.map((r) => [normalizeSymbol(r?.symbol), r]));
+          for (const r of fallbackPool) {
+            const sym = normalizeSymbol(r?.symbol);
+            if (sym && !bySymbol.has(sym)) bySymbol.set(sym, r);
+            if (bySymbol.size >= 8) break;
+          }
+          paddedRows = [...bySymbol.values()].slice(0, 8);
+        }
+
         let nextRows;
-        if (mappedRows.length >= 8) {
-          nextRows = mappedRows;
-        } else if (heldSymbols.length === 1 && mappedRows.length < 8) {
+        if (paddedRows.length >= 8) {
+          nextRows = paddedRows;
+        } else if (heldSymbols.length === 1 && paddedRows.length < 8) {
           const userSym = normalizeSymbol(heldSymbols[0]);
           const userSnapshot = userSym ? (tickerSnapshots[userSym] || {}) : {};
           const userRow = {
@@ -1589,10 +1605,10 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
             percentChange: Number(userSnapshot?.percentChange) ?? null,
             rationale: 'Your current holding — monitor for momentum and risk management.',
           };
-          const others = mappedRows.length > 0 ? mappedRows : (Array.isArray(fallbackAiIdeas) ? fallbackAiIdeas : []).filter((r) => r?.symbol !== userSym);
+          const others = paddedRows.filter((r) => normalizeSymbol(r?.symbol) !== userSym);
           nextRows = [...others, userRow].slice(0, 8);
         } else {
-          nextRows = mappedRows.length > 0 ? mappedRows : fallbackAiIdeas;
+          nextRows = paddedRows.length > 0 ? paddedRows : fallbackAiIdeas;
         }
 
         if (cancelled) return;

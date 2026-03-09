@@ -434,6 +434,10 @@ function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol
     candidates = seededShuffle(candidates, String(refreshNonce));
   }
 
+  const minIdeas = 5;
+  const maxIdeas = 8;
+  const outSet = new Set();
+
   if (isMomentum) {
     let ranked = candidates
       .map((symbol) => ({
@@ -455,11 +459,23 @@ function chooseRelatedTickers({ isMomentum, tickerMeta, interests, quoteBySymbol
     } else {
       ranked = source;
     }
-    const out = ranked.slice(0, 8).map((entry) => entry.symbol).filter((s) => !trackedSet.has(s));
-    return out;
+    const fromRanked = ranked.slice(0, maxIdeas).map((entry) => entry.symbol).filter((s) => !trackedSet.has(s));
+    fromRanked.forEach((s) => outSet.add(s));
   }
 
-  return candidates.filter((s) => !trackedSet.has(s)).slice(0, 8);
+  // If we have fewer than minIdeas, pad with remaining candidates so radar always shows multiple stocks
+  if (outSet.size < minIdeas) {
+    for (const s of candidates) {
+      if (outSet.has(s) || trackedSet.has(s)) continue;
+      outSet.add(s);
+      if (outSet.size >= maxIdeas) break;
+    }
+  }
+
+  const out = [...outSet].slice(0, maxIdeas);
+  if (out.length > 0) return out;
+
+  return candidates.filter((s) => !trackedSet.has(s)).slice(0, maxIdeas);
 }
 
 function buildSources(articles = []) {
@@ -497,11 +513,15 @@ export default async function handler(req, res) {
   if (!query) return res.status(400).json({ error: 'query is required' });
 
   const redis = getRedisClient();
-  const cacheKey = makeCacheKey(query, refreshNonce);
+  const cacheKeyExact = makeCacheKey(query, refreshNonce);
+  const cacheKeyQueryOnly = makeCacheKey(query, null);
 
   if (redis) {
     try {
-      const cached = await redis.get(cacheKey);
+      let cached = await redis.get(cacheKeyExact);
+      if (!cached && cacheKeyQueryOnly !== cacheKeyExact) {
+        cached = await redis.get(cacheKeyQueryOnly);
+      }
       if (cached) {
         const data = typeof cached === 'string' ? JSON.parse(cached) : cached;
         res.setHeader('X-Cache', 'HIT');
@@ -594,7 +614,11 @@ export default async function handler(req, res) {
 
     if (redis) {
       try {
-        await redis.set(cacheKey, JSON.stringify(data), { ex: CACHE_TTL_SECONDS });
+        const payload = JSON.stringify(data);
+        await redis.set(cacheKeyExact, payload, { ex: CACHE_TTL_SECONDS });
+        if (cacheKeyQueryOnly !== cacheKeyExact) {
+          await redis.set(cacheKeyQueryOnly, payload, { ex: CACHE_TTL_SECONDS });
+        }
       } catch (error) {
         console.error('[community/ai-search] Redis write error:', error);
       }
