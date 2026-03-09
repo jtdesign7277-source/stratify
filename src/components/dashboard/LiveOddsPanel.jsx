@@ -3,8 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Activity } from 'lucide-react';
 
 const ODDS_API = '/api/odds/events';
-const BOOK_KEYS = ['fanduel', 'draftkings', 'betmgm', 'betonline_ag'];
 const DRAFTKINGS_URL = 'https://draftkings.com';
+// Same book resolution as Sports page
+function getBook(bookmakers, preferredKey = 'draftkings') {
+  const books = bookmakers || [];
+  return books.find((b) => b.key === preferredKey) || books.find((b) => b.key === 'draftkings') || books[0];
+}
 const LIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
 const NBA_LOGO_BASE = 'https://cdn.nba.com/logos/nba';
 
@@ -103,6 +107,32 @@ function getMoneylineOutcomes(book) {
   return getMarket(book, 'h2h');
 }
 
+function matchOutcome(outcomes, teamName) {
+  if (!Array.isArray(outcomes) || !teamName) return null;
+  const t = String(teamName).trim().toLowerCase();
+  return (
+    outcomes.find(
+      (o) =>
+        o &&
+        o.name &&
+        (String(o.name).trim().toLowerCase() === t ||
+          String(o.name).trim().toLowerCase().includes(t) ||
+          t.includes(String(o.name).trim().toLowerCase()))
+    ) || null
+  );
+}
+
+function getSpreadOutcomes(book) {
+  return getMarket(book, 'spreads');
+}
+
+function getTotalsOutcomes(book) {
+  const outs = getMarket(book, 'totals');
+  const over = outs.find((o) => o.name && String(o.name).toLowerCase() === 'over');
+  const under = outs.find((o) => o.name && String(o.name).toLowerCase() === 'under');
+  return { over, under, point: over?.point ?? under?.point };
+}
+
 function isToday(iso) {
   if (!iso) return false;
   const d = new Date(iso);
@@ -186,6 +216,7 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
     if (isBottomPanelExpanded) setIsExpanded(true);
   }, [isBottomPanelExpanded]);
 
+  // Same feed as Sports page: same URL, no date filter, live-first sort
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -200,7 +231,13 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
           return;
         }
         const list = Array.isArray(data) ? data : [];
-        setEvents(list.filter((e) => isToday(e.commence_time)));
+        const sorted = [...list].sort((a, b) => {
+          const aLive = isGameLive(a.commence_time) ? 0 : 1;
+          const bLive = isGameLive(b.commence_time) ? 0 : 1;
+          if (aLive !== bLive) return aLive - bLive;
+          return new Date(a.commence_time) - new Date(b.commence_time);
+        });
+        setEvents(sorted);
         setError('');
       })
       .catch((e) => {
@@ -272,11 +309,19 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         <div className="flex-1 min-h-0" style={{ minHeight: 24 }} aria-hidden />
       ) : (
         <>
-      {/* Column header: Moneyline only */}
+      {/* Column headers: Spread, Moneyline, Total */}
       <div className="shrink-0 grid grid-cols-[1fr_auto] gap-2 px-3 pb-1">
         <div />
-        <div className="w-20 text-center">
-          <span className="text-xs text-gray-500">Moneyline</span>
+        <div className="flex gap-1.5 w-[180px]">
+          <div className="flex-1 text-center">
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Spread</span>
+          </div>
+          <div className="flex-1 text-center">
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Moneyline</span>
+          </div>
+          <div className="flex-1 text-center">
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total</span>
+          </div>
         </div>
       </div>
 
@@ -311,15 +356,25 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                   initial="hidden"
                   animate="show"
                 >
-                  {events.map((event, index) => {
-                    const books = (event.bookmakers || []).filter((b) => BOOK_KEYS.includes(b.key));
-                    const dk = books.find((b) => b.key === 'draftkings') || books[0];
+                  {events.map((event) => {
+                    const book = getBook(event.bookmakers, 'draftkings');
                     const homeTeam = event.home_team || 'Home';
                     const awayTeam = event.away_team || 'Away';
                     const timeStr = formatTime(event.commence_time);
-                    const mlOutcomes = dk ? getMoneylineOutcomes(dk) : [];
-                    const awayMl = mlOutcomes.find((o) => o.name === awayTeam || (typeof o.name === 'string' && (o.name.includes(awayTeam) || awayTeam.includes(o.name))));
-                    const homeMl = mlOutcomes.find((o) => o.name === homeTeam || (typeof o.name === 'string' && (o.name.includes(homeTeam) || homeTeam.includes(o.name))));
+                    const live = isGameLive(event.commence_time);
+
+                    const mlOutcomes = book ? getMoneylineOutcomes(book) : [];
+                    const awayMl = matchOutcome(mlOutcomes, awayTeam);
+                    const homeMl = matchOutcome(mlOutcomes, homeTeam);
+
+                    const spreadOutcomes = book ? getSpreadOutcomes(book) : [];
+                    const awaySpread = matchOutcome(spreadOutcomes, awayTeam);
+                    const homeSpread = matchOutcome(spreadOutcomes, homeTeam);
+
+                    const totals = book ? getTotalsOutcomes(book) : { over: null, under: null, point: null };
+
+                    const fmt = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? formatAmerican(v) : '—');
+                    const spreadPt = (o) => (o?.point != null && o.point !== '' ? (Number(o.point) > 0 ? `+${o.point}` : String(o.point)) : null);
 
                     return (
                       <motion.div
@@ -328,25 +383,40 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                         className="py-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
                         onClick={openDraftKings}
                       >
-                        <div className="min-w-0">
-                          <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 min-w-0">
                               <TeamLogo teamName={awayTeam} league={activeLeague} />
                               <span className="text-sm font-medium text-white truncate">{awayTeam}</span>
+                              {live && (
+                                <span className="text-[10px] font-bold text-emerald-400 uppercase flex-shrink-0">Live</span>
+                              )}
                             </div>
-                            {(awayMl?.price != null && Number.isFinite(Number(awayMl.price))) && (
-                              <span className="text-sm font-mono text-emerald-400 flex-shrink-0">{formatAmerican(awayMl.price)}</span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-0.5 pl-9">AT</div>
-                          <div className="flex items-center justify-between gap-2 mt-0.5">
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="text-xs text-gray-500 mt-0.5 pl-9">AT</div>
+                            <div className="flex items-center gap-2 min-w-0 mt-0.5">
                               <TeamLogo teamName={homeTeam} league={activeLeague} />
                               <span className="text-sm font-medium text-white truncate">{homeTeam}</span>
                             </div>
-                            {(homeMl?.price != null && Number.isFinite(Number(homeMl.price))) && (
-                              <span className="text-sm font-mono text-emerald-400 flex-shrink-0">{formatAmerican(homeMl.price)}</span>
-                            )}
+                          </div>
+                          <div className="flex gap-1.5 w-[180px] flex-shrink-0">
+                            <div className="flex-1 flex flex-col gap-0.5 text-center">
+                              <span className="text-[11px] font-medium text-white">{spreadPt(awaySpread) ?? '—'}</span>
+                              <span className="text-[10px] font-mono text-gray-400">{fmt(awaySpread?.price)}</span>
+                              <span className="text-[11px] font-medium text-white mt-0.5">{spreadPt(homeSpread) ?? '—'}</span>
+                              <span className="text-[10px] font-mono text-gray-400">{fmt(homeSpread?.price)}</span>
+                            </div>
+                            <div className="flex-1 flex flex-col gap-0.5 text-center">
+                              <span className="text-[11px] text-white/80">—</span>
+                              <span className="text-[10px] font-mono text-emerald-400">{fmt(awayMl?.price)}</span>
+                              <span className="text-[11px] text-white/80 mt-0.5">—</span>
+                              <span className="text-[10px] font-mono text-emerald-400">{fmt(homeMl?.price)}</span>
+                            </div>
+                            <div className="flex-1 flex flex-col gap-0.5 text-center">
+                              <span className="text-[11px] font-medium text-white">{totals.point != null ? `O ${totals.point}` : '—'}</span>
+                              <span className="text-[10px] font-mono text-gray-400">{fmt(totals.over?.price)}</span>
+                              <span className="text-[11px] font-medium text-white mt-0.5">{totals.point != null ? `U ${totals.point}` : '—'}</span>
+                              <span className="text-[10px] font-mono text-gray-400">{fmt(totals.under?.price)}</span>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 pl-9">

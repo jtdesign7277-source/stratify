@@ -267,8 +267,22 @@ function getBook(bm, key) {
 function getMarket(book, key) {
   return (book?.markets || []).find((m) => m.key === key)?.outcomes || [];
 }
+function matchTeam(outcomes, teamName) {
+  if (!Array.isArray(outcomes) || !teamName) return null;
+  const t = String(teamName).trim().toLowerCase();
+  return (
+    outcomes.find(
+      (o) =>
+        o &&
+        o.name &&
+        (String(o.name).trim().toLowerCase() === t ||
+          String(o.name).trim().toLowerCase().includes(t) ||
+          t.includes(String(o.name).trim().toLowerCase()))
+    ) || null
+  );
+}
 function getSpread(outs, team) {
-  const o = outs.find((x) => x.name === team || (typeof x.name === 'string' && (x.name.includes(team) || team.includes(x.name))));
+  const o = matchTeam(outs, team);
   return o ? { point: o.point, price: o.price } : { point: null, price: null };
 }
 function getTotals(outs) {
@@ -277,7 +291,7 @@ function getTotals(outs) {
   return { over: ov?.price ?? null, under: un?.price ?? null, point: ov?.point ?? un?.point ?? null };
 }
 function getMl(outs, team) {
-  return outs.find((o) => o.name === team || (typeof o.name === 'string' && (o.name.includes(team) || team.includes(o.name))));
+  return matchTeam(outs, team);
 }
 
 const LIVE_MS = 4 * 60 * 60 * 1000;
