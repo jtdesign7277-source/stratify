@@ -9,6 +9,8 @@ import {
   Star,
   Trash2,
   Zap,
+  Terminal,
+  Sparkles,
 } from 'lucide-react';
 import StrategyOutput from './StrategyOutput';
 import SophiaMark from './SophiaMark';
@@ -21,6 +23,66 @@ const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 const USER_STATE_FOLDERS_KEY = 'terminal_strategy_folders';
 const FOLDERS_COLLAPSED_KEY = 'terminal_strategy_folders_collapsed';
 const TERMINAL_STRATEGY_SAVE_EVENT = 'stratify:terminal-strategy-saved';
+
+// ─── Terminal landing (info first, then Build Strategy to enter) ─────
+const TerminalLandingView = ({ onEnter }) => (
+  <div className="h-full min-h-0 w-full bg-[#0a0a0f] text-white flex flex-col overflow-y-auto">
+    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-0 p-6 lg:p-10">
+      {/* Top-left block */}
+      <div className="flex flex-col justify-start">
+        <div className="flex items-center gap-2 mb-4">
+          <Terminal className="h-7 w-7 text-emerald-400" strokeWidth={1.5} />
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Strategy Workspace</h1>
+        </div>
+        <div className="space-y-3 text-base text-white/80 leading-relaxed max-w-xl">
+          <p>
+            Try any strategy, on any asset, on any timeframe—without risking your capital.
+          </p>
+          <p>
+            Experiment with simple or complex trading rules. Use any combination of conditions you can imagine.
+          </p>
+          <p>
+            Build strategies using natural language or point-and-click menus. Optionally add custom logic with JavaScript.
+          </p>
+          <p>
+            Bring the power of hindsight into your corner: optimize with decades of historical data and explore how your strategy behaves in different market conditions. Experiment with trial and error—no risk.
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom-right block */}
+      <div className="flex flex-col justify-end lg:justify-end">
+        <div className="space-y-3 text-base text-white/70 leading-relaxed max-w-xl lg:ml-auto">
+          <p className="text-lg font-medium text-white/90">Create strategies manually or using the AI Strategy Lab</p>
+          <p>
+            Define strategies with menus for entry and exit criteria, or type what you want in plain English and let the AI interpret it. Use the Strategy Lab to generate custom models from your goals and desired outcomes.
+          </p>
+          <p>
+            Customize trade horizon, target result (e.g. 5% over 30 days), and reward/risk. Define inputs or let the system choose. Train, then deploy to your account.
+          </p>
+          <p>
+            Move from discretionary to rules-based, systematic trading. Take emotion and bias out by defining conditions ahead of time. Decide with rules, data, and probabilities—and improve by identifying suboptimal trades.
+          </p>
+          <p>
+            Backtest and refine strategies built around custom indicators. Assess viability with no-go flags and a behavior explorer; track Sharpe, Sortino, and red/green flags. Control reward-to-risk and win probability—see where you can exit sooner or cut losers early.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* Build Strategy CTA */}
+    <div className="shrink-0 border-t border-white/[0.06] bg-[#0b0b0b]/80 px-6 py-4 flex items-center justify-center">
+      <button
+        type="button"
+        onClick={() => onEnter?.()}
+        className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/20 px-6 py-3 text-base font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25 hover:border-emerald-400/50"
+      >
+        <Sparkles className="h-4 w-4" strokeWidth={1.8} />
+        Build Strategy
+      </button>
+    </div>
+  </div>
+);
 
 const DEFAULT_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
@@ -649,6 +711,8 @@ const TerminalStrategyWorkspace = ({
   isSophiaThinking = false,
 }) => {
   const { user } = useAuth();
+  // Show landing first each time Terminal tab is opened; "Build Strategy" hides it until they leave and come back
+  const [showLanding, setShowLanding] = useState(true);
   const [folders, setFolders] = useState(() => loadFoldersFromStorage());
   const [selectedStrategyId, setSelectedStrategyId] = useState(null);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -1294,6 +1358,12 @@ const TerminalStrategyWorkspace = ({
     setDragOverFolderId(null);
   }, [moveStrategyToFolder]);
 
+  if (showLanding) {
+    return (
+      <TerminalLandingView onEnter={() => setShowLanding(false)} />
+    );
+  }
+
   return (
     <div className="h-full min-h-0 w-full bg-transparent flex overflow-hidden">
       <aside className={`${foldersCollapsed ? 'w-10' : 'w-[250px]'} shrink-0 border-r border-[#1f1f1f] bg-[#0b0b0b] flex flex-col transition-all duration-200`}>
@@ -1588,15 +1658,15 @@ const TerminalStrategyWorkspace = ({
           </div>
         ) : (
           <div className="flex-1 min-h-0 bg-[#0b0b0b] flex items-center justify-center px-8">
-            <div className="text-center max-w-lg">
-              <h2 className="text-2xl font-semibold text-white">Select a strategy or ask Sophia to build one</h2>
-              <p className="mt-2 text-sm text-white/55">
+            <div className="text-center max-w-xl">
+              <h2 className="text-3xl font-semibold text-white">Select a strategy or ask Sophia to build one</h2>
+              <p className="mt-3 text-base text-white/55">
                 Choose a strategy from the folder list to review analysis, key trade setups, and activation details.
               </p>
               <button
                 type="button"
                 onClick={() => onOpenBuilder?.()}
-                className="mt-5 rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                className="mt-6 rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-5 py-2.5 text-base font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
               >
                 Build Strategy
               </button>

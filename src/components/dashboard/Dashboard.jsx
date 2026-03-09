@@ -2859,7 +2859,8 @@ export default function Dashboard({
               />
             </div>
           ) : null}
-          <div className={activeTab === 'terminal' ? 'h-full w-full min-h-0 overflow-y-auto' : 'hidden'} aria-hidden={activeTab !== 'terminal'}>
+          {activeTab === 'terminal' && (
+          <div className="h-full w-full min-h-0 overflow-y-auto" aria-hidden={false}>
             <TerminalStrategyWorkspace
               savedStrategies={savedStrategies}
               deployedStrategies={deployedStrategies}
@@ -2872,6 +2873,7 @@ export default function Dashboard({
               isSophiaThinking={isSophiaThinking}
             />
           </div>
+          )}
         </div>
         
         <SophiaPanel 
