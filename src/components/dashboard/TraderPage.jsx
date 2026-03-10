@@ -1927,6 +1927,7 @@ export default function TraderPage({
   const { sentimentMap } = useSentiment(watchlistSymbols);
   const { articles: newsArticles, loading: newsLoading, error: newsError, refetch: refetchNews } = useNews(selectedSymbol, { limit: 15 });
   const [watchlistView, setWatchlistView] = useState('watchlist');
+  const [marketView, setMarketView] = useState('regular');
   const portfolioPositions = useMemo(() => {
     const positions = Array.isArray(paperPortfolio?.positions) ? paperPortfolio.positions : [];
     return positions
@@ -4497,6 +4498,47 @@ export default function TraderPage({
                   )}
                 </div>
 
+                {watchlistView === 'watchlist' && (
+                  <div className="flex gap-2 items-center mb-2 px-1">
+                    <button
+                      type="button"
+                      onClick={() => setMarketView('postmarket')}
+                      className={`text-base rounded-lg px-2 py-1 transition-colors ${
+                        marketView === 'postmarket'
+                          ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 opacity-100'
+                          : 'bg-transparent text-gray-500 hover:text-gray-300 opacity-50 hover:opacity-70 cursor-pointer'
+                      }`}
+                      aria-label="Post-market"
+                    >
+                      🌙
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMarketView('premarket')}
+                      className={`text-base rounded-lg px-2 py-1 transition-colors ${
+                        marketView === 'premarket'
+                          ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 opacity-100'
+                          : 'bg-transparent text-gray-500 hover:text-gray-300 opacity-50 hover:opacity-70 cursor-pointer'
+                      }`}
+                      aria-label="Pre-market"
+                    >
+                      ☀️
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMarketView('regular')}
+                      className={`text-[10px] font-mono font-bold rounded-lg px-2 py-1 transition-colors ${
+                        marketView === 'regular'
+                          ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 opacity-100'
+                          : 'bg-transparent text-gray-500 hover:text-gray-300 opacity-50 hover:opacity-70 cursor-pointer'
+                      }`}
+                      aria-label="Regular session"
+                    >
+                      REG
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide watchlist-scrollable">
                   {watchlistView === 'watchlist' ? (
                     <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
@@ -4613,16 +4655,15 @@ export default function TraderPage({
                                   ? 'Post-market change (% / $)'
                                   : 'Live change (% / $)';
                               const stock = quote;
-                              const isExtended = stock.is_market_open === false
-                                && stock.extended_percent_change !== null
-                                && stock.extended_percent_change !== undefined;
-
-                              const rawPercent = isExtended
-                                ? stock.extended_percent_change
-                                : stock.percent_change;
-
-                              const displayPercent = parseFloat(rawPercent).toFixed(2);
-                              const isPositive = parseFloat(displayPercent) >= 0;
+                              const rawPercent =
+                                marketView === 'regular'
+                                  ? stock?.percent_change ?? stock?.changePercent
+                                  : stock?.extended_percent_change ?? stock?.extendedPercentChange;
+                              const hasPercent = rawPercent !== null && rawPercent !== undefined && Number.isFinite(parseFloat(rawPercent));
+                              const displayPercent = hasPercent ? parseFloat(rawPercent).toFixed(2) : null;
+                              const isPositive = displayPercent != null && parseFloat(displayPercent) >= 0;
+                              const showPremarketIcon = marketView === 'premarket';
+                              const showPostmarketIcon = marketView === 'postmarket';
                               const normalizedSymbol = normalizeSymbol(symbol);
                               const isSelected =
                                 normalizeSymbol(selectedSymbol) === normalizedSymbol
@@ -4712,15 +4753,20 @@ export default function TraderPage({
                                         {Number.isFinite(price) && (
                                           <div className="flex flex-col items-end gap-1">
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                              {isExtended && <span>☀️</span>}
-                                              <span
-                                                style={{
-                                                  color: isPositive ? '#34d399' : '#f87171',
-                                                  fontFamily: 'monospace',
-                                                }}
-                                              >
-                                                {isPositive ? '+' : ''}{displayPercent}%
-                                              </span>
+                                              {showPremarketIcon && <span>☀️</span>}
+                                              {showPostmarketIcon && <span>🌙</span>}
+                                              {displayPercent == null ? (
+                                                <span className="text-gray-500">—</span>
+                                              ) : (
+                                                <span
+                                                  style={{
+                                                    color: isPositive ? '#34d399' : '#f87171',
+                                                    fontFamily: 'monospace',
+                                                  }}
+                                                >
+                                                  {isPositive ? '+' : ''}{displayPercent}%
+                                                </span>
+                                              )}
                                             </div>
                                           </div>
                                         )}
