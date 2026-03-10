@@ -4655,12 +4655,20 @@ export default function TraderPage({
                                   ? 'Post-market change (% / $)'
                                   : 'Live change (% / $)';
                               const stock = quote;
-                              const rawPercent =
-                                marketView === 'regular'
-                                  ? stock?.percent_change ?? stock?.changePercent
-                                  : stock?.extended_percent_change ?? stock?.extendedPercentChange;
-                              const hasPercent = rawPercent !== null && rawPercent !== undefined && Number.isFinite(parseFloat(rawPercent));
-                              const displayPercent = hasPercent ? parseFloat(rawPercent).toFixed(2) : null;
+                              const rawExtended = stock?.extended_percent_change ?? stock?.extendedPercentChange;
+                              const rawRegular = stock?.percent_change ?? stock?.changePercent;
+                              let displayPercent = null;
+                              if (marketView === 'regular') {
+                                displayPercent =
+                                  rawRegular != null && Number.isFinite(parseFloat(rawRegular))
+                                    ? String(parseFloat(rawRegular).toFixed(2))
+                                    : null;
+                              } else {
+                                displayPercent =
+                                  rawExtended != null && Number.isFinite(parseFloat(rawExtended))
+                                    ? String(parseFloat(rawExtended).toFixed(2))
+                                    : null;
+                              }
                               const isPositive = displayPercent != null && parseFloat(displayPercent) >= 0;
                               const showPremarketIcon = marketView === 'premarket';
                               const showPostmarketIcon = marketView === 'postmarket';

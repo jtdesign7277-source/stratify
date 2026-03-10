@@ -90,20 +90,24 @@ export default async function handler(req, res) {
 
     return symbols
       .map((symbol) => {
-        const symbolData = data[symbol];
-        if (!symbolData) return null;
+        const quote = data[symbol];
+        if (!quote) return null;
 
-        // Verify raw extended fields from Twelve Data–derived payload
-        console.log('TD raw:', symbolData.extended_price, symbolData.extended_percent_change);
+        console.log('PREMARKET DEBUG:', {
+          symbol: quote.symbol,
+          extended_price: quote.extended_price,
+          extended_percent_change: quote.extended_percent_change,
+          is_market_open: quote.is_market_open,
+        });
 
         return {
           symbol,
-          price: symbolData.close ?? symbolData.price ?? null,
-          percent_change: symbolData.percent_change ?? symbolData.changePercent ?? null,
-          is_market_open: symbolData.is_market_open,
-          extended_price: symbolData.extended_price ?? null,
-          extended_change: symbolData.extended_change ?? null,
-          extended_percent_change: symbolData.extended_percent_change ?? null,
+          price: quote.close ?? quote.price ?? null,
+          percent_change: quote.percent_change ?? quote.changePercent ?? null,
+          extended_price: quote.extended_price || null,
+          extended_change: quote.extended_change || null,
+          extended_percent_change: quote.extended_percent_change || null,
+          is_market_open: quote.is_market_open || false,
         };
       })
       .filter(Boolean);
