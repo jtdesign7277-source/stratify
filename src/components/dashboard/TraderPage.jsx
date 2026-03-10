@@ -2610,6 +2610,13 @@ export default function TraderPage({
             price,
             change,
             changePercent,
+            percent_change: toNumber(
+              row?.percent_change
+              ?? row?.changePercent
+              ?? raw?.percent_change
+              ?? raw?.changePercent
+              ?? changePercent
+            ),
             preMarketPrice: derivedPreMarketPrice,
             preMarketChange: derivedPreMarketChange,
             preMarketChangePercent: derivedPreMarketChangePercent,
@@ -2622,6 +2629,9 @@ export default function TraderPage({
             extendedPercentChange: derivedExtendedChangePercent,
             isExtendedHours: derivedIsExtendedHours,
             previousClose: Number.isFinite(previousClose) ? previousClose : null,
+            is_market_open: row?.is_market_open
+              ?? raw?.is_market_open
+              ?? parseMarketOpen(row?.isMarketOpen ?? raw?.is_market_open),
             isMarketOpen: parseMarketOpen(row?.isMarketOpen ?? raw?.is_market_open),
             timestamp: row?.tradeTimestamp || row?.timestamp || raw?.timestamp || raw?.datetime || Date.now(),
             name: String(row?.name || raw?.name || raw?.instrument_name || raw?.display_name || '').trim() || undefined,
@@ -4603,12 +4613,16 @@ export default function TraderPage({
                                   ? 'Post-market change (% / $)'
                                   : 'Live change (% / $)';
                               const stock = quote;
-                              const isExtended = !(stock?.is_market_open ?? stock?.isMarketOpen) && (stock?.extended_percent_change != null || stock?.extendedPercentChange != null);
-                              const displayPercent = isExtended
-                                ? (parseFloat(stock?.extended_percent_change ?? stock?.extendedPercentChange) || 0).toFixed(2)
-                                : (parseFloat(stock?.percent_change ?? stock?.changePercent) || 0).toFixed(2);
+                              const isExtended = stock.is_market_open === false
+                                && stock.extended_percent_change !== null
+                                && stock.extended_percent_change !== undefined;
+
+                              const rawPercent = isExtended
+                                ? stock.extended_percent_change
+                                : stock.percent_change;
+
+                              const displayPercent = parseFloat(rawPercent).toFixed(2);
                               const isPositive = parseFloat(displayPercent) >= 0;
-                              const percentColor = isPositive ? 'text-emerald-400' : 'text-red-400';
                               const normalizedSymbol = normalizeSymbol(symbol);
                               const isSelected =
                                 normalizeSymbol(selectedSymbol) === normalizedSymbol
@@ -4697,9 +4711,14 @@ export default function TraderPage({
                                         </div>
                                         {Number.isFinite(price) && (
                                           <div className="flex flex-col items-end gap-1">
-                                            <div className="flex items-center gap-1">
-                                              {isExtended && <span className="text-sm">☀️</span>}
-                                              <span className={`${percentColor} font-mono text-sm`}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                              {isExtended && <span>☀️</span>}
+                                              <span
+                                                style={{
+                                                  color: isPositive ? '#34d399' : '#f87171',
+                                                  fontFamily: 'monospace',
+                                                }}
+                                              >
                                                 {isPositive ? '+' : ''}{displayPercent}%
                                               </span>
                                             </div>

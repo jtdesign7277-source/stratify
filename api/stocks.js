@@ -80,6 +80,35 @@ export default async function handler(req, res) {
     is_market_open: bar.is_market_open ?? (bar.marketSession === 'regular'),
   }));
 
+  const buildApiRows = () => {
+    const bars = ensureQuoteFields(getCombinedBars());
+    const data = {};
+
+    bars.forEach((bar) => {
+      data[bar.symbol] = bar;
+    });
+
+    return symbols
+      .map((symbol) => {
+        const symbolData = data[symbol];
+        if (!symbolData) return null;
+
+        // Verify raw extended fields from Twelve Data–derived payload
+        console.log('TD raw:', symbolData.extended_price, symbolData.extended_percent_change);
+
+        return {
+          symbol,
+          price: symbolData.close ?? symbolData.price ?? null,
+          percent_change: symbolData.percent_change ?? symbolData.changePercent ?? null,
+          is_market_open: symbolData.is_market_open,
+          extended_price: symbolData.extended_price ?? null,
+          extended_change: symbolData.extended_change ?? null,
+          extended_percent_change: symbolData.extended_percent_change ?? null,
+        };
+      })
+      .filter(Boolean);
+  };
+
   const fetchDirectBarsWithoutRedis = async (reason, targetSymbols = symbols) => {
     try {
       const snapshots = await fetchSnapshotsFromTwelveData(targetSymbols, credentials);
@@ -157,7 +186,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json(ensureQuoteFields(getCombinedBars()));
+    return res.status(200).json(buildApiRows());
   } catch (error) {
     console.error('[stocks] Unexpected handler error. Returning fail-open response instead of 500.', {
       message: error?.message,
@@ -169,6 +198,6 @@ export default async function handler(req, res) {
 
     const fallbackBars = await fetchDirectBarsWithoutRedis('unexpected-handler-error', symbols);
     mergeFetchedBars(fallbackBars);
-    return res.status(200).json(ensureQuoteFields(getCombinedBars()));
+    return res.status(200).json(buildApiRows());
   }
 }
