@@ -84,10 +84,45 @@ const BOOKS = [
 ];
 
 // Vercel env: VITE_DRAFTKINGS_AFFILIATE_TAG, VITE_FANDUEL_AFFILIATE_TAG, VITE_BETMGM_AFFILIATE_TAG
-function getAffiliateUrl(bookKey) {
-  if (bookKey === 'draftkings') return `https://sportsbook.draftkings.com/?wpcid=${import.meta.env.VITE_DRAFTKINGS_AFFILIATE_TAG || 'stratify'}`;
-  if (bookKey === 'fanduel') return `https://www.fanduel.com/sportsbook?pid=${import.meta.env.VITE_FANDUEL_AFFILIATE_TAG || 'stratify'}`;
-  if (bookKey === 'betmgm') return `https://sports.betmgm.com/en/sports?rtag=${import.meta.env.VITE_BETMGM_AFFILIATE_TAG || 'stratify'}`;
+// sportKey e.g. basketball_nba, americanfootball_nfl, baseball_mlb, ice_hockey_nhl — used for sport-specific deep links
+function getAffiliateUrl(bookKey, sportKey) {
+  const tag = (key, fallback = 'stratify') => import.meta.env[key] || fallback;
+  const dk = tag('VITE_DRAFTKINGS_AFFILIATE_TAG');
+  const fd = tag('VITE_FANDUEL_AFFILIATE_TAG');
+  const bm = tag('VITE_BETMGM_AFFILIATE_TAG');
+
+  const league =
+    sportKey === 'basketball_nba'
+      ? 'NBA'
+      : sportKey === 'americanfootball_nfl'
+        ? 'NFL'
+        : sportKey === 'baseball_mlb'
+          ? 'MLB'
+          : sportKey === 'ice_hockey_nhl'
+            ? 'NHL'
+            : null;
+
+  if (bookKey === 'draftkings') {
+    if (league === 'NBA') return `https://sportsbook.draftkings.com/leagues/basketball/nba?wpcid=${dk}`;
+    if (league === 'NFL') return `https://sportsbook.draftkings.com/leagues/football/nfl?wpcid=${dk}`;
+    if (league === 'MLB') return `https://sportsbook.draftkings.com/leagues/baseball/mlb?wpcid=${dk}`;
+    if (league === 'NHL') return `https://sportsbook.draftkings.com/leagues/hockey/nhl?wpcid=${dk}`;
+    return `https://sportsbook.draftkings.com/?wpcid=${dk}`;
+  }
+  if (bookKey === 'fanduel') {
+    if (league === 'NBA') return `https://sportsbook.fanduel.com/basketball/nba?pid=${fd}`;
+    if (league === 'NFL') return `https://sportsbook.fanduel.com/football/nfl?pid=${fd}`;
+    if (league === 'MLB') return `https://sportsbook.fanduel.com/baseball/mlb?pid=${fd}`;
+    if (league === 'NHL') return `https://sportsbook.fanduel.com/hockey/nhl?pid=${fd}`;
+    return `https://sportsbook.fanduel.com/?pid=${fd}`;
+  }
+  if (bookKey === 'betmgm') {
+    if (league === 'NBA') return `https://sports.betmgm.com/en/sports/basketball-7/betting/usa?rtag=${bm}`;
+    if (league === 'NFL') return `https://sports.betmgm.com/en/sports/football-11/betting/usa?rtag=${bm}`;
+    if (league === 'MLB') return `https://sports.betmgm.com/en/sports/baseball-23/betting/usa?rtag=${bm}`;
+    if (league === 'NHL') return `https://sports.betmgm.com/en/sports/ice-hockey-41/betting/usa?rtag=${bm}`;
+    return `https://sports.betmgm.com/en/sports?rtag=${bm}`;
+  }
   return '#';
 }
 
@@ -342,7 +377,8 @@ function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movin
   const hasBot = bottomLabel != null && bottomLabel !== '' && bottomLabel !== '—';
   const handleClick = () => {
     if (bookKey) {
-      window.open(getAffiliateUrl(bookKey), '_blank');
+      const sportKey = betPayload?.sport ?? betPayload?.league;
+      window.open(getAffiliateUrl(bookKey, sportKey), '_blank');
       if (onAddBetToSlip && betPayload) {
         const bookLabelName = bookLabel || BOOKS.find((b) => b.key === bookKey)?.label || bookKey;
         onAddBetToSlip({
@@ -1179,7 +1215,7 @@ export default function SportsOddsPage() {
             ))}
           </div>
           <motion.a
-            href={activeBook.deepLink}
+            href={getAffiliateUrl(activeBook.key, activeSportKey)}
             target="_blank"
             rel="noopener noreferrer"
             whileHover={{ scale: 1.02, y: -1 }}
@@ -1330,7 +1366,7 @@ export default function SportsOddsPage() {
               {BOOKS.map((book, i) => (
                 <motion.a
                   key={book.key}
-                  href={book.deepLink}
+                  href={getAffiliateUrl(book.key, activeSportKey)}
                   target="_blank"
                   rel="noopener noreferrer"
                   initial={{ opacity: 0, y: 4 }}
