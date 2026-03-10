@@ -12,6 +12,7 @@ import {
   ArrowDownRight,
   Minus,
   ChevronDown,
+  Clipboard,
 } from 'lucide-react';
 import SportsBankroll from '../components/dashboard/SportsBankroll';
 import PaperBettingSlip from '../components/dashboard/PaperBettingSlip';
@@ -1069,9 +1070,11 @@ export default function SportsOddsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [slip, setSlip] = useState([]);
+  const [slipOpen, setSlipOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const activeSportKey = API_SPORTS.has(activeNavKey) ? activeNavKey : 'basketball_nba';
   const addBetToSlip = useCallback((payload) => {
+    setSlipOpen(true);
     setSlip((prev) => [
       ...prev,
       {
@@ -1393,15 +1396,39 @@ export default function SportsOddsPage() {
         </div>
       </div>
 
-      <div className="sticky top-0 h-screen w-[300px] flex-shrink-0 overflow-y-auto border-l border-white/[0.06] pl-4">
-        <PaperBettingSlip
-          bets={slip}
-          onRemove={handleSlipRemove}
-          onStakeChange={handleSlipStakeChange}
-          onClear={handleSlipClear}
-          onPlace={handlePlaceBets}
-        />
-      </div>
+      <motion.div
+        className="sticky top-0 h-screen flex-shrink-0 overflow-hidden"
+        animate={{ width: slipOpen ? 300 : 40 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      >
+        {slipOpen ? (
+          <div className="h-full w-[300px] border-l border-white/[0.06] pl-4 overflow-y-auto">
+            <PaperBettingSlip
+              bets={slip}
+              onRemove={handleSlipRemove}
+              onStakeChange={handleSlipStakeChange}
+              onClear={handleSlipClear}
+              onPlace={handlePlaceBets}
+              onCollapse={() => setSlipOpen(false)}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSlipOpen(true)}
+            className="flex h-full w-10 flex-col items-center justify-start gap-3 bg-gradient-to-b from-white/[0.04] to-transparent border-l border-t border-b border-white/[0.06] rounded-l-2xl pt-6 cursor-pointer hover:from-white/[0.06] hover:to-white/[0.02] transition-colors"
+            aria-label="Open paper slip"
+          >
+            <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-gray-400" strokeWidth={2} />
+            <Clipboard className="h-4 w-4 shrink-0 text-gray-400" strokeWidth={1.5} />
+            {slip.length > 0 && (
+              <span className="rotate-90 font-mono text-xs text-emerald-400 origin-center whitespace-nowrap">
+                {slip.length}
+              </span>
+            )}
+          </button>
+        )}
+      </motion.div>
       {toast && (
         <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-emerald-500/90 px-4 py-2 text-sm font-medium text-black shadow-lg">
           {toast}

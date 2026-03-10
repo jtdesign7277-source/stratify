@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 30 };
@@ -10,7 +10,7 @@ function calcPayout(stake, odds) {
   return stake * (100 / Math.abs(odds) + 1);
 }
 
-export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClear, onPlace }) {
+export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClear, onPlace, onCollapse }) {
   const [parlay, setParlay] = useState(false);
   const [bankroll, setBankroll] = useState(null);
 
@@ -52,8 +52,20 @@ export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClea
     <div className="flex h-full flex-col overflow-y-auto rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#0a0a0f] py-3 px-4">
         <span className="text-sm font-semibold text-white">📋 Paper Slip</span>
-        <span className="text-sm text-emerald-400">{bets.length}</span>
-        <span className="font-mono text-xs text-emerald-400">{bankrollDisplay}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-emerald-400">{bets.length}</span>
+          <span className="font-mono text-xs text-emerald-400">{bankrollDisplay}</span>
+          {onCollapse && (
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+              aria-label="Collapse slip"
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={2} />
+            </button>
+          )}
+        </div>
       </div>
 
       {bets.length === 0 ? (
