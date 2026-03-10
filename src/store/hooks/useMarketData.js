@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
+const API_BASE = '';
 const WS_URL = 'wss://stratify-backend-production-3ebd.up.railway.app';
 
 const INITIAL_RECONNECT_DELAY = 1000;
