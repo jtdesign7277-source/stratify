@@ -80,39 +80,6 @@ export default async function handler(req, res) {
     is_market_open: bar.is_market_open ?? (bar.marketSession === 'regular'),
   }));
 
-  const buildApiRows = () => {
-    const bars = ensureQuoteFields(getCombinedBars());
-    const data = {};
-
-    bars.forEach((bar) => {
-      data[bar.symbol] = bar;
-    });
-
-    return symbols
-      .map((symbol) => {
-        const quote = data[symbol];
-        if (!quote) return null;
-
-        console.log('PREMARKET DEBUG:', {
-          symbol: quote.symbol,
-          extended_price: quote.extended_price,
-          extended_percent_change: quote.extended_percent_change,
-          is_market_open: quote.is_market_open,
-        });
-
-        return {
-          symbol,
-          price: quote.close ?? quote.price ?? null,
-          percent_change: quote.percent_change ?? quote.changePercent ?? null,
-          extended_price: quote.extended_price || null,
-          extended_change: quote.extended_change || null,
-          extended_percent_change: quote.extended_percent_change || null,
-          is_market_open: quote.is_market_open || false,
-        };
-      })
-      .filter(Boolean);
-  };
-
   const fetchDirectBarsWithoutRedis = async (reason, targetSymbols = symbols) => {
     try {
       const snapshots = await fetchSnapshotsFromTwelveData(targetSymbols, credentials);
@@ -190,7 +157,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json(buildApiRows());
+    return res.status(200).json(ensureQuoteFields(getCombinedBars()));
   } catch (error) {
     console.error('[stocks] Unexpected handler error. Returning fail-open response instead of 500.', {
       message: error?.message,
@@ -202,6 +169,6 @@ export default async function handler(req, res) {
 
     const fallbackBars = await fetchDirectBarsWithoutRedis('unexpected-handler-error', symbols);
     mergeFetchedBars(fallbackBars);
-    return res.status(200).json(buildApiRows());
+    return res.status(200).json(ensureQuoteFields(getCombinedBars()));
   }
 }

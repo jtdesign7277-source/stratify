@@ -541,23 +541,9 @@ const buildSearchResults = (entries, query) => {
 
 const toNumber = (value) => {
   if (value === null || value === undefined) return null;
-  if (typeof value === 'object') return null;
   if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-};
-
-/** Prevents React Error #300: never render raw objects in JSX. Coerce to string or safe placeholder. */
-const safeRender = (val) => {
-  if (val === null || val === undefined) return '—';
-  if (typeof val === 'object') return JSON.stringify(val);
-  if (typeof val === 'number' && !Number.isFinite(val)) return '—';
-  return String(val);
-};
-const safeNum = (val) => {
-  if (val === null || val === undefined || typeof val === 'object') return '—';
-  const n = parseFloat(val);
-  return Number.isFinite(n) ? String(Number(n).toFixed(2)) : '—';
 };
 
 const toPaperSymbolKey = (value = '') =>
@@ -1941,7 +1927,6 @@ export default function TraderPage({
   const { sentimentMap } = useSentiment(watchlistSymbols);
   const { articles: newsArticles, loading: newsLoading, error: newsError, refetch: refetchNews } = useNews(selectedSymbol, { limit: 15 });
   const [watchlistView, setWatchlistView] = useState('watchlist');
-  const [marketView, setMarketView] = useState('regular');
   const portfolioPositions = useMemo(() => {
     const positions = Array.isArray(paperPortfolio?.positions) ? paperPortfolio.positions : [];
     return positions
@@ -2625,13 +2610,6 @@ export default function TraderPage({
             price,
             change,
             changePercent,
-            percent_change: toNumber(
-              row?.percent_change
-              ?? row?.changePercent
-              ?? raw?.percent_change
-              ?? raw?.changePercent
-              ?? changePercent
-            ),
             preMarketPrice: derivedPreMarketPrice,
             preMarketChange: derivedPreMarketChange,
             preMarketChangePercent: derivedPreMarketChangePercent,
@@ -2644,9 +2622,6 @@ export default function TraderPage({
             extendedPercentChange: derivedExtendedChangePercent,
             isExtendedHours: derivedIsExtendedHours,
             previousClose: Number.isFinite(previousClose) ? previousClose : null,
-            is_market_open: row?.is_market_open
-              ?? raw?.is_market_open
-              ?? parseMarketOpen(row?.isMarketOpen ?? raw?.is_market_open),
             isMarketOpen: parseMarketOpen(row?.isMarketOpen ?? raw?.is_market_open),
             timestamp: row?.tradeTimestamp || row?.timestamp || raw?.timestamp || raw?.datetime || Date.now(),
             name: String(row?.name || raw?.name || raw?.instrument_name || raw?.display_name || '').trim() || undefined,
@@ -4156,7 +4131,6 @@ export default function TraderPage({
   const isMediumArticleDrawerLayout = Boolean(drawerArticle && isNewsOpen && !isArticleDrawerExtendedToChartTop);
 
   return (
-    <ErrorBoundary>
     <motion.div
       {...PAGE_TRANSITION}
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-[#e5e7eb]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a' }}
@@ -4268,7 +4242,7 @@ export default function TraderPage({
           <div>
             <div className="flex items-center justify-end gap-1.5">
               <div className={`text-xl font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
-                {safeRender(Number.isFinite(toNumber(selectedQuote?.price)) ? formatPrice(selectedQuote?.price) : '--')}
+                {formatPrice(selectedQuote?.price)}
               </div>
               {selectedPriceLoading && (
                 <span className="h-2 w-2 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
@@ -4283,7 +4257,7 @@ export default function TraderPage({
                   : 'text-[#6b7280]'
               }`}
             >
-              <span>{safeRender(formatSignedPercent(selectedQuote?.changePercent))}</span>
+              <span>{formatSignedPercent(selectedQuote?.changePercent)}</span>
               {selectedDayLoading && (
                 <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
               )}
@@ -4450,7 +4424,7 @@ export default function TraderPage({
                                   </span>
                                   <div className="ml-2 flex shrink-0 items-center gap-2">
                                     {Number.isFinite(livePrice) && (
-                                      <span className="text-[11px] font-mono text-white/85">{safeRender(Number.isFinite(toNumber(livePrice)) ? formatPrice(livePrice) : '--')}</span>
+                                      <span className="text-[11px] font-mono text-white/85">{formatPrice(livePrice)}</span>
                                     )}
                                     {Number.isFinite(liveChangePercent) && (
                                       <span
@@ -4458,7 +4432,7 @@ export default function TraderPage({
                                           liveChangePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
                                         }`}
                                       >
-                                        {safeRender(formatSignedPercent(liveChangePercent))}
+                                        {formatSignedPercent(liveChangePercent)}
                                       </span>
                                     )}
                                     <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
@@ -4513,47 +4487,6 @@ export default function TraderPage({
                   )}
                 </div>
 
-                {watchlistView === 'watchlist' && (
-                  <div className="flex gap-2 items-center mb-2 px-1">
-                    <button
-                      type="button"
-                      onClick={() => setMarketView('postmarket')}
-                      className={`text-base rounded-lg px-2 py-1 transition-colors ${
-                        marketView === 'postmarket'
-                          ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 opacity-100'
-                          : 'bg-transparent text-gray-500 hover:text-gray-300 opacity-50 hover:opacity-70 cursor-pointer'
-                      }`}
-                      aria-label="Post-market"
-                    >
-                      🌙
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMarketView('premarket')}
-                      className={`text-base rounded-lg px-2 py-1 transition-colors ${
-                        marketView === 'premarket'
-                          ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 opacity-100'
-                          : 'bg-transparent text-gray-500 hover:text-gray-300 opacity-50 hover:opacity-70 cursor-pointer'
-                      }`}
-                      aria-label="Pre-market"
-                    >
-                      ☀️
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMarketView('regular')}
-                      className={`text-[10px] font-mono font-bold rounded-lg px-2 py-1 transition-colors ${
-                        marketView === 'regular'
-                          ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 opacity-100'
-                          : 'bg-transparent text-gray-500 hover:text-gray-300 opacity-50 hover:opacity-70 cursor-pointer'
-                      }`}
-                      aria-label="Regular session"
-                    >
-                      REG
-                    </button>
-                  </div>
-                )}
-
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide watchlist-scrollable">
                   {watchlistView === 'watchlist' ? (
                     <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
@@ -4592,12 +4525,12 @@ export default function TraderPage({
                                 </div>
                                 <div className="text-right flex-shrink-0">
                                   <div className="text-[12px] font-mono font-semibold text-white">
-                                    {safeRender(Number.isFinite(price) ? formatPrice(price) : '--')}
+                                    {Number.isFinite(price) ? formatPrice(price) : '--'}
                                   </div>
                                   <div className={`text-xs font-semibold ${changeClass}`}>
-                                    {safeRender(Number.isFinite(changePercent)
+                                    {Number.isFinite(changePercent)
                                       ? (changePercent >= 0 ? '+' : '') + formatPercent(changePercent, 2)
-                                      : '--')}
+                                      : '--'}
                                   </div>
                                 </div>
                               </div>
@@ -4670,23 +4603,12 @@ export default function TraderPage({
                                   ? 'Post-market change (% / $)'
                                   : 'Live change (% / $)';
                               const stock = quote;
-                              const rawExtended = stock?.extended_percent_change ?? stock?.extendedPercentChange;
-                              const rawRegular = stock?.percent_change ?? stock?.changePercent;
-                              let displayPercent = null;
-                              if (marketView === 'regular') {
-                                displayPercent =
-                                  rawRegular != null && Number.isFinite(parseFloat(rawRegular))
-                                    ? String(parseFloat(rawRegular).toFixed(2))
-                                    : null;
-                              } else {
-                                displayPercent =
-                                  rawExtended != null && Number.isFinite(parseFloat(rawExtended))
-                                    ? String(parseFloat(rawExtended).toFixed(2))
-                                    : null;
-                              }
-                              const isPositive = displayPercent != null && parseFloat(displayPercent) >= 0;
-                              const showPremarketIcon = marketView === 'premarket';
-                              const showPostmarketIcon = marketView === 'postmarket';
+                              const isExtended = !(stock?.is_market_open ?? stock?.isMarketOpen) && (stock?.extended_percent_change != null || stock?.extendedPercentChange != null);
+                              const displayPercent = isExtended
+                                ? (parseFloat(stock?.extended_percent_change ?? stock?.extendedPercentChange) || 0).toFixed(2)
+                                : (parseFloat(stock?.percent_change ?? stock?.changePercent) || 0).toFixed(2);
+                              const isPositive = parseFloat(displayPercent) >= 0;
+                              const percentColor = isPositive ? 'text-emerald-400' : 'text-red-400';
                               const normalizedSymbol = normalizeSymbol(symbol);
                               const isSelected =
                                 normalizeSymbol(selectedSymbol) === normalizedSymbol
@@ -4767,7 +4689,7 @@ export default function TraderPage({
                                             price={price}
                                             className={`text-[12px] font-mono font-semibold ${isPlaceholder ? 'text-white/80' : 'text-white'}`}
                                           >
-                                            {safeRender(Number.isFinite(price) ? formatPrice(price) : '--')}
+                                            {Number.isFinite(price) ? formatPrice(price) : '--'}
                                           </PriceFlash>
                                           {isPriceLoading && (
                                             <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
@@ -4775,21 +4697,11 @@ export default function TraderPage({
                                         </div>
                                         {Number.isFinite(price) && (
                                           <div className="flex flex-col items-end gap-1">
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                              {showPremarketIcon && <span>☀️</span>}
-                                              {showPostmarketIcon && <span>🌙</span>}
-                                              {displayPercent == null ? (
-                                                <span className="text-gray-500">—</span>
-                                              ) : (
-                                                <span
-                                                  style={{
-                                                    color: isPositive ? '#34d399' : '#f87171',
-                                                    fontFamily: 'monospace',
-                                                  }}
-                                                >
-                                                  {isPositive ? '+' : ''}{safeRender(displayPercent)}%
-                                                </span>
-                                              )}
+                                            <div className="flex items-center gap-1">
+                                              {isExtended && <span className="text-sm">☀️</span>}
+                                              <span className={`${percentColor} font-mono text-sm`}>
+                                                {isPositive ? '+' : ''}{displayPercent}%
+                                              </span>
                                             </div>
                                           </div>
                                         )}
@@ -4937,13 +4849,13 @@ export default function TraderPage({
                         </div>
                         <div className="mt-0.5 flex items-center justify-center gap-1">
                           <PriceFlash
-                            price={Number.isFinite(changePercent) ? changePercent : 0}
+                            price={changePercent}
                             className={`text-[10px] font-mono font-semibold ${
                               isPositive ? 'text-emerald-400' : 'text-red-400'
                             }`}
                           >
                             {isPositive ? '+' : ''}
-                            {safeNum(changePercent)}%
+                            {changePercent.toFixed(1)}%
                           </PriceFlash>
                           {isDayLoading && (
                             <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating day change" />
@@ -5655,8 +5567,8 @@ export default function TraderPage({
                     tradingMode={resolvedTradingMode}
                     canUseLiveTrading={resolvedCanUseLiveTrading}
                     quotesBySymbol={quotesBySymbol}
-                    totalGainLossDollar={toNumber(paperTotalGainLoss?.dollar) ?? undefined}
-                    totalGainLossPercent={toNumber(paperTotalGainLoss?.percent) ?? undefined}
+                    totalGainLossDollar={paperTotalGainLoss?.dollar}
+                    totalGainLossPercent={paperTotalGainLoss?.percent}
                     onSymbolChange={(symbolInput) => {
                       const normalized = normalizeSymbol(symbolInput);
                       if (!normalized) return;
@@ -5676,6 +5588,5 @@ export default function TraderPage({
         </section>
       </motion.div>
     </motion.div>
-    </ErrorBoundary>
   );
 }
