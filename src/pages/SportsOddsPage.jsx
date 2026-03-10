@@ -392,6 +392,7 @@ function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movin
         game_id: betPayload.game_id,
         home_team: betPayload.home_team,
         away_team: betPayload.away_team,
+        stake: 100,
       });
     }
     onToggle?.();
@@ -1080,7 +1081,6 @@ export default function SportsOddsPage() {
   const [slip, setSlip] = useState([]);
   const [slipOpen, setSlipOpen] = useState(false);
   const [confirmBet, setConfirmBet] = useState(null);
-  const [confirmBetStake, setConfirmBetStake] = useState(100);
   const [toast, setToast] = useState(null);
   const activeSportKey = API_SPORTS.has(activeNavKey) ? activeNavKey : 'basketball_nba';
   const addBetToSlip = useCallback((payload) => {
@@ -1111,8 +1111,7 @@ export default function SportsOddsPage() {
   const handleSlipRemove = useCallback((id) => setSlip((prev) => prev.filter((b) => b.id !== id)), []);
   const handleSlipClear = useCallback(() => setSlip([]), []);
   const handleConfirmBet = useCallback((bet) => {
-    setConfirmBet(bet);
-    setConfirmBetStake(100);
+    setConfirmBet({ ...bet, stake: bet.stake ?? 100 });
   }, []);
 
   const handlePlaceBets = useCallback(async () => {
@@ -1449,27 +1448,29 @@ export default function SportsOddsPage() {
       <AnimatePresence>
         {confirmBet && (
           <>
-            <motion.button
-              type="button"
+            <motion.div
+              role="button"
+              tabIndex={0}
               aria-label="Close"
-              className="fixed inset-0 z-40 bg-black/40"
+              className="fixed inset-0 z-40 bg-black/50 cursor-default"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setConfirmBet(null)}
+              onKeyDown={(e) => e.key === 'Escape' && setConfirmBet(null)}
             />
             <motion.div
               key="confirm-drawer"
-              className="fixed bottom-0 left-0 right-0 z-50 px-6 py-5 max-w-2xl mx-auto bg-[#0f0f14] border-t border-white/[0.08] backdrop-blur-xl"
+              className="fixed bottom-0 left-0 right-0 z-50"
               initial={{ y: '100%', opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: '100%', opacity: 0 }}
               transition={{ type: 'spring', stiffness: 400, damping: 35 }}
             >
-              <div className="flex flex-col gap-4">
+              <div className="max-w-lg mx-auto rounded-t-2xl px-6 py-5 bg-[#0f0f14] border-t border-white/[0.08]">
                 <div className="flex items-center justify-between">
-                  <span className="text-white font-semibold text-base">{confirmBet.team}</span>
+                  <span className="text-white font-semibold">{confirmBet.team}</span>
                   <button
                     type="button"
                     onClick={() => setConfirmBet(null)}
@@ -1479,31 +1480,30 @@ export default function SportsOddsPage() {
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-                <div>
-                  <p className="text-gray-400 font-mono text-sm">
-                    {confirmBet.betType} · {confirmBet.line || '—'} · {confirmBet.odds > 0 ? `+${confirmBet.odds}` : confirmBet.odds}
-                  </p>
-                  <p className="text-gray-500 text-xs mt-0.5">{confirmBet.book}</p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-gray-400 text-sm">Stake:</span>
-                  <span className="text-white font-mono text-sm">$</span>
+                <p className="text-gray-400 font-mono text-sm">
+                  {confirmBet.betType} · {confirmBet.line || '—'} · {confirmBet.odds > 0 ? `+${confirmBet.odds}` : confirmBet.odds}
+                </p>
+                <p className="text-gray-500 text-xs">{confirmBet.book}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-sm">Stake $</span>
                   <input
                     type="number"
                     min={1}
-                    value={confirmBetStake}
-                    onChange={(e) => setConfirmBetStake(Math.max(1, Number(e.target.value) || 0))}
-                    className="w-20 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-1 font-mono text-sm text-white"
+                    value={confirmBet.stake ?? 100}
+                    onChange={(e) => setConfirmBet((prev) => prev ? { ...prev, stake: Math.max(1, Number(e.target.value) || 0) } : null)}
+                    className="w-32 rounded-lg border border-white/[0.08] bg-black/40 px-3 py-2 text-white font-mono text-sm"
                   />
-                  <span className="text-gray-400 text-sm ml-2">Payout:</span>
-                  <span className="text-emerald-400 font-mono text-sm">
-                    ${calcPayout(confirmBetStake, confirmBet.odds).toFixed(2)}
-                  </span>
                 </div>
+                <p className="text-emerald-400 font-mono text-sm">
+                  Potential payout: ${(confirmBet.odds > 0
+                    ? (confirmBet.stake ?? 100) * (confirmBet.odds / 100 + 1)
+                    : (confirmBet.stake ?? 100) * (100 / Math.abs(confirmBet.odds) + 1)).toFixed(2)}
+                </p>
                 <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => {
+                      const stake = confirmBet.stake ?? 100;
                       addBetToSlip({
                         selection: confirmBet.team,
                         bet_type: confirmBet.betType,
@@ -1515,12 +1515,12 @@ export default function SportsOddsPage() {
                         home_team: confirmBet.home_team,
                         away_team: confirmBet.away_team,
                         game_id: confirmBet.game_id,
-                        stake: confirmBetStake,
+                        stake,
                       });
                       setSlipOpen(true);
                       setConfirmBet(null);
                     }}
-                    className="flex-1 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-sm font-medium transition-colors"
+                    className="flex-1 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white text-sm font-medium"
                   >
                     Add to Paper Slip
                   </button>
@@ -1530,12 +1530,12 @@ export default function SportsOddsPage() {
                       window.open(getAffiliateUrl(confirmBet.bookKey, confirmBet.sport), '_blank');
                       setConfirmBet(null);
                     }}
-                    className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-bold transition-colors"
+                    className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-bold"
                   >
-                    Bet on {confirmBet.book} <ArrowUpRight className="inline h-4 w-4 ml-0.5" strokeWidth={2} />
+                    Confirm & Bet on {confirmBet.book} <ArrowUpRight className="inline h-4 w-4 ml-0.5" strokeWidth={2} />
                   </button>
                 </div>
-                <p className="text-center text-gray-600 text-xs">Or do both — add to slip and bet real money</p>
+                <p className="text-gray-600 text-xs text-center mt-2">You can also add to your paper slip first</p>
               </div>
             </motion.div>
           </>
