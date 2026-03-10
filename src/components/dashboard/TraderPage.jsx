@@ -4578,6 +4578,7 @@ export default function TraderPage({
                                   ? (liveDollarChange / previousClose) * 100
                                   : null;
                               const quoteMarketOpen = parseMarketOpen(quote?.isMarketOpen ?? quote?.is_market_open);
+                              const shouldShowExtendedPercent = quoteMarketOpen === false && Number.isFinite(extendedChangePercent);
                               const secondarySession = quoteMarketOpen === true
                                 ? 'live'
                                 : extendedHoursStatus === 'pre-market'
@@ -4585,7 +4586,7 @@ export default function TraderPage({
                                   : extendedHoursStatus === 'post-market'
                                     ? 'post-market'
                                     : 'live';
-                              const usesExtendedMetric = secondarySession === 'pre-market' || secondarySession === 'post-market';
+                              const usesExtendedMetric = shouldShowExtendedPercent;
                               const secondaryDollarChange = usesExtendedMetric
                                 ? (Number.isFinite(extendedChange) ? extendedChange : liveDollarChange)
                                 : liveDollarChange;
@@ -4671,17 +4672,6 @@ export default function TraderPage({
                                           >
                                             ${symbol}
                                           </div>
-                                          {(() => {
-                                            if (!extendedHoursStatus) return null;
-                                            return (
-                                              <span
-                                                className="ml-1.5 text-[10px]"
-                                                title={extendedHoursStatus === 'pre-market' ? 'Pre-Market' : 'Post-Market'}
-                                              >
-                                                {extendedHoursStatus === 'pre-market' ? '☀️' : '🌙'}
-                                              </span>
-                                            );
-                                          })()}
                                         </div>
                                         <div className="text-white/50 text-sm truncate">{companyName}</div>
                                       </div>
@@ -4714,11 +4704,18 @@ export default function TraderPage({
                                                 getWatchlistChangeToneClass(secondaryReferenceChange)
                                               }`}
                                             >
-                                              <span>{`${formatWatchlistChangeValue({
-                                                mode: displayMode,
-                                                percentValue: secondaryPercentChange,
-                                                dollarValue: secondaryDollarChange,
-                                              })}`}</span>
+                                              <span className="inline-flex items-center justify-end gap-1">
+                                                {shouldShowExtendedPercent && displayMode === 'percent' && (
+                                                  <span className="text-[10px]" title="Extended hours">
+                                                    ☀️
+                                                  </span>
+                                                )}
+                                                <span>{`${formatWatchlistChangeValue({
+                                                  mode: displayMode,
+                                                  percentValue: secondaryPercentChange,
+                                                  dollarValue: secondaryDollarChange,
+                                                })}`}</span>
+                                              </span>
                                               {isPrimaryLoading && (
                                                 <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
                                               )}
