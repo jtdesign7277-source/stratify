@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronDown, ChevronLeft } from 'lucide-react';
+import { X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
@@ -19,7 +19,6 @@ function americanToDecimal(americanOdds) {
 }
 
 export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClear }) {
-  const [open, setOpen] = useState(true);
   const [parlay, setParlay] = useState(false);
   const [bankroll, setBankroll] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -122,32 +121,7 @@ export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClea
       : '—';
 
   return (
-    <>
-      <motion.button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="fixed z-[50] flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] px-4 py-2.5 text-white shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl"
-        style={{ right: 16, top: '50%', transform: 'translateY(-50%)' }}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        transition={SPRING}
-      >
-        <span className="font-semibold">📋 Paper Slip</span>
-        <span className="text-emerald-400">{bets.length}</span>
-        <span className="text-emerald-400 font-mono text-sm">{bankrollDisplay}</span>
-        {open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </motion.button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={SPRING}
-            className="fixed z-[50] flex w-[320px] max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl"
-            style={{ right: 16, top: '50%', transform: 'translateY(-50%)' }}
-          >
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
             <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
               <span className="font-semibold text-white">📋 Paper Slip</span>
               <span className="text-emerald-400">{bets.length}</span>
@@ -280,9 +254,6 @@ export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClea
                 </div>
               </>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+    </div>
   );
 }

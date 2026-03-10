@@ -1074,11 +1074,12 @@ export default function SportsOddsPage() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={SPRING}
-      className="min-h-screen bg-[#0a0a0f] text-white px-4 py-5 flex flex-col gap-4"
+      className="flex h-full gap-4 min-h-screen bg-[#0a0a0f] text-white px-4 py-5"
     >
-      <SportsBankroll />
+      <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <SportsBankroll />
 
-      {/* Top: Header with Live pulse, Refresh, book selector, Bet CTA */}
+        {/* Top: Header with Live pulse, Refresh, book selector, Bet CTA */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -1308,16 +1309,19 @@ export default function SportsOddsPage() {
         </div>
       </div>
 
-      <div className="text-xs text-gray-700 text-center">
-        Sports betting involves risk. Must be 21+ and located in a state where sports betting is legal. Please gamble responsibly.
+        <div className="text-xs text-gray-700 text-center">
+          Sports betting involves risk. Must be 21+ and located in a state where sports betting is legal. Please gamble responsibly.
+        </div>
       </div>
 
-      <PaperBettingSlip
-        bets={bets}
-        onRemove={handleSlipRemove}
-        onStakeChange={handleSlipStakeChange}
-        onClear={handleSlipClear}
-      />
+      <div className="sticky top-0 h-screen w-[300px] flex-shrink-0 overflow-y-auto">
+        <PaperBettingSlip
+          bets={bets}
+          onRemove={handleSlipRemove}
+          onStakeChange={handleSlipStakeChange}
+          onClear={handleSlipClear}
+        />
+      </div>
     </motion.div>
   );
 }
