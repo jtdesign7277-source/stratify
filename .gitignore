@@ -31,3 +31,4 @@ server/.env
 # Vercel
 .vercel
 server/.env.save
+.env.development
