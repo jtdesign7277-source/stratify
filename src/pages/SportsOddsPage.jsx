@@ -12,9 +12,9 @@ import {
   ArrowDownRight,
   Minus,
   ChevronDown,
-  X,
 } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import SportsBankroll from '../components/dashboard/SportsBankroll';
+import PaperBettingSlip from '../components/dashboard/PaperBettingSlip';
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
 
@@ -331,21 +331,23 @@ function fmtPt(pt) {
   return n > 0 ? `+${n}` : String(n);
 }
 
-function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movingUp, bookKey, bookLabel, onAddToSlip, betInfo }) {
+function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movingUp, bookKey, bookLabel, onAddBetToSlip, betPayload }) {
   const hasTop = topLabel != null && topLabel !== '' && topLabel !== '—';
   const hasBot = bottomLabel != null && bottomLabel !== '' && bottomLabel !== '—';
   const handleClick = () => {
     if (bookKey) {
       window.open(getAffiliateUrl(bookKey), '_blank');
-      if (onAddToSlip && betInfo) {
-        onAddToSlip({
-          id: Date.now(),
-          team: betInfo.team,
-          betType: betInfo.betType,
-          line: betInfo.line,
-          odds: betInfo.odds,
+      if (onAddBetToSlip && betPayload) {
+        onAddBetToSlip({
+          sport: betPayload.sport,
+          league: betPayload.league,
+          home_team: betPayload.home_team,
+          away_team: betPayload.away_team,
+          bet_type: betPayload.bet_type,
+          selection: betPayload.selection,
+          line: betPayload.line,
+          odds: betPayload.odds,
           book: bookLabel || BOOKS.find((b) => b.key === bookKey)?.label || bookKey,
-          stake: 100,
         });
       }
     }
@@ -395,7 +397,7 @@ function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movin
   );
 }
 
-function GameDetailView({ event, sportKey, bookKey, bookLabel, addToSlip, onBack }) {
+function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onBack }) {
   const [activeTab, setActiveTab] = useState('Live SGP');
   const [sels, setSels] = useState({});
   const toggle = (k) => setSels((s) => ({ ...s, [k]: !s[k] }));
@@ -525,8 +527,8 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addToSlip, onBack
                 movingDown
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddToSlip={addToSlip}
-                betInfo={{ team: away, betType: 'Spread', line: fmtPt(aSpread.point) ?? '', odds: aSpread.price }}
+                onAddBetToSlip={addBetToSlip}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: away, line: fmtPt(aSpread.point) ?? '', odds: aSpread.price }}
               />
               <OddsCell
                 topLabel={null}
@@ -536,8 +538,8 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addToSlip, onBack
                 movingDown
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddToSlip={addToSlip}
-                betInfo={{ team: away, betType: 'Moneyline', line: '', odds: aMl?.price }}
+                onAddBetToSlip={addBetToSlip}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: away, line: '', odds: aMl?.price }}
               />
               <OddsCell
                 topLabel={tots.point != null ? `O ${tots.point}` : null}
@@ -547,8 +549,8 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addToSlip, onBack
                 movingDown
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddToSlip={addToSlip}
-                betInfo={{ team: `${away} / ${home}`, betType: 'Total', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over }}
+                onAddBetToSlip={addBetToSlip}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `O ${tots.point}` : '', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over }}
               />
             </div>
           </div>
@@ -570,8 +572,8 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addToSlip, onBack
                 movingUp
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddToSlip={addToSlip}
-                betInfo={{ team: home, betType: 'Spread', line: fmtPt(hSpread.point) ?? '', odds: hSpread.price }}
+                onAddBetToSlip={addBetToSlip}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: home, line: fmtPt(hSpread.point) ?? '', odds: hSpread.price }}
               />
               <OddsCell
                 topLabel={null}
@@ -581,8 +583,8 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addToSlip, onBack
                 movingUp
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddToSlip={addToSlip}
-                betInfo={{ team: home, betType: 'Moneyline', line: '', odds: hMl?.price }}
+                onAddBetToSlip={addBetToSlip}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: home, line: '', odds: hMl?.price }}
               />
               <OddsCell
                 topLabel={tots.point != null ? `U ${tots.point}` : null}
@@ -592,8 +594,8 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addToSlip, onBack
                 movingUp
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddToSlip={addToSlip}
-                betInfo={{ team: `${away} / ${home}`, betType: 'Total', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under }}
+                onAddBetToSlip={addBetToSlip}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `U ${tots.point}` : '', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under }}
               />
             </div>
           </div>
@@ -609,7 +611,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addToSlip, onBack
 
 const rowV = { hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0, transition: SPRING } };
 
-function GameCard({ event, sportKey, bookKey, bookLabel, addToSlip, onSelect }) {
+function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect }) {
   const [sels, setSels] = useState({});
   const toggle = (k) => setSels((s) => ({ ...s, [k]: !s[k] }));
   const book = getBook(event.bookmakers, bookKey);
@@ -687,8 +689,8 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addToSlip, onSelect }) 
               onToggle={() => toggle('a-spread')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddToSlip={addToSlip}
-              betInfo={{ team: away, betType: 'Spread', line: fmtPt(aSpread.point) ?? '', odds: aSpread.price }}
+              onAddBetToSlip={addBetToSlip}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: away, line: fmtPt(aSpread.point) ?? '', odds: aSpread.price }}
             />
             <OddsCell
               topLabel={fmtPt(hSpread.point)}
@@ -697,8 +699,8 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addToSlip, onSelect }) 
               onToggle={() => toggle('h-spread')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddToSlip={addToSlip}
-              betInfo={{ team: home, betType: 'Spread', line: fmtPt(hSpread.point) ?? '', odds: hSpread.price }}
+              onAddBetToSlip={addBetToSlip}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: home, line: fmtPt(hSpread.point) ?? '', odds: hSpread.price }}
             />
           </div>
           <div className="flex flex-col gap-1.5 flex-1">
@@ -709,8 +711,8 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addToSlip, onSelect }) 
               onToggle={() => toggle('a-ml')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddToSlip={addToSlip}
-              betInfo={{ team: away, betType: 'Moneyline', line: '', odds: aMl?.price }}
+              onAddBetToSlip={addBetToSlip}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: away, line: '', odds: aMl?.price }}
             />
             <OddsCell
               topLabel={null}
@@ -719,8 +721,8 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addToSlip, onSelect }) 
               onToggle={() => toggle('h-ml')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddToSlip={addToSlip}
-              betInfo={{ team: home, betType: 'Moneyline', line: '', odds: hMl?.price }}
+              onAddBetToSlip={addBetToSlip}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: home, line: '', odds: hMl?.price }}
             />
           </div>
           <div className="flex flex-col gap-1.5 flex-1">
@@ -731,8 +733,8 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addToSlip, onSelect }) 
               onToggle={() => toggle('over')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddToSlip={addToSlip}
-              betInfo={{ team: `${away} / ${home}`, betType: 'Total', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over }}
+              onAddBetToSlip={addBetToSlip}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `O ${tots.point}` : '', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over }}
             />
             <OddsCell
               topLabel={tots.point != null ? `U ${tots.point}` : null}
@@ -741,8 +743,8 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addToSlip, onSelect }) 
               onToggle={() => toggle('under')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddToSlip={addToSlip}
-              betInfo={{ team: `${away} / ${home}`, betType: 'Total', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under }}
+              onAddBetToSlip={addBetToSlip}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `U ${tots.point}` : '', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under }}
             />
           </div>
         </div>
@@ -779,7 +781,7 @@ function GameSkeleton() {
 
 const listV = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05, delayChildren: 0.02 } } };
 
-function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addToSlip }) {
+function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addBetToSlip }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -826,7 +828,7 @@ function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addToSlip }) {
           sportKey={sportKey}
           bookKey={bookKey}
           bookLabel={bookLabel}
-          addToSlip={addToSlip}
+          addBetToSlip={addBetToSlip}
           onBack={() => setSelected(null)}
         />
       ) : (
@@ -894,7 +896,7 @@ function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addToSlip }) {
                   sportKey={sportKey}
                   bookKey={bookKey}
                   bookLabel={bookLabel}
-                  addToSlip={addToSlip}
+                  addBetToSlip={addBetToSlip}
                   onSelect={setSelected}
                 />
               ))}
@@ -1024,212 +1026,39 @@ function LineMovementTicker() {
   );
 }
 
-function singlePayout(stake, americanOdds) {
-  const n = Number(americanOdds);
-  if (!Number.isFinite(n) || stake <= 0) return 0;
-  const decimal = n > 0 ? n / 100 + 1 : 100 / Math.abs(n) + 1;
-  return stake * decimal;
-}
-
-function PaperSlipPanel({ slip, setSlip, isOpen, setIsOpen }) {
-  const [parlay, setParlay] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const totalStake = slip.reduce((s, b) => s + (Number(b.stake) || 0), 0);
-  const combinedDecimal =
-    slip.length === 0
-      ? 0
-      : slip.reduce((acc, b) => {
-          const n = Number(b.odds);
-          const d = Number.isFinite(n) ? (n > 0 ? n / 100 + 1 : 100 / Math.abs(n) + 1) : 1;
-          return acc * d;
-        }, 1);
-  const totalPayoutSingle = slip.reduce((s, b) => s + singlePayout(Number(b.stake) || 0, Number(b.odds)), 0);
-  const totalPayoutParlay = parlay && slip.length > 0 ? totalStake * combinedDecimal : totalPayoutSingle;
-
-  const updateStake = (id, stake) => {
-    setSlip((prev) => prev.map((b) => (b.id === id ? { ...b, stake: Math.max(0, Number(stake) || 0) } : b)));
-  };
-  const remove = (id) => setSlip((prev) => prev.filter((b) => b.id !== id));
-
-  const handlePlacePaperBet = async () => {
-    setSaving(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id ?? null;
-      for (const b of slip) {
-        const stake = Number(b.stake) || 0;
-        const potentialPayout = parlay && slip.length > 1 ? (stake / totalStake) * totalPayoutParlay : singlePayout(stake, Number(b.odds));
-        await supabase.from('paper_bets').insert({
-          user_id: userId,
-          team: b.team,
-          bet_type: b.betType,
-          line: b.line,
-          odds: b.odds,
-          stake,
-          potential_payout: Math.round(potentialPayout * 100) / 100,
-          book: b.book,
-          status: 'open',
-          created_at: new Date().toISOString(),
-        });
-      }
-      setSlip([]);
-    } catch (e) {
-      console.error('Paper bet save failed:', e);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      <motion.button
-        type="button"
-        onClick={() => setIsOpen((o) => !o)}
-        className="fixed right-4 top-24 z-20 flex items-center gap-2 rounded-xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4)] px-4 py-2.5 text-sm font-semibold text-white"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        transition={SPRING}
-      >
-        📋 Paper Slip
-        {slip.length > 0 && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={SPRING}
-            className="bg-emerald-500 text-black text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
-          >
-            {slip.length}
-          </motion.span>
-        )}
-      </motion.button>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={SPRING}
-            className="fixed right-4 top-32 z-10 w-[320px] rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4)] bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl overflow-hidden flex flex-col max-h-[calc(100vh-140px)]"
-          >
-            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-              <span className="text-sm font-bold text-white">📋 Paper Slip</span>
-              {slip.length > 0 && (
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-                  {slip.length}
-                </span>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {slip.length === 0 ? (
-                <p className="text-xs text-gray-500 text-center py-6">Click any odds to add to slip</p>
-              ) : (
-                <AnimatePresence>
-                  {slip.map((b) => (
-                    <motion.div
-                      key={b.id}
-                      layout
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={SPRING}
-                    className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 flex items-start gap-2"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold text-white truncate">{b.team}</div>
-                      <div className="text-[11px] text-gray-400 font-mono">
-                        {b.betType} {b.line ? `· ${b.line}` : ''} {fmtAm(b.odds)}
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="text-[10px] text-gray-500">Stake $</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={b.stake}
-                          onChange={(e) => updateStake(b.id, e.target.value)}
-                          className="w-16 rounded bg-white/[0.06] border border-white/[0.06] px-1.5 py-0.5 text-xs font-mono text-white"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => remove(b.id)}
-                      className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-white/[0.06] transition-colors"
-                      aria-label="Remove"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </motion.div>
-                  ))}
-                </AnimatePresence>
-              )}
-            </div>
-            {slip.length > 0 && (
-              <>
-                <div className="px-4 py-2 border-t border-white/[0.06] flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Parlay</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    onClick={() => setParlay((p) => !p)}
-                    className={`relative w-9 h-5 rounded-full transition-colors ${parlay ? 'bg-emerald-500' : 'bg-white/[0.1]'}`}
-                  >
-                    <motion.div
-                      layout
-                      transition={SPRING}
-                      className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
-                      style={{ left: parlay ? '18px' : '2px' }}
-                    />
-                  </button>
-                </div>
-                <div className="px-4 py-2 text-right">
-                  <span className="text-xs text-gray-500">Potential payout </span>
-                  <span className="text-sm font-bold font-mono text-emerald-400">
-                    ${(parlay ? totalPayoutParlay : totalPayoutSingle).toFixed(2)}
-                  </span>
-                </div>
-                <div className="p-3 flex gap-2">
-                  <motion.button
-                    type="button"
-                    onClick={handlePlacePaperBet}
-                    disabled={saving}
-                    className="flex-1 py-2 rounded-xl bg-emerald-500 text-black text-xs font-bold disabled:opacity-50"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={SPRING}
-                  >
-                    {saving ? 'Saving…' : 'Place Paper Bet'}
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    onClick={() => setSlip([])}
-                    className="px-3 py-2 rounded-xl border border-white/[0.1] text-xs font-medium text-gray-400 hover:text-white hover:bg-white/[0.04] transition-colors"
-                    whileTap={{ scale: 0.98 }}
-                    transition={SPRING}
-                  >
-                    Clear Slip
-                  </motion.button>
-                </div>
-              </>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-}
-
 export default function SportsOddsPage() {
   const [activeNavKey, setActiveNavKey] = useState('basketball_nba');
   const [activeBook, setActiveBook] = useState(BOOKS[0]);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [slip, setSlip] = useState([]);
-  const [slipOpen, setSlipOpen] = useState(false);
+  const [bets, setBets] = useState([]);
   const activeSportKey = API_SPORTS.has(activeNavKey) ? activeNavKey : 'basketball_nba';
-  const addToSlip = useCallback((entry) => setSlip((prev) => [...prev, { ...entry, id: entry.id || Date.now() }]), []);
+  const addBetToSlip = useCallback(
+    (payload) =>
+      setBets((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          stake: 100,
+          sport: payload.sport,
+          league: payload.league,
+          home_team: payload.home_team,
+          away_team: payload.away_team,
+          bet_type: payload.bet_type,
+          selection: payload.selection,
+          line: payload.line,
+          odds: payload.odds,
+          book: payload.book,
+        },
+      ]),
+    []
+  );
+  const handleSlipStakeChange = useCallback((id, value) => {
+    setBets((prev) => prev.map((b) => (b.id === id ? { ...b, stake: Math.max(1, Number(value) || 0) } : b)));
+  }, []);
+  const handleSlipRemove = useCallback((id) => setBets((prev) => prev.filter((b) => b.id !== id)), []);
+  const handleSlipClear = useCallback(() => setBets([]), []);
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     setTimeout(() => {
@@ -1247,6 +1076,8 @@ export default function SportsOddsPage() {
       transition={SPRING}
       className="min-h-screen bg-[#0a0a0f] text-white px-4 py-5 flex flex-col gap-4"
     >
+      <SportsBankroll />
+
       {/* Top: Header with Live pulse, Refresh, book selector, Bet CTA */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -1356,7 +1187,7 @@ export default function SportsOddsPage() {
                   bookKey={activeBook.key}
                   bookLabel={activeBook.label}
                   refreshKey={refreshKey}
-                  addToSlip={addToSlip}
+                  addBetToSlip={addBetToSlip}
                 />
               ) : (
                 <div className="bg-[#0f1117] rounded-2xl border border-[#1e2028] flex flex-col items-center justify-center py-24">
@@ -1481,7 +1312,12 @@ export default function SportsOddsPage() {
         Sports betting involves risk. Must be 21+ and located in a state where sports betting is legal. Please gamble responsibly.
       </div>
 
-      <PaperSlipPanel slip={slip} setSlip={setSlip} isOpen={slipOpen} setIsOpen={setSlipOpen} />
+      <PaperBettingSlip
+        bets={bets}
+        onRemove={handleSlipRemove}
+        onStakeChange={handleSlipStakeChange}
+        onClear={handleSlipClear}
+      />
     </motion.div>
   );
 }
