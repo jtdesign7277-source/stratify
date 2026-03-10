@@ -13,6 +13,7 @@ import {
   Minus,
   ChevronDown,
   Clipboard,
+  X,
 } from 'lucide-react';
 import SportsBankroll from '../components/dashboard/SportsBankroll';
 import PaperBettingSlip from '../components/dashboard/PaperBettingSlip';
@@ -373,20 +374,25 @@ function fmtPt(pt) {
   return n > 0 ? `+${n}` : String(n);
 }
 
-function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movingUp, bookKey, bookLabel, onAddBetToSlip, betPayload }) {
+function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movingUp, bookKey, bookLabel, onConfirmBet, betPayload }) {
   const hasTop = topLabel != null && topLabel !== '' && topLabel !== '—';
   const hasBot = bottomLabel != null && bottomLabel !== '' && bottomLabel !== '—';
   const handleClick = () => {
-    if (bookKey) {
-      const sportKey = betPayload?.sport ?? betPayload?.league;
-      window.open(getAffiliateUrl(bookKey, sportKey), '_blank');
-      if (onAddBetToSlip && betPayload) {
-        const bookLabelName = bookLabel || BOOKS.find((b) => b.key === bookKey)?.label || bookKey;
-        onAddBetToSlip({
-          ...betPayload,
-          book: bookLabelName,
-        });
-      }
+    if (bookKey && onConfirmBet && betPayload) {
+      const bookLabelName = bookLabel || BOOKS.find((b) => b.key === bookKey)?.label || bookKey;
+      onConfirmBet({
+        team: betPayload.selection,
+        betType: betPayload.bet_type,
+        line: betPayload.line,
+        odds: betPayload.odds,
+        book: bookLabelName,
+        bookKey,
+        sport: betPayload.sport,
+        league: betPayload.league,
+        game_id: betPayload.game_id,
+        home_team: betPayload.home_team,
+        away_team: betPayload.away_team,
+      });
     }
     onToggle?.();
   };
@@ -434,7 +440,7 @@ function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movin
   );
 }
 
-function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onBack }) {
+function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onConfirmBet, onBack }) {
   const [activeTab, setActiveTab] = useState('Live SGP');
   const [sels, setSels] = useState({});
   const toggle = (k) => setSels((s) => ({ ...s, [k]: !s[k] }));
@@ -564,7 +570,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 movingDown
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddBetToSlip={addBetToSlip}
+                onConfirmBet={onConfirmBet}
                 betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: away, line: fmtPt(aSpread.point) ?? '', odds: aSpread.price, game_id: event.id }}
               />
               <OddsCell
@@ -575,7 +581,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 movingDown
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddBetToSlip={addBetToSlip}
+                onConfirmBet={onConfirmBet}
                 betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: away, line: '', odds: aMl?.price, game_id: event.id }}
               />
               <OddsCell
@@ -586,7 +592,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 movingDown
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddBetToSlip={addBetToSlip}
+                onConfirmBet={onConfirmBet}
                 betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `O ${tots.point}` : '', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over, game_id: event.id }}
               />
             </div>
@@ -609,7 +615,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 movingUp
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddBetToSlip={addBetToSlip}
+                onConfirmBet={onConfirmBet}
                 betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: home, line: fmtPt(hSpread.point) ?? '', odds: hSpread.price, game_id: event.id }}
               />
               <OddsCell
@@ -620,7 +626,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 movingUp
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddBetToSlip={addBetToSlip}
+                onConfirmBet={onConfirmBet}
                 betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: home, line: '', odds: hMl?.price, game_id: event.id }}
               />
               <OddsCell
@@ -631,7 +637,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 movingUp
                 bookKey={bookKey}
                 bookLabel={bookLabel}
-                onAddBetToSlip={addBetToSlip}
+                onConfirmBet={onConfirmBet}
                 betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `U ${tots.point}` : '', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under, game_id: event.id }}
               />
             </div>
@@ -648,7 +654,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
 
 const rowV = { hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0, transition: SPRING } };
 
-function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect }) {
+function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onConfirmBet, onSelect }) {
   const [sels, setSels] = useState({});
   const toggle = (k) => setSels((s) => ({ ...s, [k]: !s[k] }));
   const book = getBook(event.bookmakers, bookKey);
@@ -726,7 +732,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               onToggle={() => toggle('a-spread')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddBetToSlip={addBetToSlip}
+              onConfirmBet={onConfirmBet}
               betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: away, line: fmtPt(aSpread.point) ?? '', odds: aSpread.price, game_id: event.id }}
             />
             <OddsCell
@@ -736,7 +742,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               onToggle={() => toggle('h-spread')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddBetToSlip={addBetToSlip}
+              onConfirmBet={onConfirmBet}
               betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: home, line: fmtPt(hSpread.point) ?? '', odds: hSpread.price, game_id: event.id }}
             />
           </div>
@@ -748,7 +754,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               onToggle={() => toggle('a-ml')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddBetToSlip={addBetToSlip}
+              onConfirmBet={onConfirmBet}
               betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: away, line: '', odds: aMl?.price, game_id: event.id }}
             />
             <OddsCell
@@ -758,7 +764,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               onToggle={() => toggle('h-ml')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddBetToSlip={addBetToSlip}
+              onConfirmBet={onConfirmBet}
               betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: home, line: '', odds: hMl?.price, game_id: event.id }}
             />
           </div>
@@ -770,7 +776,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               onToggle={() => toggle('over')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddBetToSlip={addBetToSlip}
+              onConfirmBet={onConfirmBet}
               betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `O ${tots.point}` : '', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over, game_id: event.id }}
             />
             <OddsCell
@@ -780,7 +786,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               onToggle={() => toggle('under')}
               bookKey={bookKey}
               bookLabel={bookLabel}
-              onAddBetToSlip={addBetToSlip}
+              onConfirmBet={onConfirmBet}
               betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `U ${tots.point}` : '', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under, game_id: event.id }}
             />
           </div>
@@ -818,7 +824,7 @@ function GameSkeleton() {
 
 const listV = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05, delayChildren: 0.02 } } };
 
-function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addBetToSlip }) {
+function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addBetToSlip, onConfirmBet }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -866,6 +872,7 @@ function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addBetToSlip }) 
           bookKey={bookKey}
           bookLabel={bookLabel}
           addBetToSlip={addBetToSlip}
+          onConfirmBet={onConfirmBet}
           onBack={() => setSelected(null)}
         />
       ) : (
@@ -934,6 +941,7 @@ function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addBetToSlip }) 
                   bookKey={bookKey}
                   bookLabel={bookLabel}
                   addBetToSlip={addBetToSlip}
+                  onConfirmBet={onConfirmBet}
                   onSelect={setSelected}
                 />
               ))}
@@ -1071,10 +1079,13 @@ export default function SportsOddsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [slip, setSlip] = useState([]);
   const [slipOpen, setSlipOpen] = useState(false);
+  const [confirmBet, setConfirmBet] = useState(null);
+  const [confirmBetStake, setConfirmBetStake] = useState(100);
   const [toast, setToast] = useState(null);
   const activeSportKey = API_SPORTS.has(activeNavKey) ? activeNavKey : 'basketball_nba';
   const addBetToSlip = useCallback((payload) => {
     setSlipOpen(true);
+    const stake = payload.stake ?? 100;
     setSlip((prev) => [
       ...prev,
       {
@@ -1085,7 +1096,7 @@ export default function SportsOddsPage() {
         line: payload.line,
         odds: payload.odds,
         book: payload.book,
-        stake: 100,
+        stake,
         sport: payload.sport,
         league: payload.league,
         home_team: payload.home_team,
@@ -1099,6 +1110,10 @@ export default function SportsOddsPage() {
   }, []);
   const handleSlipRemove = useCallback((id) => setSlip((prev) => prev.filter((b) => b.id !== id)), []);
   const handleSlipClear = useCallback(() => setSlip([]), []);
+  const handleConfirmBet = useCallback((bet) => {
+    setConfirmBet(bet);
+    setConfirmBetStake(100);
+  }, []);
 
   const handlePlaceBets = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -1271,6 +1286,7 @@ export default function SportsOddsPage() {
                   bookLabel={activeBook.label}
                   refreshKey={refreshKey}
                   addBetToSlip={addBetToSlip}
+                  onConfirmBet={handleConfirmBet}
                 />
               ) : (
                 <div className="bg-[#0f1117] rounded-2xl border border-[#1e2028] flex flex-col items-center justify-center py-24">
@@ -1429,6 +1445,103 @@ export default function SportsOddsPage() {
           </button>
         )}
       </motion.div>
+
+      <AnimatePresence>
+        {confirmBet && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close"
+              className="fixed inset-0 z-40 bg-black/40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setConfirmBet(null)}
+            />
+            <motion.div
+              key="confirm-drawer"
+              className="fixed bottom-0 left-0 right-0 z-50 px-6 py-5 max-w-2xl mx-auto bg-[#0f0f14] border-t border-white/[0.08] backdrop-blur-xl"
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-white font-semibold text-base">{confirmBet.team}</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmBet(null)}
+                    className="text-gray-500 hover:text-white transition-colors p-1"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div>
+                  <p className="text-gray-400 font-mono text-sm">
+                    {confirmBet.betType} · {confirmBet.line || '—'} · {confirmBet.odds > 0 ? `+${confirmBet.odds}` : confirmBet.odds}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-0.5">{confirmBet.book}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-gray-400 text-sm">Stake:</span>
+                  <span className="text-white font-mono text-sm">$</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={confirmBetStake}
+                    onChange={(e) => setConfirmBetStake(Math.max(1, Number(e.target.value) || 0))}
+                    className="w-20 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-1 font-mono text-sm text-white"
+                  />
+                  <span className="text-gray-400 text-sm ml-2">Payout:</span>
+                  <span className="text-emerald-400 font-mono text-sm">
+                    ${calcPayout(confirmBetStake, confirmBet.odds).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addBetToSlip({
+                        selection: confirmBet.team,
+                        bet_type: confirmBet.betType,
+                        line: confirmBet.line,
+                        odds: confirmBet.odds,
+                        book: confirmBet.book,
+                        sport: confirmBet.sport,
+                        league: confirmBet.league,
+                        home_team: confirmBet.home_team,
+                        away_team: confirmBet.away_team,
+                        game_id: confirmBet.game_id,
+                        stake: confirmBetStake,
+                      });
+                      setSlipOpen(true);
+                      setConfirmBet(null);
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-sm font-medium transition-colors"
+                  >
+                    Add to Paper Slip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.open(getAffiliateUrl(confirmBet.bookKey, confirmBet.sport), '_blank');
+                      setConfirmBet(null);
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-bold transition-colors"
+                  >
+                    Bet on {confirmBet.book} <ArrowUpRight className="inline h-4 w-4 ml-0.5" strokeWidth={2} />
+                  </button>
+                </div>
+                <p className="text-center text-gray-600 text-xs">Or do both — add to slip and bet real money</p>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {toast && (
         <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-emerald-500/90 px-4 py-2 text-sm font-medium text-black shadow-lg">
           {toast}
