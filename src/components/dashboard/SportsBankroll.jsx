@@ -28,23 +28,16 @@ export default function SportsBankroll() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user?.id) return;
       channel = supabase
-        .channel('paper_sports_bankroll')
+        .channel('bankroll')
         .on(
           'postgres_changes',
           {
-            event: '*',
+            event: 'UPDATE',
             schema: 'public',
             table: 'paper_sports_bankroll',
             filter: `user_id=eq.${session.user.id}`,
           },
-          () => {
-            supabase
-              .from('paper_sports_bankroll')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle()
-              .then(({ data }) => setRow(data));
-          }
+          (payload) => setRow(payload.new)
         )
         .subscribe();
     });

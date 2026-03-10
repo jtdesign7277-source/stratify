@@ -3,26 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
-const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
+const SPRING = { type: 'spring', stiffness: 500, damping: 30 };
 
-function singlePayout(stake, americanOdds) {
-  const n = Number(americanOdds);
-  if (!Number.isFinite(n) || stake <= 0) return 0;
-  const decimal = n > 0 ? n / 100 + 1 : 100 / Math.abs(n) + 1;
-  return stake * decimal;
+function calcPayout(stake, odds) {
+  if (odds > 0) return stake * (odds / 100 + 1);
+  return stake * (100 / Math.abs(odds) + 1);
 }
 
-function americanToDecimal(americanOdds) {
-  const n = Number(americanOdds);
-  if (!Number.isFinite(n)) return 1;
-  return n > 0 ? n / 100 + 1 : 100 / Math.abs(n) + 1;
-}
-
-export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClear }) {
+export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClear, onPlace }) {
   const [parlay, setParlay] = useState(false);
   const [bankroll, setBankroll] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,155 +29,94 @@ export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClea
     return () => { cancelled = true; };
   }, []);
 
-  const totalStake = bets.reduce((s, b) => s + (Number(b.stake) || 0), 0);
-  const combinedDecimal =
+  const totalStake = bets.reduce((sum, b) => sum + Number(b.stake || 0), 0);
+  const parlayDecimal =
     bets.length === 0
-      ? 0
-      : bets.reduce((acc, b) => acc * americanToDecimal(b.odds), 1);
-  const totalPayoutSingle = bets.reduce((s, b) => s + singlePayout(Number(b.stake) || 0, Number(b.odds)), 0);
-  const totalPayoutParlay = parlay && bets.length > 0 ? totalStake * combinedDecimal : totalPayoutSingle;
-  const totalPayout = parlay && bets.length > 1 ? totalPayoutParlay : totalPayoutSingle;
-
+      ? 1
+      : bets.reduce((acc, bet) => {
+          const decimal =
+            bet.odds > 0 ? bet.odds / 100 + 1 : 100 / Math.abs(bet.odds) + 1;
+          return acc * decimal;
+        }, 1);
+  const firstStake = bets.length > 0 ? Number(bets[0].stake) || 0 : 0;
+  const parlayPayout = firstStake * parlayDecimal;
+  const totalPayoutSingle = bets.reduce((sum, b) => sum + calcPayout(Number(b.stake) || 0, Number(b.odds)), 0);
+  const totalPayout = parlay && bets.length >= 2 ? parlayPayout : totalPayoutSingle;
   const insufficientBankroll = bankroll != null && totalStake > Number(bankroll);
-
-  const handlePlace = async () => {
-    if (insufficientBankroll || bets.length === 0) return;
-    setSaving(true);
-    setToast(null);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id ?? null;
-      if (!userId) {
-        setToast({ type: 'error', message: 'Sign in to place paper bets' });
-        return;
-      }
-      for (const b of bets) {
-        const stake = Math.max(1, Number(b.stake) || 0);
-        const potentialPayout =
-          parlay && bets.length > 1
-            ? (stake / totalStake) * totalPayoutParlay
-            : singlePayout(stake, Number(b.odds));
-        await supabase.from('paper_sports_bets').insert({
-          user_id: userId,
-          sport: b.sport,
-          league: b.league,
-          home_team: b.home_team,
-          away_team: b.away_team,
-          bet_type: b.bet_type,
-          selection: b.selection,
-          line: b.line,
-          odds: b.odds,
-          stake,
-          potential_payout: Math.round(potentialPayout * 100) / 100,
-          book: b.book,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-        });
-      }
-      let currentBalance = Number(bankroll);
-      if (bankroll == null) {
-        const { error: insertErr } = await supabase.from('paper_sports_bankroll').insert({
-          user_id: userId,
-          balance: 100000,
-          wins: 0,
-          losses: 0,
-          total_pushes: 0,
-          total_won: 0,
-          total_lost: 0,
-          current_streak: 0,
-          biggest_win: 0,
-        });
-        if (!insertErr) currentBalance = 100000;
-      }
-      const newBalance = currentBalance - totalStake;
-      await supabase
-        .from('paper_sports_bankroll')
-        .update({ balance: newBalance })
-        .eq('user_id', userId);
-      setBankroll(newBalance);
-      setToast({ type: 'success', message: 'Paper bet placed' });
-      onClear();
-    } catch (e) {
-      console.error(e);
-      setToast({ type: 'error', message: e?.message || 'Failed to place bet' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const bankrollDisplay =
     bankroll != null
       ? '$' + Number(bankroll).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      : '—';
+      : '$100,000.00';
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-              <span className="font-semibold text-white">📋 Paper Slip</span>
-              <span className="text-emerald-400">{bets.length}</span>
-            </div>
-            <div className="border-b border-white/[0.06] px-4 py-2">
-              <span className="text-emerald-400 font-mono text-sm">{bankrollDisplay}</span>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3">
-              {bets.length === 0 ? (
-                <p className="py-6 text-center text-xs text-gray-500">Click any odds to add to slip</p>
-              ) : (
-                <AnimatePresence>
-                  {bets.map((b, i) => {
-                    const stake = Number(b.stake) || 0;
-                    const payout = singlePayout(stake, Number(b.odds));
-                    return (
-                      <motion.div
-                        key={b.id}
-                        layout
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ ...SPRING, delay: i * 0.04 }}
-                        className="flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm text-white">
-                            {b.selection} · {b.bet_type}
-                          </div>
-                          <div className="font-mono text-xs text-gray-400">
-                            {b.line ? `${b.line} ` : ''}
-                            {Number(b.odds) > 0 ? `+${b.odds}` : b.odds}
-                          </div>
-                          <div className="text-xs text-gray-500">{b.book}</div>
-                          <div className="mt-1.5 flex items-center gap-1.5">
-                            <span className="text-[10px] text-gray-500">$</span>
-                            <input
-                              type="number"
-                              min={1}
-                              value={b.stake}
-                              onChange={(e) => onStakeChange(b.id, e.target.value)}
-                              className="w-20 rounded-xl border border-white/[0.04] bg-black/40 px-2 py-1 font-mono text-xs text-white shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)]"
-                            />
-                          </div>
-                          <div className="mt-1 font-mono text-xs text-emerald-400">
-                            Payout: ${payout.toFixed(2)}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => onRemove(b.id)}
-                          className="rounded p-1 text-gray-500 transition-colors hover:text-red-400"
-                          aria-label="Remove"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              )}
-            </div>
+    <div className="flex h-full flex-col overflow-y-auto rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#0a0a0f] py-3 px-4">
+        <span className="text-sm font-semibold text-white">📋 Paper Slip</span>
+        <span className="text-sm text-emerald-400">{bets.length}</span>
+        <span className="font-mono text-xs text-emerald-400">{bankrollDisplay}</span>
+      </div>
 
-            {bets.length >= 2 && (
-              <div className="flex items-center justify-between border-t border-white/[0.06] px-4 py-2">
-                <span className="text-xs text-gray-500">Parlay</span>
+      {bets.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center py-12">
+          <span className="mb-2 text-2xl opacity-60">📋</span>
+          <p className="text-center text-sm text-gray-500">Click any odds to add to slip</p>
+        </div>
+      ) : (
+        <>
+          <motion.div
+            className="flex-1 overflow-y-auto p-3"
+            variants={{ show: { transition: { staggerChildren: 0.04 } } }}
+            initial="hidden"
+            animate="show"
+          >
+            <AnimatePresence initial={false}>
+              {bets.map((b, i) => (
+                <motion.div
+                  key={b.id}
+                  variants={{ hidden: { opacity: 0, x: 20 }, show: { opacity: 1, x: 0 } }}
+                  initial="hidden"
+                  animate="show"
+                  exit={{ opacity: 0, x: -20, height: 0 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  className="mb-2 rounded-xl border border-white/[0.04] bg-black/20 p-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="text-sm font-medium text-white">{b.team}</span>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(b.id)}
+                      className="text-gray-500 transition-colors hover:text-red-400"
+                      aria-label="Remove"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="font-mono text-xs text-gray-400">
+                    {b.betType} · {b.line || '—'} · {b.odds > 0 ? `+${b.odds}` : b.odds}
+                  </div>
+                  <div className="text-xs text-gray-500">{b.book}</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-gray-400">$</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={b.stake}
+                      onChange={(e) => onStakeChange(b.id, e.target.value)}
+                      className="w-24 rounded-lg border border-white/[0.04] bg-black/40 px-2 py-1 font-mono text-sm text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]"
+                    />
+                  </div>
+                  <div className="mt-1 font-mono text-xs text-emerald-400">
+                    Payout: ${calcPayout(Number(b.stake) || 0, Number(b.odds)).toFixed(2)}
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+
+          {bets.length >= 2 && (
+            <div className="border-t border-white/[0.06] px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-400">Parlay</span>
                 <button
                   type="button"
                   role="switch"
@@ -202,58 +131,50 @@ export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClea
                   />
                 </button>
               </div>
-            )}
+              {parlay && (
+                <div className="mt-1 font-mono text-sm text-emerald-400">
+                  Parlay payout: ${parlayPayout.toFixed(2)}
+                </div>
+              )}
+            </div>
+          )}
 
-            {bets.length > 0 && (
-              <>
-                <div className="flex justify-between border-t border-white/[0.06] px-4 py-2 text-sm">
-                  <span className="text-gray-500">Total stake</span>
-                  <span className="font-mono text-white">${totalStake.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between border-t border-white/[0.06] px-4 py-2">
-                  <span className="text-gray-500">Potential payout</span>
-                  <span className="font-mono text-emerald-400">${totalPayout.toFixed(2)}</span>
-                </div>
-                <AnimatePresence mode="wait">
-                  {toast && (
-                    <motion.div
-                      key={toast.type}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className={`px-4 py-2 text-center text-sm ${toast.type === 'error' ? 'text-red-400' : 'text-emerald-400'}`}
-                    >
-                      {toast.message}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                {insufficientBankroll && (
-                  <p className="px-4 py-2 text-center text-sm text-red-400">Insufficient bankroll</p>
-                )}
-                <div className="flex flex-col gap-2 p-3">
-                  <motion.button
-                    type="button"
-                    onClick={handlePlace}
-                    disabled={saving || insufficientBankroll}
-                    className="w-full rounded-xl bg-emerald-500 py-3 font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.96 }}
-                    transition={SPRING}
-                  >
-                    {saving ? 'Placing…' : 'Place Paper Bet'}
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    onClick={onClear}
-                    className="text-sm text-gray-500 transition-colors hover:text-white"
-                    whileTap={{ scale: 0.98 }}
-                    transition={SPRING}
-                  >
-                    Clear Slip
-                  </motion.button>
-                </div>
-              </>
+          <div className="sticky bottom-0 border-t border-white/[0.06] bg-[#0a0a0f] pt-3 pb-4">
+            <div className="mb-3 border-white/[0.06]" />
+            <div className="flex items-center justify-between px-4 text-sm">
+              <span className="text-gray-400">Total stake</span>
+              <span className="font-mono text-white">${totalStake.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 text-sm">
+              <span className="text-gray-400">Potential payout</span>
+              <span className="font-mono text-emerald-400">${totalPayout.toFixed(2)}</span>
+            </div>
+            {insufficientBankroll && (
+              <p className="mb-2 mt-2 text-center text-xs text-red-400">Insufficient bankroll</p>
             )}
+            <div className="mt-3 flex flex-col gap-2 px-4">
+              <motion.button
+                type="button"
+                onClick={onPlace}
+                disabled={bets.length === 0 || insufficientBankroll}
+                className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              >
+                Place Paper Bet
+              </motion.button>
+              <button
+                type="button"
+                onClick={onClear}
+                className="w-full py-2 text-xs text-gray-500 transition-colors duration-200 hover:text-white"
+              >
+                Clear Slip
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

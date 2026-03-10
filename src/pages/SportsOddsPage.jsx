@@ -15,8 +15,14 @@ import {
 } from 'lucide-react';
 import SportsBankroll from '../components/dashboard/SportsBankroll';
 import PaperBettingSlip from '../components/dashboard/PaperBettingSlip';
+import { supabase } from '../lib/supabaseClient';
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
+
+function calcPayout(stake, odds) {
+  if (Number(odds) > 0) return stake * (Number(odds) / 100 + 1);
+  return stake * (100 / Math.abs(Number(odds)) + 1);
+}
 
 const NAV_SECTIONS = [
   {
@@ -338,16 +344,10 @@ function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movin
     if (bookKey) {
       window.open(getAffiliateUrl(bookKey), '_blank');
       if (onAddBetToSlip && betPayload) {
+        const bookLabelName = bookLabel || BOOKS.find((b) => b.key === bookKey)?.label || bookKey;
         onAddBetToSlip({
-          sport: betPayload.sport,
-          league: betPayload.league,
-          home_team: betPayload.home_team,
-          away_team: betPayload.away_team,
-          bet_type: betPayload.bet_type,
-          selection: betPayload.selection,
-          line: betPayload.line,
-          odds: betPayload.odds,
-          book: bookLabel || BOOKS.find((b) => b.key === bookKey)?.label || bookKey,
+          ...betPayload,
+          book: bookLabelName,
         });
       }
     }
@@ -367,12 +367,12 @@ function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movin
       type="button"
       onClick={handleClick}
       title={bookLabel ? `Bet on ${bookLabel} →` : undefined}
-      className={`flex-1 h-[72px] flex flex-col items-center justify-center rounded-lg border transition-colors gap-0.5 relative cursor-pointer ${
+      className={`group flex-1 h-[72px] flex flex-col items-center justify-center rounded-lg border transition-colors gap-0.5 relative cursor-pointer ${
         selected
           ? 'bg-blue-500/20 border-blue-400/60 shadow-[0_0_12px_rgba(59,130,246,0.25)]'
-          : 'bg-[#0f1117] border-[#1e2028] hover:bg-[#151820] hover:border-[#2a2d35]'
+          : 'bg-[#0f1117] border-[#1e2028] hover:bg-[#151820] hover:border-[#2a2d35] hover:text-emerald-400'
       }`}
-      whileHover={{ scale: 1.05, color: '#10b981' }}
+      whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={SPRING}
     >
@@ -388,7 +388,7 @@ function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movin
       )}
       {hasBot && (
         <span
-          className={`text-[11px] leading-none font-mono ${selected ? 'text-blue-400' : isPos ? 'text-emerald-400' : 'text-[#8b8fa8]'}`}
+          className={`text-[11px] leading-none font-mono transition-colors ${selected ? 'text-blue-400' : isPos ? 'text-emerald-400' : 'text-[#8b8fa8] group-hover:text-emerald-400'}`}
         >
           {bottomLabel}
         </span>
@@ -528,7 +528,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 bookKey={bookKey}
                 bookLabel={bookLabel}
                 onAddBetToSlip={addBetToSlip}
-                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: away, line: fmtPt(aSpread.point) ?? '', odds: aSpread.price }}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: away, line: fmtPt(aSpread.point) ?? '', odds: aSpread.price, game_id: event.id }}
               />
               <OddsCell
                 topLabel={null}
@@ -539,7 +539,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 bookKey={bookKey}
                 bookLabel={bookLabel}
                 onAddBetToSlip={addBetToSlip}
-                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: away, line: '', odds: aMl?.price }}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: away, line: '', odds: aMl?.price, game_id: event.id }}
               />
               <OddsCell
                 topLabel={tots.point != null ? `O ${tots.point}` : null}
@@ -550,7 +550,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 bookKey={bookKey}
                 bookLabel={bookLabel}
                 onAddBetToSlip={addBetToSlip}
-                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `O ${tots.point}` : '', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over }}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `O ${tots.point}` : '', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over, game_id: event.id }}
               />
             </div>
           </div>
@@ -573,7 +573,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 bookKey={bookKey}
                 bookLabel={bookLabel}
                 onAddBetToSlip={addBetToSlip}
-                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: home, line: fmtPt(hSpread.point) ?? '', odds: hSpread.price }}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: home, line: fmtPt(hSpread.point) ?? '', odds: hSpread.price, game_id: event.id }}
               />
               <OddsCell
                 topLabel={null}
@@ -584,7 +584,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 bookKey={bookKey}
                 bookLabel={bookLabel}
                 onAddBetToSlip={addBetToSlip}
-                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: home, line: '', odds: hMl?.price }}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: home, line: '', odds: hMl?.price, game_id: event.id }}
               />
               <OddsCell
                 topLabel={tots.point != null ? `U ${tots.point}` : null}
@@ -595,7 +595,7 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onB
                 bookKey={bookKey}
                 bookLabel={bookLabel}
                 onAddBetToSlip={addBetToSlip}
-                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `U ${tots.point}` : '', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under }}
+                betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `U ${tots.point}` : '', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under, game_id: event.id }}
               />
             </div>
           </div>
@@ -690,7 +690,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               bookKey={bookKey}
               bookLabel={bookLabel}
               onAddBetToSlip={addBetToSlip}
-              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: away, line: fmtPt(aSpread.point) ?? '', odds: aSpread.price }}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: away, line: fmtPt(aSpread.point) ?? '', odds: aSpread.price, game_id: event.id }}
             />
             <OddsCell
               topLabel={fmtPt(hSpread.point)}
@@ -700,7 +700,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               bookKey={bookKey}
               bookLabel={bookLabel}
               onAddBetToSlip={addBetToSlip}
-              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: home, line: fmtPt(hSpread.point) ?? '', odds: hSpread.price }}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Spread', selection: home, line: fmtPt(hSpread.point) ?? '', odds: hSpread.price, game_id: event.id }}
             />
           </div>
           <div className="flex flex-col gap-1.5 flex-1">
@@ -712,7 +712,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               bookKey={bookKey}
               bookLabel={bookLabel}
               onAddBetToSlip={addBetToSlip}
-              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: away, line: '', odds: aMl?.price }}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: away, line: '', odds: aMl?.price, game_id: event.id }}
             />
             <OddsCell
               topLabel={null}
@@ -722,7 +722,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               bookKey={bookKey}
               bookLabel={bookLabel}
               onAddBetToSlip={addBetToSlip}
-              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: home, line: '', odds: hMl?.price }}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Moneyline', selection: home, line: '', odds: hMl?.price, game_id: event.id }}
             />
           </div>
           <div className="flex flex-col gap-1.5 flex-1">
@@ -734,7 +734,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               bookKey={bookKey}
               bookLabel={bookLabel}
               onAddBetToSlip={addBetToSlip}
-              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `O ${tots.point}` : '', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over }}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `O ${tots.point}` : '', line: tots.point != null ? `O ${tots.point}` : '', odds: tots.over, game_id: event.id }}
             />
             <OddsCell
               topLabel={tots.point != null ? `U ${tots.point}` : null}
@@ -744,7 +744,7 @@ function GameCard({ event, sportKey, bookKey, bookLabel, addBetToSlip, onSelect 
               bookKey={bookKey}
               bookLabel={bookLabel}
               onAddBetToSlip={addBetToSlip}
-              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `U ${tots.point}` : '', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under }}
+              betPayload={{ sport: sportKey, league: sportKey, home_team: home, away_team: away, bet_type: 'Total', selection: tots.point != null ? `U ${tots.point}` : '', line: tots.point != null ? `U ${tots.point}` : '', odds: tots.under, game_id: event.id }}
             />
           </div>
         </div>
@@ -1032,33 +1032,76 @@ export default function SportsOddsPage() {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [bets, setBets] = useState([]);
+  const [slip, setSlip] = useState([]);
+  const [toast, setToast] = useState(null);
   const activeSportKey = API_SPORTS.has(activeNavKey) ? activeNavKey : 'basketball_nba';
-  const addBetToSlip = useCallback(
-    (payload) =>
-      setBets((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          stake: 100,
-          sport: payload.sport,
-          league: payload.league,
-          home_team: payload.home_team,
-          away_team: payload.away_team,
-          bet_type: payload.bet_type,
-          selection: payload.selection,
-          line: payload.line,
-          odds: payload.odds,
-          book: payload.book,
-        },
-      ]),
-    []
-  );
-  const handleSlipStakeChange = useCallback((id, value) => {
-    setBets((prev) => prev.map((b) => (b.id === id ? { ...b, stake: Math.max(1, Number(value) || 0) } : b)));
+  const addBetToSlip = useCallback((payload) => {
+    setSlip((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        team: payload.selection,
+        betType: payload.bet_type,
+        selection: payload.selection,
+        line: payload.line,
+        odds: payload.odds,
+        book: payload.book,
+        stake: 100,
+        sport: payload.sport,
+        league: payload.league,
+        home_team: payload.home_team,
+        away_team: payload.away_team,
+        game_id: payload.game_id,
+      },
+    ]);
   }, []);
-  const handleSlipRemove = useCallback((id) => setBets((prev) => prev.filter((b) => b.id !== id)), []);
-  const handleSlipClear = useCallback(() => setBets([]), []);
+  const handleSlipStakeChange = useCallback((id, value) => {
+    setSlip((prev) => prev.map((b) => (b.id === id ? { ...b, stake: Math.max(1, Number(value) || 0) } : b)));
+  }, []);
+  const handleSlipRemove = useCallback((id) => setSlip((prev) => prev.filter((b) => b.id !== id)), []);
+  const handleSlipClear = useCallback(() => setSlip([]), []);
+
+  const handlePlaceBets = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user?.id) return;
+    const { data: bankroll } = await supabase
+      .from('paper_sports_bankroll')
+      .select('balance, total_wagered')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const totalStake = slip.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+    if (!bankroll || totalStake > Number(bankroll.balance)) {
+      return;
+    }
+    const betsToInsert = slip.map((bet) => ({
+      user_id: user.id,
+      sport: bet.sport,
+      league: bet.league,
+      game_id: bet.game_id,
+      home_team: bet.home_team,
+      away_team: bet.away_team,
+      bet_type: bet.betType,
+      selection: bet.selection,
+      line: bet.line,
+      odds: bet.odds,
+      stake: Number(bet.stake),
+      potential_payout: calcPayout(Number(bet.stake), bet.odds),
+      book: bet.book,
+      status: 'pending',
+    }));
+    await supabase.from('paper_sports_bets').insert(betsToInsert);
+    await supabase
+      .from('paper_sports_bankroll')
+      .update({
+        balance: Number(bankroll.balance) - totalStake,
+        total_wagered: (Number(bankroll.total_wagered) || 0) + totalStake,
+      })
+      .eq('user_id', user.id);
+    setSlip([]);
+    setToast('Bets placed! Good luck 🎯');
+    setTimeout(() => setToast(null), 3000);
+  }, [slip]);
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     setTimeout(() => {
@@ -1074,7 +1117,7 @@ export default function SportsOddsPage() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={SPRING}
-      className="flex h-full gap-4 min-h-screen bg-[#0a0a0f] text-white px-4 py-5"
+      className="flex h-full gap-4 overflow-hidden min-h-screen bg-[#0a0a0f] text-white px-4 py-5"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
         <SportsBankroll />
@@ -1314,14 +1357,20 @@ export default function SportsOddsPage() {
         </div>
       </div>
 
-      <div className="sticky top-0 h-screen w-[300px] flex-shrink-0 overflow-y-auto">
+      <div className="sticky top-0 h-screen w-[300px] flex-shrink-0 overflow-y-auto border-l border-white/[0.06] pl-4">
         <PaperBettingSlip
-          bets={bets}
+          bets={slip}
           onRemove={handleSlipRemove}
           onStakeChange={handleSlipStakeChange}
           onClear={handleSlipClear}
+          onPlace={handlePlaceBets}
         />
       </div>
+      {toast && (
+        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-emerald-500/90 px-4 py-2 text-sm font-medium text-black shadow-lg">
+          {toast}
+        </div>
+      )}
     </motion.div>
   );
 }
