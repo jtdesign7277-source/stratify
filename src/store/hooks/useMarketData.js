@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const API_BASE = '';
-const WS_URL = 'wss://stratify-backend-production-3ebd.up.railway.app';
+const WS_URL = null;
 
 const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
