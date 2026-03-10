@@ -541,9 +541,23 @@ const buildSearchResults = (entries, query) => {
 
 const toNumber = (value) => {
   if (value === null || value === undefined) return null;
+  if (typeof value === 'object') return null;
   if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+/** Prevents React Error #300: never render raw objects in JSX. Coerce to string or safe placeholder. */
+const safeRender = (val) => {
+  if (val === null || val === undefined) return '—';
+  if (typeof val === 'object') return JSON.stringify(val);
+  if (typeof val === 'number' && !Number.isFinite(val)) return '—';
+  return String(val);
+};
+const safeNum = (val) => {
+  if (val === null || val === undefined || typeof val === 'object') return '—';
+  const n = parseFloat(val);
+  return Number.isFinite(n) ? String(Number(n).toFixed(2)) : '—';
 };
 
 const toPaperSymbolKey = (value = '') =>
@@ -4142,6 +4156,7 @@ export default function TraderPage({
   const isMediumArticleDrawerLayout = Boolean(drawerArticle && isNewsOpen && !isArticleDrawerExtendedToChartTop);
 
   return (
+    <ErrorBoundary>
     <motion.div
       {...PAGE_TRANSITION}
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-[#e5e7eb]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%), #0a0a0a' }}
@@ -4253,7 +4268,7 @@ export default function TraderPage({
           <div>
             <div className="flex items-center justify-end gap-1.5">
               <div className={`text-xl font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
-                {formatPrice(selectedQuote?.price)}
+                {safeRender(Number.isFinite(toNumber(selectedQuote?.price)) ? formatPrice(selectedQuote?.price) : '--')}
               </div>
               {selectedPriceLoading && (
                 <span className="h-2 w-2 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
@@ -4268,7 +4283,7 @@ export default function TraderPage({
                   : 'text-[#6b7280]'
               }`}
             >
-              <span>{formatSignedPercent(selectedQuote?.changePercent)}</span>
+              <span>{safeRender(formatSignedPercent(selectedQuote?.changePercent))}</span>
               {selectedDayLoading && (
                 <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
               )}
@@ -4435,7 +4450,7 @@ export default function TraderPage({
                                   </span>
                                   <div className="ml-2 flex shrink-0 items-center gap-2">
                                     {Number.isFinite(livePrice) && (
-                                      <span className="text-[11px] font-mono text-white/85">{formatPrice(livePrice)}</span>
+                                      <span className="text-[11px] font-mono text-white/85">{safeRender(Number.isFinite(toNumber(livePrice)) ? formatPrice(livePrice) : '--')}</span>
                                     )}
                                     {Number.isFinite(liveChangePercent) && (
                                       <span
@@ -4443,7 +4458,7 @@ export default function TraderPage({
                                           liveChangePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
                                         }`}
                                       >
-                                        {formatSignedPercent(liveChangePercent)}
+                                        {safeRender(formatSignedPercent(liveChangePercent))}
                                       </span>
                                     )}
                                     <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
@@ -4577,12 +4592,12 @@ export default function TraderPage({
                                 </div>
                                 <div className="text-right flex-shrink-0">
                                   <div className="text-[12px] font-mono font-semibold text-white">
-                                    {Number.isFinite(price) ? formatPrice(price) : '--'}
+                                    {safeRender(Number.isFinite(price) ? formatPrice(price) : '--')}
                                   </div>
                                   <div className={`text-xs font-semibold ${changeClass}`}>
-                                    {Number.isFinite(changePercent)
+                                    {safeRender(Number.isFinite(changePercent)
                                       ? (changePercent >= 0 ? '+' : '') + formatPercent(changePercent, 2)
-                                      : '--'}
+                                      : '--')}
                                   </div>
                                 </div>
                               </div>
@@ -4752,7 +4767,7 @@ export default function TraderPage({
                                             price={price}
                                             className={`text-[12px] font-mono font-semibold ${isPlaceholder ? 'text-white/80' : 'text-white'}`}
                                           >
-                                            {Number.isFinite(price) ? formatPrice(price) : '--'}
+                                            {safeRender(Number.isFinite(price) ? formatPrice(price) : '--')}
                                           </PriceFlash>
                                           {isPriceLoading && (
                                             <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
@@ -4772,7 +4787,7 @@ export default function TraderPage({
                                                     fontFamily: 'monospace',
                                                   }}
                                                 >
-                                                  {isPositive ? '+' : ''}{displayPercent}%
+                                                  {isPositive ? '+' : ''}{safeRender(displayPercent)}%
                                                 </span>
                                               )}
                                             </div>
@@ -4922,13 +4937,13 @@ export default function TraderPage({
                         </div>
                         <div className="mt-0.5 flex items-center justify-center gap-1">
                           <PriceFlash
-                            price={changePercent}
+                            price={Number.isFinite(changePercent) ? changePercent : 0}
                             className={`text-[10px] font-mono font-semibold ${
                               isPositive ? 'text-emerald-400' : 'text-red-400'
                             }`}
                           >
                             {isPositive ? '+' : ''}
-                            {changePercent.toFixed(1)}%
+                            {safeNum(changePercent)}%
                           </PriceFlash>
                           {isDayLoading && (
                             <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating day change" />
@@ -5640,8 +5655,8 @@ export default function TraderPage({
                     tradingMode={resolvedTradingMode}
                     canUseLiveTrading={resolvedCanUseLiveTrading}
                     quotesBySymbol={quotesBySymbol}
-                    totalGainLossDollar={paperTotalGainLoss?.dollar}
-                    totalGainLossPercent={paperTotalGainLoss?.percent}
+                    totalGainLossDollar={toNumber(paperTotalGainLoss?.dollar) ?? undefined}
+                    totalGainLossPercent={toNumber(paperTotalGainLoss?.percent) ?? undefined}
                     onSymbolChange={(symbolInput) => {
                       const normalized = normalizeSymbol(symbolInput);
                       if (!normalized) return;
@@ -5661,5 +5676,6 @@ export default function TraderPage({
         </section>
       </motion.div>
     </motion.div>
+    </ErrorBoundary>
   );
 }
