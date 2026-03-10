@@ -4602,6 +4602,13 @@ export default function TraderPage({
                                 : secondarySession === 'post-market'
                                   ? 'Post-market change (% / $)'
                                   : 'Live change (% / $)';
+                              const stock = quote;
+                              const isExtended = !(stock?.is_market_open ?? stock?.isMarketOpen) && (stock?.extended_percent_change != null || stock?.extendedPercentChange != null);
+                              const displayPercent = isExtended
+                                ? (parseFloat(stock?.extended_percent_change ?? stock?.extendedPercentChange) || 0).toFixed(2)
+                                : (parseFloat(stock?.percent_change ?? stock?.changePercent) || 0).toFixed(2);
+                              const isPositive = parseFloat(displayPercent) >= 0;
+                              const percentColor = isPositive ? 'text-emerald-400' : 'text-red-400';
                               const normalizedSymbol = normalizeSymbol(symbol);
                               const isSelected =
                                 normalizeSymbol(selectedSymbol) === normalizedSymbol
@@ -4690,36 +4697,12 @@ export default function TraderPage({
                                         </div>
                                         {Number.isFinite(price) && (
                                           <div className="flex flex-col items-end gap-1">
-                                            <motion.button
-                                              type="button"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                toggleWatchlistChangeDisplayMode(symbol, 'day');
-                                              }}
-                                              whileHover={{ scale: 1.02 }}
-                                              whileTap={{ scale: 0.98 }}
-                                              transition={interactiveTransition}
-                                              title={primaryMetricTitle}
-                                              className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
-                                                getWatchlistChangeToneClass(secondaryReferenceChange)
-                                              }`}
-                                            >
-                                              <span className="inline-flex items-center justify-end gap-1">
-                                                {shouldShowExtendedPercent && displayMode === 'percent' && (
-                                                  <span className="text-[10px]" title="Extended hours">
-                                                    ☀️
-                                                  </span>
-                                                )}
-                                                <span>{`${formatWatchlistChangeValue({
-                                                  mode: displayMode,
-                                                  percentValue: secondaryPercentChange,
-                                                  dollarValue: secondaryDollarChange,
-                                                })}`}</span>
+                                            <div className="flex items-center gap-1">
+                                              {isExtended && <span className="text-sm">☀️</span>}
+                                              <span className={`${percentColor} font-mono text-sm`}>
+                                                {isPositive ? '+' : ''}{displayPercent}%
                                               </span>
-                                              {isPrimaryLoading && (
-                                                <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
-                                              )}
-                                            </motion.button>
+                                            </div>
                                           </div>
                                         )}
                                       </div>

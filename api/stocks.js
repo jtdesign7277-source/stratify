@@ -66,9 +66,19 @@ export default async function handler(req, res) {
       fetchedBarsBySymbol.set(bar.symbol, bar);
     });
   };
+  // Twelve Data /quote fetch is in lib/stocks-cache.js (fetchSnapshotsFromTwelveData) with prepost=true in the URL.
   const getCombinedBars = () => symbols
     .map((symbol) => cachedBarsBySymbol.get(symbol) || fetchedBarsBySymbol.get(symbol))
     .filter(Boolean);
+
+  // Ensure extended_* and is_market_open are passed through (Twelve Data /quote in lib/stocks-cache returns them; prepost=true in URL).
+  const ensureQuoteFields = (bars) => bars.map((bar) => ({
+    ...bar,
+    extended_price: bar.extended_price ?? bar.extendedPrice ?? null,
+    extended_change: bar.extended_change ?? bar.extendedChange ?? null,
+    extended_percent_change: bar.extended_percent_change ?? bar.extendedPercentChange ?? null,
+    is_market_open: bar.is_market_open ?? (bar.marketSession === 'regular'),
+  }));
 
   const fetchDirectBarsWithoutRedis = async (reason, targetSymbols = symbols) => {
     try {
@@ -147,7 +157,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json(getCombinedBars());
+    return res.status(200).json(ensureQuoteFields(getCombinedBars()));
   } catch (error) {
     console.error('[stocks] Unexpected handler error. Returning fail-open response instead of 500.', {
       message: error?.message,
@@ -159,6 +169,6 @@ export default async function handler(req, res) {
 
     const fallbackBars = await fetchDirectBarsWithoutRedis('unexpected-handler-error', symbols);
     mergeFetchedBars(fallbackBars);
-    return res.status(200).json(getCombinedBars());
+    return res.status(200).json(ensureQuoteFields(getCombinedBars()));
   }
 }
