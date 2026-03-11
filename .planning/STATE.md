@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-filters-and-tab-integration-01-PLAN.md
-last_updated: "2026-03-11T11:28:07.329Z"
+stopped_at: Completed 03-02-PLAN.md — awaiting human-verify checkpoint
+last_updated: "2026-03-11T11:29:14.996Z"
 last_activity: "2026-03-11 — Completed 01-01: paper_sports_bets schema migration, RLS, cron fix, bankroll init"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 100
 ---
 
@@ -54,6 +54,7 @@ Progress: [██████████] 100%
 | Phase 02-bet-history-display P01 | 5 | 2 tasks | 1 files |
 | Phase 02-bet-history-display P02 | 3 | 1 tasks | 2 files |
 | Phase 03-filters-and-tab-integration P01 | 2 | 1 tasks | 2 files |
+| Phase 03-filters-and-tab-integration P02 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Recent decisions affecting current work:
 - [Phase 02-bet-history-display]: computeStats accepts any subset array — supports future filter scenarios
 - [Phase 03-filters-and-tab-integration]: Stats always derived from filteredBets (not bets) to enforce STAT-02; statsProp kept in signature for backward compat but ignored
 - [Phase 03-filters-and-tab-integration]: Two distinct layoutId values (result-indicator, sport-indicator) prevent framer-motion shared layout animation collision
+- [Phase 03-filters-and-tab-integration]: view-tab-indicator layoutId distinct from book-tab/detail-tab/nav-active — no framer-motion collision
+- [Phase 03-filters-and-tab-integration]: Paper slip sidebar outside AnimatePresence conditional — visible on both Odds and History views
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T11:28:07.327Z
-Stopped at: Completed 03-filters-and-tab-integration-01-PLAN.md
+Last session: 2026-03-11T11:29:14.994Z
+Stopped at: Completed 03-02-PLAN.md — awaiting human-verify checkpoint
 Resume file: None

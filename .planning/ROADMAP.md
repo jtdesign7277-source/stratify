@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Verify schema correctness, extract shared payout utility, confirm cron resolution, lock design system (completed 2026-03-11)
 - [x] **Phase 2: Bet History Display** - Build useBetHistory hook, BetHistorySummary stat strip, and BetHistoryTab table view (completed 2026-03-11)
-- [ ] **Phase 3: Filters and Tab Integration** - Add filter controls, column sorting, and wire the tab into SportsOddsPage
+- [x] **Phase 3: Filters and Tab Integration** - Add filter controls, column sorting, and wire the tab into SportsOddsPage (completed 2026-03-11)
 
 ## Phase Details
 
@@ -74,4 +74,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete    | 2026-03-11 |
 | 2. Bet History Display | 2/2 | Complete    | 2026-03-11 |
-| 3. Filters and Tab Integration | 1/2 | In Progress|  |
+| 3. Filters and Tab Integration | 2/2 | Complete   | 2026-03-11 |

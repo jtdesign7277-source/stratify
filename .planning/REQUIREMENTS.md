@@ -26,7 +26,7 @@
 
 ### Integration
 
-- [ ] **INTG-01**: Bet history accessible as a tab/section within the existing sportsbook page
+- [x] **INTG-01**: Bet history accessible as a tab/section within the existing sportsbook page
 - [x] **INTG-02**: Design matches Stratify system exactly: bg-[#0a0a0f], glass panels with backdrop-blur-xl, border-white/10, emerald/cyan accents, monospace for numbers, no badges/pills — plain colored text only
 
 ## v2 Requirements
@@ -73,7 +73,7 @@
 | FILT-02 | Phase 3 | Complete |
 | FILT-03 | Phase 3 | Complete |
 | FILT-04 | Phase 3 | Complete |
-| INTG-01 | Phase 3 | Pending |
+| INTG-01 | Phase 3 | Complete |
 | INTG-02 | Phase 1 | Complete |
 
 **Coverage:**
