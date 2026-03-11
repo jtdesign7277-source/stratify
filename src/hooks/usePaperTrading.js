@@ -128,7 +128,13 @@ const parseApiError = async (response) => {
 };
 
 const getAuthHeaders = async () => {
-  const { data } = await supabase.auth.getSession();
+  // Race getSession against a timeout — getSession can hang if auth hasn't initialized
+  const sessionPromise = supabase.auth.getSession();
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Auth session timed out. Please refresh and try again.')), 5000)
+  );
+
+  const { data } = await Promise.race([sessionPromise, timeoutPromise]);
   const token = String(data?.session?.access_token || '').trim();
   if (!token) {
     throw new Error('Please sign in to use paper trading.');
