@@ -789,6 +789,100 @@ Keep it clean and factual.`;
   return tweet;
 }
 
+
+async function generateTrumpWatch() {
+  const redis = getRedis();
+
+  const etDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const countKey = `trump_watch:count:${etDate}`;
+  const seenKey = `trump_watch:seen_ids:${etDate}`;
+
+  if (redis) {
+    try {
+      const count = parseInt(await redis.get(countKey), 10) || 0;
+      if (count >= 2) {
+        console.log('Trump watch: daily limit of 2 reached');
+        return null;
+      }
+    } catch {}
+  }
+
+  let tweets = [];
+  try {
+    const data = await xApiGet('https://api.twitter.com/2/users/25073877/tweets', {
+      max_results: '10',
+      'tweet.fields': 'created_at,text,id',
+      exclude: 'retweets,replies',
+    });
+    tweets = data.data || [];
+  } catch (e) {
+    console.error('Trump fetch error:', e.message);
+    return null;
+  }
+
+  if (tweets.length === 0) return null;
+
+  let seenIds = [];
+  if (redis) {
+    try {
+      const raw = await redis.get(seenKey);
+      seenIds = raw ? JSON.parse(raw) : [];
+    } catch {}
+  }
+  const unseen = tweets.filter(t => !seenIds.includes(t.id));
+  if (unseen.length === 0) {
+    console.log('Trump watch: no new tweets');
+    return null;
+  }
+
+  const tweetList = unseen.map((t, i) => `${i + 1}. [ID: ${t.id}] ${t.text}`).join('\n');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY_XPOST,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: `You monitor Trump tweets for Stratify, a trading platform. Pick the single most market-relevant tweet. Score 1-10. If score < 7, return null.\n\nTweets:\n${tweetList}\n\nReturn ONLY valid JSON, no markdown:\n{"tweetId": "...", "score": 8, "hook": "JUST IN: 8-10 word teaser", "body": "Full post under 280 chars. Start with his exact quote in quotes, then 1-2 lines on market angle. End with $SPY or relevant ticker."}\n\nIf no tweet scores 7+, return: {"tweetId": null, "score": 0}`,
+      }],
+    }),
+  });
+
+  const aiData = await res.json();
+  let parsed;
+  try {
+    const text = aiData.content?.[0]?.text?.trim() || '{}';
+    parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+  } catch {
+    return null;
+  }
+
+  if (!parsed.tweetId || parsed.score < 7) {
+    console.log('Trump watch: score too low:', parsed.score);
+    return null;
+  }
+
+  const tweet = parsed.body?.trim();
+  if (!tweet || tweet.length > 280) return null;
+
+  if (redis) {
+    try {
+      const ttl = getMidnightTTL();
+      seenIds.push(parsed.tweetId);
+      await redis.set(seenKey, JSON.stringify(seenIds), { ex: ttl });
+      const count = parseInt(await redis.get(countKey), 10) || 0;
+      await redis.set(countKey, String(count + 1), { ex: ttl });
+    } catch {}
+  }
+
+  return { tweet, hook: parsed.hook, score: parsed.score };
+}
+
 async function generateMarketClose() {
   const watchlist = [...APPROVED_TICKERS.mag7, ...APPROVED_TICKERS.indices];
   const quotes = await fetchTwelveDataQuotes(watchlist);
@@ -936,6 +1030,10 @@ export default async function handler(req, res) {
         break;
       case 'market-close':
         tweet = await generateMarketClose();
+        break;
+      case 'trump-watch':
+        const trumpResult = await generateTrumpWatch();
+        tweet = trumpResult?.tweet || null;
         break;
       default:
         return res.status(400).json({ error: `Unknown type: ${type}` });
