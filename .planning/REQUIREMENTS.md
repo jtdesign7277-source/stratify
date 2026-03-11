@@ -9,8 +9,8 @@
 
 - [x] **HIST-01**: User can view bet history table with columns: date/time, matchup, sport, bet amount, odds/spread, payout, result
 - [x] **HIST-02**: Bet history displays in reverse chronological order by default
-- [ ] **HIST-03**: Win results shown in emerald, losses in red, pending in muted gray — plain colored text, no badges or pills
-- [ ] **HIST-04**: Empty state shown when user has no bet history with guidance to place first bet
+- [x] **HIST-03**: Win results shown in emerald, losses in red, pending in muted gray — plain colored text, no badges or pills
+- [x] **HIST-04**: Empty state shown when user has no bet history with guidance to place first bet
 
 ### Summary Stats
 
@@ -65,8 +65,8 @@
 |-------------|-------|--------|
 | HIST-01 | Phase 2 | Complete |
 | HIST-02 | Phase 2 | Complete |
-| HIST-03 | Phase 2 | Pending |
-| HIST-04 | Phase 2 | Pending |
+| HIST-03 | Phase 2 | Complete |
+| HIST-04 | Phase 2 | Complete |
 | STAT-01 | Phase 2 | Complete |
 | STAT-02 | Phase 2 | Complete |
 | FILT-01 | Phase 3 | Pending |
