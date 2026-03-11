@@ -7,15 +7,15 @@
 
 ### History Display
 
-- [ ] **HIST-01**: User can view bet history table with columns: date/time, matchup, sport, bet amount, odds/spread, payout, result
-- [ ] **HIST-02**: Bet history displays in reverse chronological order by default
+- [x] **HIST-01**: User can view bet history table with columns: date/time, matchup, sport, bet amount, odds/spread, payout, result
+- [x] **HIST-02**: Bet history displays in reverse chronological order by default
 - [ ] **HIST-03**: Win results shown in emerald, losses in red, pending in muted gray — plain colored text, no badges or pills
 - [ ] **HIST-04**: Empty state shown when user has no bet history with guidance to place first bet
 
 ### Summary Stats
 
-- [ ] **STAT-01**: Summary P&L header shows total wagered, total won, net P&L, win rate above the history table
-- [ ] **STAT-02**: Stats update dynamically to reflect current filter selections
+- [x] **STAT-01**: Summary P&L header shows total wagered, total won, net P&L, win rate above the history table
+- [x] **STAT-02**: Stats update dynamically to reflect current filter selections
 
 ### Filtering & Sorting
 
@@ -63,12 +63,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HIST-01 | Phase 2 | Pending |
-| HIST-02 | Phase 2 | Pending |
+| HIST-01 | Phase 2 | Complete |
+| HIST-02 | Phase 2 | Complete |
 | HIST-03 | Phase 2 | Pending |
 | HIST-04 | Phase 2 | Pending |
-| STAT-01 | Phase 2 | Pending |
-| STAT-02 | Phase 2 | Pending |
+| STAT-01 | Phase 2 | Complete |
+| STAT-02 | Phase 2 | Complete |
 | FILT-01 | Phase 3 | Pending |
 | FILT-02 | Phase 3 | Pending |
 | FILT-03 | Phase 3 | Pending |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-foundation-02-PLAN.md
-last_updated: "2026-03-11T02:28:52.345Z"
+stopped_at: Completed 02-bet-history-display-01-PLAN.md
+last_updated: "2026-03-11T10:46:43.477Z"
 last_activity: "2026-03-11 — Completed 01-01: paper_sports_bets schema migration, RLS, cron fix, bankroll init"
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 100
 ---
 
@@ -51,6 +51,7 @@ Progress: [██████████] 100%
 
 *Updated after each plan completion*
 | Phase 01-foundation P02 | 4 | 2 tasks | 3 files |
+| Phase 02-bet-history-display P01 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: calcPayout defined once in sportsUtils.js — both callers import, no local copies
 - [Phase 01-foundation]: sportsUtils.js has zero import statements — prevents circular dependency chains per CLAUDE.md rule #3
 - [Phase 01-foundation]: GLASS_CARD and DESIGN_COLORS locked to CONTEXT.md values — Phase 2 components must import from sportsUtils, not copy-paste
+- [Phase 02-bet-history-display]: Column is 'stake' not 'bet_amount' — verified against SportsOddsPage INSERT
+- [Phase 02-bet-history-display]: computeStats accepts any subset array — supports future filter scenarios
 
 ### Pending Todos
 
@@ -82,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T02:25:13.752Z
-Stopped at: Completed 01-foundation-02-PLAN.md
+Last session: 2026-03-11T10:46:38.487Z
+Stopped at: Completed 02-bet-history-display-01-PLAN.md
 Resume file: None
