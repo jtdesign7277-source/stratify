@@ -47,6 +47,14 @@ export async function initNewUser(userId) {
     throw upsertError;
   }
 
+  // Initialize sportsbook bankroll for new users
+  await supabase
+    .from('paper_sports_bankroll')
+    .upsert(
+      { user_id: userId, balance: 100000 },
+      { onConflict: 'user_id', ignoreDuplicates: true }
+    );
+
   return { initialized: true, skipped: false };
 }
 

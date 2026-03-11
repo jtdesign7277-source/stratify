@@ -124,7 +124,7 @@ export default async function handler(req, res) {
           actual_payout: actualPayout,
           home_score: homeScore,
           away_score: awayScore,
-          settled_at: new Date().toISOString(),
+          result_resolved_at: new Date().toISOString(),
         })
         .eq('id', bet.id);
 
