@@ -986,8 +986,8 @@ export default async function handler(req, res) {
   }
 
   let type = req.query.type || 'market-open';
-  if (session === 'premarket') type = 'premarket';
-  if (session === 'afterhours') type = 'market-close';
+  
+  
 
   const redisLock = getRedis();
   if (redisLock) {
