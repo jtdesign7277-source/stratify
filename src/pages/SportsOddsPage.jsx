@@ -18,13 +18,9 @@ import {
 import SportsBankroll from '../components/dashboard/SportsBankroll';
 import PaperBettingSlip from '../components/dashboard/PaperBettingSlip';
 import { supabase } from '../lib/supabaseClient';
+import { calcPayout } from '../lib/sportsUtils';
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
-
-function calcPayout(stake, odds) {
-  if (Number(odds) > 0) return stake * (Number(odds) / 100 + 1);
-  return stake * (100 / Math.abs(Number(odds)) + 1);
-}
 
 const NAV_SECTIONS = [
   {

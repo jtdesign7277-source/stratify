@@ -2,13 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { calcPayout } from '../../lib/sportsUtils';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 30 };
-
-function calcPayout(stake, odds) {
-  if (odds > 0) return stake * (odds / 100 + 1);
-  return stake * (100 / Math.abs(odds) + 1);
-}
 
 export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClear, onPlace, onCollapse }) {
   const [parlay, setParlay] = useState(false);
