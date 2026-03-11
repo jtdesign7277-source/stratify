@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import SportsBankroll from '../components/dashboard/SportsBankroll';
 import PaperBettingSlip from '../components/dashboard/PaperBettingSlip';
+import BetHistoryTab from '../components/dashboard/BetHistoryTab';
+import { useBetHistory } from '../hooks/useBetHistory';
 import { supabase } from '../lib/supabaseClient';
 import { calcPayout } from '../lib/sportsUtils';
 
@@ -1078,6 +1080,8 @@ export default function SportsOddsPage() {
   const [slipOpen, setSlipOpen] = useState(false);
   const [confirmBet, setConfirmBet] = useState(null);
   const [toast, setToast] = useState(null);
+  const [activeView, setActiveView] = useState('odds');
+  const { bets, loading: historyLoading, error: historyError } = useBetHistory();
   const activeSportKey = API_SPORTS.has(activeNavKey) ? activeNavKey : 'basketball_nba';
   const addBetToSlip = useCallback((payload) => {
     setSlipOpen(true);
@@ -1170,6 +1174,41 @@ export default function SportsOddsPage() {
     >
       <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
         <SportsBankroll />
+
+        {/* Odds / History tab strip */}
+        <div className="flex items-center gap-1 bg-[#0f1117] rounded-xl p-0.5 border border-[#1e2028] w-fit">
+          {['odds', 'history'].map((view) => (
+            <motion.button
+              key={view}
+              onClick={() => setActiveView(view)}
+              whileTap={{ scale: 0.96 }}
+              transition={SPRING}
+              className={`relative px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                activeView === view ? 'text-white' : 'text-gray-500 hover:text-gray-400'
+              }`}
+            >
+              {activeView === view && (
+                <motion.div
+                  layoutId="view-tab-indicator"
+                  className="absolute inset-0 rounded-lg bg-white/[0.08] border border-white/[0.08]"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">{view === 'odds' ? 'Odds' : 'History'}</span>
+            </motion.button>
+          ))}
+        </div>
+
+        <AnimatePresence mode="wait">
+          {activeView === 'odds' ? (
+            <motion.div
+              key="odds"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex flex-col gap-4"
+            >
 
         {/* Top: Header with Live pulse, Refresh, book selector, Bet CTA */}
       <div className="flex items-start justify-between gap-4">
@@ -1405,6 +1444,20 @@ export default function SportsOddsPage() {
         <div className="text-xs text-gray-700 text-center">
           Sports betting involves risk. Must be 21+ and located in a state where sports betting is legal. Please gamble responsibly.
         </div>
+
+            </motion.div>
+          ) : (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <BetHistoryTab bets={bets} loading={historyLoading} error={historyError} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <motion.div

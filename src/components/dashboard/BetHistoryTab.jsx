@@ -1,7 +1,10 @@
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GLASS_CARD } from '../../lib/sportsUtils';
 import BetHistorySummary from './BetHistorySummary';
 import { computeStats } from '../../hooks/useBetHistory';
+
+const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
 
 const RESULT_COLOR = {
   won: 'text-emerald-400',
@@ -16,14 +19,23 @@ const RESULT_LABEL = {
 };
 
 const COLUMNS = [
-  { key: 'date', label: 'Date / Time' },
-  { key: 'matchup', label: 'Matchup' },
-  { key: 'sport', label: 'Sport' },
-  { key: 'stake', label: 'Stake' },
-  { key: 'odds', label: 'Odds' },
-  { key: 'payout', label: 'Payout' },
-  { key: 'result', label: 'Result' },
+  { key: 'date', label: 'Date / Time', sortable: true, sortKey: 'date' },
+  { key: 'matchup', label: 'Matchup', sortable: false },
+  { key: 'sport', label: 'Sport', sortable: false },
+  { key: 'stake', label: 'Stake', sortable: true, sortKey: 'stake' },
+  { key: 'odds', label: 'Odds', sortable: false },
+  { key: 'payout', label: 'Payout', sortable: false },
+  { key: 'result', label: 'Result', sortable: true, sortKey: 'result' },
 ];
+
+const RESULT_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'won', label: 'Win' },
+  { key: 'lost', label: 'Loss' },
+  { key: 'pending', label: 'Pending' },
+];
+
+const SPORT_FILTERS = ['all', 'NFL', 'NBA', 'MLB', 'NHL'];
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -55,7 +67,56 @@ const rowVariants = {
 };
 
 export default function BetHistoryTab({ bets = [], loading = false, error = null, stats: statsProp }) {
-  const stats = statsProp ?? computeStats(bets);
+  const [resultFilter, setResultFilter] = useState('all');
+  const [sportFilter, setSportFilter] = useState('all');
+  const [sortKey, setSortKey] = useState('date');
+  const [sortDir, setSortDir] = useState('desc');
+
+  const filteredBets = useMemo(() => {
+    let out = bets;
+
+    if (resultFilter !== 'all') {
+      out = out.filter((b) => b.status === resultFilter);
+    }
+
+    if (sportFilter !== 'all') {
+      out = out.filter(
+        (b) =>
+          (b.league ?? '').toUpperCase().includes(sportFilter) ||
+          (b.sport ?? '').toUpperCase().includes(sportFilter)
+      );
+    }
+
+    out = [...out].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'date') {
+        cmp = (a.created_at ?? '') < (b.created_at ?? '') ? -1 : 1;
+      } else if (sortKey === 'stake') {
+        cmp = Number(a.stake) < Number(b.stake) ? -1 : 1;
+      } else if (sortKey === 'result') {
+        cmp = (a.status ?? '') < (b.status ?? '') ? -1 : 1;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return out;
+  }, [bets, resultFilter, sportFilter, sortKey, sortDir]);
+
+  const stats = computeStats(filteredBets);
+
+  function handleSort(key) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  }
+
+  function clearFilters() {
+    setResultFilter('all');
+    setSportFilter('all');
+  }
 
   if (loading) {
     return (
@@ -77,6 +138,63 @@ export default function BetHistoryTab({ bets = [], loading = false, error = null
     <div className="flex flex-col gap-4 bg-[#0a0a0f]">
       <BetHistorySummary stats={stats} />
 
+      {/* Filter controls */}
+      <div className="flex flex-col gap-3">
+        {/* Result filter row */}
+        <div className="flex items-center gap-1">
+          {RESULT_FILTERS.map((f) => (
+            <div key={f.key} className="relative">
+              {resultFilter === f.key && (
+                <motion.div
+                  layoutId="result-indicator"
+                  className="absolute inset-0 rounded-lg bg-white/[0.08] border border-white/[0.08]"
+                  transition={SPRING}
+                />
+              )}
+              <motion.button
+                onClick={() => setResultFilter(f.key)}
+                whileTap={{ scale: 0.96 }}
+                transition={SPRING}
+                className={`relative z-10 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  resultFilter === f.key
+                    ? 'text-white'
+                    : 'text-gray-500 hover:text-gray-400'
+                }`}
+              >
+                {f.label}
+              </motion.button>
+            </div>
+          ))}
+        </div>
+
+        {/* Sport filter row */}
+        <div className="flex items-center gap-1">
+          {SPORT_FILTERS.map((s) => (
+            <div key={s} className="relative">
+              {sportFilter === s && (
+                <motion.div
+                  layoutId="sport-indicator"
+                  className="absolute inset-0 rounded-lg bg-white/[0.08] border border-white/[0.08]"
+                  transition={SPRING}
+                />
+              )}
+              <motion.button
+                onClick={() => setSportFilter(s)}
+                whileTap={{ scale: 0.96 }}
+                transition={SPRING}
+                className={`relative z-10 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  sportFilter === s
+                    ? 'text-white'
+                    : 'text-gray-500 hover:text-gray-400'
+                }`}
+              >
+                {s === 'all' ? 'All' : s}
+              </motion.button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <AnimatePresence>
         {bets.length === 0 ? (
           <motion.div
@@ -92,6 +210,23 @@ export default function BetHistoryTab({ bets = [], loading = false, error = null
               Place your first paper bet to start tracking performance
             </p>
           </motion.div>
+        ) : filteredBets.length === 0 ? (
+          <motion.div
+            key="empty-filtered"
+            className={`${GLASS_CARD.standard} flex flex-col items-center justify-center py-16 text-center`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <span className="mb-3 text-3xl opacity-40">&#x1f50d;</span>
+            <p className="text-sm font-medium text-gray-400">No bets match your filters</p>
+            <button
+              onClick={clearFilters}
+              className="mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Clear filters
+            </button>
+          </motion.div>
         ) : (
           <motion.div
             key="table"
@@ -104,14 +239,35 @@ export default function BetHistoryTab({ bets = [], loading = false, error = null
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-black/20 border-b border-white/[0.06]">
-                    {COLUMNS.map((col) => (
-                      <th
-                        key={col.key}
-                        className="px-4 py-3 text-left text-xs font-semibold tracking-widest text-gray-500 uppercase whitespace-nowrap"
-                      >
-                        {col.label}
-                      </th>
-                    ))}
+                    {COLUMNS.map((col) =>
+                      col.sortable ? (
+                        <th
+                          key={col.key}
+                          onClick={() => handleSort(col.sortKey)}
+                          className="px-4 py-3 text-left text-xs font-semibold tracking-widest text-gray-500 uppercase whitespace-nowrap cursor-pointer hover:text-gray-300 transition-colors select-none"
+                        >
+                          {col.label}
+                          {sortKey === col.sortKey && (
+                            <motion.span
+                              key={`${col.sortKey}-${sortDir}`}
+                              initial={{ opacity: 0, y: sortDir === 'asc' ? 4 : -4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={SPRING}
+                              className="ml-1 inline-block"
+                            >
+                              {sortDir === 'asc' ? '↑' : '↓'}
+                            </motion.span>
+                          )}
+                        </th>
+                      ) : (
+                        <th
+                          key={col.key}
+                          className="px-4 py-3 text-left text-xs font-semibold tracking-widest text-gray-500 uppercase whitespace-nowrap"
+                        >
+                          {col.label}
+                        </th>
+                      )
+                    )}
                   </tr>
                 </thead>
                 <motion.tbody
@@ -119,7 +275,7 @@ export default function BetHistoryTab({ bets = [], loading = false, error = null
                   initial="hidden"
                   animate="show"
                 >
-                  {bets.map((bet) => {
+                  {filteredBets.map((bet) => {
                     const status = bet.status ?? 'pending';
                     const payout =
                       status === 'pending'
