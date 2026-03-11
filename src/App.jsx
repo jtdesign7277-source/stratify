@@ -1746,15 +1746,6 @@ function StratifyAppContent() {
     (isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth');
   const backgroundVariant = isInternalAppPage ? 'app' : 'marketing';
 
-  if (authGateTimedOut && !isAuthenticated) {
-    return (
-      <SignUpPage
-        onSuccess={() => { window.location.replace('/dashboard'); }}
-        onBackToLanding={() => navigateToPage('landing')}
-      />
-    );
-  }
-
   const hardSignOutAndRedirect = useCallback(() => {
     supabase.auth.signOut();
     localStorage.clear();
@@ -1764,6 +1755,15 @@ function StratifyAppContent() {
     });
     window.location.href = '/';
   }, []);
+
+  if (authGateTimedOut && !isAuthenticated) {
+    return (
+      <SignUpPage
+        onSuccess={() => { window.location.replace('/dashboard'); }}
+        onBackToLanding={() => navigateToPage('landing')}
+      />
+    );
+  }
 
   if (isCheckingSession) {
     return (
