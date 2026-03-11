@@ -34,7 +34,7 @@ Plans:
 - [ ] 01-02: Extract calcPayout to sportsUtils.js, confirm cron schedule, lock design tokens
 
 ### Phase 2: Bet History Display
-**Goal**: Users can open a bet history view and see their complete bet log with correct P&L summary stats — every bet shows the right data in the right colors, and an empty state guides new users
+**Goal**: Build the data layer (useBetHistory hook, computeStats) and display components (BetHistorySummary stat strip, BetHistoryTab table) that power the bet history view — components are ready for Phase 3 tab integration
 **Depends on**: Phase 1
 **Requirements**: HIST-01, HIST-02, HIST-03, HIST-04, STAT-01, STAT-02
 **Success Criteria** (what must be TRUE):
