@@ -4,209 +4,260 @@
 
 ## Tech Debt
 
-**Legacy backend directories still present:**
-- Issue: `/backend/` (Python/FastAPI, 328K) and `/server/` (Node.js/Express, 3.7M) remain in repo but are not deployed. They consume disk space and create confusion about production code location.
-- Files: `/backend/`, `/server/` (entire directories)
-- Impact: Increases repo clutter, unclear which backend is "real," stale dependencies in these directories may introduce supply chain risks if accidentally referenced
-- Fix approach: Confirm these are not needed, then delete both directories entirely or move to separate archive. Production is Vercel + `/api/` only per CLAUDE.md.
+**Large Component Files (5000+ LOC):**
+- Files: `src/components/dashboard/TraderPage.jsx` (5592 LOC), `src/components/dashboard/Dashboard.jsx` (3080 LOC)
+- Issue: Single components handling multiple concerns (state management, rendering, WebSocket subscriptions). Difficult to test, maintain, and refactor.
+- Fix approach: Extract state management to custom hooks, split into smaller components, move business logic to services
 
-**API Key resolution is fragile across multiple env vars:**
-- Issue: Twelve Data API key lookup chain in `api/lib/twelvedata.js` (lines 95-102) checks 4 different variable names: `TWELVEDATA_API_KEY`, `TWELVE_DATA_API_KEY`, `VITE_TWELVE_DATA_API_KEY`, `VITE_TWELVEDATA_API_KEY`. Similar pattern in frontend `src/components/dashboard/LiveChart.jsx` resolveApiKey(). If env var is set in wrong place, requests silently fail.
-- Files: `api/lib/twelvedata.js` (line 95), `src/components/dashboard/LiveChart.jsx`, `api/lib/indicators.js`
-- Impact: Hard to debug why Twelve Data calls fail. On boarding new developers or CI/CD changes causes silent failures.
-- Fix approach: Standardize on exactly ONE env var name per environment (serverless: `TWELVE_DATA_API_KEY`, browser: `VITE_TWELVE_DATA_API_KEY`). Add startup validation to confirm correct vars are set before any requests.
+**Shared Alpaca Keys Exposure via /api/alpaca-keys.js:**
+- File: `api/alpaca-keys.js`
+- Issue: Endpoint exposes shared `ALPACA_API_KEY` and `ALPACA_SECRET_KEY` to frontend without authentication check. Comment acknowledges this needs "Rate limiting", "User authentication check", "CORS restrictions" but none are implemented.
+- Impact: Shared keys could be extracted and abused if endpoint is discovered. User keys are sent over unencrypted WebSocket subscription setup.
+- Fix approach: Add user authentication before returning keys, implement rate limiting, add CORS validation, consider rotating keys frequently
 
-**Sophia prompt caching not actively used:**
-- Issue: CLAUDE.md (line 228-234) states that Sophia uses Anthropic prompt caching with `cache_control: { type: 'ephemeral' }` as "CRITICAL for cost control." However, `api/sophia-chat.js` (line 496-509) makes Claude API call without cache_control block attached to system prompt. No `cache_read_input_tokens` verification mentioned.
-- Files: `api/sophia-chat.js` (line 503-509)
-- Impact: Sophia requests not benefiting from prompt cache, ~3-5x higher Claude API costs per request. CLAUDE.md explicitly marks this as non-negotiable but it is not implemented.
-- Fix approach: Add `cache_control: { type: 'ephemeral' }` to system prompt block in request body. Verify in response that `usage.cache_read_input_tokens > 0` on consecutive requests. Add monitoring alert if cache hits drop.
+**Polling Intervals in useAlpacaData Hook:**
+- File: `src/hooks/useAlpacaData.js`, line 4
+- Issue: Uses `setInterval(load, POLL_INTERVAL)` with 30-second refresh rate. No jitter to prevent thundering herd when multiple tabs/users refresh simultaneously.
+- Impact: Potential spike in API load at regular intervals if deployed at scale.
+- Fix approach: Add exponential backoff with jitter, consider switching to WebSocket or server-sent events for real-time updates
 
-**TraderPage component exceeds safe complexity:**
-- Issue: `src/components/dashboard/TraderPage.jsx` is 5,592 lines — largest single file in codebase by far. Contains chart rendering, WebSocket subscriptions, drawing tools, order entry UI, news fetching, and sentiment analysis all in one component. Makes it difficult to isolate bugs, test individual features, or reason about state flow.
-- Files: `src/components/dashboard/TraderPage.jsx`
-- Impact: Hard to debug, high regression risk on any change, blocks parallel development, bundle size inflated
-- Fix approach: Break into smaller, focused components: `TradeChartContainer`, `DrawingToolbar`, `OrderEntryPanel`, `NewsSection`, `SentimentPanel`. Use React.memo and lazy loading for non-critical features.
+**Legacy Backend References:**
+- Files: CLAUDE.md mentions `/server/` (Node.js/Express) and `/backend/` (Python/FastAPI) as "legacy — not deployed"
+- Issue: Codebase contains two unused backend directories. No clear migration path documented for their removal.
+- Fix approach: Archive legacy backends, document which features they provided, ensure Vercel serverless has all equivalent endpoints
 
-**No comprehensive error recovery in auth gate:**
-- Issue: BUGS-RESOLVED.md (line 18-23) documents a past bug where users got stuck on "Checking your session..." screen forever. The fix added a 5s timeout + fallback. However, only the initial auth gate has this timeout. Supabase operations throughout the app (fetch profiles, update preferences, load watchlists) have no consistent timeout/retry logic.
-- Files: `src/App.jsx`, `src/hooks/useSubscription.js`, and all component hooks calling Supabase
-- Impact: Users can get stuck on any page if a Supabase call stalls. Bad network or auth edge cases cascade into broken UI.
-- Fix approach: Create a shared `withTimeout` utility. Apply to all critical Supabase calls (profile lookup, subscription check, position fetch). Log timeouts for monitoring.
+**Twelve Data Migration Incomplete:**
+- File: TWELVE-DATA-MIGRATION.md
+- Issue: Plan exists to migrate all market data to Twelve Data (shared keys) but options data still requires shared Alpaca keys. Options feature unclear — "Choose one: A) Keep shared Alpaca keys ONLY for options data, B) Disable options feature, C) Find alternative"
+- Impact: Split architecture with two data providers increases complexity. Decision unmade on options handling.
+- Fix approach: Make decision on options feature, commit to architecture, document in CLAUDE.md
+
+**Cron Jobs Configuration (Vercel):**
+- File: `vercel.json` lines 11-116
+- Issue: 21 cron jobs scheduled with no error logging or alerting mechanism visible. Failed jobs silently fail. No dashboard to monitor job health.
+- Impact: Premarket/close summaries, feed updates, community bot, X tweets could fail without alerting. Users get stale data.
+- Fix approach: Add Sentry/error tracking to all cron handlers, implement Slack/Discord webhooks on failure, add job status endpoint for monitoring
+
+**Supabase Realtime Channels Not Always Cleaned Up:**
+- Files: `src/hooks/useSubscription.js` (line 175-194), `src/hooks/useTradingMode.js` (line 182-203)
+- Issue: Channels subscribed but cleanup depends on component unmount. If component unmounts before subscription completes, memory leak possible. No timeout on subscription setup.
+- Fix approach: Add promise-based subscription with timeout, ensure cleanup fires before unsubscribe call completes
+
+---
 
 ## Known Bugs
 
-**Alpaca WebSocket connection limit error handling already resolved but fragile:**
-- Symptoms: Markets page shows "connection limit exceeded" banner, stock/crypto prices stop updating
-- Files: `src/services/alpacaStream.js` (line 6, line 58-60, line 454-461, line 607-614)
-- Trigger: Rapid page navigation or multiple browser tabs all calling `connectStockWs()` / `connectCryptoWs()` in parallel
-- Workaround: Current implementation (line 93-94, 531, 378-380) uses `stockConnectPromise` and `cryptoConnectPromise` locks to serialize connects. Commit `e36240e` fixed this. **Ensure no new direct WebSocket calls are added outside the singleton**.
+**Auth Gate Session Lock (RESOLVED but risk remains):**
+- Issue: Users could get stuck on "Checking your session..." screen indefinitely
+- Files: `src/App.jsx`, `src/hooks/useSubscription.js`
+- Fix: Added 5s timeout in `useSubscription.js`, auth gate fail-safe in App.jsx
+- Remaining risk: If Supabase auth endpoints become slow again (network degradation, suspended tab recovery), timeout still applies but user is redirected to `/auth`. This is correct behavior, but worth monitoring for timeout frequency in Sentry
 
-**Paper trading total gain/loss computation may diverge:**
-- Symptoms: Order entry panel shows different P&L than dashboard top bar
-- Files: `src/components/dashboard/TraderPage.jsx`, `src/components/dashboard/CryptoPage.jsx`, `src/components/dashboard/Dashboard.jsx`
-- Trigger: Dashboard updates paper portfolio but doesn't propagate `paperTotalGainLoss` prop to TraderPage/CryptoPage on every update
-- Workaround: CLAUDE.md (line 100-109) specifies Dashboard computes once and passes `paperTotalGainLoss={{ dollar, percent }}` to both pages. Ensure TradePage always forwards to TraderPage. Current: must be passed explicitly, not computed locally.
+**Alpaca Connection Limit Exceeded (RESOLVED but edge cases remain):**
+- Issue: Race condition allowed overlapping WebSocket connects, hitting "connection limit exceeded"
+- Files: `src/services/alpacaStream.js`
+- Fix: Added `stockConnectPromise` and `cryptoConnectPromise` locks (lines 93-94)
+- Remaining risk: If connection lock is somehow bypassed (e.g., multiple manager instances created), issue returns. Global singleton pattern (`getSingleton()` line 858) relies on `globalThis` — could fail in SSR contexts
 
-**Chart rendering stalls on heavy volume of WebSocket updates:**
-- Symptoms: Chart becomes unresponsive, UI lags after several minutes of trading
-- Files: `src/components/dashboard/TraderPage.jsx` (line ~1800+, chart update logic), `src/services/twelveDataStream.js`
-- Trigger: Multiple symbols subscribed, all receiving quotes simultaneously, each triggering chart redraw
-- Workaround: No explicit batching of WebSocket messages before chart update. Lightweight Charts handles this but React reconciliation can still bottleneck.
+---
 
 ## Security Considerations
 
-**Alpaca API keys exposed in WebSocket URL:**
-- Risk: `api/lib/twelvedata.js` line 229 embeds API key in WebSocket URL string and returns it to client. If browser DevTools are open or URL is logged, key is visible.
-- Files: `api/lib/twelvedata.js` (line 227-230), frontend consuming this in `src/components/dashboard/LiveChart.jsx`
-- Current mitigation: Keys are marked as read-only on Twelve Data side, but exposure is still not ideal
-- Recommendations: Verify Twelve Data keys have minimal necessary scopes. Consider proxying WebSocket through backend to avoid exposing keys to browser.
+**Shared Broker API Keys Exposed in Frontend:**
+- Risk: `ALPACA_API_KEY` and `ALPACA_SECRET_KEY` sent to browser via `/api/alpaca-keys.js`. WebSocket authentication includes these keys in plaintext JSON. If browser is compromised or network is intercepted (MitM), keys leaked.
+- Files: `api/alpaca-keys.js`, `src/services/alpacaStream.js` (lines 421-425, 574-578)
+- Current mitigation: HTTPS in production, browser same-origin policy
+- Recommendations:
+  1. Use Alpaca OAuth or rotate keys frequently
+  2. Move WebSocket auth to backend proxy instead of exposing keys to frontend
+  3. Add Alpaca IP allowlist to restrict which networks can use keys
+  4. Monitor Alpaca API logs for unauthorized access patterns
 
-**CLAUDE_SECRET and CRON_SECRET not validated in all cron jobs:**
-- Risk: Vercel cron jobs defined in `vercel.json` (line 11-115) invoke endpoints like `/api/cron/market-summary`, `/api/warm-cache`, `/api/cron/community-bot`. If auth middleware is missing or bypassed, external callers could trigger expensive operations.
-- Files: `api/cron/market-summary.js`, `api/warm-cache.js`, `api/cron/community-bot.js`, `vercel.json`
-- Current mitigation: Endpoints should check `req.headers['authorization']` === `CRON_SECRET`, but not all may do this consistently
-- Recommendations: Create middleware to enforce CRON_SECRET on all `*/cron/*` endpoints. Fail hard (403) if missing.
+**Environment Variables Not Validated at Startup:**
+- Risk: Missing or malformed environment variables cause runtime errors in production
+- Files: Multiple API handlers check env vars on each request
+- Current mitigation: Environment variables set in Vercel dashboard
+- Recommendations: Add startup validation script that runs before deploy, check all required `TWELVE_DATA_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_*`, `STRIPE_*` vars exist and are non-empty
 
-**Environment variables with secrets in .env files still in repo:**
-- Risk: `.env`, `.env.local`, `.env.development`, `.env.production.local` exist in root (visible in `git status`). If accidentally committed, secrets leak into git history.
-- Files: `.env`, `.env.local`, `.env.development`, `.env.production.local`, `/backend/.env`, `/server/.env`
-- Current mitigation: `.gitignore` should exclude these, but legacy dirs still have `.env` files
-- Recommendations: Verify `.gitignore` covers all `.env*` files. Use Vercel dashboard or secure vault for production secrets only. Never commit `.env*`.
+**Creator Override Emails in Frontend Config:**
+- Risk: `src/lib/subscriptionAccess.js` reads `VITE_CREATOR_OVERRIDE_EMAILS` and `VITE_CREATOR_OVERRIDE_DOMAINS` from `import.meta.env` — these are exposed to browser
+- Files: `src/lib/subscriptionAccess.js` (lines 23-31)
+- Impact: Any user can see which emails bypass paywall by reading browser console
+- Current mitigation: Only affects display/feature access, not auth
+- Recommendations: Remove email list from frontend, check against backend-only allowlist on API calls. Keep current email hardcoded only for display
 
-**Private key file in backend directory:**
-- Risk: `/backend/kalshi_private_key.pem` and `/server/kalshi_private_key.pem` exist. If these are real private keys, they should never be in version control.
-- Files: `/backend/kalshi_private_key.pem`, `/server/kalshi_private_key.pem`
-- Current mitigation: Likely placeholder files given backend is not deployed
-- Recommendations: Delete both immediately. Use secret manager (Vercel dashboard, AWS Secrets Manager, etc.) for real keys.
+**localStorage Not Cleared on Logout:**
+- Risk: Sensitive data like subscription status, trading mode, cached session stored in localStorage. If device shared, next user can access cache.
+- Files: `src/hooks/useSubscription.js` (readCachedSubscriptionStatus), `src/hooks/useTradingMode.js` (readStoredMode)
+- Fix approach: On logout event, clear all Stratify-prefixed localStorage keys
+
+**Stripe Webhook Secret in Vercel Dashboard:**
+- Risk: If Vercel dashboard is compromised, webhook secret leaked. Attacker can forge payment events.
+- Files: `api/stripe-webhook.js` (uses `STRIPE_WEBHOOK_SECRET` env var)
+- Current mitigation: Stripe event validation via signature, HTTPS
+- Recommendations: Rotate webhook secret quarterly, enable Stripe event signing, log all webhook events to Supabase for audit
+
+---
 
 ## Performance Bottlenecks
 
-**Twelve Data API rate limits not actively managed:**
-- Problem: Multiple concurrent requests to Twelve Data from different endpoints. No deduplication or caching layer for identical requests within same second.
-- Files: `api/lib/twelvedata.js` (line 192-214), all endpoints using `fetchTwelveData()`
-- Cause: Each component/request independently calls Twelve Data. No shared cache between user sessions or across requests.
-- Improvement path: Implement Redis-backed request cache (ttl: 1-5s for quotes, 1min for fundamentals). Deduplicate in-flight requests. Monitor rate limit headers and throttle on 429.
+**30-Second Poll Interval in useAlpacaData:**
+- Problem: 30s refresh interval (`src/hooks/useAlpacaData.js` line 4) means positions/account stale for up to 30 seconds. If user executes trade, account data not refreshed until next interval.
+- Files: `src/hooks/useAlpacaData.js`
+- Cause: Polling instead of WebSocket. Alpaca offers WebSocket for positions but hook doesn't use it.
+- Improvement path: Switch to Alpaca WebSocket for account updates, use polling only as fallback
 
-**Dashboard WebSocket subscriptions bloom without cleanup:**
-- Problem: Opening Markets page, switching to Trade page, back to Markets creates duplicate subscriptions that are never unsubscribed.
-- Files: `src/services/alpacaStream.js` (line 174-195, line 198-219), component hooks that call `subscribeStocks()` / `subscribeCrypto()`
-- Cause: useEffect cleanup functions must call returned unsubscribe function. If hook is re-run without cleanup, subscriptions accumulate.
-- Improvement path: Add debug logging to subscription counts. Audit all `useAlpacaStream` usage for missing cleanup. Consider using a WeakMap to auto-cleanup when components unmount.
+**Multiple Supabase Queries in useSubscription Initialization:**
+- Problem: `loadUser()` makes call to `getUser()`, then on error falls back to `getSession()`. Subscription check does separate call. Total 2-3 Supabase round trips on app load.
+- Files: `src/hooks/useSubscription.js` (lines 88-122)
+- Cause: Chained error handling without batching
+- Improvement path: Use single `getSession()` call (already includes user), combine auth and subscription checks if possible
 
-**Chart rendering with 5000 candles causes initial lag:**
-- Problem: TraderPage requests up to 5000 candles (line 74: `MAX_CHART_OUTPUTSIZE = '5000'`) and renders all at once on first load.
-- Files: `src/components/dashboard/TraderPage.jsx` (line 74), chart initialization logic
-- Cause: Lightweight Charts renders full dataset before viewport is visible. Large datasets trigger recalculation.
-- Improvement path: Load candles in 500-bar chunks. Show first 200 immediately, then lazy-load rest. Use Lightweight Charts `setVisibleRange()` to focus initial viewport on recent bars.
+**Eleven Cron Jobs Running Every 5-10 Minutes:**
+- Problem: High frequency job churn (warm-cache runs every minute, community-bot every 10 min). If each job makes API calls to Twelve Data / Discord / Supabase, could hit rate limits.
+- Files: `vercel.json` (crons), no batching visible
+- Cause: No optimization, each job independent
+- Improvement path: Batch related jobs (e.g., all market summary crons into one), use Upstash Redis for deduplication
+
+**Large Dashboard Components Render Full State:**
+- Problem: Dashboard.jsx (3080 LOC) re-renders entire tree when any state updates. Watchlist, chat, news panels all re-render even if unrelated state changed.
+- Files: `src/components/dashboard/Dashboard.jsx`
+- Cause: Component uses single state object instead of context/slice
+- Improvement path: Split Dashboard into smaller components, use context selectors, add React.memo() to prevent unnecessary renders
+
+---
 
 ## Fragile Areas
 
-**Symbol normalization across three different systems:**
-- Files: `src/services/alpacaStream.js` (line 8-50), `api/lib/twelvedata.js` (line 87-181), `src/components/dashboard/TraderPage.jsx` (line 84-170)
-- Why fragile: Three independent symbol normalizers with slightly different logic. Alpaca uses `$` prefix stripping and uppercase. Twelve Data uses colon/dot notation (`:LSE`, `.LON`). TraderPage has its own market filter logic. If one normalizer changes, symbols can mismatch between layers.
-- Safe modification: Create shared utility in `src/lib/symbolNormalization.js`. Consolidate all three normalizers into single source of truth with clear enum for each market (US_EQUITY, LSE, CRYPTO, etc.). Test against test vectors covering all symbol formats.
-- Test coverage: No dedicated tests for symbol normalization. Create `symbolNormalization.test.js` with 50+ test cases.
+**Alpaca WebSocket Singleton Architecture:**
+- Files: `src/services/alpacaStream.js` (getSingleton pattern, lines 856-870)
+- Why fragile: Entire stock/crypto data flow depends on single shared manager instance. If instance is recreated (e.g., SSR context, stale closure), duplicate WebSocket connections possible. Reconnection logic complex with multiple state transitions.
+- Safe modification: Never create new AlpacaStreamManager() directly — always use exported functions (subscribeStocks, subscribeCrypto). Add unit tests for all state transitions (connect → auth → subscribe → unsubscribe → reconnect).
+- Test coverage: No visible tests for alpacaStream.js. Critical path untested.
 
-**Cron job orchestration in vercel.json**
-- Files: `vercel.json` (line 11-115)
-- Why fragile: 18 cron jobs scheduled with overlapping times (e.g., line 26-27: `/api/cron/warm-warroom` runs hourly 13-21, line 37-38: `/api/trends` runs every 10min 13-21). If one job fails or runs long, it can starve others. No retry logic defined.
-- Safe modification: Add observability: log start/end time, error state for each cron. Set up alerts if cron doesn't complete. Stagger schedules to avoid concurrency. Consider adding `max_duration` constraint.
-- Test coverage: No CI tests for cron schedules. Add integration test that mocks cron triggers and verifies all endpoints respond in <5s.
+**useSubscription Hook Timeout Handling:**
+- Files: `src/hooks/useSubscription.js`
+- Why fragile: 5-second timeout is hardcoded. If Supabase slow, users bounced to auth. No telemetry to detect if timeouts increasing. Fallback to cached status could be stale.
+- Safe modification: Make timeout configurable, add Sentry tracking for timeout events, document fallback behavior to users
+- Test coverage: No visible tests for timeout scenarios or cache fallback
 
-**Supabase schema assumptions hardcoded in frontend:**
-- Files: `src/hooks/useSubscription.js`, all components reading from `profiles`, `sophia_conversations`, paper trading tables
-- Why fragile: If Supabase schema column names change (e.g., `subscription_status` → `plan`), frontend silently gets `undefined` and cascades into broken UI. No type validation on fetch responses.
-- Safe modification: Create Supabase types file (Supabase CLI can generate this). Use TypeScript to enforce schema contracts. Add runtime validation with zod/joi on all Supabase responses.
-- Test coverage: No schema validation tests.
+**Paper Trading State in Database:**
+- Files: `src/hooks/useTradingMode.js` (persists to `profiles.trading_mode` column, lines 265-282)
+- Why fragile: If column missing (backwards compatibility check on lines 94-110), fallback assumes paper mode. If fallback logic wrong, users silently switch to paper. Stores entire trading_mode_switches array in user_state JSON (line 254-262) — unbounded growth possible.
+- Safe modification: Add migration script to ensure trading_mode column exists, limit trading_mode_switches array to last 200 (already done line 262), add schema validation before save
+- Test coverage: No visible tests for schema fallback logic
+
+**Cron Jobs No Error Monitoring:**
+- Files: `vercel.json`, `api/cron/*.js`
+- Why fragile: 21 jobs run on schedule with no visible error handling. If Twelve Data API down, all data endpoints silently fail. Users see stale content.
+- Safe modification: Add try/catch in every cron handler, log errors to Sentry, return 200 OK even on failure so Vercel doesn't retry infinitely
+- Test coverage: No visible monitoring or alerting setup
+
+---
 
 ## Scaling Limits
 
-**Alpaca WebSocket subscription limits:**
-- Current capacity: Single stock socket at `/v2/sip` and single crypto socket at `/v1beta3/crypto/us`. Each accepts up to ~500 symbol subscriptions.
-- Limit: If user watchlist grows beyond 500 symbols across all pages, Alpaca will reject additional subscribe commands.
-- Scaling path: Implement multi-socket strategy with round-robin subscription distribution. Monitor `stockSubscribedSymbols.size` and `cryptoSubscribedSymbols.size` in `alpacaStream.js`. When approaching limit, open second socket.
+**Alpaca $192K Investment Hit Ceiling:**
+- Current capacity: 500+ concurrent WebSocket users via Alpaca SIP feed
+- Limit: Alpaca Premium SIP plan includes this user count. Adding institutional features (options, derivatives) requires higher tier at $X00K/year
+- Scaling path: Benchmark current load, negotiate Alpaca volume discount, or migrate to alternative data provider (Interactive Brokers, IB API, E*Trade)
 
-**Twelve Data API rate limit (900 calls/day on free tier):**
-- Current capacity: Unknown actual usage, but requests come from `/api/xray/*`, `/api/chart/candles`, `/api/quote*`, manual search, and cron jobs.
-- Limit: If user base grows or cron jobs intensify, will hit rate limit and start getting 429 errors.
-- Scaling path: Implement tiered caching (1s for quotes, 1hr for fundamentals). Estimate current usage by logging all Twelve Data calls. Move to paid tier with higher limit or implement request batching.
+**Supabase Row-Level Security (RLS) Complexity:**
+- Current capacity: RLS policies work fine for single-user queries. Multi-tenant features (public leaderboard, community posts) require complex policy logic.
+- Limit: RLS policies don't scale well for complex business logic. SQL becomes unmaintainable at 50+ policies.
+- Scaling path: Move sensitive access control to application logic (backend functions), keep RLS for basic user isolation only
 
-**Redis connection pool (if used for caching):**
-- Current capacity: Unknown — depends on env configuration
-- Limit: If all users hit cache simultaneously, connections saturate.
-- Scaling path: Monitor Redis connection count. Use connection pooling library (e.g., `redis` npm package with pool settings). Set up Redis Cluster for redundancy.
+**Vercel Serverless Cold Starts:**
+- Current capacity: Response times acceptable for < 10 req/s
+- Limit: Cold starts (500ms-2s) visible at scale, especially during market open when traffic spikes
+- Scaling path: Use Vercel Enterprise with regional deployment, keep functions warm via cron pings, move compute-heavy endpoints to persistent backend (Railway, AWS Lambda)
 
-**Vercel Serverless function concurrency:**
-- Current capacity: Default is 1000 concurrent invocations per region
-- Limit: If user count spikes or cron jobs overlap, functions may queue or timeout.
-- Scaling path: Add monitoring for function execution time. Set up auto-scaling alerts. Use Vercel's concurrency limits config in `vercel.json`.
+**Supabase Realtime Connection Limit:**
+- Current capacity: Free/Pro tiers limit concurrent connections
+- Limit: As trading dashboard scales to 1000+ concurrent users, Realtime channels will hit connection limits
+- Scaling path: Batch updates into fewer channels, use polling fallback if Realtime full, migrate to enterprise Supabase
+
+---
 
 ## Dependencies at Risk
 
-**Anthropic Claude API model pinning:**
-- Risk: `api/sophia-chat.js` hardcodes `claude-sonnet-4-20250514` (line 504). If Anthropic deprecates this model, Sophia breaks and requires immediate code change.
-- Impact: No Sophia availability until model is updated.
-- Migration plan: Move model name to environment variable `ANTHROPIC_MODEL`. Default to `claude-sonnet-4-20250514`. Add fallback model. Monitor Anthropic deprecation notices.
+**Twelve Data Pro Plan ($29/mo):**
+- Risk: Plan includes 1,597 API calls/min and 1,500 WebSocket credits. No clear documentation on what happens when limits exceeded — rate limit or auto-escalate?
+- Impact: If plan exhausted during market open, market data endpoints fail and users see stale prices
+- Migration plan: Monitor usage via Twelve Data dashboard, set up billing alerts, document upgrade path to Enterprise plan
 
-**Lightweight Charts (TradingView charting library):**
-- Risk: Major version updates may change API. Plugins (`VolumeProfilePlugin`, `SessionHighlightPlugin`, `PriceAlertsPlugin`) are custom-built and may not be compatible with new versions.
-- Impact: Chart rendering breaks, custom drawing tools stop working.
-- Migration plan: Vendor lock-in is high. Before upgrading, test all plugins + drawing tools. Consider maintaining a fork if upstream doesn't support needed features.
+**Anthropic Claude API Pricing (No Invoice):**
+- Risk: Sophia uses Claude Sonnet 4 without visible rate limiting or cost monitoring. If strategy builders spam Sophia, bill could spike.
+- Impact: Unexpected bill increase, potential service outage if costs spike beyond budget
+- Migration plan: Implement token-based rate limiting per user, add Anthropic usage monitoring to Sentry, consider Claude 3.5 Haiku for cheaper fallback
 
-**Framer Motion for animations:**
-- Risk: Low risk — widely used library — but if version pinning is loose, new versions may introduce performance regressions.
-- Impact: Page transitions lag or become jittery.
-- Migration plan: Use exact version pin (not `^`). Monitor bundle size on updates.
+**Stripe Payment Processing:**
+- Risk: Webhook handling in `api/stripe-webhook.js` — if endpoint fails silently, subscription status not updated. Users upgrade but system doesn't know.
+- Impact: Revenue recognition issues, customer support escalations
+- Migration plan: Add Stripe event logging to Supabase, implement webhook retry logic, add dashboard to reconcile Stripe vs. internal subscription state
+
+**Supabase Outage (No Backup):**
+- Risk: Single Supabase instance. No backup to alternate provider. If Supabase region down, entire app unavailable.
+- Impact: Complete service outage, no auth, no data access
+- Migration plan: No realistic alternative without major rewrite. Recommend backup plan: document manual recovery process, set up status page, maintain customer communication templates
+
+---
 
 ## Missing Critical Features
 
-**No rate limiting on user-facing API endpoints:**
-- Problem: Endpoints like `/api/sophia-chat.js`, `/api/quote.js`, `/api/search.js` accept unlimited requests from authenticated users. A single user with a script could exhaust rate limits on downstream APIs (Anthropic, Twelve Data, Alpaca).
-- Blocks: Protecting API quotas, preventing abuse, enforcing fair usage
-- Fix: Implement per-user rate limiter in Redis. Apply to high-cost endpoints (Sophia calls, backtest requests). Return 429 with retry-after header when limit hit.
+**No Alerting System for Cron Job Failures:**
+- Problem: Cron jobs fail silently. Premarket summary doesn't send, feeds don't refresh, community bot doesn't run.
+- Blocks: Data freshness monitoring, SLA guarantees, customer trust
+- Solution: Integrate Sentry + Slack webhooks into every cron handler, add monitoring dashboard
 
-**No observability/tracing for cron jobs:**
-- Problem: 18 cron jobs run on schedule but have no centralized dashboard showing success/failure rates, execution time, or error logs.
-- Blocks: Diagnosing cron failures, understanding bottlenecks, alerting on outages
-- Fix: Instrument cron handlers with structured logging (timestamp, duration, status). Send to centralized log sink (e.g., Datadog, Vercel Analytics). Add PagerDuty alerts for failures.
+**No Rate Limiting on Public API Endpoints:**
+- Problem: `/api/quote`, `/api/latest-quote`, `/api/market-intel` etc. don't check request rate. Attacker could DDOS with burner accounts.
+- Blocks: Production hardening, fair use policy enforcement
+- Solution: Add IP-based rate limiting via middleware, require auth token for higher tier access, log suspicious patterns to Sentry
 
-**No feature flag system:**
-- Problem: New features require code push and redeploy. No ability to toggle features on/off for A/B testing or gradual rollout.
-- Blocks: Safe feature releases, canary deployments, quick rollbacks
-- Fix: Use feature flag service (LaunchDarkly, PostHog, or homegrown Redis-backed system). Wrap new features with flag checks.
+**No Backup Strategy for User Data:**
+- Problem: User strategies, watchlists, paper trading history stored in Supabase only. No backup documented.
+- Blocks: Disaster recovery, compliance (GDPR right to data export)
+- Solution: Export user data nightly to Cloud Storage, provide data export endpoint, test restore process quarterly
+
+**No Observability for WebSocket Health:**
+- Problem: Alpaca WebSocket state (connected, authenticated, subscribed) not visible in real-time. If connection flaky, hard to diagnose.
+- Blocks: Debugging production issues, identifying bottlenecks
+- Solution: Add Sentry breadcrumbs for every WebSocket state transition, expose /api/health endpoint with connection status, add dashboard widget to show stream health
+
+---
 
 ## Test Coverage Gaps
 
-**WebSocket reconnection logic not tested:**
-- What's not tested: `src/services/alpacaStream.js` connection loss + auto-reconnect, exponential backoff, connection limit cooldown
-- Files: `src/services/alpacaStream.js` (line 303-325, 530-759)
-- Risk: Regressions in reconnect logic could leave users stuck with stale quotes
-- Priority: **High** — affects core data flow
+**WebSocket Manager (alpacaStream.js) Untested:**
+- What's not tested: Connection retry logic, authentication flow, symbol subscription/unsubscription, error recovery, connection limit handling
+- Files: `src/services/alpacaStream.js` (880 LOC, zero visible tests)
+- Risk: Critical data path. If reconnect logic breaks, users see frozen prices. Connection limit error handling complex with cooldown timers.
+- Priority: **High** — affects all users immediately
 
-**Twelve Data API key fallback chain not tested:**
-- What's not tested: API key resolution order. If `TWELVEDATA_API_KEY` is missing but `TWELVE_DATA_API_KEY` is set, does it work?
-- Files: `api/lib/twelvedata.js` (line 95-102)
-- Risk: Key misconfiguration could silently fail in production
-- Priority: **High** — affects all market data
+**useSubscription Hook Untested:**
+- What's not tested: Timeout behavior, cache fallback, error scenarios, subscription refresh on profile update
+- Files: `src/hooks/useSubscription.js` (210 LOC, zero visible tests)
+- Risk: Auth gate blocking. If timeout doesn't work, app freezes. Cache logic could return stale status.
+- Priority: **High** — affects app startup
 
-**Symbol normalization not tested across all markets:**
-- What's not tested: LSE ticker format (e.g., `BP.L` vs `BP:LSE`), Tokyo tickers (`.T` suffix), crypto pairs (`BTC-USD` vs `BTC/USD`)
-- Files: `src/services/alpacaStream.js`, `api/lib/twelvedata.js`, TraderPage
-- Risk: Symbol mismatches cause broken quotes, wrong prices displayed
-- Priority: **High** — visible user impact
+**useTradingMode Hook Untested:**
+- What's not tested: Trading mode switching, database persistence, profile update sync, error handling on switch failure
+- Files: `src/hooks/useTradingMode.js` (346 LOC, zero visible tests)
+- Risk: Users could switch to live mode and accidentally trade real money if switch logic broken
+- Priority: **Critical** — financial impact
 
-**Paper trading math not verified:**
-- What's not tested: P&L calculation (entry price × shares vs exit price × shares). Buying power updates. Position averaging on add-to-position.
-- Files: `src/hooks/usePaperTrading.js` (if exists) or wherever paper trades are computed
-- Risk: Incorrect balance display, wrong P&L shown, user confusion
-- Priority: **Critical** — financial accuracy
+**API Handlers No Integration Tests:**
+- What's not tested: End-to-end flows like: user connects broker → places order → portfolio updates → subscription check
+- Files: `/api/*` (50+ files, zero visible test directory)
+- Risk: Silent failures in production (e.g., broker auth broken, orders fail, portfolio stale)
+- Priority: **High** — production reliability
 
-**Error boundary coverage incomplete:**
-- What's not tested: Ensure all top-level pages have ErrorBoundary. CLAUDE.md (line 85) specifies this is non-negotiable after React #300 incident.
-- Files: All page components in `src/components/dashboard/`
-- Risk: Import errors cascade into gray screen crashes
-- Priority: **Medium** — affects UX but not data
+**Supabase RLS Policies No Tests:**
+- What's not tested: Row-level security isolation (user A can't read user B's data), multi-tenant scenarios
+- Files: Supabase SQL policies (not in repo)
+- Risk: Data leakage, privacy violation
+- Priority: **Critical** — security/compliance
 
 ---
 

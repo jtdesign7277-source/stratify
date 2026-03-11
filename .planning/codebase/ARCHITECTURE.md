@@ -4,249 +4,218 @@
 
 ## Pattern Overview
 
-**Overall:** Multi-tier SPA with Vercel serverless backend
+**Overall:** Hybrid full-stack with React frontend (Vite) + Vercel serverless functions backend. Split-stack pattern: frontend handles real-time UI state via WebSocket singletons, serverless functions handle authentication, third-party API integration, and data persistence.
 
 **Key Characteristics:**
-- React 18 (Vite) frontend + Vercel Node.js serverless functions backend
-- Real-time WebSocket streams (Alpaca broker, Twelve Data market data)
-- Supabase PostgreSQL for persistence + auth
-- Context API for state management (StratifyProvider)
-- Singleton services for critical resources (Alpaca WebSocket, Twelve Data streams)
+- Frontend-centric state management via context + custom hooks (StratifyProvider)
+- WebSocket singletons for live market data (Alpaca, Twelve Data) — no polling
+- Paper trading state in Supabase profiles with local caching
+- Vercel serverless for all API routes; cron jobs for market summaries and social posting
+- Anthropic Claude (Sophia) with prompt caching for cost control
+- Error Boundaries on all top-level pages to prevent gray-screen crashes
 
 ## Layers
 
 **Presentation (React Components):**
-- Purpose: Render UI, handle user interaction, display real-time data
+- Purpose: User interface, real-time data visualization, user interactions
 - Location: `src/components/`
-- Contains: Page components (Dashboard, TradePage, CryptoPage, etc.), shared UI components, feature-specific components (xray, landing, auth)
-- Depends on: Context (AuthContext, StratifyProvider), hooks, services, lib utilities
-- Used by: App.jsx router
+- Contains: Page components (TradePage, Dashboard, CryptoPage), charts (LiveChart), panels (SophiaPanel, RightPanel), shared UI widgets
+- Depends on: Context (AuthContext, StratifyProvider), Hooks (useAlpacaStream, useAlpacaData), Services (alpacaStream singleton)
+- Used by: App router (src/App.jsx)
 
-**State Management:**
-- Purpose: Centralize application state, manage data subscriptions
+**State Management & Context:**
+- Purpose: Global application state (auth, market data, portfolio, strategies, watchlist)
 - Location: `src/context/`, `src/store/`
-- Contains: AuthContext (Supabase auth state), StratifyProvider (market data, portfolio, watchlist, strategies)
-- Depends on: Hooks (useMarketData, usePortfolio, etc.), services
-- Used by: Components via custom hooks
+- Contains: AuthContext (user/session), StratifyProvider (market data, portfolio, watchlist, leaderboard, strategies)
+- Depends on: Supabase client, custom store hooks
+- Used by: All components via useContext hooks
 
-**Hooks (Business Logic):**
-- Purpose: Encapsulate stateful logic, connect to external services
-- Location: `src/hooks/`
-- Contains: useAlpacaStream, useTwelveData, usePaperTrading, usePortfolio, useSophiaChat, useIndicators, useFeed
-- Depends on: Services, lib utilities, context
-- Used by: Components and other hooks
+**Custom Hooks (Store Hooks):**
+- Purpose: Encapsulated state logic for market data, portfolio, watchlist, strategies, trade history, leaderboard
+- Location: `src/store/hooks/`
+- Contains: useMarketData, usePortfolio, useWatchlist, useTradeHistory, useLeaderboard, useStrategies
+- Depends on: Supabase, fetch (via /api endpoints), alpacaStream service
+- Used by: StratifyProvider, components
+- Key patterns: localStorage for dashboard state, Redux-like read/write pattern
 
-**Services (Singleton Managers):**
-- Purpose: Manage external connections and data streams
+**Services (Singletons & Stream Management):**
+- Purpose: Centralized WebSocket management and market data streams
 - Location: `src/services/`
-- Contains: alpacaStream.js (WebSocket manager with connect locks), twelveDataStream.js, twelveDataWebSocket.js, alpacaService.js, marketData.js
-- Depends on: Environment variables for API keys
-- Used by: Hooks
+- Contains: alpacaStream.js (stock + crypto WebSocket manager), twelveDataStream.js (helpers for Twelve Data WebSocket)
+- Dependencies: Alpaca API key (from localStorage or env)
+- Used by: useAlpacaStream hook, components via hook
+- Critical: alpacaStream is a singleton — only ONE stock socket and ONE crypto socket allowed per app instance
 
-**Utilities & Libraries:**
-- Purpose: Shared functions, formatting, client initialization
-- Location: `src/lib/`, `src/utils/`, `src/data/`
-- Contains: supabaseClient.js, twelvedata.js (formatting), billing.js, warRoomIntel.js, marketHours.js, initNewUser.js, stockDatabase.js
-- Depends on: External SDKs (Supabase, date libraries)
-- Used by: All layers
+**API Layer (Frontend HTTP):**
+- Purpose: Client-side API calls to Vercel serverless functions
+- Location: Embedded in hooks and components (fetch calls to /api/*)
+- Used for: Account data, portfolio sync, watchlist updates, Sophia chat, market data fallbacks
+- Pattern: Direct fetch with JWT auth or browser context
 
-**API (Vercel Serverless):**
-- Purpose: Backend endpoints for client-server communication and scheduled tasks
+**Serverless Backend (API Routes):**
+- Purpose: Authentication, third-party API integration, data persistence, cron jobs
 - Location: `api/`
-- Contains: Quote fetching (quote.js, latest-quote.js), market data (xray/*, crypto/*, lse/*), AI chat (sophia-*.js), orders (orders.js, paper-trade.js), cron jobs, webhooks
-- Depends on: External APIs (Twelve Data, Alpaca, Anthropic, Stripe), Supabase, Redis
-- Used by: Frontend via fetch(), external services (webhooks, cron)
+- Contains: Account endpoints (`account.js`), orders (`orders.js`), Sophia AI (`sophia-*.js`), cron jobs (`cron/`), webhooks
+- Depends on: Supabase (auth, profiles, broker connections), Alpaca API, Twelve Data API, Anthropic API, Redis (for caching/throttling)
+- Used by: Frontend (via fetch), Vercel cron scheduler, external webhooks
+
+**Data Persistence:**
+- Purpose: User profiles, broker connections, trading mode state, strategies, watchlists
+- Location: Supabase (postgres) + Redis (ephemeral cache)
+- Tables: profiles, broker_connections, strategies, watchlist_items, community_posts
+- Caching: Redis for Twelve Data market data, warroom cache, stocks database
 
 ## Data Flow
 
-**Live Market Quotes (WebSocket):**
+**Market Data (Live Prices):**
 
-1. Component mounts (TradePage, Watchlist, etc.) → calls `useAlpacaStream()` hook
-2. Hook subscribes to symbols via `alpacaStream.subscribe(symbols)` singleton
-3. Singleton opens one persistent WebSocket to Alpaca (`wss://stream.data.alpaca.markets/v2/sip` for stocks, `v1beta3/crypto/us` for crypto)
-4. WebSocket messages arrive → singleton caches quotes in `stockQuotes` / `cryptoQuotes` Map
-5. Listeners notified → component state updates → re-render with live prices
-6. Connect locks (`stockConnectPromise`, `cryptoConnectPromise`) prevent race conditions on reconnect
+1. App boots → StratifyProvider initializes useMarketData hook
+2. useMarketData subscribes to alpacaStream singleton via useAlpacaStream hook
+3. alpacaStream maintains one stock WebSocket to Alpaca `/v2/sip` and one crypto WebSocket to `/v1beta3/crypto/us`
+4. alpacaStream emits quote updates (bid, ask, last, volume) to registered listeners
+5. Components subscribe to specific symbols via useAlpacaStream, receive real-time updates
+6. If live data unavailable (not live trading), fallback to Twelve Data WebSocket via useTwelveDataWS hook
+7. All updates flow back to components → DOM renders with latest prices
 
-**Twelve Data Charts (WebSocket + REST):**
+**Paper Trading (Simulation):**
 
-1. `LiveChart.jsx` needs OHLC bars + live tick data
-2. Resolves `VITE_TWELVE_DATA_API_KEY` via `resolveApiKey()` function (checks variants)
-3. Connects to Twelve Data WebSocket (`wss://ws.twelvedata.com/v1/quotes/`) for live ticks
-4. REST calls to `/api/xray/*` endpoints for fundamentals (goes through Vercel + `fetchTwelveData()` helper)
-5. Caching headers on xray endpoints (3600s max-age)
+1. User logs in → useAuth loads session from Supabase
+2. Dashboard checks trading_mode from user profile (paper or live)
+3. If paper: account data cached in profile JSON, portfolio computed from positions array
+4. usePaperTrading hook computes paper P&L from cached positions + live quotes
+5. Order entry (TraderPage) sends buy/sell to `/api/orders` (paper mode)
+6. `/api/orders` creates order record and applies trade to paper portfolio in Supabase
+7. Dashboard re-fetches account → usePaperTrading recalculates P&L
+8. TopMetricsBar and order panels show updated total gain/loss
 
 **Sophia AI Chat:**
 
-1. Component calls `useSophiaChat()` hook → builds messages + system prompt
-2. Hook calls `POST /api/sophia-chat` (or sophia-copilot, sophia-insight)
-3. API endpoint checks subscription status, rates limit, cost estimation
-4. Calls Anthropic with system prompt cached (`cache_control: { type: 'ephemeral' }`)
-5. Stream response back to frontend → display token by token
-6. Cost tracking via Redis + Supabase usage table
+1. User types message in SophiaPanel or StrategyBuilder
+2. Component sends message + context (chart, strategy) to `/api/sophia-chat`
+3. `/api/sophia-chat` builds system prompt with cache control, sends to Anthropic with prompt caching
+4. Response cached on Anthropic (cache_read_input_tokens > 0 on next request)
+5. Server returns markdown; frontend renders in Sophia panel
+6. Cost tracked via `/api/sophia-chat` using usage metrics
 
-**Paper Trading:**
+**Market Summary (Cron):**
 
-1. User places order in `TraderOrderEntry` / `OrderEntry` components
-2. Component calls `POST /api/paper-trade` with order details
-3. Server creates `paper_trades` record in Supabase
-4. `usePaperTrading()` hook syncs positions from server
-5. `paperPortfolioPositions` cached in `StratifyProvider` context
-6. Dashboard computes `syncedPaperUnrealizedPnL` from cached positions + live Alpaca quotes
+1. Vercel cron triggers `/api/cron/market-summary?period=premarket` at 9:25 AM ET (Mon-Fri)
+2. Handler fetches breaking news, premarket gainers/losers, economic calendar
+3. Generates Discord + Twitter summary message
+4. Posts to Discord webhook + Twitter via `/api/x-bot-v2`
+5. Same flow for market close at 4:05 PM ET
 
-**Premarket/Close Summaries (Cron):**
+**State Hydration on Mount:**
 
-1. Vercel cron job triggers at `25 13 * * 1-5` (9:25 AM ET) or `5 20 * * 1-5` (4:05 PM ET)
-2. Calls `/api/cron/market-summary?period=premarket|close`
-3. Fetches market data, earnings, economic calendar via Twelve Data
-4. Posts summary to Discord webhook
-5. Updates `warroom_scans` / `warroom_transcripts` in Redis/Supabase
-
-**State Management (StratifyProvider):**
-
-```
-StratifyProvider
-├── useMarketDataHook() → marketData { prices, ... }
-├── usePortfolioHook(prices) → portfolio { positions, totalValue, applyTrade() }
-├── useWatchlistHook() → watchlist { symbols, quotes, ... }
-├── useTradeHistoryHook() → tradeHistory { trades, ... }
-├── useLeaderboardHook() → leaderboard { ranking, ... }
-└── useStrategiesHook() → strategies { list, ... }
-```
-
-**Subscription Flow:**
-
-1. User upgrades to Pro → Stripe checkout session created
-2. Stripe webhook calls `/api/stripe-webhook`
-3. Updates `subscriptions` table in Supabase with `status: 'active'`
-4. `useSubscription()` hook reads status
-5. Components check `isPaidStatus()` or `getSubscriptionStatus()` to unlock features
+1. src/main.jsx mounts StratifyProvider
+2. StratifyProvider initializes all hooks (useMarketData, usePortfolio, useWatchlist, etc.)
+3. Each hook fetches initial state from Supabase or localStorage
+4. App.jsx mounts, AuthProvider checks session
+5. If user logged in: AuthContext loads user profile
+6. Dashboard mounts, loads saved state from localStorage (panel visibility, sidebar expanded)
+7. TradePage mounts, connects to alpacaStream
+8. All listeners wired; app is interactive
 
 ## Key Abstractions
 
-**AlpacaStreamManager (Singleton):**
-- Purpose: Single persistent connection to Alpaca, manage reconnect, avoid connection limit errors
-- Examples: `src/services/alpacaStream.js`
-- Pattern: Class-based singleton with connect locks, exponential backoff, symbol subscriptions via Map<symbol, Set<listenerId>>
-- Critical: No direct `new WebSocket()` in components — all go through `useAlpacaStream()` hook
+**alpacaStream Singleton:**
+- Purpose: Manages one global Alpaca WebSocket connection per stream type (stock, crypto)
+- Location: `src/services/alpacaStream.js`
+- Pattern: Class-based singleton with connect locks (stockConnectPromise, cryptoConnectPromise) to prevent race conditions
+- Exported: Direct instance, not a hook (hook wrapper is useAlpacaStream)
+- Critical: Must never open new WebSockets directly — all subscriptions go through this singleton
+- Subscribe method: alpacaStream.subscribe('AAPL', (quote) => { /* update */ })
 
-**fetchTwelveData (Helper):**
-- Purpose: Unified Twelve Data API wrapper with error handling, caching support
-- Examples: `api/lib/twelvedata.js`, `src/lib/twelvedata.js`
-- Pattern: Resolves API key with fallback chain, makes fetch request, validates response
-- Used by: All endpoints that need market data (xray, quotes, fundamentals)
+**StratifyProvider:**
+- Purpose: Global state tree providing market data, portfolio, watchlist, strategies
+- Location: `src/store/StratifyProvider.jsx`
+- Pattern: React Context with composed custom hooks
+- Exports: useMarketData, usePortfolio, useWatchlist, useTradeHistory, useLeaderboard, useStrategies
+- Hydration: Initializes all store hooks on mount; each hook reads from Supabase or localStorage
 
-**StratifyProvider (Context Tree):**
-- Purpose: Root state manager, delegates to specialized hooks
-- Examples: `src/store/StratifyProvider.jsx`
-- Pattern: Custom hooks + useContext, each hook is responsible for one slice of state
-- Access: `useMarketData()`, `usePortfolio()`, `useWatchlist()`, etc.
+**Paper Portfolio:**
+- Purpose: Simulate trading with $100k starting capital
+- Location: `src/store/hooks/usePortfolio.js`, `api/orders.js` (paper mode), `api/paper-portfolio.js`
+- State: positions array, buying_power, total cash value stored in Supabase profiles table
+- Computation: Total gain/loss = (sum of position values - initial cash) + current cash - starting cash
+- Updates: applyTrade method in usePortfolio parses /api/orders responses and updates local state
 
-**Vercel Serverless Handler Pattern:**
-- Purpose: Lightweight request handlers with CORS, caching headers, error responses
-- Examples: All files in `api/` directory
-- Pattern: `export default async function handler(req, res)` with method check, validation, try-catch, CORS headers
-- Caching: `Cache-Control: s-maxage=3600, stale-while-revalidate=300` for data endpoints
+**Error Boundaries:**
+- Purpose: Catch React component errors and display fallback UI instead of gray screen
+- Location: `src/components/shared/AppErrorBoundary.jsx`
+- Applied: Dashboard.jsx, TradePage.jsx (via lazy load wrapper), new pages must wrap in ErrorBoundary
+- Pattern: Class component with componentDidCatch lifecycle
 
-**Paper Trading Portfolio:**
-- Purpose: Simulate live trading without real money
-- Examples: `src/hooks/usePaperTrading.js`, `api/paper-trade.js`, `api/paper-portfolio.js`
-- Pattern: Supabase `paper_trades` table, compute P&L from position average cost vs. current price
-- Access: `Dashboard.syncedPaperUnrealizedPnL`, `Dashboard.syncedPaperTotalGainLossPercent`
+**Lazy Loading Pages:**
+- Purpose: Code-split large pages to reduce initial bundle size
+- Pattern: import.meta.glob('path') + lazy() wrapper with chunk error handling
+- Applied to: TradePage, CommunityPage, AnalyticsPage
+- Fallback: "Loading..." message if chunk fails, automatic reload on retry
 
 ## Entry Points
 
-**Frontend Entry Point:**
-- Location: `src/main.jsx`
-- Triggers: Browser loads index.html → imports main.jsx
-- Responsibilities:
-  1. Initialize Sentry error tracking
-  2. Handle chunk load errors (Vite dynamic imports)
-  3. Wrap App in StratifyProvider + StrictMode
-  4. Render to #root div
+**Browser App:**
+- Location: `index.html`
+- Triggers: Script loads `/src/main.jsx`
+- Responsibilities: Mount React app, initialize Sentry error tracking, wrap in StratifyProvider + AuthProvider
 
-**App Router:**
+**Main React App:**
 - Location: `src/App.jsx`
-- Triggers: User navigation or direct URL visit
-- Responsibilities:
-  1. Wrap in AuthProvider + AppErrorBoundary
-  2. Define routes (Dashboard, TradePage, CryptoPage, AuthPages, etc.)
-  3. Redirect unauthenticated users to landing page
+- Responsibilities: Router (landing, auth, dashboard, pages), render layout
+- Contains: Auth state check, page navigation, landing page vs dashboard detection
 
-**API Endpoints (Serverless Functions):**
-- Location: `api/*.js` (Vercel routing)
-- Triggers: Browser fetch() or cron job
-- Example entry points:
-  - `POST /api/sophia-chat` — Sophia AI chat responses
-  - `GET /api/quote?symbol=SPY` — Latest quote from Alpaca
-  - `GET /api/xray/profile?symbol=NVDA` — Company fundamentals
-  - `POST /api/paper-trade` — Place paper trade
-  - `GET /api/cron/market-summary?period=premarket` — Premarket summary (cron)
+**Dashboard (Main App Shell):**
+- Location: `src/components/dashboard/Dashboard.jsx`
+- Responsibilities: Layout (sidebar, top metrics, main content area), panel management, modal state
+- Contains: Sidebar, TopMetricsBar, DataTable, RightPanel, SophiaPanel, TerminalPanel
+- Lazy loads: TradePage, CommunityPage, AnalyticsPage
+- Size: 113KB (largest component — contains all dashboard logic)
+
+**Vercel Serverless Entry:**
+- Location: `api/` (each `.js` file is a route handler)
+- Pattern: export default async function handler(req, res)
+- Example: `api/account.js` handles GET /api/account
+- Auth: JWT from Authorization header or browser auth context
 
 ## Error Handling
 
-**Strategy:** Try-catch with descriptive error messages, preserve user state on errors
+**Strategy:** Try-catch with graceful fallback. Frontend errors logged to Sentry. API errors return JSON { error, message }.
 
 **Patterns:**
 
-**Frontend Components:**
-- Wrap top-level pages in `<ErrorBoundary>` (see `src/components/shared/AppErrorBoundary.jsx`)
-- Gray screen prevents when import fails — Error Boundary catches and displays fallback UI
-- Example usage in Dashboard, TradePage, CryptoPage
+1. **Component Errors:** Caught by ErrorBoundary → fallback UI rendered
+2. **API Call Errors:** Fetch catches → returns error state → component shows error message or falls back to stale data
+3. **WebSocket Errors:** alpacaStream reconnects with exponential backoff (max 20s delay)
+4. **Auth Errors:** 401 responses trigger sign-out; 403 blocks access
+5. **Timeout Errors:** withTimeout utility wraps promises; fails gracefully if exceeded
 
-**API Endpoints:**
-```javascript
-try {
-  const data = await externalApi();
-  res.status(200).json({ data });
-} catch (err) {
-  console.error('[endpoint-name] error:', err);
-  const status = err?.status || 500;
-  res.status(status).json({ error: err.message || 'Unknown error' });
-}
-```
-
-**Hooks:**
-- Return error state alongside data: `{ data, loading, error }`
-- Components display error messages or graceful fallbacks
-- Example: `useSophiaChat()` returns `{ messages, loading, error, sendMessage }`
-
-**WebSocket Services:**
-- Reconnect on disconnect with exponential backoff
-- Track connection state separately for stock/crypto streams
-- Connection limit errors trigger cooldown period (30s) before retry
-- Singleton pattern ensures only one connection attempt at a time (via `connectPromise`)
-
-**Supabase Auth:**
-- Session timeout: 12 seconds (checked via `withSessionTimeout()`)
-- Failed session check doesn't force sign-out — preserves existing session on transient failures
-- User initialization (`initNewUser`) is resilient — non-fatal if profile already exists
+**Sentry Integration:**
+- Initialized in `src/main.jsx` with DSN
+- Filters chunk-load errors (app auto-recovers) to reduce noise
+- Captures uncaught errors, unhandled rejections, and React error boundaries
 
 ## Cross-Cutting Concerns
 
-**Logging:** `console.error()` / `console.warn()` with module prefixes `[ModuleName]` for debugging
+**Logging:** console.log + Sentry (structured errors)
 
 **Validation:**
-- API queries: `if (!symbol || symbol.length > 10) return 400`
-- WebSocket symbols: Normalize via `normalizeStockSymbol()`, `normalizeCryptoSymbol()` functions
-- Auth: Supabase handles JWT validation server-side
+- Client-side: HTML5 validation + custom form validators in components
+- Server-side: getUserFromToken, resolveAlpacaCredentialsForMode, normalizeTradingMode check auth/mode
+- Data validation on Supabase: RLS policies enforce user ownership
 
 **Authentication:**
-- Supabase Auth (JWT-based)
-- AuthContext provides `useAuth()` hook for components
-- Protected endpoints check `Authorization: Bearer {token}` header
-- Subscriptions checked via `getSubscriptionStatus()` for feature access
+- Frontend: Supabase Auth (OAuth + email/password)
+- Serverless: JWT validation via getUserFromToken (api/lib/tradingMode.js)
+- Broker API: API keys retrieved from broker_connections table, rotated per mode (paper/live)
 
 **Rate Limiting:**
-- Sophia usage tracked via Redis + Supabase `sophia_usage` table
-- Hard limit: `SOPHIA_USAGE_LIMIT_USD` (prevents runaway costs)
-- Check before each Sophia request: `estimateSophiaCostUsd()`, `getSophiaUsageUsd()`
+- Sophia AI usage tracked in `/api/lib/pro-plus.js` (SOPHIA_USAGE_LIMIT_USD)
+- Vercel cron jobs use CRON_SECRET header for auth
 
-**Caching:**
-- Redis: Warroom scans, transcripts, cache warming via cron jobs
-- HTTP: Vercel caches xray endpoints with `s-maxage=3600`
-- Local: Browser caches chart data, watchlist symbols
-- Prompt caching: Sophia system prompt uses `cache_control: { type: 'ephemeral' }` for cost savings
+**Market Hours Awareness:**
+- Utility: `src/lib/marketHours.js` (getMarketStatus, getNextMarketOpen, isMarketOpen)
+- Used by: StatusBar, order validation, cron scheduling
+- Handles: US market hours (9:30-16:00 ET), pre/after market, weekends, holidays
 
 ---
 

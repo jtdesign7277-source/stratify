@@ -4,201 +4,222 @@
 
 ## Test Framework
 
-**Runner:** Not detected
+**Status:** Not detected
 
-**Assertion Library:** Not detected
+**No test runner configured:**
+- No `jest.config.js` or `vitest.config.js` found
+- No test scripts in `package.json` (only `dev`, `build`, `preview`)
+- No test dependencies in `package.json` (no Jest, Vitest, Mocha, Chai, etc.)
+- No test files found in `src/` directory (`*.test.js`, `*.spec.js`)
 
-**Status:** No testing framework configured in this codebase. Jest, Vitest, Mocha, or similar test runners are not present in `package.json` or project root. Testing infrastructure is not implemented.
+**Implications:**
+- All testing is currently manual
+- Integration testing relies on local dev server or staging environment
+- No automated test coverage tracking or CI gate
 
-**Run Commands:** Not applicable — no test scripts defined in `package.json`
+---
 
-## Test File Organization
+## Manual Testing Approach
 
-**Location:** Not applicable — no test files found
+**What is tested:**
+- Component rendering in browser via `npm run dev` (Vite dev server)
+- API endpoints via curl, Postman, or direct fetch calls
+- WebSocket connections via browser DevTools network inspector
+- State management via React DevTools
 
-**Naming:** Not applicable
+**Test files in repo:**
+- `test.html` exists at root but is unused (likely a legacy artifact for manual testing)
 
-**Structure:** Not applicable
+---
 
-## Test Structure
+## Development Validation
 
-**Suite Organization:** Not applicable
+**Pre-commit checks:**
+- ESLint rules enforced in `eslint.config.js` catch naming/import errors
+- React Hooks rules prevent dependency array issues
+- Import resolution tested implicitly on build (Vite build will fail on unresolved imports)
 
-**Patterns:** Not applicable
+**Common patterns for catching bugs before deployment:**
+1. **Import verification** (CLAUDE.md § Critical Rules):
+   > "Before pushing any new file, confirm its imports resolve without circular dependencies."
+   - Developers manually verify: `npm run build` succeeds with no console errors
+   - Circular imports cause "gray screen crashes" — caught by failed build or on load
 
-## Mocking
+2. **Error Boundaries** (from `src/components/shared/AppErrorBoundary.jsx`):
+   - Wrapped around top-level pages to catch render errors
+   - Suppresses transient "chunk load" errors during deployment swaps
+   - All new pages MUST be wrapped in `<ErrorBoundary>` per CLAUDE.md
 
-**Framework:** Not applicable
+3. **Type safety (implicit via conventions):**
+   - Helper functions like `toNumber()`, `normalizeSymbol()` validate/coerce input
+   - Fallback patterns prevent null reference errors
+   - Example from `usePaperTrading.js`:
+     ```javascript
+     const toNumber = (value, fallback = 0) => {
+       const parsed = Number(value);
+       return Number.isFinite(parsed) ? parsed : fallback;
+     };
+     ```
 
-**Patterns:** Not applicable
+---
 
-**What to Mock:** Not applicable
+## What Gets Tested Manually
 
-**What NOT to Mock:** Not applicable
+**Component rendering:**
+- Dashboard layout (sidebar, panels, charts)
+- Watchlist tabs (stocks vs. crypto)
+- Order entry panels (Trader vs. Crypto parity check)
+- Error messages and fallback states
 
-## Fixtures and Factories
+**Data flows:**
+- Stock quote fetches and WebSocket updates
+- Paper trading portfolio sync
+- Authentication state transitions
+- Sophia AI response generation
 
-**Test Data:** Not applicable
+**Integration scenarios:**
+- Login → Dashboard load → Trade execution
+- Market data fetch failure → graceful error display
+- WebSocket reconnect after disconnection
 
-**Location:** Not applicable
+---
 
-## Coverage
+## Mocking Patterns (Implicit)
 
-**Requirements:** None enforced
+**localStorage:**
+- Used for UI state persistence (theme, sidebar collapse, chart settings)
+- Reset between dev sessions
 
-**View Coverage:** Not applicable
+**API calls:**
+- Actual API calls to `/api/*` endpoints (Vercel Functions)
+- No mocking library; real fetch calls in development
+- Environment variables provide real or test credentials
 
-## Test Types
+**WebSocket (Alpaca):**
+- Real WebSocket connection to `wss://stream.data.alpaca.markets/...`
+- Only available in browser (requires auth keys)
+- Singleton pattern (`src/services/alpacaStream.js`) ensures single connection
 
-**Unit Tests:** Not present
+**What NOT to mock (per code patterns):**
+- Never mock Alpaca stream directly; use singleton manager
+- Never poll for market data; use WebSocket only
+- Real Supabase calls for auth/database (client key is public-facing)
 
-**Integration Tests:** Not present
+---
 
-**E2E Tests:** Not present
+## Test Data & Fixtures
 
-## Manual Testing Observed Patterns
+**Hardcoded test data:**
+- `TOP_CRYPTO_BY_MARKET_CAP` in `src/data/cryptoTop20.js`
+- `DEFAULT_LSE_SYMBOLS` in `api/lib/twelvedata.js` (London Stock Exchange tickers)
+- `DEFAULT_PORTFOLIO` in `usePaperTrading.js`:
+  ```javascript
+  const DEFAULT_PORTFOLIO = {
+    cash_balance: 100000,
+    starting_balance: 100000,
+    positions: [],
+    total_account_value: 100000,
+    total_pnl: 0,
+    total_pnl_percent: 0,
+  };
+  ```
 
-### Error Boundary Testing
-The codebase includes comprehensive error handling patterns that appear to be manually tested:
+**Demo/test URLs:**
+- Local dev: `http://localhost:5173`
+- No staging/test environment URLs hardcoded
 
-**AppErrorBoundary (`src/components/shared/AppErrorBoundary.jsx`):**
-- Tests for chunk-load errors (transient failures during code-splitting)
-- Distinguishes recoverable vs. fatal errors
-- Pattern shows deliberate testing of error states before deployment
+**How to test locally:**
+1. `npm run dev` — Start Vite dev server
+2. Open `http://localhost:5173` in browser
+3. Sign in with test account (Supabase credentials required)
+4. Interact with dashboard, chart, watchlist, order entry
+5. Monitor browser DevTools:
+   - **Console:** Check for errors in ErrorBoundary or API failures
+   - **Network:** Verify API calls succeed, WebSocket connects
+   - **React DevTools:** Inspect component state, props
 
-**Pattern from `src/components/shared/AppErrorBoundary.jsx` (lines 32-39):**
+---
+
+## Error Testing
+
+**Observable error flows:**
+- API 400/500 responses logged to console with prefix: `console.error('[endpoint] error:', error)`
+- Network failures (fetch timeout, DNS failure) caught in try-catch
+- Graceful fallback: If API fails, UI shows loading spinner or "--" placeholder
+
+**Example from `Watchlist.jsx` (crypto quote fetch):**
 ```javascript
-static getDerivedStateFromError(error) {
-  // Dynamic-import chunk misses can happen transiently during navigation/deploy swaps.
-  // Let the app continue rendering instead of flashing the full crash UI.
-  if (isChunkLoadError(error)) {
-    return { hasError: false, error: null };
+const fetchCryptoQuote = useCallback(async (symbol) => {
+  try {
+    const instrumentName = buildCryptoInstrumentName(symbol);
+    const res = await fetch(`${CRYPTO_API_BASE}?instrument_name=${instrumentName}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    // ... process data
+  } catch (err) {
+    console.error('Crypto quote fetch error:', symbol, err);
+    return null;  // Fail gracefully; UI shows placeholder
   }
-  return { hasError: true, error };
-}
+}, []);
 ```
 
-### Stream/WebSocket Connection Testing
-Stream managers appear to have been tested for connection resilience:
+**Common error scenarios:**
+1. WebSocket connection limit exceeded → Banner displayed; user must refresh
+2. API rate limit → Retry with exponential backoff (implicit in fetch loops)
+3. Missing env var → Console error; feature disabled gracefully
+4. Circular import → Build fails; caught before deploy
 
-**AlpacaStreamManager (`src/services/alpacaStream.js`):**
-- Connection lock mechanisms prevent duplicate connects: `this.stockConnectPromise`
-- Exponential backoff retry with cooldown: `CONNECTION_LIMIT_COOLDOWN_MS = 30000`
-- Handles "connection limit exceeded" errors (commit `e36240e` references this as a critical incident)
-- Listener isolation — each listener wrapped in try-catch to prevent cascade failures
+---
 
-### Development Debugging
-Console logging patterns suggest manual/local testing:
+## Test Coverage Gaps
 
-**Logging by Context:**
-```javascript
-console.error('[Alpaca Stream] Status listener error:', error);
-console.warn('[TradeHistorySync] Save error:', error.message);
-console.error('[Stock WS] Close error:', error);
-```
+**Untested areas (critical):**
+- **Sophia AI prompt caching:** Relies on manual verification that `cache_read_input_tokens > 0` in response (CLAUDE.md: "Verify caching is active")
+- **WebSocket reconnection logic:** Complex state machine in `AlpacaStreamManager` untested; race conditions possible
+- **Paper trading transaction logic:** Portfolio sync and position calculations not unit tested
+- **Stripe webhook processing:** Payment reconciliation untested
+- **Community bot logic:** Persona generation, like/reply aggregation untested (complex state in Redis)
 
-These labels allow filtering logs during manual testing.
+**Risk:** High-impact bugs in real-time systems (WebSocket, trading) could cause silent failures or data corruption.
 
-## QA Indicators (No Automated Tests)
+**Priority to add tests:**
+1. **Alpaca stream manager** — Test connect/disconnect, symbol subscription, message parsing
+2. **Paper trading portfolio** — Test position entry, exit, P&L calculation
+3. **API endpoints** — Test request validation, error responses, CORS headers
+4. **Sophia caching** — Test that cache_control header is set and cache is hit on consecutive requests
 
-1. **Version Control as QA Record:**
-   - Commit messages indicate testing before fixes (e.g., `fix: disable dead Railway WebSocket connection`)
-   - Incident runbook in CLAUDE.md references `commit e36240e` as fix for "connection limit exceeded" — suggests manual reproduction and verification
+---
 
-2. **Error Handling as Test-Driven Design:**
-   - Transient chunk-load errors handled gracefully (lines 32-39 of AppErrorBoundary)
-   - Connection state machines prevent known failure modes (AlpacaStreamManager connect locks)
-   - Listener isolation prevents cascading failures
+## Deployment Testing
 
-3. **Type Safety via JSDoc:**
-   - Minimal JSDoc present, but used in complex utility modules (e.g., `src/utils/apiCache.js`)
-   - Suggests some type validation during development
+**Pre-deploy validation:**
+- `npm run build` — Bundler catches import errors, unused imports (ESLint warns)
+- Git hooks: None explicitly configured (no pre-commit hook in repo)
+- Vercel auto-deploys from `main` branch; no staging environment
 
-## Recommended Testing Infrastructure
+**Post-deploy validation (manual):**
+- Open production URL
+- Login and navigate to key pages (Dashboard, Markets, Trade)
+- Check browser console for errors
+- Verify WebSocket connects (Network tab, filter for wss://)
+- Test one trade execution (paper trading only)
 
-**To add testing to this codebase:**
+---
 
-1. **Framework Choice:**
-   - Vitest recommended (optimized for Vite projects)
-   - Jest alternative (broader ecosystem support)
+## Continuous Integration
 
-2. **Priority Test Areas:**
-   - `src/services/alpacaStream.js` — Critical singleton, connection state machine
-   - `src/hooks/useAlpacaStream.js` — Hook subscription/unsubscription patterns
-   - `src/lib/supabaseClient.js` — Graceful degradation when env vars missing
-   - `src/components/shared/AppErrorBoundary.jsx` — Error boundary resilience
-   - API routes in `api/` — Response validation, error handling
+**Current:** No CI pipeline configured
 
-3. **Test Pattern Examples:**
+**Absent:**
+- No GitHub Actions workflow files
+- No pre-commit hooks
+- No automated test gate
+- No code review enforcement
 
-**Example Unit Test Structure (if Vitest added):**
-```javascript
-// src/services/alpacaStream.test.js
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import manager from './alpacaStream.js';
-
-describe('AlpacaStreamManager', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    manager.teardownStockSocket();
-    manager.teardownCryptoSocket();
-  });
-
-  it('should not allow concurrent stock connects', async () => {
-    const promise1 = manager.connectStockWs();
-    const promise2 = manager.connectStockWs();
-
-    expect(promise1).toBe(promise2); // Same promise instance
-  });
-
-  it('should emit status on listener subscription', (done) => {
-    const unsubscribe = manager.subscribeStatus((status) => {
-      expect(status).toHaveProperty('stockConnected');
-      unsubscribe();
-      done();
-    });
-  });
-});
-```
-
-**Example Component Test (if Vitest + React Testing Library added):**
-```javascript
-// src/components/shared/AppErrorBoundary.test.jsx
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import AppErrorBoundary from './AppErrorBoundary.jsx';
-
-describe('AppErrorBoundary', () => {
-  it('should suppress chunk-load errors and render children', () => {
-    const ThrowChunkError = () => {
-      throw new Error('Failed to fetch dynamically imported module');
-    };
-
-    const { rerender } = render(
-      <AppErrorBoundary>
-        <ThrowChunkError />
-      </AppErrorBoundary>
-    );
-
-    // Should not show crash screen for transient chunk errors
-    expect(screen.queryByText(/Application Error/)).not.toBeInTheDocument();
-  });
-
-  it('should show crash screen for fatal errors', () => {
-    const ThrowFatalError = () => {
-      throw new Error('Fatal runtime error');
-    };
-
-    render(
-      <AppErrorBoundary>
-        <ThrowFatalError />
-      </AppErrorBoundary>
-    );
-
-    expect(screen.getByText(/Application Error/)).toBeInTheDocument();
-  });
-});
-```
+**How to add:**
+1. Create `.github/workflows/test.yml` to run ESLint
+2. Add test runner config (Jest or Vitest) once tests are written
+3. Add pre-push hook to run linting (optional via husky)
 
 ---
 

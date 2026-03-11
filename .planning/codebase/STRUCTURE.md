@@ -7,367 +7,338 @@
 ```
 stratify/
 ├── src/                          # React frontend (Vite)
-│   ├── main.jsx                  # Entry point (creates React root, Sentry init, error handling)
-│   ├── App.jsx                   # Router and auth wrapper
+│   ├── App.jsx                   # Router, landing page, auth check
+│   ├── main.jsx                  # Entry point, Sentry init
 │   ├── index.css                 # Global styles
-│   ├── components/
-│   │   ├── dashboard/            # Dashboard page components (124 files)
-│   │   │   ├── Dashboard.jsx     # Main layout, state sync, panel management
-│   │   │   ├── TradePage.jsx     # Live chart + order entry for stocks
-│   │   │   ├── CryptoPage.jsx    # Live chart + order entry for crypto
-│   │   │   ├── Watchlist.jsx     # Tracked symbols with live quotes
-│   │   │   ├── DataTable.jsx     # Positions, orders, trades, balances
-│   │   │   ├── LiveChart.jsx     # TradingView Lightweight Charts + Twelve Data
-│   │   │   ├── TopMetricsBar.jsx # World clocks, P&L, search bar
-│   │   │   ├── Sidebar.jsx       # VS Code-style navigation
-│   │   │   ├── StatusBar.jsx     # Connection status indicator
-│   │   │   ├── AdvancedChartsPage.jsx
-│   │   │   ├── AnalyticsPage.jsx
-│   │   │   ├── CommunityPage.jsx
-│   │   │   ├── GlobalMarketsPage.jsx
-│   │   │   └── [many more dashboard components]
-│   │   ├── xray/                 # Fundamentals feature (company analysis)
-│   │   │   ├── XRayPage.jsx      # Main page
-│   │   │   ├── charts/           # Recharts-based fundamentals charts
-│   │   │   │   ├── IncomeChart.jsx
-│   │   │   │   ├── BalanceChart.jsx
-│   │   │   │   └── CashFlowChart.jsx
-│   │   │   └── hooks/            # X-Ray specific hooks
-│   │   │       ├── useTwelveData.js
-│   │   │       └── useTwelveDataWS.js   # X-Ray WebSocket
-│   │   ├── auth/                 # Authentication pages
-│   │   │   ├── SignUpPage.jsx
-│   │   │   ├── SignInPage.jsx
-│   │   │   └── ResetPasswordPage.jsx
-│   │   ├── landing/              # Public landing pages
-│   │   │   ├── LandingPage.jsx
-│   │   │   └── [hero, features, etc.]
+│   ├── assets/                   # Images, icons, SVGs
+│   ├── components/               # React components
+│   │   ├── dashboard/            # Dashboard pages + panels (largest subsystem)
+│   │   │   ├── Dashboard.jsx     # Main shell, layout, state
+│   │   │   ├── TradePage.jsx     # Wrapper for TraderPage
+│   │   │   ├── TraderPage.jsx    # Stock/ETF order entry + chart (245KB)
+│   │   │   ├── CryptoPage.jsx    # Crypto trading UI
+│   │   │   ├── Sidebar.jsx       # Left nav (hover to expand)
+│   │   │   ├── TopMetricsBar.jsx # World clocks, P&L, metrics
+│   │   │   ├── LiveAlertsTicker.jsx # Scrolling news ticker
+│   │   │   ├── DataTable.jsx     # Positions/orders/trades/balances
+│   │   │   ├── RightPanel.jsx    # Collapsible right sidebar
+│   │   │   ├── SophiaPanel.jsx   # AI chat panel (Sophia)
+│   │   │   ├── TerminalPanel.jsx # Strategy terminal
+│   │   │   ├── StatusBar.jsx     # Connection status bar
+│   │   │   ├── WarRoom.jsx       # Live alerts + war room
+│   │   │   ├── CommunityPage.jsx # Social trading features
+│   │   │   ├── StrategyRadarPage.jsx # Strategy discovery (118KB)
+│   │   │   ├── charts/           # Chart components
+│   │   │   │   ├── LiveChart.jsx # TradingView Lightweight Charts
+│   │   │   ├── community/        # Community features (forums, posts)
+│   │   ├── xray/                 # Fundamentals analyzer
+│   │   │   ├── XRayPage.jsx      # Income, balance, cash flow, stats
+│   │   │   ├── charts/           # Recharts-based fundamental charts
+│   │   │   └── hooks/
+│   │   │       ├── useTwelveData.js # Fetch via /api/xray/*
+│   │   │       └── useTwelveDataWS.js # WebSocket for X-Ray data
+│   │   ├── auth/                 # Auth pages
+│   │   │   └── SignUpPage.jsx
 │   │   ├── shared/               # Reusable UI components
-│   │   │   ├── AppErrorBoundary.jsx
-│   │   │   ├── TickerHoverCard.jsx
+│   │   │   ├── AppErrorBoundary.jsx # Top-level error boundary
+│   │   │   ├── SearchBar.jsx
 │   │   │   ├── LiveScoresPill.jsx
-│   │   │   ├── KalshiPill.jsx
-│   │   │   ├── MiniGamePill.jsx
-│   │   │   └── [input fields, buttons, modals]
-│   │   └── [other feature dirs: strategies, premium-examples, legal, etc.]
-│   ├── context/
-│   │   └── AuthContext.jsx       # Supabase auth context
-│   ├── store/
-│   │   ├── StratifyProvider.jsx  # Root state provider (composes hooks)
-│   │   └── hooks/                # State hooks for StratifyProvider
-│   │       ├── useMarketData.js
-│   │       ├── usePortfolio.js
-│   │       ├── useWatchlist.js
-│   │       ├── useTradeHistory.js
-│   │       ├── useLeaderboard.js
-│   │       └── useStrategies.js
-│   ├── hooks/                    # Custom hooks (business logic)
-│   │   ├── useAlpacaStream.js    # Subscribe to Alpaca live prices
-│   │   ├── useAlpacaData.js      # Historical data from Alpaca
-│   │   ├── useTwelveData.js      # Twelve Data REST calls
-│   │   ├── usePaperTrading.js    # Paper account position/trade logic
-│   │   ├── usePortfolio.js       # Portfolio calculations
-│   │   ├── useSophiaChat.js      # Sophia AI chat state
-│   │   ├── useIndicators.js      # Technical indicators
-│   │   ├── useFeed.js            # Market news/feeds
-│   │   ├── useTradingMode.js     # Paper vs. live mode
-│   │   ├── useSubscription.js    # Subscription status
-│   │   └── [more hooks]
-│   ├── services/                 # Singleton connection managers
-│   │   ├── alpacaStream.js       # Alpaca WebSocket (ONE persistent socket)
-│   │   ├── alpacaService.js      # Alpaca REST API (auth, orders)
-│   │   ├── twelveDataStream.js   # Twelve Data stream helpers
-│   │   ├── twelveDataWebSocket.js
-│   │   └── marketData.js
-│   ├── lib/                      # Utilities and helpers
+│   │   ├── strategies/           # Strategy-related UI
+│   │   ├── legal/                # Legal pages (privacy, ToS)
+│   │   └── ui/                   # Primitive UI components
+│   ├── context/                  # React Context providers
+│   │   └── AuthContext.jsx       # Authentication state (user, session)
+│   ├── store/                    # Global state management
+│   │   ├── StratifyProvider.jsx  # Root context provider
+│   │   └── hooks/                # Store hooks
+│   │       ├── useMarketData.js  # Market prices + streams
+│   │       ├── usePortfolio.js   # Portfolio + P&L computation
+│   │       ├── useWatchlist.js   # Watched symbols
+│   │       ├── useTradeHistory.js # Trade records
+│   │       ├── useLeaderboard.js # Leaderboard state
+│   │       └── useStrategies.js  # Saved strategies
+│   ├── hooks/                    # Custom React hooks
+│   │   ├── useAlpacaStream.js    # Hook into alpacaStream singleton
+│   │   ├── useAlpacaData.js      # Fetch account data from /api/account
+│   │   ├── usePaperTrading.js    # Paper trading mode logic
+│   │   ├── useSubscription.js    # Check subscription status
+│   │   ├── useWatchlistSync.js   # Sync watchlist with Supabase
+│   │   ├── useStrategySync.js    # Sync strategies with Supabase
+│   │   ├── useDashboardStateSync.js # Persist panel state
+│   │   └── useTradingMode.js     # Trading mode (paper/live) detection
+│   ├── services/                 # Singletons and managers
+│   │   ├── alpacaStream.js       # Alpaca WebSocket singleton (1 stock + 1 crypto)
+│   │   ├── twelveDataStream.js   # Twelve Data WebSocket helpers
+│   │   ├── alpacaService.js      # Alpaca REST API wrappers
+│   │   └── marketData.js         # Market data utilities
+│   ├── lib/                      # Utility functions and clients
 │   │   ├── supabaseClient.js     # Supabase browser client
 │   │   ├── twelvedata.js         # Twelve Data formatting helpers
-│   │   ├── billing.js            # Stripe pricing, subscription logic
 │   │   ├── marketHours.js        # Market open/close times
-│   │   ├── warRoomIntel.js       # War room data queries
-│   │   ├── withTimeout.js        # Timeout wrapper for async calls
-│   │   ├── tickerStyling.js      # Ticker display formatting
-│   │   ├── initNewUser.js        # New user profile setup
-│   │   ├── checkoutSession.js    # Stripe checkout state
-│   │   ├── kalshi.js             # Prediction market integration
-│   │   └── [more utilities]
-│   ├── data/                     # Static data
-│   │   ├── stockDatabase.js      # S&P 500 symbols (breaks circular imports)
-│   │   ├── cryptoTop20.js        # Top crypto assets
-│   │   └── newsletters.json      # Newsletter data
-│   ├── styles/                   # CSS/Tailwind
-│   └── assets/                   # Images, icons, SVGs
-├── api/                          # Vercel serverless functions (Node.js)
-│   ├── sophia-chat.js            # Sophia AI chat endpoint
-│   ├── sophia-copilot.js         # Sophia copilot mode
-│   ├── sophia-insight.js         # Sophia market insights
-│   ├── quote.js                  # Get latest quote from Alpaca
-│   ├── latest-quote.js           # Quote wrapper
-│   ├── orders.js                 # Fetch Alpaca orders
-│   ├── positions.js              # Fetch Alpaca positions
-│   ├── paper-trade.js            # Place paper trade
-│   ├── paper-portfolio.js        # Get paper portfolio
-│   ├── paper-history.js          # Paper trade history
-│   ├── xray/                     # Company fundamentals endpoints
-│   │   ├── profile.js            # Company profile
-│   │   ├── quote.js              # Quote data
-│   │   ├── statistics.js         # Key statistics
-│   │   ├── income-statement.js
-│   │   ├── balance-sheet.js
-│   │   └── cash-flow.js
-│   ├── crypto/                   # Crypto endpoints
-│   │   ├── quote.js
-│   │   └── [more crypto endpoints]
-│   ├── lse/                      # London Stock Exchange endpoints
-│   │   └── [LSE-specific endpoints]
-│   ├── watchlist/                # Watchlist quote endpoints
-│   │   └── quote.js
-│   ├── indicators/               # Technical indicators
-│   │   ├── rsi.js
-│   │   ├── macd.js
-│   │   └── [more indicators]
+│   │   ├── billing.js            # Subscription helpers (Pro/Pro+)
+│   │   ├── kalshi.js             # Kalshi prediction market API
+│   │   ├── arbScanner.js         # Arbitrage opportunity scanner
+│   │   ├── warRoomIntel.js       # War Room data processing
+│   │   ├── checkoutSession.js    # Stripe checkout persistence
+│   │   └── withTimeout.js        # Promise timeout wrapper
+│   ├── data/                     # Static/generated data
+│   │   └── stockDatabase.js      # Stock symbol database (extracted to avoid circular imports)
+│   ├── pages/                    # Top-level pages (outside dashboard)
+│   │   ├── ResetPasswordPage.jsx # Password reset flow
+│   │   └── SportsOddsPage.jsx    # Sports betting page
+│   ├── styles/                   # Global CSS
+│   ├── utils/                    # Utility functions
+│   ├── plugins/                  # Plugin system
+│   └── assets/                   # Static assets
+├── api/                          # Vercel serverless functions
+│   ├── account.js                # GET /api/account (account balance, buying power, etc.)
+│   ├── orders.js                 # POST /api/orders (create order, paper + live)
+│   ├── paper-portfolio.js        # GET/POST paper portfolio endpoints
+│   ├── paper-history.js          # GET paper trade history
+│   ├── alpaca-keys.js            # GET cached Alpaca keys (for browser WebSocket)
+│   ├── xray/                     # Fundamentals API endpoints
+│   │   ├── profile.js            # Company profile from Twelve Data
+│   │   ├── quote.js              # Real-time quote
+│   │   ├── statistics.js         # Financial stats
+│   │   ├── income-statement.js   # Income statement data
+│   │   ├── balance-sheet.js      # Balance sheet data
+│   │   └── cash-flow.js          # Cash flow statement
+│   ├── sophia-chat.js            # POST /api/sophia-chat (Sophia AI chat)
+│   ├── sophia-copilot.js         # POST /api/sophia-copilot (contextual AI)
+│   ├── sophia-insight.js         # POST /api/sophia-insight (market insight)
 │   ├── cron/                     # Scheduled jobs
-│   │   ├── market-summary.js     # Premarket/close summaries
-│   │   ├── community-bot.js      # Community engagement
-│   │   ├── warm-warroom.js       # Cache warming
-│   │   └── [more cron jobs]
-│   ├── community/                # Community features
-│   │   ├── [community endpoints]
-│   ├── discord/                  # Discord webhooks
-│   │   ├── [discord integrations]
+│   │   ├── market-summary.js     # Premarket + close summaries
+│   │   ├── warm-cache.js         # Cache warming
+│   │   ├── warm-warroom.js       # Warm War Room cache
+│   │   └── community-bot.js      # Community bot actions
+│   ├── feeds.js                  # GET /api/feeds (news feeds: Earnings, Momentum, Trending, etc.)
+│   ├── news.js                   # GET /api/news (latest news)
+│   ├── earnings.js               # GET /api/earnings (earnings data)
+│   ├── earnings-transcript.js    # GET /api/earnings-transcript
+│   ├── x-bot-v2.js               # POST /api/x-bot-v2 (Twitter posting)
+│   ├── discord-post.js           # Discord webhook posting
+│   ├── market-intel.js           # Market intelligence data
+│   ├── market-movers.js          # Top gainers/losers
+│   ├── finance.js                # General finance data
+│   ├── discover.js               # Stock discovery API
+│   ├── latest-quote.js           # Latest stock quote
+│   ├── backtest.js               # POST /api/backtest (strategy backtesting)
+│   ├── chat.js                   # General chat endpoint
+│   ├── stripe-webhook.js         # POST /api/stripe-webhook (payment handling)
+│   ├── create-checkout-session.js # Stripe checkout session
+│   ├── confirm-checkout-session.js # Confirm checkout
+│   ├── create-portal-session.js  # Stripe customer portal
+│   ├── contact.js                # POST /api/contact (contact form)
+│   ├── broker-connect.js         # Alpaca connection flow
+│   ├── broker-disconnect.js      # Disconnect broker
 │   ├── lib/                      # Shared serverless utilities
-│   │   ├── twelvedata.js         # Twelve Data API wrapper (server)
-│   │   ├── indicators.js         # Technical indicators library
-│   │   ├── pro-plus.js           # Pro/Plus subscription logic
-│   │   ├── discord.js            # Discord integration
-│   │   ├── discord-alerts.js     # Discord alert formatting
-│   │   ├── stocks-cache.js       # Stocks cache (Redis/Supabase)
 │   │   ├── supabase.js           # Supabase admin client
-│   │   ├── alpaca.js             # Alpaca API credentials
-│   │   └── [more utilities]
-│   ├── create-checkout-session.js
-│   ├── stripe-webhook.js
-│   ├── contact.js
-│   ├── chat.js
-│   └── [many more API endpoints]
-├── vercel.json                   # Vercel deployment config (rewrites, cron jobs)
+│   │   ├── tradingMode.js        # Trading mode helpers (paper/live)
+│   │   ├── alpaca.js             # Alpaca API client
+│   │   ├── twelvedata.js         # Twelve Data API client
+│   │   ├── indicators.js         # Technical indicators
+│   │   ├── pro-plus.js           # Sophia usage tracking + Pro+ helpers
+│   │   ├── discord.js            # Discord webhook client
+│   │   ├── stocks-cache.js       # Redis stock database cache
+│   │   └── warroom-cache.js      # War Room Redis cache
+│   ├── crypto/                   # Crypto-specific endpoints
+│   ├── lse/                      # London Stock Exchange endpoints
+│   ├── global-markets/           # Global market data endpoints
+│   ├── community/                # Community API endpoints
+│   ├── discord/                  # Discord-related endpoints
+│   ├── odds/                     # Sports odds endpoints
+│   └── indicators/               # Technical indicator endpoints
 ├── vite.config.js                # Vite build config
+├── vercel.json                   # Vercel deployment config (cron jobs)
 ├── tailwind.config.js            # Tailwind CSS config
+├── postcss.config.js             # PostCSS config
 ├── eslint.config.js              # ESLint config
-├── package.json                  # Frontend dependencies
-├── index.html                    # HTML entry point (#root div)
-├── CLAUDE.md                     # Project context and constraints
-└── [legacy dirs: server/, backend/ - NOT deployed]
+├── package.json                  # Dependencies
+├── .env.development              # Local dev env vars
+├── .env.production               # Production env vars (minimal)
+├── index.html                    # HTML entry point
+├── CLAUDE.md                     # Project context + rules
+└── .planning/codebase/           # GSD documentation
+    ├── ARCHITECTURE.md           # This file
+    └── STRUCTURE.md              # Directory structure & conventions
 ```
 
 ## Directory Purposes
 
 **src/components/dashboard/:**
-- Purpose: Dashboard UI components (trading interface, charts, data tables)
-- Contains: Page-level components (TradePage, CryptoPage, Dashboard), child components (LiveChart, Watchlist, DataTable, TopMetricsBar, StatusBar)
-- Key files: `Dashboard.jsx` (main layout), `TradePage.jsx`, `CryptoPage.jsx`, `LiveChart.jsx`
-
-**src/components/xray/:**
-- Purpose: Company fundamentals analysis (income statements, balance sheets, cash flow)
-- Contains: XRayPage.jsx, chart components, hooks for Twelve Data WebSocket
-- Key files: `XRayPage.jsx`, `charts/IncomeChart.jsx`, `hooks/useTwelveData.js`
-
-**src/components/shared/:**
-- Purpose: Reusable UI components used across pages
-- Contains: Error boundaries, hover cards, pills, buttons, modals
-- Key files: `AppErrorBoundary.jsx` (REQUIRED for all new pages)
+- Purpose: Dashboard application — all trading UI, panels, charts, data tables
+- Contains: 120+ components ranging from 1KB (simple buttons) to 245KB (TraderPage)
+- Key files: Dashboard.jsx (shell), TraderPage.jsx (largest), CryptoPage.jsx, StrategyRadarPage.jsx
+- Pattern: Component per feature/page, no shared state except via context/hooks
+- Largest subsystem: handles 80% of UI interactions
 
 **src/context/:**
-- Purpose: Global context providers
-- Contains: AuthContext (Supabase JWT, session)
-- Key files: `AuthContext.jsx`
+- Purpose: Global React Context providers
+- Contains: AuthContext (user/session management)
+- Pattern: Hooks-based context (useAuth)
+- Size: Minimal — only authentication; market data state moved to store/
 
 **src/store/:**
-- Purpose: Root state management
-- Contains: StratifyProvider (composes all state hooks), specialized state hooks
-- Key files: `StratifyProvider.jsx`
-
-**src/hooks/:**
-- Purpose: Custom React hooks with business logic
-- Contains: Data fetching (useAlpacaData, useTwelveData), stream subscriptions (useAlpacaStream), trading (usePaperTrading), UI state (useTradingMode)
-- Key files: `useAlpacaStream.js` (critical singleton interface), `usePaperTrading.js`, `useSophiaChat.js`
+- Purpose: Application state management (market data, portfolio, watchlist, strategies)
+- Contains: StratifyProvider.jsx (root context) + hook implementations
+- Pattern: Composed custom hooks, each with read/write methods
+- Hydration: Each hook loads initial state from Supabase or localStorage on mount
+- Used by: All components via useMarketData, usePortfolio, etc.
 
 **src/services/:**
-- Purpose: Singleton connection managers (WebSockets, long-lived resources)
-- Contains: AlpacaStreamManager class, Twelve Data stream helpers
-- Key files: `alpacaStream.js` (DO NOT open direct WebSocket in components — use this instead), `twelveDataStream.js`
+- Purpose: Singletons and stateful managers (WebSocket, API clients)
+- Contains: alpacaStream.js (Alpaca WebSocket singleton), twelveDataStream.js (helpers)
+- Access pattern: Import directly (not via hooks) for singleton, then use via hooks for subscriptions
+- Critical: alpacaStream must remain singleton — no concurrent connects allowed
+
+**src/hooks/:**
+- Purpose: Custom React hooks for data fetching, streaming, persistence
+- Contains: useAlpacaStream (subscribe to alpacaStream), useSubscription, usePaperTrading, useWatchlistSync
+- Pattern: Fetch from Supabase or /api endpoints, manage local state, return update methods
+- Key: useAlpacaStream is the only interface to alpacaStream singleton (no direct imports in components)
 
 **src/lib/:**
-- Purpose: Utility functions and helpers
-- Contains: API clients (Supabase), formatters, market hours, billing logic
-- Key files: `supabaseClient.js`, `twelvedata.js` (format helpers, NOT API calls), `billing.js`, `marketHours.js`
-
-**src/data/:**
-- Purpose: Static data (stock lists, crypto assets)
-- Contains: stockDatabase.js (extracted to prevent circular imports), cryptoTop20.js, newsletters.json
-- Key files: `stockDatabase.js` (S&P 500 symbols)
+- Purpose: Pure utility functions and clients
+- Contains: Supabase client, Twelve Data formatters, market hours calculator, billing helpers
+- Pattern: No side effects, reusable across components/hooks/API
+- Note: supabaseClient.js is the browser client (RLS policies apply); api/lib/supabase.js is the admin client
 
 **api/:**
-- Purpose: Vercel serverless function endpoints
-- Contains: Market data endpoints (xray/*, quote.js), AI endpoints (sophia-*.js), trading endpoints (paper-trade.js, orders.js), cron jobs, webhooks
-- Key files: `sophia-chat.js` (Sophia AI), `xray/profile.js` (fundamentals), `cron/market-summary.js` (premarket/close summaries)
+- Purpose: Vercel serverless functions — all backend logic
+- Contains: API routes, cron jobs, webhooks
+- Pattern: export default async function handler(req, res) per file
+- Auth: JWT from headers, browser context, or CRON_SECRET
+- Routes: Mounted at /api/{filename}.js → /api/{filename} endpoint
 
 **api/lib/:**
-- Purpose: Shared serverless utilities
-- Contains: Twelve Data API wrapper, Redis client, Supabase admin, Discord integration, subscription logic
-- Key files: `twelvedata.js` (server-side API wrapper), `pro-plus.js` (subscription checks), `discord-alerts.js` (formatting)
-
-**api/cron/:**
-- Purpose: Scheduled jobs triggered by Vercel cron
-- Contains: Market summaries, cache warming, community bot actions
-- Key files: `market-summary.js` (premarket/close), `warm-warroom.js` (Redis cache)
+- Purpose: Shared utilities for serverless functions (not used by frontend)
+- Contains: API clients (Alpaca, Twelve Data, Discord), caching (Redis), auth helpers
+- Pattern: Stateless functions, no singleton state
+- Key: tradingMode.js determines paper vs live trading per request
 
 ## Key File Locations
 
 **Entry Points:**
-- `src/main.jsx`: React app initialization (creates root, Sentry, error handlers)
-- `src/App.jsx`: Router and auth wrapper
-- `index.html`: HTML root document
+- `index.html`: HTML skeleton, loads `/src/main.jsx`
+- `src/main.jsx`: React app initialization, Sentry setup, provider wrapping
+- `src/App.jsx`: Router, landing page vs authenticated dashboard routing
+- `src/components/dashboard/Dashboard.jsx`: Main dashboard shell and layout
 
 **Configuration:**
-- `vercel.json`: Deployment config, cron schedules, rewrites
-- `vite.config.js`: Build config (HMR, plugins)
-- `tailwind.config.js`: Design tokens (colors, spacing)
-- `package.json`: Dependencies, scripts (npm run build, npm run dev)
+- `vite.config.js`: Build config, API proxy, path aliases (components/)
+- `vercel.json`: Deployment config, cron job schedule, rewrites
+- `tailwind.config.js`: Tailwind CSS customization (dark theme)
+- `package.json`: Dependencies, build/dev scripts
 
 **Core Logic:**
-- `src/services/alpacaStream.js`: Alpaca WebSocket singleton (CRITICAL — do not bypass)
-- `src/hooks/usePaperTrading.js`: Paper trading state and position calculations
-- `src/store/StratifyProvider.jsx`: Root state composition
-- `api/sophia-chat.js`: Sophia AI chat with prompt caching
+- `src/services/alpacaStream.js`: Alpaca WebSocket singleton (stock + crypto)
+- `src/store/StratifyProvider.jsx`: Global state tree
+- `src/context/AuthContext.jsx`: Authentication state
+- `api/lib/tradingMode.js`: Paper vs live mode resolution
+
+**Market Data:**
+- `src/store/hooks/useMarketData.js`: Market price streams
+- `src/store/hooks/usePortfolio.js`: Portfolio + P&L computation
+- `src/lib/marketHours.js`: US market hours utility
+
+**Sophia AI:**
+- `api/sophia-chat.js`: Sophia AI chat endpoint with prompt caching
+- `api/lib/pro-plus.js`: Usage tracking and billing helpers
 
 **Testing:**
-- Not applicable — no test files found in codebase
+- `src/data/stockDatabase.js`: Static stock symbol database (not test fixtures)
 
 ## Naming Conventions
 
 **Files:**
-- Components: PascalCase with .jsx extension (e.g., `Dashboard.jsx`, `TradePage.jsx`)
-- Hooks: camelCase starting with "use" (e.g., `useAlpacaStream.js`, `usePaperTrading.js`)
-- Utilities: camelCase with .js extension (e.g., `supabaseClient.js`, `twelvedata.js`)
-- API endpoints: kebab-case or camelCase (e.g., `paper-trade.js`, `sophia-chat.js`)
-- Directories: kebab-case (e.g., `xray/`, `api/lib/`, `store/hooks/`)
+- Components: PascalCase.jsx (e.g., Dashboard.jsx, TraderPage.jsx)
+- Hooks: camelCase with 'use' prefix (e.g., useAlpacaStream.js, usePortfolio.js)
+- Utilities: camelCase (e.g., marketHours.js, supabaseClient.js)
+- API routes: kebab-case.js (e.g., sophia-chat.js, broker-connect.js)
+- Context files: PascalCase (e.g., AuthContext.jsx)
 
-**Functions:**
-- React components: PascalCase (e.g., `export default function Dashboard() {}`)
-- Hooks: camelCase starting with "use" (e.g., `export function useAlpacaStream() {}`)
-- Utilities: camelCase (e.g., `export const normalizeStockSymbol = (symbol) => {}`)
-- Classes: PascalCase (e.g., `class AlpacaStreamManager {}`)
+**Directories:**
+- Feature folders: lowercase (e.g., dashboard/, xray/, crypto/)
+- Utility folders: lowercase (e.g., hooks/, services/, lib/, utils/)
+- Grouped by feature/domain, not layer
 
-**Variables:**
-- Constants: UPPER_SNAKE_CASE (e.g., `STOCK_WS_URL`, `RECONNECT_BASE_DELAY`)
-- State variables: camelCase (e.g., `symbol`, `positions`, `isLoading`)
-- Maps/Sets: camelCase with descriptive suffix (e.g., `stockQuotes`, `cryptoListeners`)
+**Variables & Functions:**
+- Functions: camelCase (createOrder, fetchAccountData)
+- Constants: UPPER_SNAKE_CASE (ALPACA_API_URL, RECONNECT_MAX_DELAY)
+- React component props: camelCase (onOrderSubmit, totalGainLoss)
+- Booleans: is/has prefix (isLoading, hasError, isMarketOpen)
 
-**Types:**
-- React components: PascalCase (e.g., `Dashboard`, `TradePage`, `LiveChart`)
-- Context: suffix with "Context" (e.g., `AuthContext`, `StratifyContext`)
-- Props: camelCase or object literal notation
+**CSS Classes:**
+- Tailwind utility classes only — no custom CSS classes
+- Exception: `.css` files for complex styles (AnalyticsWatchlistGrid.css)
 
 ## Where to Add New Code
 
-**New Feature (e.g., stock screener, AI analysis):**
-- Primary code: Create feature folder in `src/components/` (e.g., `src/components/screener/`)
-  - Main component: `src/components/screener/ScreenerPage.jsx`
-  - Sub-components: `src/components/screener/ScreenerTable.jsx`, `src/components/screener/FilterPanel.jsx`
-  - Hook: `src/hooks/useScreener.js` (if complex state)
-  - Library: `src/lib/screenerUtils.js` (if utilities needed)
-- API endpoints: `api/screener/*.js` (if backend needed)
-- Route: Add to `src/App.jsx` router
+**New Trading Feature:**
+- UI component: `src/components/dashboard/{FeatureName}.jsx`
+- Hook for state: `src/store/hooks/use{Feature}.js` if global, or `src/hooks/use{Feature}.js` if local
+- API endpoint: `api/{feature}.js` or `api/{feature}/handler.js` if multiple related endpoints
+- Tests: None currently (add test files next to components if testing system is introduced)
 
-**New Component (reusable, shared across pages):**
-- Implementation: `src/components/shared/NewComponent.jsx`
-- Example: `src/components/shared/AppErrorBoundary.jsx`, `src/components/shared/TickerHoverCard.jsx`
-- If complex: add hook in `src/hooks/` for state logic
+**New Dashboard Panel:**
+- Component: `src/components/dashboard/{PanelName}.jsx`
+- Must wrap in ErrorBoundary if it's a top-level page
+- Add to Dashboard.jsx state + layout
+- If it needs caching: use useDashboardStateSync hook pattern
 
-**Utilities:**
-- Shared helpers: `src/lib/newUtility.js`
-- Market-specific: `src/lib/marketHours.js`, `src/lib/tickerStyling.js`
-- Data/static: `src/data/newData.js`
+**New Sophia AI Feature:**
+- Endpoint: `api/sophia-{feature}.js` with same prompt caching pattern as sophia-chat.js
+- Cost tracking: Use pro-plus.js helpers (estimateSophiaCostUsd, incrementSophiaUsageUsd)
+- Frontend: Hook in SophiaPanel.jsx or create new panel
 
-**API Endpoints:**
-- Market data: `api/xray/` (fundamentals), `api/crypto/`, `api/stocks/`
-- Trading: `api/orders.js`, `api/paper-trade.js`
-- AI: `api/sophia-*.js`
-- Webhooks: `api/stripe-webhook.js`, `api/discord-post.js`
-- Cron: `api/cron/new-job.js`
-- Utilities: `api/lib/newUtility.js`
+**New Market Data Stream:**
+- If Alpaca: Subscribe via alpacaStream singleton using useAlpacaStream hook
+- If Twelve Data: Use useTwelveDataWS hook in xray/ components
+- If new third-party: Create new service file in src/services/ following alpacaStream pattern
 
-**Hooks (state/data fetching):**
-- New hook: `src/hooks/useNewFeature.js`
-- Pattern: Export a function that returns an object with state + methods
-- Example: `export function usePaperTrading() { return { positions, totalValue, applyTrade } }`
-- Provider hooks (for StratifyProvider): `src/store/hooks/useNewSlice.js`
+**New Utility Function:**
+- Shared across components: `src/lib/{utilityName}.js`
+- Specific to serverless: `api/lib/{utilityName}.js`
+- Specific to one hook: Keep inline in hook file
+- No cross-layer imports (frontend lib → api lib forbidden)
+
+**New Cron Job:**
+- File: `api/cron/{jobName}.js`
+- Register: Add entry to `vercel.json` crons array with schedule
+- Auth: Check CRON_SECRET in handler
+- Alerting: Post to Discord or Twitter via discord-post.js / x-bot-v2.js
+
+**New Page (Outside Dashboard):**
+- Location: `src/pages/{PageName}.jsx` (if standalone) or `src/components/dashboard/{PageName}.jsx` (if inside dashboard)
+- Routing: Add route in src/App.jsx
+- Error handling: Wrap in ErrorBoundary
+- Example: ResetPasswordPage.jsx, SportsOddsPage.jsx
 
 ## Special Directories
 
-**src/assets/:**
-- Purpose: Static assets (images, icons, SVGs)
-- Generated: No
-- Committed: Yes
+**node_modules/:**
+- Purpose: npm dependencies
+- Generated: Yes (from package-lock.json)
+- Committed: No (in .gitignore)
 
 **dist/:**
-- Purpose: Build output (Vite)
-- Generated: Yes (from `npm run build`)
+- Purpose: Built frontend artifacts (Vite output)
+- Generated: Yes (npm run build)
 - Committed: No (in .gitignore)
 
 **.planning/codebase/:**
-- Purpose: Generated codebase documentation (ARCHITECTURE.md, STRUCTURE.md, etc.)
-- Generated: Yes (by GSD agents)
+- Purpose: GSD documentation (ARCHITECTURE.md, STRUCTURE.md, etc.)
+- Generated: No (written manually by Claude)
 - Committed: Yes
 
-**.vercel/:**
-- Purpose: Vercel build cache and metadata
-- Generated: Yes (by Vercel during deploy)
-- Committed: No
+**backend/ and server/:**
+- Purpose: Legacy Node.js/Python backends
+- Status: Deprecated — not deployed in production
+- Note: All API routes are in api/ (Vercel serverless only)
 
-**server/ and backend/:**
-- Purpose: Legacy Node.js/Express and Python/FastAPI backends (NOT deployed)
-- Status: Not used in production (Vercel serverless is primary)
-- Maintenance: Deprecated
-
-## How to Avoid Circular Imports
-
-**Problem:** Circular imports cause gray screen crashes in production.
-
-**Solution:** Extract shared data to neutral location.
-
-**Example:** `src/data/stockDatabase.js` contains S&P 500 symbols. It is imported by:
-- `src/components/dashboard/Dashboard.jsx`
-- `src/hooks/useWatchlist.js`
-- `src/services/alpacaStream.js`
-
-Without extraction, these would create circular dependency: Dashboard → useWatchlist → alpacaStream → Dashboard.
-
-**Rule:** If multiple layers (components, hooks, services) need the same data, extract to `src/data/` or `src/lib/`.
-
-## Error Boundary Requirement
-
-**MANDATORY:** Every new top-level page component must be wrapped in `<ErrorBoundary>`.
-
-**Location:** `src/components/shared/AppErrorBoundary.jsx`
-
-**Usage:**
-```jsx
-import AppErrorBoundary from '../shared/AppErrorBoundary';
-
-export default function NewPage() {
-  return (
-    <AppErrorBoundary>
-      <div className="page-content">
-        {/* page content */}
-      </div>
-    </AppErrorBoundary>
-  );
-}
-```
-
-**Why:** Catches import errors and component crashes before they gray out the entire app.
+**docs/:**
+- Purpose: Project documentation
+- Contains: Design docs, runbooks (e.g., BUGS-RESOLVED.md)
 
 ---
 

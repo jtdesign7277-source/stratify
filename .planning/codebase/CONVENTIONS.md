@@ -5,202 +5,212 @@
 ## Naming Patterns
 
 **Files:**
-- React components: `PascalCase.jsx` (e.g., `TraderPage.jsx`, `AppErrorBoundary.jsx`)
-- Utilities and services: `camelCase.js` (e.g., `alpacaStream.js`, `supabaseClient.js`)
-- Hooks: `use*` prefix in `camelCase.js` (e.g., `useAlpacaStream.js`, `useTradingMode.js`)
-- API routes: `kebab-case.js` (e.g., `sophia-insight.js`, `alpaca-keys.js`)
-- Directories: `lowercase` or `camelCase` (e.g., `src/components/dashboard/`, `src/hooks/`)
+- Components (React): `PascalCase.jsx` (e.g., `Watchlist.jsx`, `AppErrorBoundary.jsx`, `TraderPage.jsx`)
+- Utilities/Hooks: `camelCase.js` (e.g., `twelvedata.js`, `supabaseClient.js`, `withTimeout.js`)
+- Hooks specifically: `use[Name].js` (e.g., `useAlpacaStream.js`, `usePaperTrading.js`, `useSubscription.js`)
+- API endpoints: `kebab-case.js` (e.g., `sophia-chat.js`, `create-checkout-session.js`, `market-summary.js`)
 
 **Functions:**
-- Named exports and function declarations: `camelCase` (e.g., `normalizeStockSymbol`, `subscribeStocks`)
-- React functional components: `PascalCase` (e.g., `export default function TraderPage()`)
-- Utility/helper functions: `camelCase` (e.g., `formatCurrency`, `newsTimeAgo`)
-- Private functions (within modules): `camelCase` with leading underscore optional (e.g., `normalizeStockSymbols`)
-- Boolean predicates: `is*` or `has*` prefix (e.g., `isConnectionLimitError`, `isChunkLoadError`)
-- Transform functions: `to*` or `from*` prefix (e.g., `toCryptoStreamSymbol`, `fromCryptoStreamSymbol`)
+- Named exports: `camelCase` (e.g., `normalizeSymbol`, `formatCurrency`, `fetchPortfolioInternal`)
+- Arrow functions in const declarations: `const functionName = (...) => { }`
+- React components: `PascalCase` (e.g., `function Watchlist({...})`, `export default function Dashboard({...})`)
+- Utility helpers with underscores acceptable for clarity: `const is_chunk_load_error` or `isChunkLoadError` (both used interchangeably)
 
 **Variables:**
-- Regular variables: `camelCase` (e.g., `stockConnected`, `cryptoQuotes`, `listenerId`)
-- Constants (module-level): `UPPER_SNAKE_CASE` (e.g., `RECONNECT_BASE_DELAY`, `STOCK_WS_URL`, `CONNECTION_LIMIT_COOLDOWN_MS`)
-- Component props: `camelCase` (e.g., `onPinToTop`, `isLiveScoresOpen`, `paperTotalGainLoss`)
-- Storage keys: `kebab-case` inside strings (e.g., `'stratify-trader-watchlist'`, `'watchlist_order'`)
+- Local state: `camelCase` (e.g., `sharedState`, `stockQuotes`, `cryptoListeners`)
+- Constants (upper scope): `SCREAMING_SNAKE_CASE` (e.g., `STOCK_WS_URL`, `DEFAULT_PORTFOLIO`, `RECONNECT_BASE_DELAY`)
+- Boolean flags: `is[Name]` or `has[Name]` or `should[Name]` (e.g., `isMounted`, `hasError`, `shouldUsePaperTopBarMetrics`)
+- Map/Set collections: descriptive plural nouns (e.g., `stockListeners`, `cryptoOrderbookListeners`, `statusListeners`)
 
-**Types/Objects:**
-- Class names: `PascalCase` (e.g., `AlpacaStreamManager`, `AppErrorBoundary`)
-- Object properties: `camelCase` (e.g., `stockAuthenticated`, `cryptoConnected`, `listenersMap`)
-- Enum-like objects: `UPPER_SNAKE_CASE` keys (e.g., `MARKET_PRIORITY = ['NASDAQ', 'NYSE']`)
+**Types:**
+- No TypeScript. JSDoc comments used sparingly for complex functions.
 
 ## Code Style
 
 **Formatting:**
-- No Prettier config detected — ESLint is the primary linter
-- 2-space indentation (observed in codebase)
-- Semicolons: Used consistently at end of statements
-- Quotes: Single quotes preferred in most code (e.g., `const url = '...'`)
-- Line length: No strict limit observed, but generally under 120 characters
+- Configured with `eslint.config.js` (flat config, ES2020+)
+- No Prettier config file; formatting conventions enforced via ESLint
+- Indentation: 2 spaces (inferred from existing files)
+- Line length: No strict enforcer visible; reasonable limit ~120-140 characters observed
 
 **Linting:**
-- ESLint configured via `eslint.config.js` (flat config format)
-- Browser globals enabled (`ecmaVersion: 2020`, ES module source type)
-- React Hooks rules enforced (`reactHooks.configs.flat.recommended`)
-- React Refresh plugin for Vite (`reactRefresh.configs.vite`)
-- Unused variable rule: `varsIgnorePattern: '^[A-Z_]'` — ignores uppercase/underscore-prefixed unused vars
-- All recommended rules from `@eslint/js` are active
+- ESLint config: `eslint.config.js`
+- Extends: `js.configs.recommended`, `react-hooks.configs.flat.recommended`, `react-refresh.configs.vite`
+- Key rules:
+  - `'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }]` — Allow uppercase or leading underscore in unused vars (for intentional ignores, React component props)
+- React Hooks plugin enforces dependency rules (dependency array correctness)
+- React Refresh plugin for fast refresh during development
+
+**Import/Export:**
+- ESM modules (`"type": "module"` in `package.json`)
+- Imports at top of file, organized naturally but no enforced grouping beyond inline comments
 
 ## Import Organization
 
-**Order:**
-1. React/Third-party libraries (e.g., `import React`, `import { useState } from 'react'`)
-2. Third-party UI/utility packages (e.g., `import { motion } from 'framer-motion'`, `import { DragDropContext } from '@hello-pangea/dnd'`)
-3. Internal services/utilities (e.g., `import { subscribeStocks } from '../services/alpacaStream'`)
-4. Internal components (e.g., `import TraderPage from './TraderPage'`)
-5. Internal hooks (e.g., `import useTradingMode from '../../hooks/useTradingMode'`)
-6. Internal data/constants (e.g., `import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20'`)
-7. Local utilities/helpers (e.g., `import { formatCurrency } from '../../lib/twelvedata'`)
+**Order (observed pattern):**
+1. React imports (`import { useState, useEffect } from 'react'`)
+2. Third-party libraries (`@supabase`, `framer-motion`, external packages)
+3. Relative imports (`from '../lib/...'`, `from '../../data/...'`)
+4. Utility functions, constants, data files
 
 **Path Aliases:**
-- No path aliases detected (`@/` or `~` patterns not used)
-- Relative imports used throughout: `../`, `../../`, etc.
+- Not configured; uses relative paths throughout (e.g., `../lib/twelvedata.js`, `../../services/alpacaStream.js`)
+- Web APIs use direct paths: `/api/xray/*`, `/api/stocks`, `/api/watchlist/*`
+
+**Example import structure (from `usePaperTrading.js`):**
+```javascript
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
+// Followed by local constants and helper functions
+```
 
 ## Error Handling
 
 **Patterns:**
-- Try-catch blocks are standard for async operations and promise handling
-- Error objects are consistently logged with context labels (e.g., `console.error('[Alpaca Stream] Status listener error:', error)`)
-- Errors are wrapped with descriptive messages (e.g., `new Error('[supabase] ${operation} unavailable')`)
-- Listener callbacks wrapped in try-catch to prevent one listener failure from affecting others
-- Cleanup always performed in finally blocks or via unsubscribe functions
-- Status/error propagation via shared callbacks or context (not thrown globally)
+- Try-catch blocks for async operations: wraps `fetch()`, `response.json()`, API calls
+- Inline `.catch()` chains for JSON parsing with fallbacks: `.json().catch(() => ({}))`
+- Custom error classes for specific errors (e.g., `TimeoutError` extends `Error` in `withTimeout.js`)
+- Console error logging with context prefix: `console.error('[cron/community-bot] failed:', error)`
+- Graceful degradation: attempt fallback values on error (see `normalizePortfolio()` using `toNumber(value, fallback)`)
 
-**Example from `src/services/alpacaStream.js` (line 113-120):**
+**Pattern from `withTimeout.js`:**
 ```javascript
-emitStatus() {
-  const snapshot = this.getStatus();
-  this.statusListeners.forEach((callback) => {
-    try {
-      callback(snapshot);
-    } catch (error) {
-      console.error('[Alpaca Stream] Status listener error:', error);
-    }
+export class TimeoutError extends Error {
+  constructor(message, timeoutMs) {
+    super(message);
+    this.name = 'TimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+export function withTimeout(promise, timeoutMs, message = 'Operation timed out') {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new TimeoutError(message, timeoutMs));
+    }, timeoutMs);
   });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+}
+```
+
+**API error handling (from `api/sophia-chat.js`):**
+```javascript
+try {
+  const response = await fetch(url);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error || 'Request failed');
+  // process response
+} catch (error) {
+  console.error('[endpoint] error:', error);
+  return res.status(status).json({ error: error?.message || 'Failed' });
 }
 ```
 
 ## Logging
 
-**Framework:** `console` object (browser native)
+**Framework:** Native `console` object (no Winston, Bunyan, or external logger)
 
 **Patterns:**
-- Log level prefix in brackets (e.g., `[Alpaca Stream]`, `[Stock WS]`, `[app/error-boundary]`, `[TradeHistorySync]`)
-- Log levels observed: `console.error()`, `console.warn()`, `console.log()` (less common)
-- Errors always include context: `console.error('[Context] Description:', error)`
-- Warnings for non-critical failures: `console.warn('[PortfolioSync] Save error:', error.message)`
-- Development warnings distinguished with context (e.g., `console.warn('[App] Chunk load error detected...')`)
-- No structured logging (JSON format) — all logs are plain text with context labels
+- `console.error()` for errors with context prefix in square brackets
+- Format: `console.error('[area/module] message:', error)`
+- Examples from codebase:
+  - `console.error('[app/error-boundary] Unhandled render error:', error, errorInfo)`
+  - `console.error('[xray/profile] error:', error)`
+  - `console.error('[cron/community-bot] failed:', error?.message || error)`
+- `console.warn()` for warnings (e.g., suppressed transient errors)
+- `console.log()` for info (minimal use; mostly in data processing)
 
-**Examples:**
-- `console.error('[Alpaca Stream] Status listener error:', error)` — line 117 in alpacaStream.js
-- `console.warn('[TradeHistorySync] Save error:', error.message)` — line 158 in useTradeHistory.js
-- `console.warn('[App] Chunk load error detected. Reloading once...')` — line 39 in main.jsx
+**When to log:**
+- Errors in catch blocks (always)
+- API fetch failures
+- WebSocket connection state changes (implicit in stream manager)
+- Authentication failures
 
 ## Comments
 
-**When to Comment:**
-- Block comments (`/** */`) used for module-level documentation and complex algorithms
-- Inline comments rare but used for non-obvious intent
-- Comments on constants explain purpose/configuration (e.g., `const RECONNECT_BASE_DELAY = 2000;` for exponential backoff)
-- Complex conditional logic may have explanatory comment (e.g., "Dynamic-import chunk misses can happen transiently...")
+**When to comment:**
+- Explain non-obvious logic (e.g., chunk load error suppression in `AppErrorBoundary`)
+- Document state management synchronization (e.g., `useAlpacaStream` hook comments about singleton)
+- Justify workarounds and edge cases
 
 **JSDoc/TSDoc:**
-- Basic JSDoc used for utility functions (e.g., `api/lib/apiCache.js`)
-- Format: `@param`, `@returns`, `@type` annotations
-- Type annotations: `@type {Map<string, Promise<Response>>}` for complex types
-- Not universal across codebase — mostly in shared utility files
-- Minimal usage in React components (type inference via JSX props)
-
-**Example from `src/utils/apiCache.js` (lines 26-34):**
+- Minimal usage; single-line comments preferred
+- No enforced documentation for simple functions
+- Block comments for class methods (e.g., `class AlpacaStreamManager { constructor() { ... } }`)
+- Example from `useAlpacaStream.js`:
 ```javascript
 /**
- * Fetch with request deduplication and optional cache.
- * @param {string} url
- * @param {RequestInit} [options]
- * @returns {Promise<Response>}
+ * Shared real-time Alpaca stream hook.
+ * Uses a singleton stream manager so the app maintains only one stock + one crypto socket.
  */
-export async function cachedFetch(url, options) { ... }
+export const useAlpacaStream = ({ stockSymbols = [], cryptoSymbols = [], enabled = true }) => {
+  // ...
+}
 ```
 
 ## Function Design
 
-**Size:** Functions tend to be medium-sized (20-100 lines typical)
-- Utility functions: 5-20 lines (e.g., `normalizeStockSymbol`)
-- Service methods: 20-50 lines (e.g., `subscribeStocks`)
-- Component render functions: 50-200+ lines (larger due to JSX + event handlers)
-- Complex event handlers sometimes extracted to separate named functions
+**Size:**
+- Prefer small, focused functions (5–30 lines typical)
+- Normalization/transformation helpers inline in module scope (e.g., `normalizeSymbol()`, `toNumber()`)
+- Large components split across multiple files (e.g., X-Ray module with separate hooks)
 
 **Parameters:**
-- Named parameters preferred over positional when > 2 arguments
-- Destructuring common for React component props: `export default function TraderPage({ onPinToTop, isLiveScoresOpen, ... })`
-- Default parameters used: `const normalizeStockSymbols = (symbols = []) => ...`
-- Optional parameters in objects: `{ enabled = true }` for hook options
+- Destructured object params for hooks and components (e.g., `useAlpacaStream({ stockSymbols = [], cryptoSymbols = [] })`)
+- Positional params for small utility functions (e.g., `normalizeSymbol(value)`, `toNumber(value, fallback)`)
+- Default values used extensively for optional parameters
 
 **Return Values:**
-- Explicit returns for all code paths
-- Promise-based async functions (no callbacks except for subscriptions)
-- Unsubscribe patterns return cleanup functions: `return () => { this.statusListeners.delete(id); }`
-- Early returns used to reduce nesting: `if (!enabled) { setStockConnected(false); return; }`
-- Null vs undefined: Both used, but null used for "no data", undefined for "not set"
+- Objects with predictable shape (e.g., `{ symbol, quote }` from stream callbacks)
+- Null or undefined for missing data; no false/0 substitution for clarity
+- Tuple-style returns avoided; prefer named object returns
 
 ## Module Design
 
 **Exports:**
-- Default exports for main components (e.g., `export default function TraderPage()`)
-- Named exports for utilities and services (e.g., `export const subscribeStocks = ...`)
-- Singleton managers export named functions wrapping internal state (e.g., `alpacaStream.js` exports named functions that call `manager.*`)
-- Services often export both named functions and a default singleton instance
-
-**Example from `src/services/alpacaStream.js` (lines 872-881):**
-```javascript
-export const subscribeStocks = (symbols, callback) => manager.subscribeStocks(symbols, callback);
-export const subscribeCrypto = (symbols, callback) => manager.subscribeCrypto(symbols, callback);
-export const subscribeCryptoOrderbooks = (symbols, callback) => manager.subscribeCryptoOrderbooks(symbols, callback);
-export const subscribeAlpacaStatus = (callback) => manager.subscribeStatus(callback);
-export const reconnectStocksStream = () => manager.reconnectStock();
-export const reconnectCryptoStream = () => manager.reconnectCrypto();
-export const getAlpacaStreamStatus = () => manager.getStatus();
-export default manager;
-```
+- Named exports for utilities: `export const normalizeSymbol = (...)`
+- `export default` for single React components and API handlers
+- Multiple named exports for hook modules (e.g., `export function useIncomeStatement(...)`, `export function useBalanceSheet(...)`)
 
 **Barrel Files:**
-- Not observed as a primary pattern in this codebase
-- Direct imports from specific files preferred (e.g., `import { subscribeStocks } from '../services/alpacaStream'`)
+- Used sparingly (e.g., `src/components/dashboard/index.js` re-exports dashboard components)
+- Prefer direct imports where possible to avoid circular dependency issues
 
-## React-Specific Conventions
+**Shared State Pattern (from `usePaperTrading.js`):**
+- Singleton-like state with listener subscription model
+- `sharedState` object with `listeners` Set; `notify()` broadcasts changes
+- Hook subscribes/unsubscribes on mount/unmount
+- Persists data across component remounts (critical for portfolio state)
 
-**Hooks:**
-- `useState`: Standard state management
-- `useEffect`: Side effects with dependency arrays always specified
-- `useCallback`: Memoized callbacks for event handlers passed to children
-- `useMemo`: Computed values dependent on props/state changes
-- `useRef`: DOM references and mutable instance variables (not state)
-- `useLayoutEffect`: Rarely used (not observed in sampled code)
+## Specific Conventions by Layer
 
-**Component Structure:**
-- Imports at top
-- Constants/helpers defined before component
-- Component function definition
-- JSX with motion/framer-motion for animations
-- Event handlers as arrow functions or wrapped with `useCallback`
+**Frontend Components (`src/components/`):**
+- Export default component; accept props destructured
+- Use `useState`, `useCallback`, `useEffect`, `useMemo` for state management
+- Error boundaries wrapping top-level pages (CLAUDE.md: "Always Add Error Boundary to New Pages")
 
-**Props:**
-- All props explicitly destructured in function signature
-- Default values provided in destructure: `isLiveScoresOpen = false`
-- Callbacks prefixed with `on*` (e.g., `onPinToTop`, `onToggleLiveScores`)
-- Render-dependent props named with present-tense adjectives (e.g., `isOpen`, `disabled`, `loading`)
+**Services (`src/services/`):**
+- Singleton pattern for stream managers (e.g., `AlpacaStreamManager` in `alpacaStream.js`)
+- Public API via exported functions: `subscribeStocks()`, `subscribeCrypto()`, `reconnectStocksStream()`
+- Internal state managed in class; listeners notified via callbacks
 
-**Error Boundaries:**
-- Every top-level page component must be wrapped in `<ErrorBoundary>` or `<AppErrorBoundary>`
-- Required pattern to prevent full-app gray screen crashes from import errors
-- Class component pattern, not hook-based
+**Hooks (`src/hooks/`):**
+- Encapsulate subscription logic and state sync
+- Return objects with `loading`, `error`, `data` shape
+- Subscribe to services in `useEffect`; unsubscribe on cleanup
+
+**API Handlers (`api/`):**
+- Receive `(req, res)` from Vercel
+- Set CORS headers explicitly
+- Return JSON: `res.status(code).json({ data, error })`
+- Status codes: 200 (success), 400 (bad request), 405 (method not allowed), 500 (server error)
+
+**Utilities (`src/lib/`):**
+- Pure functions; no side effects
+- Normalization functions: `normalize*`, `to*` (e.g., `normalizeSymbol()`, `toNumber()`)
+- Formatting functions: `format*` (e.g., `formatCurrency()`, `formatPercent()`)
+- Transform fallback chains for robust data handling
 
 ---
 
