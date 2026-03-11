@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const API_BASE = '';
-const WS_URL = null;
+const WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 
 const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
