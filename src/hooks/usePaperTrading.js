@@ -6,6 +6,12 @@ import { supabase } from '../lib/supabaseClient';
 const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 const withApiBase = (path) => `${API_BASE}${path}`;
 
+// Cache auth token at module level via onAuthStateChange — avoids getSession() which hangs in production
+let _cachedAccessToken = null;
+supabase.auth.onAuthStateChange((_event, session) => {
+  _cachedAccessToken = session?.access_token || null;
+});
+
 const DEFAULT_PORTFOLIO = {
   cash_balance: 100000,
   starting_balance: 100000,
@@ -128,14 +134,24 @@ const parseApiError = async (response) => {
 };
 
 const getAuthHeaders = async () => {
-  // Race getSession against a timeout — getSession can hang if auth hasn't initialized
-  const sessionPromise = supabase.auth.getSession();
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Auth session timed out. Please refresh and try again.')), 5000)
-  );
+  // Use cached token from onAuthStateChange (set at module level above)
+  // Falls back to getSession() with timeout only if cache is empty
+  let token = _cachedAccessToken;
 
-  const { data } = await Promise.race([sessionPromise, timeoutPromise]);
-  const token = String(data?.session?.access_token || '').trim();
+  if (!token) {
+    try {
+      const result = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+      ]);
+      token = result?.data?.session?.access_token || null;
+      if (token) _cachedAccessToken = token;
+    } catch {
+      // getSession hung or timed out — token stays null
+    }
+  }
+
+  token = String(token || '').trim();
   if (!token) {
     throw new Error('Please sign in to use paper trading.');
   }
