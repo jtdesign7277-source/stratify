@@ -35,18 +35,13 @@ export function useBetHistory() {
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
+    async function fetchBets(userId) {
+      if (!userId || cancelled) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user?.id) {
-          if (!cancelled) setLoading(false);
-          return;
-        }
-
         const { data, error: queryError } = await supabase
           .from('paper_sports_bets')
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
         if (cancelled) return;
@@ -61,10 +56,35 @@ export function useBetHistory() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    }
+
+    // Try immediate session first
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (session?.user?.id) {
+        fetchBets(session.user.id);
+      } else {
+        // No session yet — wait for auth to initialize (covers production race)
+        if (!cancelled) setLoading(false);
+      }
+    });
+
+    // Listen for auth changes — re-fetch when user signs in
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      if (session?.user?.id) {
+        setLoading(true);
+        setError(null);
+        fetchBets(session.user.id);
+      } else {
+        setBets([]);
+        setLoading(false);
+      }
+    });
 
     return () => {
       cancelled = true;
+      subscription?.unsubscribe();
     };
   }, []);
 
