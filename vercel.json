@@ -10,14 +10,6 @@
     ],
     "crons": [
         {
-            "path": "/api/cron/market-summary?period=premarket",
-            "schedule": "25 13 * * 1-5"
-        },
-        {
-            "path": "/api/cron/market-summary?period=close",
-            "schedule": "5 20 * * 1-5"
-        },
-        {
             "path": "/api/warm-cache",
             "schedule": "* * * * *"
         },
