@@ -13,7 +13,7 @@ This roadmap delivers a complete bet history tab inside the existing sportsbook 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Verify schema correctness, extract shared payout utility, confirm cron resolution, lock design system (completed 2026-03-11)
-- [ ] **Phase 2: Bet History Display** - Build useBetHistory hook, BetHistorySummary stat strip, and BetHistoryTab table view
+- [x] **Phase 2: Bet History Display** - Build useBetHistory hook, BetHistorySummary stat strip, and BetHistoryTab table view (completed 2026-03-11)
 - [ ] **Phase 3: Filters and Tab Integration** - Add filter controls, column sorting, and wire the tab into SportsOddsPage
 
 ## Phase Details
@@ -73,5 +73,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete    | 2026-03-11 |
-| 2. Bet History Display | 1/2 | In Progress|  |
+| 2. Bet History Display | 2/2 | Complete   | 2026-03-11 |
 | 3. Filters and Tab Integration | 0/2 | Not started | - |
