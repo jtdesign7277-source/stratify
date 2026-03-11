@@ -6,11 +6,15 @@ import { supabase } from '../lib/supabaseClient';
 const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 const withApiBase = (path) => `${API_BASE}${path}`;
 
-// Cache auth token at module level via onAuthStateChange — avoids getSession() which hangs in production
+// Cache auth token via onAuthStateChange — avoids getSession() which hangs in production
 let _cachedAccessToken = null;
-supabase.auth.onAuthStateChange((_event, session) => {
-  _cachedAccessToken = session?.access_token || null;
-});
+try {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    _cachedAccessToken = session?.access_token || null;
+  });
+} catch {
+  // Ignore — fallback to getSession in getAuthHeaders
+}
 
 const DEFAULT_PORTFOLIO = {
   cash_balance: 100000,
