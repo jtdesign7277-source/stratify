@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-bet-history-display-02-PLAN.md — awaiting human-verify checkpoint
-last_updated: "2026-03-11T10:55:00.264Z"
+stopped_at: Completed 03-filters-and-tab-integration-01-PLAN.md
+last_updated: "2026-03-11T11:28:07.329Z"
 last_activity: "2026-03-11 — Completed 01-01: paper_sports_bets schema migration, RLS, cron fix, bankroll init"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
   percent: 100
 ---
 
@@ -53,6 +53,7 @@ Progress: [██████████] 100%
 | Phase 01-foundation P02 | 4 | 2 tasks | 3 files |
 | Phase 02-bet-history-display P01 | 5 | 2 tasks | 1 files |
 | Phase 02-bet-history-display P02 | 3 | 1 tasks | 2 files |
+| Phase 03-filters-and-tab-integration P01 | 2 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: GLASS_CARD and DESIGN_COLORS locked to CONTEXT.md values — Phase 2 components must import from sportsUtils, not copy-paste
 - [Phase 02-bet-history-display]: Column is 'stake' not 'bet_amount' — verified against SportsOddsPage INSERT
 - [Phase 02-bet-history-display]: computeStats accepts any subset array — supports future filter scenarios
+- [Phase 03-filters-and-tab-integration]: Stats always derived from filteredBets (not bets) to enforce STAT-02; statsProp kept in signature for backward compat but ignored
+- [Phase 03-filters-and-tab-integration]: Two distinct layoutId values (result-indicator, sport-indicator) prevent framer-motion shared layout animation collision
 
 ### Pending Todos
 
@@ -86,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T10:48:51.817Z
-Stopped at: Completed 02-bet-history-display-02-PLAN.md — awaiting human-verify checkpoint
+Last session: 2026-03-11T11:28:07.327Z
+Stopped at: Completed 03-filters-and-tab-integration-01-PLAN.md
 Resume file: None

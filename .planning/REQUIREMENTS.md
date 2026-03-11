@@ -19,10 +19,10 @@
 
 ### Filtering & Sorting
 
-- [ ] **FILT-01**: User can filter bets by result: All / Win / Loss / Pending
-- [ ] **FILT-02**: User can filter bets by sport: NFL / NBA / MLB / NHL
-- [ ] **FILT-03**: User can sort by date, amount, or result via column headers
-- [ ] **FILT-04**: Filters and sorts apply client-side (no server round-trips needed)
+- [x] **FILT-01**: User can filter bets by result: All / Win / Loss / Pending
+- [x] **FILT-02**: User can filter bets by sport: NFL / NBA / MLB / NHL
+- [x] **FILT-03**: User can sort by date, amount, or result via column headers
+- [x] **FILT-04**: Filters and sorts apply client-side (no server round-trips needed)
 
 ### Integration
 
@@ -69,10 +69,10 @@
 | HIST-04 | Phase 2 | Complete |
 | STAT-01 | Phase 2 | Complete |
 | STAT-02 | Phase 2 | Complete |
-| FILT-01 | Phase 3 | Pending |
-| FILT-02 | Phase 3 | Pending |
-| FILT-03 | Phase 3 | Pending |
-| FILT-04 | Phase 3 | Pending |
+| FILT-01 | Phase 3 | Complete |
+| FILT-02 | Phase 3 | Complete |
+| FILT-03 | Phase 3 | Complete |
+| FILT-04 | Phase 3 | Complete |
 | INTG-01 | Phase 3 | Pending |
 | INTG-02 | Phase 1 | Complete |
 
