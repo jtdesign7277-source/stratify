@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. RLS is enabled on paper_sports_bets with a policy that restricts rows to the authenticated user's own bets — verified by querying with a second test account and receiving zero rows
   3. calcPayout exists in src/lib/sportsUtils.js and is imported by PaperBettingSlip.jsx and SportsOddsPage.jsx — no duplicate implementations remain
   4. The /api/settle-sports-bets cron is scheduled in vercel.json and confirmed to fire after major game windows — no bets can stay pending forever
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 01-01: Schema audit and migration — verify/add all required columns, enable RLS, add composite index
@@ -43,7 +43,7 @@ Plans:
   3. A stat strip above the table shows total wagered, total won, net P&L, and win rate — all computed from paper_sports_bets directly (not copied from bankroll table)
   4. A user with no bets sees an empty state with guidance to place their first bet — no blank table or error state
   5. All components use bg-[#0a0a0f], backdrop-blur-xl glass panels, border-white/10, and monospace for numeric values — visually indistinguishable from the rest of the dashboard
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 02-01: Build useBetHistory hook — Supabase query, auth check, cancellable async, filter params
@@ -59,7 +59,7 @@ Plans:
   3. User can click a column header (date, amount, result) to sort the table — clicking again reverses the sort direction
   4. All filter and sort operations apply without a server round-trip — the table updates instantly from the already-fetched dataset
   5. A "History" tab appears on the sportsbook page alongside the existing tabs — clicking it renders BetHistoryTab and the active tab state persists while the user stays on the page
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 03-01: Add filter controls (result + sport) and column sort to BetHistoryTab
