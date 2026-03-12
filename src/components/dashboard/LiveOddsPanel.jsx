@@ -794,9 +794,6 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 pl-9">
-                          <span className="border border-emerald-500 text-emerald-400 text-[10px] rounded px-1.5 py-0.5">
-                            SGP
-                          </span>
                           <span className="text-xs text-gray-500">{timeStr ? `Today ${timeStr}` : 'Today'}</span>
                         </div>
                       </motion.div>

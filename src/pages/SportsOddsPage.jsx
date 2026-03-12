@@ -96,7 +96,7 @@ function getAffiliateUrl(bookKey, sportKey) {
 }
 
 const DETAIL_TABS = [
-  'Live SGP',
+  'Game Lines',
   'Featured',
   'Quick Bets',
   'Player Points',
@@ -409,7 +409,7 @@ function OddsCell({ topLabel, bottomLabel, selected, onToggle, movingDown, movin
 }
 
 function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onConfirmBet, onBack }) {
-  const [activeTab, setActiveTab] = useState('Live SGP');
+  const [activeTab, setActiveTab] = useState('Game Lines');
   const [sels, setSels] = useState({});
   const toggle = (k) => setSels((s) => ({ ...s, [k]: !s[k] }));
   const book = getBook(event.bookmakers, bookKey);
@@ -508,9 +508,6 @@ function GameDetailView({ event, sportKey, bookKey, bookLabel, addBetToSlip, onC
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e2028]">
             <span className="text-[14px] font-bold text-white">Game Lines</span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-yellow-400 border border-yellow-400/30 px-2 py-0.5 rounded bg-yellow-400/5">
-                SGP
-              </span>
               <ChevronDown className="w-4 h-4 text-gray-500" />
             </div>
           </div>
