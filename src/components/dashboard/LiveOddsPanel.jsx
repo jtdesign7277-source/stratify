@@ -210,7 +210,8 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
   const [activeLeague, setActiveLeague] = useState('nba');
 
   const hasLiveGame = events.some((e) => isGameLive(e.commence_time));
-  const sportParam = activeLeague === 'nhl' ? 'ice_hockey_nhl' : 'basketball_nba';
+  const sportParamMap = { nba: 'basketball_nba', nhl: 'ice_hockey_nhl', nfl: 'americanfootball_nfl', mlb: 'baseball_mlb' };
+  const sportParam = sportParamMap[activeLeague] || 'basketball_nba';
 
   useEffect(() => {
     if (isBottomPanelExpanded) setIsExpanded(true);
@@ -301,6 +302,24 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         >
           <span className="inline-block mr-1.5">🏒</span>
           <span>NHL</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveLeague('nfl')}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nfl' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          aria-label="NFL"
+        >
+          <span className="inline-block mr-1.5">🏈</span>
+          <span>NFL</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveLeague('mlb')}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'mlb' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          aria-label="MLB"
+        >
+          <span className="inline-block mr-1.5">⚾</span>
+          <span>MLB</span>
         </button>
       </div>
 
