@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity } from 'lucide-react';
 
@@ -216,6 +216,38 @@ function getEspnScore(scoresMap, teamName) {
   const key = String(teamName).trim().toLowerCase();
   const entry = scoresMap[key];
   return entry || null;
+}
+
+// Animated score that pulses gold on change then returns to normal
+function AnimatedScore({ score, isWinning }) {
+  const [flash, setFlash] = useState(false);
+  const prevScore = useRef(score);
+
+  useEffect(() => {
+    if (score != null && prevScore.current != null && score !== prevScore.current) {
+      setFlash(true);
+      const timer = setTimeout(() => setFlash(false), 1800);
+      prevScore.current = score;
+      return () => clearTimeout(timer);
+    }
+    prevScore.current = score;
+  }, [score]);
+
+  if (score == null) return null;
+
+  const baseColor = isWinning ? 'text-emerald-400' : 'text-white';
+
+  return (
+    <motion.span
+      key={score}
+      initial={flash ? { scale: 1.5 } : { scale: 1 }}
+      animate={{ scale: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      className={`text-[15px] font-bold font-mono tabular-nums transition-colors duration-700 ${flash ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]' : baseColor}`}
+    >
+      {score}
+    </motion.span>
+  );
 }
 
 export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = false, onLiveLinesExpand, onLiveLinesCollapse, isBottomPanelExpanded }) {
@@ -498,10 +530,10 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                           {hasLiveGame && (
                             <div className="flex flex-col items-center justify-between flex-shrink-0 w-10 self-stretch py-0.5">
                               {live && awayScore != null ? (
-                                <span className={`text-[15px] font-bold font-mono tabular-nums ${awayWinning ? 'text-emerald-400' : 'text-white'}`}>{awayScore}</span>
+                                <AnimatedScore score={awayScore} isWinning={awayWinning} />
                               ) : <span />}
                               {live && homeScore != null ? (
-                                <span className={`text-[15px] font-bold font-mono tabular-nums ${homeWinning ? 'text-emerald-400' : 'text-white'}`}>{homeScore}</span>
+                                <AnimatedScore score={homeScore} isWinning={homeWinning} />
                               ) : <span />}
                             </div>
                           )}
