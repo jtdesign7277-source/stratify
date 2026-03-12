@@ -423,6 +423,7 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
+                  autoComplete="email"
                   style={inputStyle}
                   required
                 />
@@ -448,6 +449,7 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={mode === 'signup' ? 'Create password' : 'Password'}
+                      autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                       style={{ ...inputStyle, paddingRight: 48 }}
                       required
                     />
@@ -472,6 +474,7 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter password"
+                      autoComplete="new-password"
                       style={{ ...inputStyle, paddingRight: 48 }}
                       required
                     />

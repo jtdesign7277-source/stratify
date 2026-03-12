@@ -743,16 +743,28 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, onBetaClick, 
               Dashboard
             </motion.button>
           ) : (
-            <motion.button
-              type="button"
-              onClick={handleGetStarted}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              transition={interactiveTransition}
-              className="border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
-            >
-              Sign Up
-            </motion.button>
+            <>
+              <motion.button
+                type="button"
+                onClick={onEnter}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
+                className="text-white/80 hover:text-white text-sm font-medium transition-colors"
+              >
+                Log In
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={handleGetStarted}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
+                className="border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
+              >
+                Sign Up
+              </motion.button>
+            </>
           )}
         </div>
       </nav>
