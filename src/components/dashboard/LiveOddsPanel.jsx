@@ -793,8 +793,8 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2 pl-9">
-                          <span className="text-xs text-gray-500">{timeStr ? `Today ${timeStr}` : 'Today'}</span>
+                        <div className="flex items-center gap-2 mt-1 pl-9">
+                          <span className="text-[11px] text-gray-500">{timeStr ? `Today ${timeStr}` : 'Today'}</span>
                         </div>
                       </motion.div>
                     );
