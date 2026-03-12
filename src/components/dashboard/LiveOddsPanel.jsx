@@ -380,9 +380,10 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
     return () => { cancelled = true; };
   }, [activeLeague]);
 
-  // Fetch live scores from ESPN (same source as top ESPN ticker) and poll every 30s
+  // Fetch live scores from ESPN — poll every 15s for smoother updates
   useEffect(() => {
     let cancelled = false;
+    setScoresMap({}); // Clear stale scores on league switch
     const espnUrl = ESPN_ENDPOINTS[activeLeague];
     if (!espnUrl) return;
     const fetchScores = () => {
@@ -391,18 +392,20 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         .then((data) => {
           if (cancelled) return;
           const espnEvents = data?.events || [];
-          // Build map: key = lowercase team displayName, value = { score, isLive }
-          // We key by team name so we can match against The Odds API team names
           const map = {};
           espnEvents.forEach((ev) => {
             const comp = ev.competitions?.[0];
             const competitors = comp?.competitors || [];
-            const state = comp?.status?.type?.state; // 'pre', 'in', 'post'
-            const shortDetail = comp?.status?.type?.shortDetail || ''; // "Final", "Q3 5:32", etc.
+            const state = comp?.status?.type?.state;
+            if (state === 'pre') return; // Skip pre-game
+            const shortDetail = comp?.status?.type?.shortDetail || '';
             competitors.forEach((c) => {
               const fullName = c.team?.displayName;
               if (fullName) {
-                map[fullName.toLowerCase()] = {
+                const key = fullName.toLowerCase();
+                // Prefer live game data over finished game data
+                if (map[key] && map[key].isLive && state === 'post') return;
+                map[key] = {
                   score: c.score || '0',
                   isLive: state === 'in',
                   isFinal: state === 'post',
@@ -416,7 +419,7 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         .catch(() => {});
     };
     fetchScores();
-    const interval = setInterval(fetchScores, 30000);
+    const interval = setInterval(fetchScores, 15000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [activeLeague]);
 
