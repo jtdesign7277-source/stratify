@@ -1189,7 +1189,7 @@ function StratifyAppContent() {
     navigateToPage('landing');
   }, [navigateToPage, user?.id]);
 
-  const signOutAndExit = useCallback(() => {
+  const signOutAndExit = useCallback(async () => {
     setCheckoutError('');
     setIsCheckoutRedirecting(false);
     setIsCheckoutVerifying(false);
@@ -1199,12 +1199,14 @@ function StratifyAppContent() {
     handledCheckoutSessionsRef.current.clear();
     attemptedSubscriptionRestoreRef.current.clear();
 
-    // Navigate first so user isn't stuck on "Checking your session..." (signOut sets loading=true)
-    navigateToPage('landing');
-
-    signOut?.().catch((error) => {
+    // Sign out first so isAuthenticated is false before landing page renders
+    try {
+      await signOut?.();
+    } catch (error) {
       console.error('[Auth] Sign out failed while exiting:', error);
-    });
+    }
+
+    navigateToPage('landing');
   }, [navigateToPage, signOut]);
 
   // Auth loads in the background — no blocking gate. If loading finishes and user
