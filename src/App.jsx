@@ -1025,7 +1025,6 @@ class RadarErrorBoundary extends React.Component {
   }
 }
 
-const AUTH_GATE_TIMEOUT_MS = 5000;
 const SUBSCRIPTION_RESTORE_TIMEOUT_MS = 12000;
 
 function StratifyAppContent() {
@@ -1064,11 +1063,10 @@ function StratifyAppContent() {
   const [hasLiveScoresUnread, setHasLiveScoresUnread] = useState(false);
   const [isCheckoutRedirecting, setIsCheckoutRedirecting] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
-  const [authGateTimedOut, setAuthGateTimedOut] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState('login');
   const [isCheckoutVerifying, setIsCheckoutVerifying] = useState(false);
   const [isSubscriptionRestoring, setIsSubscriptionRestoring] = useState(false);
   const attemptedSubscriptionRestoreRef = useRef(new Set());
-  const authCheckStartedAtRef = useRef(null);
 
   useEffect(() => {
     if (currentPage === 'dashboard') return undefined;
@@ -1165,7 +1163,8 @@ function StratifyAppContent() {
     }
   };
 
-  const openAuth = () => {
+  const openAuth = (mode) => {
+    if (mode) setAuthInitialMode(mode);
     navigateToPage('auth');
   };
 
@@ -1205,86 +1204,8 @@ function StratifyAppContent() {
     });
   }, [navigateToPage, signOut]);
 
-  const isCheckingSession = loading || (isAuthenticated && subscriptionLoading && !isProUser);
-
-  useEffect(() => {
-    if (isCheckingSession) {
-      if (!authCheckStartedAtRef.current) {
-        authCheckStartedAtRef.current = Date.now();
-      }
-      return;
-    }
-
-    authCheckStartedAtRef.current = null;
-  }, [isCheckingSession]);
-
-  useEffect(() => {
-    if (!isCheckingSession) {
-      if (authGateTimedOut) {
-        setAuthGateTimedOut(false);
-      }
-      return;
-    }
-
-    if (authGateTimedOut) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      console.error(`[AuthGate] Session check timed out after ${AUTH_GATE_TIMEOUT_MS}ms.`);
-      setAuthGateTimedOut(true);
-    }, AUTH_GATE_TIMEOUT_MS);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [authGateTimedOut, isCheckingSession]);
-
-  useEffect(() => {
-    if (!isCheckingSession || authGateTimedOut) return undefined;
-
-    const forceTimeoutIfStuck = () => {
-      if (authGateTimedOut) return;
-      if (!isCheckingSession) return;
-      const startedAt = authCheckStartedAtRef.current;
-      if (!startedAt) return;
-
-      const elapsedMs = Date.now() - startedAt;
-      if (elapsedMs >= AUTH_GATE_TIMEOUT_MS) {
-        console.error(`[AuthGate] Forced timeout recovery after ${elapsedMs}ms while session check remained pending.`);
-        setAuthGateTimedOut(true);
-      }
-    };
-
-    const handleFocusRecovery = () => {
-      forceTimeoutIfStuck();
-    };
-
-    const intervalId = window.setInterval(forceTimeoutIfStuck, 1000);
-    window.addEventListener('focus', handleFocusRecovery);
-    document.addEventListener('visibilitychange', handleFocusRecovery);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocusRecovery);
-      document.removeEventListener('visibilitychange', handleFocusRecovery);
-    };
-  }, [authGateTimedOut, isCheckingSession]);
-
-  useEffect(() => {
-    if (!authGateTimedOut || loading) {
-      return;
-    }
-
-    if (isAuthenticated) {
-      console.error('[AuthGate] Session check timed out for authenticated user. Continuing with existing state.');
-      return;
-    }
-
-    console.error('[AuthGate] Session check timed out after 5s. Redirecting to landing.');
-    navigateToPage('landing');
-    if (window.location.pathname !== '/' && !window.location.pathname.startsWith('/landing')) {
-      window.history.pushState({ page: 'landing' }, '', '/');
-    }
-  }, [authGateTimedOut, isAuthenticated, loading, navigateToPage]);
+  // Auth loads in the background — no blocking gate. If loading finishes and user
+  // isn't authenticated on a protected page, normal routing sends them to landing/auth.
 
   const startCheckout = useCallback(async () => {
     if (!user?.id || !user?.email) {
@@ -1568,12 +1489,12 @@ function StratifyAppContent() {
     ) : currentPage === 'whitepaper' ? (
       <WhitePaperPage
         onBackHome={() => navigateToPage('landing')}
-        onGetStarted={() => navigateToPage('auth')}
+        onGetStarted={() => openAuth('signup')}
       />
     ) : currentPage === 'landing' ? (
       <LandingPage
-        onEnter={() => navigateToPage('auth')}
-        onSignUp={() => navigateToPage('auth')}
+        onEnter={() => openAuth('login')}
+        onSignUp={() => openAuth('signup')}
         onCheckout={openCheckoutAuth}
         onDashboard={() => navigateToPage('dashboard')}
         onBetaClick={() => navigateToPage('tokens')}
@@ -1583,6 +1504,7 @@ function StratifyAppContent() {
       <TokensPage onBack={() => navigateToPage('landing')} />
     ) : currentPage === 'auth' ? (
       <SignUpPage
+        initialMode={authInitialMode}
         onSuccess={() => { window.location.replace('/dashboard'); }}
         onBackToLanding={() => navigateToPage('landing')}
       />
@@ -1590,8 +1512,8 @@ function StratifyAppContent() {
       <SportsOddsPage onBack={() => navigateToPage('dashboard')} />
     ) : !isAuthenticated ? (
       <LandingPage
-        onEnter={() => navigateToPage('auth')}
-        onSignUp={() => navigateToPage('auth')}
+        onEnter={() => openAuth('login')}
+        onSignUp={() => openAuth('signup')}
         onCheckout={openCheckoutAuth}
         onDashboard={() => navigateToPage('dashboard')}
         onBetaClick={() => navigateToPage('tokens')}
@@ -1745,57 +1667,6 @@ function StratifyAppContent() {
     currentPage === 'tokens' ||
     (isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth');
   const backgroundVariant = isInternalAppPage ? 'app' : 'marketing';
-
-  const hardSignOutAndRedirect = useCallback(() => {
-    supabase.auth.signOut();
-    localStorage.clear();
-    sessionStorage.clear();
-    document.cookie.split(';').forEach((c) => {
-      document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
-    });
-    window.location.href = '/';
-  }, []);
-
-  if (authGateTimedOut && !isAuthenticated) {
-    return (
-      <SignUpPage
-        onSuccess={() => { window.location.replace('/dashboard'); }}
-        onBackToLanding={() => navigateToPage('landing')}
-      />
-    );
-  }
-
-  if (isCheckingSession) {
-    return (
-      <div className="soft-glass-theme relative min-h-screen bg-[#0a0a0f]">
-        <SpaceBackground variant={backgroundVariant} />
-        <div className="relative z-10 min-h-screen bg-transparent text-white flex items-center justify-center">
-          <div className="rounded-2xl border border-[#1e1e2d] bg-[#0b0b12]/90 px-6 py-5 text-sm text-gray-300">
-            <div className="flex items-center gap-3">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
-              Checking your session...
-            </div>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={exitToLanding}
-                className="inline-flex items-center justify-center rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:border-white/35 hover:text-white"
-              >
-                Back to Landing
-              </button>
-              <button
-                type="button"
-                onClick={hardSignOutAndRedirect}
-                className="inline-flex items-center justify-center rounded-lg border border-red-400/35 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="soft-glass-theme relative min-h-screen bg-[#0a0a0f]">

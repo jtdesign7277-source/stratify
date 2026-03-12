@@ -46,8 +46,8 @@ function NasdaqLogoIcon() {
   );
 }
 
-export default function SignUpPage({ onSuccess, onBackToLanding }) {
-  const [mode, setMode] = useState('login');
+export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToLanding }) {
+  const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
