@@ -1002,11 +1002,11 @@ const MOCK_MOVES = [
   { team: 'Chiefs', line: '-6.5', move: -0.5, sport: 'NFL' },
   { team: 'Lakers', line: '+110', move: 15, sport: 'NBA' },
   { team: 'Yankees', line: '-165', move: -10, sport: 'MLB' },
-  { team: 'Celtics', line: '-8', move: 1, sport: 'NBA' },
+  { team: 'Duke', line: '-3.5', move: 1.5, sport: 'NCAAB' },
   { team: 'Cowboys', line: '+3.5', move: 0.5, sport: 'NFL' },
   { team: 'Oilers', line: '-145', move: -20, sport: 'NHL' },
+  { team: 'Gonzaga', line: '+2', move: -1, sport: 'NCAAB' },
   { team: 'Padres', line: '+130', move: 5, sport: 'MLB' },
-  { team: 'Panthers', line: '+4', move: -1, sport: 'NFL' },
 ];
 
 function LineMovementTicker() {
@@ -1316,10 +1316,11 @@ export default function SportsOddsPage() {
             </div>
             <div className="flex flex-col gap-2.5">
               {[
-                { game: 'Chiefs -6.5', pct: 76 },
-                { game: 'Celtics ML', pct: 68 },
-                { game: 'Yankees -165', pct: 61 },
-                { game: 'Oilers -145', pct: 58 },
+                { game: 'Chiefs -6.5', pct: 76, sport: 'NFL' },
+                { game: 'Celtics ML', pct: 68, sport: 'NBA' },
+                { game: 'Yankees -165', pct: 61, sport: 'MLB' },
+                { game: 'Oilers -145', pct: 58, sport: 'NHL' },
+                { game: 'Duke -3.5', pct: 55, sport: 'NCAAB' },
               ].map((item, i) => (
                 <motion.div
                   key={i}
@@ -1329,7 +1330,10 @@ export default function SportsOddsPage() {
                   className="flex flex-col gap-1"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-white font-medium">{item.game}</span>
+                    <span className="text-xs text-white font-medium">
+                      <span className="text-gray-600 font-semibold mr-1.5">{item.sport}</span>
+                      {item.game}
+                    </span>
                     <span className={`text-xs font-mono font-bold ${item.pct >= 65 ? 'text-emerald-400' : 'text-amber-400'}`}>{item.pct}%</span>
                   </div>
                   <div className="relative h-1 bg-white/[0.06] rounded-full overflow-hidden">
