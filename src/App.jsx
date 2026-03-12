@@ -1659,13 +1659,10 @@ function StratifyAppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isAuthenticated]);
 
-  useEffect(() => {
-    // Do not redirect while auth is still restoring a persisted session.
-    if (loading) return;
-    if (!isAuthenticated && currentPage === 'dashboard') {
-      openAuth();
-    }
-  }, [currentPage, isAuthenticated, loading]);
+  // Auth redirect is handled by the render conditions:
+  // !isAuthenticated && !loading → LandingPage (with sign-in options).
+  // No need for an effect that aggressively navigates to /auth — it caused
+  // bouncing when token refresh had a brief unauthenticated window.
 
   const isInternalAppPage =
     currentPage === 'tokens' ||
