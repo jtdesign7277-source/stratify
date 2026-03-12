@@ -1009,50 +1009,50 @@ function BookGameRow({ ev, bookKey, sportKey }) {
 
   if (noData) {
     return (
-      <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-2 py-2">
-        <div className="flex items-center gap-1.5">
-          <TeamLogo teamName={away} sportKey={sportKey} size={14} />
-          <span className="text-[10px] text-gray-500 truncate">{teamAbbrev(away)}</span>
-          <span className="text-[9px] text-gray-600 mx-0.5">vs</span>
-          <TeamLogo teamName={home} sportKey={sportKey} size={14} />
-          <span className="text-[10px] text-gray-500 truncate">{teamAbbrev(home)}</span>
+      <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <TeamLogo teamName={away} sportKey={sportKey} size={18} />
+          <span className="text-xs text-gray-500 truncate">{teamAbbrev(away)}</span>
+          <span className="text-[11px] text-gray-600 mx-0.5">vs</span>
+          <TeamLogo teamName={home} sportKey={sportKey} size={18} />
+          <span className="text-xs text-gray-500 truncate">{teamAbbrev(home)}</span>
         </div>
-        <div className="text-[9px] text-gray-700 mt-1">No lines available</div>
+        <div className="text-[11px] text-gray-700 mt-1">No lines available</div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-2 py-1.5">
+    <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2">
       {/* Away */}
-      <div className="grid grid-cols-[1fr_52px_52px_48px] gap-0.5 items-center">
-        <div className="flex items-center gap-1 min-w-0">
-          <TeamLogo teamName={away} sportKey={sportKey} size={14} />
-          <span className="text-[10px] text-white font-medium truncate">{teamAbbrev(away)}</span>
+      <div className="grid grid-cols-[1fr_60px_64px_56px] gap-1 items-center">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <TeamLogo teamName={away} sportKey={sportKey} size={18} />
+          <span className="text-[13px] text-white font-medium truncate">{teamAbbrev(away)}</span>
         </div>
-        <span className="text-[10px] font-mono text-center text-gray-300">
+        <span className="text-[13px] font-mono text-center text-gray-300">
           {awaySpread ? `${fmtPt(awaySpread.point) || ''}` : '—'}
         </span>
-        <span className="text-[10px] font-mono text-center text-gray-300">
+        <span className="text-[13px] font-mono text-center text-gray-300">
           {over ? `O${over.point}` : '—'}
         </span>
-        <span className={`text-[10px] font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+        <span className={`text-[13px] font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
           {awayMl ? fmtAm(awayMl.price) : '—'}
         </span>
       </div>
       {/* Home */}
-      <div className="grid grid-cols-[1fr_52px_52px_48px] gap-0.5 items-center mt-0.5">
-        <div className="flex items-center gap-1 min-w-0">
-          <TeamLogo teamName={home} sportKey={sportKey} size={14} />
-          <span className="text-[10px] text-white font-medium truncate">{teamAbbrev(home)}</span>
+      <div className="grid grid-cols-[1fr_60px_64px_56px] gap-1 items-center mt-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <TeamLogo teamName={home} sportKey={sportKey} size={18} />
+          <span className="text-[13px] text-white font-medium truncate">{teamAbbrev(home)}</span>
         </div>
-        <span className="text-[10px] font-mono text-center text-gray-300">
+        <span className="text-[13px] font-mono text-center text-gray-300">
           {homeSpread ? `${fmtPt(homeSpread.point) || ''}` : '—'}
         </span>
-        <span className="text-[10px] font-mono text-center text-gray-300">
+        <span className="text-[13px] font-mono text-center text-gray-300">
           {under ? `U${under.point}` : '—'}
         </span>
-        <span className={`text-[10px] font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+        <span className={`text-[13px] font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
           {homeMl ? fmtAm(homeMl.price) : '—'}
         </span>
       </div>
@@ -1097,37 +1097,37 @@ function LiveInGameLines({ sportKey }) {
           className="bg-[#0f1117] rounded-2xl border border-[#1e2028] shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col"
         >
           {/* Sportsbook header with logo */}
-          <div className={`px-3 pt-3 pb-2 bg-gradient-to-b ${sb.bg} border-b border-white/[0.04]`}>
+          <div className={`px-4 pt-4 pb-3 bg-gradient-to-b ${sb.bg} border-b border-white/[0.04]`}>
             <div className="flex items-center justify-between">
-              <img src={sb.logo} alt={sb.name} className="h-5 object-contain" />
-              <div className="flex items-center gap-1">
-                <span className="relative flex h-1.5 w-1.5">
+              <img src={sb.logo} alt={sb.name} className="h-7 object-contain" />
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ backgroundColor: sb.color }} />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: sb.color }} />
+                  <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: sb.color }} />
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: sb.color }}>Live</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: sb.color }}>Live</span>
               </div>
             </div>
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_52px_52px_48px] gap-0.5 px-3 pt-1.5 pb-1">
-            <span className="text-[8px] text-gray-600 font-semibold uppercase tracking-wider">Team</span>
-            <span className="text-[8px] text-gray-600 font-semibold uppercase tracking-wider text-center">SPR</span>
-            <span className="text-[8px] text-gray-600 font-semibold uppercase tracking-wider text-center">O/U</span>
-            <span className="text-[8px] text-gray-600 font-semibold uppercase tracking-wider text-center">ML</span>
+          <div className="grid grid-cols-[1fr_60px_64px_56px] gap-1 px-4 pt-2 pb-1">
+            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider">Team</span>
+            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider text-center">SPR</span>
+            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider text-center">O/U</span>
+            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider text-center">ML</span>
           </div>
 
           {/* Games list */}
-          <div className="px-2 pb-2 flex-1 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+          <div className="px-3 pb-3 flex-1 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: `${sb.color}80`, borderTopColor: 'transparent' }} />
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: `${sb.color}80`, borderTopColor: 'transparent' }} />
               </div>
             ) : liveEvents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-1">
-                <span className="text-gray-600 text-[10px] font-medium">No live games</span>
-                <span className="text-gray-700 text-[9px]">Check back during game time</span>
+              <div className="flex flex-col items-center justify-center py-8 gap-1.5">
+                <span className="text-gray-500 text-xs font-medium">No live games</span>
+                <span className="text-gray-600 text-[11px]">Check back during game time</span>
               </div>
             ) : (
               <div className="flex flex-col gap-1">
