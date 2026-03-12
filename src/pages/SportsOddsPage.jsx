@@ -1283,9 +1283,9 @@ export default function SportsOddsPage() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={SPRING}
-      className="flex h-full gap-4 overflow-hidden min-h-screen bg-[#0a0a0f] text-white px-4 py-5"
+      className="flex h-full gap-4 overflow-hidden min-h-screen bg-[#0a0a0f] text-white px-4 py-3"
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto">
         <SportsBankroll />
 
         {/* Odds / History tab strip */}
@@ -1320,14 +1320,14 @@ export default function SportsOddsPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-2"
             >
 
         {/* Top: Header with Live pulse, Refresh, book selector, Bet CTA */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-xl font-bold tracking-tight">Sports Lines</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold tracking-tight">Sports Lines</h1>
             <span className="flex items-center gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
@@ -1336,7 +1336,6 @@ export default function SportsOddsPage() {
               <span className="text-xs font-semibold text-emerald-400 tracking-wider uppercase">Live</span>
             </span>
           </div>
-          <p className="text-xs text-gray-500">Real-time odds · Line movements update live</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -1410,7 +1409,7 @@ export default function SportsOddsPage() {
       <LiveInGameLines sportKey={activeSportKey} />
 
       {/* Main: Left nav + Center + Right sidebar */}
-      <div className="flex gap-4 flex-1 min-h-0">
+      <div className="flex gap-3 flex-1 min-h-0">
         <LeftNav activeKey={activeNavKey} onSelect={setActiveNavKey} />
         <div className="flex-1 min-w-0">
           <AnimatePresence mode="wait">
