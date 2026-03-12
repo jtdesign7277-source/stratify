@@ -431,18 +431,16 @@ function buildBar(symbol, snapshot, sessionState) {
 
   if (sessionState.isPreMarket) {
     price = latestPrice || 0;
+    // Regular session change (prev close → last close) — always the day's move
+    change = dailyClose && prevClose ? dailyClose - prevClose : 0;
+    changePercent = prevClose && dailyClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
 
-    // Show only pre-market change (from previous close to current price),
-    // NOT the combined previous-session + pre-market total.
+    // Pre-market extended change from Twelve Data, or compute from prices
     if (extendedPercentChange != null) {
-      change = extendedChange || 0;
-      changePercent = extendedPercentChange;
-    } else {
-      change = dailyClose && prevClose ? dailyClose - prevClose : 0;
-      changePercent = prevClose && dailyClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
-    }
-
-    if (latestPrice && dailyClose) {
+      preMarketPrice = extendedPrice || latestPrice;
+      preMarketChange = extendedChange || 0;
+      preMarketChangePercent = extendedPercentChange;
+    } else if (latestPrice && dailyClose) {
       preMarketPrice = latestPrice;
       preMarketChange = latestPrice - dailyClose;
       preMarketChangePercent = (preMarketChange / dailyClose) * 100;
@@ -453,18 +451,16 @@ function buildBar(symbol, snapshot, sessionState) {
     }
   } else if (sessionState.isAfterHours) {
     price = dailyClose || latestPrice || 0;
+    // Regular session change (prev close → close) — always the day's move
+    change = prevClose ? dailyClose - prevClose : 0;
+    changePercent = prevClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
 
-    // Show only after-hours change (from regular close to current AH price),
-    // NOT the combined regular-session + after-hours total.
+    // After-hours extended change from Twelve Data, or compute from prices
     if (extendedPercentChange != null) {
-      change = extendedChange || 0;
-      changePercent = extendedPercentChange;
-    } else {
-      change = prevClose ? dailyClose - prevClose : 0;
-      changePercent = prevClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
-    }
-
-    if (latestPrice && dailyClose && latestPrice !== dailyClose) {
+      afterHoursPrice = extendedPrice || latestPrice;
+      afterHoursChange = extendedChange || 0;
+      afterHoursChangePercent = extendedPercentChange;
+    } else if (latestPrice && dailyClose && latestPrice !== dailyClose) {
       afterHoursPrice = latestPrice;
       afterHoursChange = latestPrice - dailyClose;
       afterHoursChangePercent = (afterHoursChange / dailyClose) * 100;

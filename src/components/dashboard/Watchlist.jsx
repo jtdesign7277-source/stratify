@@ -3,17 +3,6 @@ import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
 const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
 
-const TrendUpIcon = ({ className }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-    </svg>svg>
-  );
-
-const TrendDownIcon = ({ className }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" />
-    </svg>svg>
-  );
 
 const formatNumber = (num) => {
     if (!num) return null;
@@ -111,7 +100,6 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
     const [cryptoLoading, setCryptoLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('stocks');
     const [localMarketSession, setLocalMarketSession] = useState(getMarketSession);
-    const [extendedHoursToggle, setExtendedHoursToggle] = useState({});
 
   const fetchStockQuotes = useCallback(async (symbolList) => {
         setStockLoading(true);
@@ -268,13 +256,11 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                   const volume = isCrypto ? null : (quote.volume || stock.volume);
                   const companyName = isCrypto ? stock.name : (quote.name || stock.name || '');
                   const resolvedMarketSession = isCrypto ? null : (quote.marketSession || localMarketSession);
-                  const extendedHoursPrice = isCrypto ? null : quote.extendedHoursPrice;
-                  const extendedHoursChangePercent = isCrypto ? null : quote.extendedHoursChangePercent;
-                  const showExtendedHours = !isCrypto && (resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'post_market' || resolvedMarketSession === 'pre' || resolvedMarketSession === 'after') && Number.isFinite(extendedHoursPrice);
-                  const extendedHoursPercentLabel = formatSignedPercent(extendedHoursChangePercent);
-                  const extendedHoursLabel = (resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'pre') ? 'Pre' : 'AH';
-                  const showDollarValue = extendedHoursToggle[stock.symbol];
-                  const extendedHoursDollarChange = extendedHoursPrice && extendedHoursChangePercent ? (extendedHoursPrice * (extendedHoursChangePercent / 100)).toFixed(2) : 0;
+                  const isPreMarket = resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'pre';
+                  const isAfterHours = resolvedMarketSession === 'post_market' || resolvedMarketSession === 'after';
+                  const extendedChangePercent = isCrypto ? null : (isPreMarket ? quote.preMarketChangePercent : quote.afterHoursChangePercent) ?? quote.extended_percent_change ?? null;
+                  const showExtendedHours = !isCrypto && (isPreMarket || isAfterHours) && Number.isFinite(extendedChangePercent);
+                  const extendedPercentLabel = formatSignedPercent(extendedChangePercent);
           
                   return (
                               <div
@@ -287,44 +273,28 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                                                                         <span className={`${WATCHLIST_TICKER_TEXT_CLASS} font-bold text-white`}>{stock.symbol}</span>span>
                                                                         <p className="text-xs text-zinc-500 truncate max-w-[140px]">{companyName}</p>p>
                                                         </div>div>
-                                                        <div className="text-right flex flex-col items-end">
+                                                        <div className="text-right flex flex-col items-end gap-1">
                                                           {isLoading && !hasData ? (
                                                               <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-400 rounded-full animate-spin" />
                                                             ) : (
                                                               <>
-                                                                                  <p className={`${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>
-                                                                                                        ${isCrypto ? formatCryptoPrice(price) : formatStockPrice(price)}
-                                                                                    </p>p>
+                                                                <p className={`${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>
+                                                                  {isCrypto ? formatCryptoPrice(price) : formatStockPrice(price)}
+                                                                </p>
                                                                 {changePercentDisplay !== null && (
-                                                                                      <div className={`mt-1 flex items-center justify-end gap-1 text-xs ${getChangeColor(change)}`}>
-                                                                                        {change >= 0 ? (
-                                                                                                                  <TrendUpIcon className="w-3 h-3" />
-                                                                                                                ) : (
-                                                                                                                  <TrendDownIcon className="w-3 h-3" />
-                                                                                                                )}
-                                                                                                              <span>{change >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%</span>span>
-                                                                                        </div>div>
-                                                                                  )}
-                                                                {showExtendedHours ? (
-                                                                                      <div 
-                                                                                                                className={`mt-1 text-xs ${getChangeColor(extendedHoursChangePercent || 0)} cursor-pointer hover:opacity-70 transition-opacity`}
-                                                                                                                onClick={(e) => {
-                                                                                                                                            e.stopPropagation();
-                                                                                                                                            setExtendedHoursToggle(prev => ({
-                                                                                                                                                                          ...prev,
-                                                                                                                                                                          [stock.symbol]: !prev[stock.symbol]
-                                                                                                                                              }));
-                                                                                                                  }}
-                                                                                                                title="Click to toggle % / $"
-                                                                                                              >
-                                                                                                              <span className="text-amber-400">🌙</span>span> {extendedHoursLabel}: ${formatStockPrice(extendedHoursPrice)} {showDollarValue ? `$${extendedHoursDollarChange}` : (extendedHoursPercentLabel || '')}
-                                                                                        </div>div>
-                                                                                  ) : (
-                                                                                      <div className="mt-1 text-xs text-zinc-500">--</div>
-                                                                                  )}
-                                                              </>>
+                                                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold text-white ${change >= 0 ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                                                                    {change >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%
+                                                                  </span>
+                                                                )}
+                                                                {showExtendedHours && (
+                                                                  <div className="flex items-center gap-1 text-[11px] text-zinc-400">
+                                                                    <span className="text-purple-400">🌙</span>
+                                                                    <span>{extendedPercentLabel}</span>
+                                                                  </div>
+                                                                )}
+                                                              </>
                                                             )}
-                                                        </div>div>
+                                                        </div>
                                           </div>div>
                                 {volume && (
                                                           <div className="text-xs text-zinc-500">
