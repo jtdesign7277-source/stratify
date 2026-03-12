@@ -4474,23 +4474,12 @@ export default function TraderPage({
               </form>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.06] px-3 py-2 text-xs">
-                  {watchlistView === 'watchlist' ? (
-                    streamStatus.error ? (
-                      <span className="text-red-400/90" title="Twelve Data API key required for live watchlist prices">{streamStatus.error}</span>
-                    ) : (
-                      <>
-                        <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
-                        <span className="text-emerald-400">{activeStreamSymbolCount} symbols</span>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <span className="text-[#9ca3af]">Paper Holdings</span>
-                      <span className="text-emerald-400">{portfolioPositions.length} positions</span>
-                    </>
-                  )}
-                </div>
+                {watchlistView !== 'watchlist' && (
+                  <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.06] px-3 py-2 text-xs">
+                    <span className="text-[#9ca3af]">Paper Holdings</span>
+                    <span className="text-emerald-400">{portfolioPositions.length} positions</span>
+                  </div>
+                )}
 
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide watchlist-scrollable">
                   {watchlistView === 'watchlist' ? (
@@ -4703,7 +4692,7 @@ export default function TraderPage({
                                         {Number.isFinite(price) && (
                                           <div className="flex flex-col items-end gap-1">
                                             <div className="flex items-center gap-1">
-                                              {isExtended && <span className="text-sm">☀️</span>}
+                                              {isExtended && <span className="text-sm">{extendedHoursStatus === 'pre-market' ? '☀️' : '🌙'}</span>}
                                               <span className={`${percentColor} font-mono text-sm`}>
                                                 {isPositive ? '+' : ''}{displayPercent}%
                                               </span>
