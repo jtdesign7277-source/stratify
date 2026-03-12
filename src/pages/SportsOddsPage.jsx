@@ -971,15 +971,15 @@ function LeftNav({ activeKey, onSelect }) {
 }
 
 function OddsMovement({ value }) {
-  if (value === 0) return <Minus className="w-3 h-3 text-gray-500" />;
+  if (value === 0) return <Minus className="w-3.5 h-3.5 text-gray-500" />;
   return value > 0 ? (
-    <span className="flex items-center gap-0.5 text-xs text-emerald-400 font-mono">
-      <ArrowUpRight className="w-3 h-3" />
+    <span className="flex items-center gap-0.5 text-sm text-emerald-400 font-mono">
+      <ArrowUpRight className="w-3.5 h-3.5" />
       {value}
     </span>
   ) : (
-    <span className="flex items-center gap-0.5 text-xs text-red-400 font-mono">
-      <ArrowDownRight className="w-3 h-3" />
+    <span className="flex items-center gap-0.5 text-sm text-red-400 font-mono">
+      <ArrowDownRight className="w-3.5 h-3.5" />
       {Math.abs(value)}
     </span>
   );
@@ -1450,8 +1450,8 @@ export default function SportsOddsPage() {
             className="bg-[#0f1117] rounded-2xl border border-[#1e2028] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
           >
             <div className="flex items-center gap-2 mb-3">
-              <Activity className="w-3.5 h-3.5 text-amber-400" strokeWidth={1.5} />
-              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">Sharp Money</span>
+              <Activity className="w-4 h-4 text-amber-400" strokeWidth={1.5} />
+              <span className="text-sm font-semibold tracking-widest text-gray-500 uppercase">Sharp Money</span>
             </div>
             <div className="flex flex-col gap-2.5">
               {[
@@ -1469,11 +1469,11 @@ export default function SportsOddsPage() {
                   className="flex flex-col gap-1"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-white font-medium">
+                    <span className="text-sm text-white font-medium">
                       <span className="text-gray-600 font-semibold mr-1.5">{item.sport}</span>
                       {item.game}
                     </span>
-                    <span className={`text-xs font-mono font-bold ${item.pct >= 65 ? 'text-emerald-400' : 'text-amber-400'}`}>{item.pct}%</span>
+                    <span className={`text-sm font-mono font-bold ${item.pct >= 65 ? 'text-emerald-400' : 'text-amber-400'}`}>{item.pct}%</span>
                   </div>
                   <div className="relative h-1 bg-white/[0.06] rounded-full overflow-hidden">
                     <motion.div
@@ -1494,8 +1494,8 @@ export default function SportsOddsPage() {
             className="bg-[#0f1117] rounded-2xl border border-[#1e2028] p-4 flex-1 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
           >
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-3.5 h-3.5 text-blue-400" strokeWidth={1.5} />
-              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">Line Moves</span>
+              <TrendingUp className="w-4 h-4 text-blue-400" strokeWidth={1.5} />
+              <span className="text-sm font-semibold tracking-widest text-gray-500 uppercase">Line Moves</span>
             </div>
             <div className="flex flex-col gap-0.5">
               {MOCK_MOVES.map((item, i) => (
@@ -1508,11 +1508,11 @@ export default function SportsOddsPage() {
                   className="flex items-center justify-between px-2 py-1.5 rounded-lg cursor-default transition-colors"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs text-gray-600 font-semibold w-11 shrink-0">{item.sport}</span>
-                    <span className="text-xs text-white font-medium truncate">{item.team}</span>
+                    <span className="text-sm text-gray-600 font-semibold w-14 shrink-0">{item.sport}</span>
+                    <span className="text-sm text-white font-medium truncate">{item.team}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs font-mono text-gray-400">{item.line}</span>
+                    <span className="text-sm font-mono text-gray-400">{item.line}</span>
                     <OddsMovement value={item.move} />
                   </div>
                 </motion.div>
@@ -1525,7 +1525,7 @@ export default function SportsOddsPage() {
             transition={{ ...SPRING, delay: 0.2 }}
             className="bg-[#0f1117] rounded-2xl border border-[#1e2028] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
           >
-            <div className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-3">Place Your Bet</div>
+            <div className="text-sm font-semibold tracking-widest text-gray-500 uppercase mb-3">Place Your Bet</div>
             <div className="flex flex-col gap-2">
               {BOOKS.map((book, i) => (
                 <motion.a
@@ -1541,10 +1541,10 @@ export default function SportsOddsPage() {
                   className="flex items-center justify-between px-3 py-2 rounded-xl border transition-all duration-200 group"
                   style={{ borderColor: `${book.color}30`, background: `${book.color}10` }}
                 >
-                  <span className="text-xs font-bold group-hover:opacity-100 opacity-80" style={{ color: book.color }}>
+                  <span className="text-sm font-bold group-hover:opacity-100 opacity-80" style={{ color: book.color }}>
                     {book.label}
                   </span>
-                  <ArrowUpRight className="w-3 h-3 opacity-40 group-hover:opacity-100" style={{ color: book.color }} />
+                  <ArrowUpRight className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100" style={{ color: book.color }} />
                 </motion.a>
               ))}
             </div>
