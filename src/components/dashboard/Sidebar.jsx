@@ -44,10 +44,9 @@ const Sidebar = ({
 }) => {
   const { user, signOut, isAuthenticated } = useAuth();
   const handleSignOut = async () => {
-    try { await supabase.auth.signOut() } catch(e) {}
-    localStorage.clear()
-    sessionStorage.clear()
-    window.location.href = "/"
+    // Navigate first via React so user sees landing immediately
+    if (onLogout) onLogout();
+    try { await signOut() } catch(e) {}
   };
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const communityAvatar = user ? readCurrentUserAvatar(displayName) : null;
