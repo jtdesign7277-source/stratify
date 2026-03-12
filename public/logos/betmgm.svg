@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" fill="none">
+  <rect x="0" y="4" width="32" height="32" rx="4" stroke="#c9a84c" stroke-width="2" fill="none"/>
+  <circle cx="16" cy="20" r="8" stroke="#c9a84c" stroke-width="1.5" fill="none"/>
+  <text x="40" y="30" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="26" fill="white" letter-spacing="1">BetMGM</text>
+</svg>

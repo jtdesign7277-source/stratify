@@ -985,28 +985,89 @@ function OddsMovement({ value }) {
   );
 }
 
+const SPORTSBOOK_PANELS = [
+  { key: 'draftkings', name: 'DraftKings', logo: '/logos/draftkings.svg', color: '#00d455', accent: '#00d455', bg: 'from-[#0a1a0f]/60 to-transparent' },
+  { key: 'fanduel', name: 'FanDuel', logo: '/logos/fanduel.svg', color: '#1493ff', accent: '#1493ff', bg: 'from-[#0a1220]/60 to-transparent' },
+  { key: 'betmgm', name: 'BetMGM', logo: '/logos/betmgm.svg', color: '#c9a84c', accent: '#c9a84c', bg: 'from-[#1a1508]/60 to-transparent' },
+  { key: 'bovada', name: 'Bovada', logo: '/logos/bovada.svg', color: '#cc0000', accent: '#cc0000', bg: 'from-[#1a0808]/60 to-transparent' },
+];
+
+function BookGameRow({ ev, bookKey, sportKey }) {
+  const book = (ev.bookmakers || []).find((b) => b.key === bookKey) || (ev.bookmakers || [])[0];
+  const spreads = (book?.markets || []).find((m) => m.key === 'spreads')?.outcomes || [];
+  const totals = (book?.markets || []).find((m) => m.key === 'totals')?.outcomes || [];
+  const h2h = (book?.markets || []).find((m) => m.key === 'h2h')?.outcomes || [];
+  const away = ev.away_team;
+  const home = ev.home_team;
+  const awaySpread = matchTeam(spreads, away);
+  const homeSpread = matchTeam(spreads, home);
+  const over = totals.find((x) => x.name?.toLowerCase() === 'over');
+  const under = totals.find((x) => x.name?.toLowerCase() === 'under');
+  const awayMl = matchTeam(h2h, away);
+  const homeMl = matchTeam(h2h, home);
+  const noData = !book;
+
+  if (noData) {
+    return (
+      <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-2 py-2">
+        <div className="flex items-center gap-1.5">
+          <TeamLogo teamName={away} sportKey={sportKey} size={14} />
+          <span className="text-[10px] text-gray-500 truncate">{teamAbbrev(away)}</span>
+          <span className="text-[9px] text-gray-600 mx-0.5">vs</span>
+          <TeamLogo teamName={home} sportKey={sportKey} size={14} />
+          <span className="text-[10px] text-gray-500 truncate">{teamAbbrev(home)}</span>
+        </div>
+        <div className="text-[9px] text-gray-700 mt-1">No lines available</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-2 py-1.5">
+      {/* Away */}
+      <div className="grid grid-cols-[1fr_52px_52px_48px] gap-0.5 items-center">
+        <div className="flex items-center gap-1 min-w-0">
+          <TeamLogo teamName={away} sportKey={sportKey} size={14} />
+          <span className="text-[10px] text-white font-medium truncate">{teamAbbrev(away)}</span>
+        </div>
+        <span className="text-[10px] font-mono text-center text-gray-300">
+          {awaySpread ? `${fmtPt(awaySpread.point) || ''}` : '—'}
+        </span>
+        <span className="text-[10px] font-mono text-center text-gray-300">
+          {over ? `O${over.point}` : '—'}
+        </span>
+        <span className={`text-[10px] font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+          {awayMl ? fmtAm(awayMl.price) : '—'}
+        </span>
+      </div>
+      {/* Home */}
+      <div className="grid grid-cols-[1fr_52px_52px_48px] gap-0.5 items-center mt-0.5">
+        <div className="flex items-center gap-1 min-w-0">
+          <TeamLogo teamName={home} sportKey={sportKey} size={14} />
+          <span className="text-[10px] text-white font-medium truncate">{teamAbbrev(home)}</span>
+        </div>
+        <span className="text-[10px] font-mono text-center text-gray-300">
+          {homeSpread ? `${fmtPt(homeSpread.point) || ''}` : '—'}
+        </span>
+        <span className="text-[10px] font-mono text-center text-gray-300">
+          {under ? `U${under.point}` : '—'}
+        </span>
+        <span className={`text-[10px] font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+          {homeMl ? fmtAm(homeMl.price) : '—'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function LiveInGameLines({ sportKey }) {
-  const [liveBook, setLiveBook] = useState('draftkings');
   const [liveEvents, setLiveEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/odds/events?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        const now = Date.now();
-        const live = (Array.isArray(data) ? data : []).filter((ev) => {
-          const t = new Date(ev.commence_time).getTime();
-          return t <= now && now - t <= 4 * 60 * 60 * 1000;
-        });
-        setLiveEvents(live);
-        setLoading(false);
-      })
-      .catch(() => { if (!cancelled) { setLiveEvents([]); setLoading(false); } });
-    const interval = setInterval(() => {
+    const doFetch = () =>
       fetch(`/api/odds/events?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
         .then((r) => r.json())
         .then((data) => {
@@ -1017,133 +1078,68 @@ function LiveInGameLines({ sportKey }) {
             return t <= now && now - t <= 4 * 60 * 60 * 1000;
           });
           setLiveEvents(live);
+          setLoading(false);
         })
-        .catch(() => {});
-    }, 30000);
+        .catch(() => { if (!cancelled) { setLiveEvents([]); setLoading(false); } });
+    doFetch();
+    const interval = setInterval(doFetch, 30000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [sportKey]);
 
-  const LIVE_BOOKS = [
-    { key: 'draftkings', label: 'DK', color: '#00d455' },
-    { key: 'fanduel', label: 'FD', color: '#1493ff' },
-    { key: 'betmgm', label: 'MGM', color: '#c9a84c' },
-    { key: 'bovada', label: 'BOV', color: '#cc0000' },
-  ];
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={SPRING}
-      className="bg-[#0f1117] rounded-2xl border border-[#1e2028] shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden"
-    >
-      {/* Header + book tabs */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
-          </span>
-          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Live In-Game Lines</span>
-          {liveEvents.length > 0 && (
-            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">
-              {liveEvents.length} LIVE
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-0.5 bg-[#0a0a0f] rounded-lg p-0.5 border border-[#1a1a24]">
-          {LIVE_BOOKS.map((b) => (
-            <button
-              key={b.key}
-              onClick={() => setLiveBook(b.key)}
-              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
-                liveBook === b.key
-                  ? 'text-white bg-white/[0.08] border border-white/[0.08]'
-                  : 'text-gray-600 hover:text-gray-400'
-              }`}
-            >
-              <span style={liveBook === b.key ? { color: b.color } : {}}>{b.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Column headers */}
-      <div className="grid grid-cols-[1fr_80px_80px_80px] gap-1 px-4 pb-1">
-        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider">Matchup</span>
-        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider text-center">Spread</span>
-        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider text-center">Total</span>
-        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider text-center">ML</span>
-      </div>
-
-      {/* Games */}
-      <div className="px-3 pb-3 max-h-[180px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
-        {loading ? (
-          <div className="flex items-center justify-center py-6">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
+    <div className="grid grid-cols-4 gap-3">
+      {SPORTSBOOK_PANELS.map((sb, idx) => (
+        <motion.div
+          key={sb.key}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...SPRING, delay: idx * 0.05 }}
+          className="bg-[#0f1117] rounded-2xl border border-[#1e2028] shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col"
+        >
+          {/* Sportsbook header with logo */}
+          <div className={`px-3 pt-3 pb-2 bg-gradient-to-b ${sb.bg} border-b border-white/[0.04]`}>
+            <div className="flex items-center justify-between">
+              <img src={sb.logo} alt={sb.name} className="h-5 object-contain" />
+              <div className="flex items-center gap-1">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ backgroundColor: sb.color }} />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: sb.color }} />
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: sb.color }}>Live</span>
+              </div>
+            </div>
           </div>
-        ) : liveEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6 gap-1">
-            <span className="text-gray-600 text-xs font-medium">No live games right now</span>
-            <span className="text-gray-700 text-[10px]">Lines appear when games tip off</span>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1">
-            {liveEvents.map((ev) => {
-              const book = (ev.bookmakers || []).find((b) => b.key === liveBook) || (ev.bookmakers || [])[0];
-              const spreads = (book?.markets || []).find((m) => m.key === 'spreads')?.outcomes || [];
-              const totals = (book?.markets || []).find((m) => m.key === 'totals')?.outcomes || [];
-              const h2h = (book?.markets || []).find((m) => m.key === 'h2h')?.outcomes || [];
-              const away = ev.away_team;
-              const home = ev.home_team;
-              const awaySpread = matchTeam(spreads, away);
-              const homeSpread = matchTeam(spreads, home);
-              const over = totals.find((x) => x.name?.toLowerCase() === 'over');
-              const under = totals.find((x) => x.name?.toLowerCase() === 'under');
-              const awayMl = matchTeam(h2h, away);
-              const homeMl = matchTeam(h2h, home);
 
-              return (
-                <div key={ev.id} className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-2">
-                  {/* Away row */}
-                  <div className="grid grid-cols-[1fr_80px_80px_80px] gap-1 items-center">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <TeamLogo teamName={away} sportKey={sportKey} size={16} />
-                      <span className="text-[11px] text-white font-medium truncate">{teamAbbrev(away)}</span>
-                    </div>
-                    <span className="text-[11px] font-mono text-center text-white">
-                      {awaySpread ? `${fmtPt(awaySpread.point) || ''} ${fmtAm(awaySpread.price)}` : '—'}
-                    </span>
-                    <span className="text-[11px] font-mono text-center text-white">
-                      {over ? `O${over.point} ${fmtAm(over.price)}` : '—'}
-                    </span>
-                    <span className={`text-[11px] font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
-                      {awayMl ? fmtAm(awayMl.price) : '—'}
-                    </span>
-                  </div>
-                  {/* Home row */}
-                  <div className="grid grid-cols-[1fr_80px_80px_80px] gap-1 items-center mt-0.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <TeamLogo teamName={home} sportKey={sportKey} size={16} />
-                      <span className="text-[11px] text-white font-medium truncate">{teamAbbrev(home)}</span>
-                    </div>
-                    <span className="text-[11px] font-mono text-center text-white">
-                      {homeSpread ? `${fmtPt(homeSpread.point) || ''} ${fmtAm(homeSpread.price)}` : '—'}
-                    </span>
-                    <span className="text-[11px] font-mono text-center text-white">
-                      {under ? `U${under.point} ${fmtAm(under.price)}` : '—'}
-                    </span>
-                    <span className={`text-[11px] font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
-                      {homeMl ? fmtAm(homeMl.price) : '—'}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+          {/* Column headers */}
+          <div className="grid grid-cols-[1fr_52px_52px_48px] gap-0.5 px-3 pt-1.5 pb-1">
+            <span className="text-[8px] text-gray-600 font-semibold uppercase tracking-wider">Team</span>
+            <span className="text-[8px] text-gray-600 font-semibold uppercase tracking-wider text-center">SPR</span>
+            <span className="text-[8px] text-gray-600 font-semibold uppercase tracking-wider text-center">O/U</span>
+            <span className="text-[8px] text-gray-600 font-semibold uppercase tracking-wider text-center">ML</span>
           </div>
-        )}
-      </div>
-    </motion.div>
+
+          {/* Games list */}
+          <div className="px-2 pb-2 flex-1 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: `${sb.color}80`, borderTopColor: 'transparent' }} />
+              </div>
+            ) : liveEvents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-1">
+                <span className="text-gray-600 text-[10px] font-medium">No live games</span>
+                <span className="text-gray-700 text-[9px]">Check back during game time</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {liveEvents.map((ev) => (
+                  <BookGameRow key={ev.id} ev={ev} bookKey={sb.key} sportKey={sportKey} />
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      ))}
+    </div>
   );
 }
 
