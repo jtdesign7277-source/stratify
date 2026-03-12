@@ -1000,13 +1000,13 @@ function StatCard({ label, value, sub, accent }) {
 
 const MOCK_MOVES = [
   { team: 'Lakers', line: '+110', move: 15, sport: 'NBA' },
-  { team: 'Yankees', line: '-165', move: -10, sport: 'MLB' },
   { team: 'Duke', line: '-3.5', move: 1.5, sport: 'NCAAB' },
   { team: 'Oilers', line: '-145', move: -20, sport: 'NHL' },
   { team: 'Celtics', line: '-8', move: 1, sport: 'NBA' },
   { team: 'Gonzaga', line: '+2', move: -1, sport: 'NCAAB' },
-  { team: 'Padres', line: '+130', move: 5, sport: 'MLB' },
   { team: 'Maple Leafs', line: '-110', move: 3, sport: 'NHL' },
+  { team: 'Knicks', line: '-4.5', move: -2, sport: 'NBA' },
+  { team: 'Bruins', line: '-130', move: 5, sport: 'NHL' },
 ];
 
 function LineMovementTicker() {
@@ -1318,9 +1318,9 @@ export default function SportsOddsPage() {
               {[
                 { game: 'Celtics ML', pct: 76, sport: 'NBA' },
                 { game: 'Oilers -145', pct: 68, sport: 'NHL' },
-                { game: 'Yankees -165', pct: 61, sport: 'MLB' },
-                { game: 'Duke -3.5', pct: 58, sport: 'NCAAB' },
-                { game: 'Thunder -4', pct: 55, sport: 'NBA' },
+                { game: 'Duke -3.5', pct: 61, sport: 'NCAAB' },
+                { game: 'Thunder -4', pct: 58, sport: 'NBA' },
+                { game: 'Maple Leafs ML', pct: 55, sport: 'NHL' },
               ].map((item, i) => (
                 <motion.div
                   key={i}
