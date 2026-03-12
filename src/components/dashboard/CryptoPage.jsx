@@ -793,14 +793,19 @@ function OrderEntry({
                 const price = Number(position.current_price) || Number(position.avg_cost_basis) || 0;
                 const currentValue = Number.isFinite(val) && val > 0 ? val : qty * price;
                 return (
-                  <div key={`paper-holding-${position.symbol}`} className="flex items-center justify-between gap-2 shrink-0">
+                  <button
+                    type="button"
+                    key={`paper-holding-${position.symbol}`}
+                    className="flex w-full items-center justify-between gap-2 shrink-0 rounded px-1 -mx-1 transition-colors hover:bg-white/[0.06] cursor-pointer"
+                    onClick={() => handleSymbolSubmit(position.symbol)}
+                  >
                     <span className="text-[13px] font-medium text-slate-300 truncate min-w-0">
                       {formatPaperSymbol(position.symbol)} · {formatPaperQuantity(position.quantity)}
                     </span>
                     <span className="text-[13px] font-mono font-medium text-emerald-400 shrink-0">
                       {formatPaperCurrency(currentValue)}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
