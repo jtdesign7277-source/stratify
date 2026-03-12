@@ -49,6 +49,7 @@ const BOOKS = [
   { key: 'draftkings', label: 'DraftKings', color: '#00d455', deepLink: 'https://www.draftkings.com/lobby#' },
   { key: 'fanduel', label: 'FanDuel', color: '#1493ff', deepLink: 'https://www.fanduel.com/sportsbook' },
   { key: 'betmgm', label: 'BetMGM', color: '#c9a84c', deepLink: 'https://sports.betmgm.com/' },
+  { key: 'bovada', label: 'Bovada', color: '#cc0000', deepLink: 'https://www.bovada.lv/sports' },
 ];
 
 // Vercel env: VITE_DRAFTKINGS_AFFILIATE_TAG, VITE_FANDUEL_AFFILIATE_TAG, VITE_BETMGM_AFFILIATE_TAG
@@ -984,16 +985,164 @@ function OddsMovement({ value }) {
   );
 }
 
-function StatCard({ label, value, sub, accent }) {
+function LiveInGameLines({ sportKey }) {
+  const [liveBook, setLiveBook] = useState('draftkings');
+  const [liveEvents, setLiveEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/odds/events?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const now = Date.now();
+        const live = (Array.isArray(data) ? data : []).filter((ev) => {
+          const t = new Date(ev.commence_time).getTime();
+          return t <= now && now - t <= 4 * 60 * 60 * 1000;
+        });
+        setLiveEvents(live);
+        setLoading(false);
+      })
+      .catch(() => { if (!cancelled) { setLiveEvents([]); setLoading(false); } });
+    const interval = setInterval(() => {
+      fetch(`/api/odds/events?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          const now = Date.now();
+          const live = (Array.isArray(data) ? data : []).filter((ev) => {
+            const t = new Date(ev.commence_time).getTime();
+            return t <= now && now - t <= 4 * 60 * 60 * 1000;
+          });
+          setLiveEvents(live);
+        })
+        .catch(() => {});
+    }, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [sportKey]);
+
+  const LIVE_BOOKS = [
+    { key: 'draftkings', label: 'DK', color: '#00d455' },
+    { key: 'fanduel', label: 'FD', color: '#1493ff' },
+    { key: 'betmgm', label: 'MGM', color: '#c9a84c' },
+    { key: 'bovada', label: 'BOV', color: '#cc0000' },
+  ];
+
   return (
     <motion.div
-      whileHover={{ y: -2 }}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={SPRING}
-      className="bg-[#0f1117] rounded-2xl border border-[#1e2028] p-4 flex-1 min-w-0 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+      className="bg-[#0f1117] rounded-2xl border border-[#1e2028] shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden"
     >
-      <div className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">{label}</div>
-      <div className={`text-2xl font-bold font-mono ${accent || 'text-white'}`}>{value}</div>
-      {sub && <div className="text-xs text-gray-500 mt-1">{sub}</div>}
+      {/* Header + book tabs */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+          </span>
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">Live In-Game Lines</span>
+          {liveEvents.length > 0 && (
+            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">
+              {liveEvents.length} LIVE
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 bg-[#0a0a0f] rounded-lg p-0.5 border border-[#1a1a24]">
+          {LIVE_BOOKS.map((b) => (
+            <button
+              key={b.key}
+              onClick={() => setLiveBook(b.key)}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
+                liveBook === b.key
+                  ? 'text-white bg-white/[0.08] border border-white/[0.08]'
+                  : 'text-gray-600 hover:text-gray-400'
+              }`}
+            >
+              <span style={liveBook === b.key ? { color: b.color } : {}}>{b.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Column headers */}
+      <div className="grid grid-cols-[1fr_80px_80px_80px] gap-1 px-4 pb-1">
+        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider">Matchup</span>
+        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider text-center">Spread</span>
+        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider text-center">Total</span>
+        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider text-center">ML</span>
+      </div>
+
+      {/* Games */}
+      <div className="px-3 pb-3 max-h-[180px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+        {loading ? (
+          <div className="flex items-center justify-center py-6">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
+          </div>
+        ) : liveEvents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 gap-1">
+            <span className="text-gray-600 text-xs font-medium">No live games right now</span>
+            <span className="text-gray-700 text-[10px]">Lines appear when games tip off</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {liveEvents.map((ev) => {
+              const book = (ev.bookmakers || []).find((b) => b.key === liveBook) || (ev.bookmakers || [])[0];
+              const spreads = (book?.markets || []).find((m) => m.key === 'spreads')?.outcomes || [];
+              const totals = (book?.markets || []).find((m) => m.key === 'totals')?.outcomes || [];
+              const h2h = (book?.markets || []).find((m) => m.key === 'h2h')?.outcomes || [];
+              const away = ev.away_team;
+              const home = ev.home_team;
+              const awaySpread = matchTeam(spreads, away);
+              const homeSpread = matchTeam(spreads, home);
+              const over = totals.find((x) => x.name?.toLowerCase() === 'over');
+              const under = totals.find((x) => x.name?.toLowerCase() === 'under');
+              const awayMl = matchTeam(h2h, away);
+              const homeMl = matchTeam(h2h, home);
+
+              return (
+                <div key={ev.id} className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-2">
+                  {/* Away row */}
+                  <div className="grid grid-cols-[1fr_80px_80px_80px] gap-1 items-center">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <TeamLogo teamName={away} sportKey={sportKey} size={16} />
+                      <span className="text-[11px] text-white font-medium truncate">{teamAbbrev(away)}</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-center text-white">
+                      {awaySpread ? `${fmtPt(awaySpread.point) || ''} ${fmtAm(awaySpread.price)}` : '—'}
+                    </span>
+                    <span className="text-[11px] font-mono text-center text-white">
+                      {over ? `O${over.point} ${fmtAm(over.price)}` : '—'}
+                    </span>
+                    <span className={`text-[11px] font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+                      {awayMl ? fmtAm(awayMl.price) : '—'}
+                    </span>
+                  </div>
+                  {/* Home row */}
+                  <div className="grid grid-cols-[1fr_80px_80px_80px] gap-1 items-center mt-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <TeamLogo teamName={home} sportKey={sportKey} size={16} />
+                      <span className="text-[11px] text-white font-medium truncate">{teamAbbrev(home)}</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-center text-white">
+                      {homeSpread ? `${fmtPt(homeSpread.point) || ''} ${fmtAm(homeSpread.price)}` : '—'}
+                    </span>
+                    <span className="text-[11px] font-mono text-center text-white">
+                      {under ? `U${under.point} ${fmtAm(under.price)}` : '—'}
+                    </span>
+                    <span className={`text-[11px] font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+                      {homeMl ? fmtAm(homeMl.price) : '—'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -1261,13 +1410,8 @@ export default function SportsOddsPage() {
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="flex gap-3">
-        <StatCard label="Active Games" value="—" sub={NAV_SECTIONS.flatMap((s) => s.items).find((i) => i.key === activeSportKey)?.label || 'Sport'} />
-        <StatCard label="Best Line" value="-105" sub="DraftKings · NBA spread" accent="text-emerald-400" />
-        <StatCard label="Live Now" value="—" sub="Today's schedule" accent="text-amber-400" />
-        <StatCard label="Sharp Action" value="76%" sub="Public on Celtics ML" />
-      </div>
+      {/* Live In-Game Lines */}
+      <LiveInGameLines sportKey={activeSportKey} />
 
       {/* Main: Left nav + Center + Right sidebar */}
       <div className="flex gap-4 flex-1 min-h-0">
