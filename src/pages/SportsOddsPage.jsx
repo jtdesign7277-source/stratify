@@ -1011,13 +1011,13 @@ function BookGameRow({ ev, bookKey, sportKey }) {
     return (
       <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2.5">
         <div className="flex items-center gap-2">
-          <TeamLogo teamName={away} sportKey={sportKey} size={18} />
-          <span className="text-xs text-gray-500 truncate">{teamAbbrev(away)}</span>
-          <span className="text-[11px] text-gray-600 mx-0.5">vs</span>
-          <TeamLogo teamName={home} sportKey={sportKey} size={18} />
-          <span className="text-xs text-gray-500 truncate">{teamAbbrev(home)}</span>
+          <TeamLogo teamName={away} sportKey={sportKey} size={20} />
+          <span className="text-sm text-gray-500 truncate">{teamAbbrev(away)}</span>
+          <span className="text-sm text-gray-600 mx-0.5">vs</span>
+          <TeamLogo teamName={home} sportKey={sportKey} size={20} />
+          <span className="text-sm text-gray-500 truncate">{teamAbbrev(home)}</span>
         </div>
-        <div className="text-[11px] text-gray-700 mt-1">No lines available</div>
+        <div className="text-sm text-gray-700 mt-1">No lines available</div>
       </div>
     );
   }
@@ -1025,34 +1025,34 @@ function BookGameRow({ ev, bookKey, sportKey }) {
   return (
     <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2">
       {/* Away */}
-      <div className="grid grid-cols-[1fr_60px_64px_56px] gap-1 items-center">
+      <div className="grid grid-cols-[1fr_56px_68px_58px] gap-1 items-center">
         <div className="flex items-center gap-1.5 min-w-0">
-          <TeamLogo teamName={away} sportKey={sportKey} size={18} />
-          <span className="text-[13px] text-white font-medium truncate">{teamAbbrev(away)}</span>
+          <TeamLogo teamName={away} sportKey={sportKey} size={20} />
+          <span className="text-sm text-white font-medium truncate">{teamAbbrev(away)}</span>
         </div>
-        <span className="text-[13px] font-mono text-center text-gray-300">
+        <span className="text-sm font-mono text-center text-gray-300">
           {awaySpread ? `${fmtPt(awaySpread.point) || ''}` : '—'}
         </span>
-        <span className="text-[13px] font-mono text-center text-gray-300">
+        <span className="text-sm font-mono text-center text-gray-300">
           {over ? `O${over.point}` : '—'}
         </span>
-        <span className={`text-[13px] font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+        <span className={`text-sm font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
           {awayMl ? fmtAm(awayMl.price) : '—'}
         </span>
       </div>
       {/* Home */}
-      <div className="grid grid-cols-[1fr_60px_64px_56px] gap-1 items-center mt-1">
+      <div className="grid grid-cols-[1fr_56px_68px_58px] gap-1 items-center mt-1">
         <div className="flex items-center gap-1.5 min-w-0">
-          <TeamLogo teamName={home} sportKey={sportKey} size={18} />
-          <span className="text-[13px] text-white font-medium truncate">{teamAbbrev(home)}</span>
+          <TeamLogo teamName={home} sportKey={sportKey} size={20} />
+          <span className="text-sm text-white font-medium truncate">{teamAbbrev(home)}</span>
         </div>
-        <span className="text-[13px] font-mono text-center text-gray-300">
+        <span className="text-sm font-mono text-center text-gray-300">
           {homeSpread ? `${fmtPt(homeSpread.point) || ''}` : '—'}
         </span>
-        <span className="text-[13px] font-mono text-center text-gray-300">
+        <span className="text-sm font-mono text-center text-gray-300">
           {under ? `U${under.point}` : '—'}
         </span>
-        <span className={`text-[13px] font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+        <span className={`text-sm font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
           {homeMl ? fmtAm(homeMl.price) : '—'}
         </span>
       </div>
@@ -1105,17 +1105,17 @@ function LiveInGameLines({ sportKey }) {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ backgroundColor: sb.color }} />
                   <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: sb.color }} />
                 </span>
-                <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: sb.color }}>Live</span>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sb.color }}>Live</span>
               </div>
             </div>
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_60px_64px_56px] gap-1 px-4 pt-2 pb-1">
-            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider">Team</span>
-            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider text-center">SPR</span>
-            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider text-center">O/U</span>
-            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider text-center">ML</span>
+          <div className="grid grid-cols-[1fr_56px_68px_58px] gap-1 px-4 pt-2 pb-1">
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Team</span>
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">SPR</span>
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">O/U</span>
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">ML</span>
           </div>
 
           {/* Games list */}
@@ -1126,8 +1126,8 @@ function LiveInGameLines({ sportKey }) {
               </div>
             ) : liveEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 gap-1.5">
-                <span className="text-gray-500 text-xs font-medium">No live games</span>
-                <span className="text-gray-600 text-[11px]">Check back during game time</span>
+                <span className="text-gray-500 text-sm font-medium">No live games</span>
+                <span className="text-gray-600 text-xs">Check back during game time</span>
               </div>
             ) : (
               <div className="flex flex-col gap-1">
