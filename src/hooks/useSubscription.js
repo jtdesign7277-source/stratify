@@ -194,7 +194,10 @@ export default function useSubscription(userOverride) {
     };
   }, [user?.id]);
 
-  const hasCreatorOverride = isCreatorOverrideUser(user);
+  // Check creator override on both the resolved user AND the override passed
+  // from auth context — avoids a timing gap where internal user state is still null.
+  const resolvedUser = (typeof userOverride !== 'undefined') ? (userOverride ?? null) : user;
+  const hasCreatorOverride = isCreatorOverrideUser(resolvedUser);
   const normalizedStatus = normalizeSubscriptionStatus(subscriptionStatus);
   const isProUser = hasCreatorOverride || isProStatus(normalizedStatus);
 
