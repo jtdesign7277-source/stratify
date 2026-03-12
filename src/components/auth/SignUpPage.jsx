@@ -224,7 +224,7 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
 
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
-      window.location.replace('/dashboard');
+      onSuccess();
     } catch (submitError) {
       const msg = String(submitError?.message || 'Unable to process your request.');
       const isConnectionError = /fetch|network|connection|refused|failed to load/i.test(msg) || submitError?.name === 'TypeError';

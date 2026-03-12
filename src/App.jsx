@@ -1502,14 +1502,14 @@ function StratifyAppContent() {
         onCheckout={openCheckoutAuth}
         onDashboard={() => navigateToPage('dashboard')}
         onBetaClick={() => navigateToPage('tokens')}
-        canAccessDashboard={Boolean(isAuthenticated && isProUser)}
+        canAccessDashboard={Boolean(isAuthenticated)}
       />
     ) : currentPage === 'tokens' ? (
       <TokensPage onBack={() => navigateToPage('landing')} />
     ) : currentPage === 'auth' ? (
       <SignUpPage
         initialMode={authInitialMode}
-        onSuccess={() => { window.location.replace('/dashboard'); }}
+        onSuccess={() => { navigateToPage('dashboard'); }}
         onBackToLanding={() => navigateToPage('landing')}
       />
     ) : currentPage === 'sports' && (!isAuthenticated || !isProUser) ? (
@@ -1521,7 +1521,7 @@ function StratifyAppContent() {
         onCheckout={openCheckoutAuth}
         onDashboard={() => navigateToPage('dashboard')}
         onBetaClick={() => navigateToPage('tokens')}
-        canAccessDashboard={Boolean(isAuthenticated && isProUser)}
+        canAccessDashboard={Boolean(isAuthenticated)}
       />
     ) : isCheckoutVerifying || isSubscriptionRestoring ? (
       <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
