@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Activity } from 'lucide-react';
 
 const ODDS_API = '/api/odds/events';
+const SCORES_API = '/api/odds/scores';
 const DRAFTKINGS_URL = 'https://draftkings.com';
 // Same book resolution as Sports page
 function getBook(bookmakers, preferredKey = 'draftkings') {
@@ -202,8 +203,17 @@ const itemVariants = {
   },
 };
 
+function getScoreForTeam(scores, teamName) {
+  if (!Array.isArray(scores)) return null;
+  const s = scores.find(
+    (sc) => sc.name && String(sc.name).trim().toLowerCase() === String(teamName).trim().toLowerCase()
+  );
+  return s?.score ?? null;
+}
+
 export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = false, onLiveLinesExpand, onLiveLinesCollapse, isBottomPanelExpanded }) {
   const [events, setEvents] = useState([]);
+  const [scoresMap, setScoresMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
@@ -217,7 +227,7 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
     if (isBottomPanelExpanded) setIsExpanded(true);
   }, [isBottomPanelExpanded]);
 
-  // Same feed as Sports page: same URL, no date filter, live-first sort
+  // Fetch odds
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -251,6 +261,27 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
+  }, [activeLeague]);
+
+  // Fetch live scores and poll every 30s
+  useEffect(() => {
+    let cancelled = false;
+    const fetchScores = () => {
+      fetch(`${SCORES_API}?sport=${sportParam}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled || !Array.isArray(data)) return;
+          const map = {};
+          data.forEach((ev) => {
+            if (ev.id && ev.scores) map[ev.id] = ev.scores;
+          });
+          setScoresMap(map);
+        })
+        .catch(() => {});
+    };
+    fetchScores();
+    const interval = setInterval(fetchScores, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [activeLeague]);
 
   const openDraftKings = () => {
@@ -390,6 +421,9 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                     const awayTeam = event.away_team || 'Away';
                     const timeStr = formatTime(event.commence_time);
                     const live = isGameLive(event.commence_time);
+                    const scores = scoresMap[event.id];
+                    const awayScore = live ? getScoreForTeam(scores, awayTeam) : null;
+                    const homeScore = live ? getScoreForTeam(scores, homeTeam) : null;
 
                     const mlOutcomes = book ? getMoneylineOutcomes(book) : [];
                     const awayMl = matchOutcome(mlOutcomes, awayTeam);
@@ -416,17 +450,23 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                             <div className="flex items-center gap-2 min-w-0">
                               <TeamLogo teamName={awayTeam} league={activeLeague} />
                               <span className="text-sm font-medium text-white truncate">{awayTeam}</span>
+                              {live && awayScore != null && (
+                                <span className="text-base font-bold text-white font-mono flex-shrink-0 ml-auto mr-1">{awayScore}</span>
+                              )}
                               {live && (
-                                <span className="text-[10px] font-bold text-emerald-400 uppercase flex-shrink-0">Live</span>
+                                <span className="text-xs font-bold text-emerald-400 uppercase flex-shrink-0 bg-emerald-400/10 px-1.5 py-0.5 rounded">LIVE</span>
                               )}
                             </div>
                             <div className="text-xs text-gray-500 mt-0.5 pl-9">AT</div>
                             <div className="flex items-center gap-2 min-w-0 mt-0.5">
                               <TeamLogo teamName={homeTeam} league={activeLeague} />
                               <span className="text-sm font-medium text-white truncate">{homeTeam}</span>
+                              {live && homeScore != null && (
+                                <span className="text-base font-bold text-white font-mono flex-shrink-0 ml-auto mr-1">{homeScore}</span>
+                              )}
                             </div>
                           </div>
-                          <div className="flex gap-3 w-[280px] flex-shrink-0">
+                          <div className={`flex gap-3 flex-shrink-0 transition-all ${live ? 'w-[220px]' : 'w-[280px]'}`}>
                             <div className="flex-1 flex flex-col gap-0.5 text-center">
                               <span className="text-[13px] font-semibold text-white leading-tight">{spreadPt(awaySpread) ?? '—'}</span>
                               <span className="text-[12px] font-mono text-gray-400">{fmt(awaySpread?.price)}</span>
