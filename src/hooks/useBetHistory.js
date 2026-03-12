@@ -29,16 +29,11 @@ import { supabase } from '../lib/supabaseClient';
  */
 export function useBetHistory() {
   const [bets, setBets] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-
-    // Safety: never stay loading longer than 5s
-    const timeout = setTimeout(() => {
-      if (!cancelled) setLoading(false);
-    }, 5000);
 
     (async () => {
       try {
@@ -46,7 +41,6 @@ export function useBetHistory() {
         if (cancelled) return;
         if (!session?.user?.id) {
           setBets([]);
-          setLoading(false);
           return;
         }
         const { data, error: queryError } = await supabase
@@ -56,21 +50,21 @@ export function useBetHistory() {
           .order('created_at', { ascending: false });
         if (cancelled) return;
         if (queryError) {
-          setError(queryError.message);
+          // Don't treat RLS / missing table as fatal — just show empty
+          console.warn('useBetHistory query error:', queryError.message);
+          setBets([]);
         } else {
           setBets(data || []);
         }
       } catch (err) {
-        if (!cancelled) setError(err?.message || 'Failed to load bet history');
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          console.warn('useBetHistory error:', err?.message);
+          setBets([]);
+        }
       }
     })();
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-    };
+    return () => { cancelled = true; };
   }, []);
 
   return { bets, loading, error };
