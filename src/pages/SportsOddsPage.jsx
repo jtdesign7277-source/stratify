@@ -1369,7 +1369,7 @@ export default function SportsOddsPage() {
                   className="flex items-center justify-between px-2 py-1.5 rounded-lg cursor-default transition-colors"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs text-gray-600 font-semibold w-7 shrink-0">{item.sport}</span>
+                    <span className="text-xs text-gray-600 font-semibold w-11 shrink-0">{item.sport}</span>
                     <span className="text-xs text-white font-medium truncate">{item.team}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
