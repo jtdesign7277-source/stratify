@@ -1096,7 +1096,7 @@ function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet, scores }) {
   return (
     <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2">
       {/* Away */}
-      <div className="grid grid-cols-[1fr_36px_90px_90px_58px] gap-1 items-center">
+      <div className="grid grid-cols-[minmax(60px,1fr)_36px_80px_80px_54px] gap-1 items-center">
         <div className="flex items-center gap-1.5 min-w-0">
           <TeamLogo teamName={away} sportKey={sportKey} size={20} />
           <span className="text-sm text-white font-medium truncate">{teamAbbrev(away)}</span>
@@ -1128,7 +1128,7 @@ function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet, scores }) {
         </BettableCell>
       </div>
       {/* Home */}
-      <div className="grid grid-cols-[1fr_36px_90px_90px_58px] gap-1 items-center mt-1">
+      <div className="grid grid-cols-[minmax(60px,1fr)_36px_80px_80px_54px] gap-1 items-center mt-1">
         <div className="flex items-center gap-1.5 min-w-0">
           <TeamLogo teamName={home} sportKey={sportKey} size={20} />
           <span className="text-sm text-white font-medium truncate">{teamAbbrev(home)}</span>
@@ -1242,7 +1242,7 @@ function LiveInGameLines({ sportKey, onPaperBet }) {
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_36px_90px_90px_58px] gap-1 px-4 pt-2 pb-1">
+          <div className="grid grid-cols-[minmax(60px,1fr)_36px_80px_80px_54px] gap-1 px-4 pt-2 pb-1">
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Team</span>
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">Score</span>
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">Spread</span>
