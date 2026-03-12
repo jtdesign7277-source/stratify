@@ -368,10 +368,15 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         <div className="flex-1 min-h-0" style={{ minHeight: 24 }} aria-hidden />
       ) : (
         <>
-      {/* Column headers: Spread, Moneyline, Total */}
-      <div className="shrink-0 grid grid-cols-[1fr_auto] gap-2 px-3 pb-1">
-        <div />
-        <div className="flex gap-3 w-[280px]">
+      {/* Column headers: Score (if live), Spread, Moneyline, Total */}
+      <div className="shrink-0 flex items-center gap-2 px-3 pb-1">
+        <div className="flex-1" />
+        {hasLiveGame && (
+          <div className="flex-shrink-0 w-10 text-center">
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Score</span>
+          </div>
+        )}
+        <div className="flex gap-3 flex-shrink-0 w-[220px]">
           <div className="flex-1 text-center">
             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Spread</span>
           </div>
@@ -465,10 +470,14 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                               <span className="text-sm font-medium text-white truncate">{homeTeam}</span>
                             </div>
                           </div>
-                          {live && awayScore != null && homeScore != null && (
+                          {hasLiveGame && (
                             <div className="flex flex-col items-center justify-between flex-shrink-0 w-10 self-stretch py-0.5">
-                              <span className={`text-[15px] font-bold font-mono tabular-nums ${awayWinning ? 'text-emerald-400' : 'text-white'}`}>{awayScore}</span>
-                              <span className={`text-[15px] font-bold font-mono tabular-nums ${homeWinning ? 'text-emerald-400' : 'text-white'}`}>{homeScore}</span>
+                              {live && awayScore != null ? (
+                                <span className={`text-[15px] font-bold font-mono tabular-nums ${awayWinning ? 'text-emerald-400' : 'text-white'}`}>{awayScore}</span>
+                              ) : <span />}
+                              {live && homeScore != null ? (
+                                <span className={`text-[15px] font-bold font-mono tabular-nums ${homeWinning ? 'text-emerald-400' : 'text-white'}`}>{homeScore}</span>
+                              ) : <span />}
                             </div>
                           )}
                           <div className="flex gap-3 flex-shrink-0 w-[220px]">
