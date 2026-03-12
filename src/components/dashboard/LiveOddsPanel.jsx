@@ -458,20 +458,20 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                               {live && (
                                 <span className="text-xs font-bold text-emerald-400 uppercase flex-shrink-0 bg-emerald-400/10 px-1.5 py-0.5 rounded">LIVE</span>
                               )}
-                              {live && awayScore != null && (
-                                <span className={`text-base font-bold font-mono flex-shrink-0 ml-auto ${awayWinning ? 'text-emerald-400' : 'text-white'}`}>{awayScore}</span>
-                              )}
                             </div>
                             <div className="text-xs text-gray-500 mt-0.5 pl-9">AT</div>
                             <div className="flex items-center gap-2 min-w-0 mt-0.5">
                               <TeamLogo teamName={homeTeam} league={activeLeague} />
                               <span className="text-sm font-medium text-white truncate">{homeTeam}</span>
-                              {live && homeScore != null && (
-                                <span className={`text-base font-bold font-mono flex-shrink-0 ml-auto ${homeWinning ? 'text-emerald-400' : 'text-white'}`}>{homeScore}</span>
-                              )}
                             </div>
                           </div>
-                          <div className={`flex gap-3 flex-shrink-0 transition-all ${live ? 'w-[220px]' : 'w-[280px]'}`}>
+                          {live && awayScore != null && homeScore != null && (
+                            <div className="flex flex-col items-center justify-between flex-shrink-0 w-10 self-stretch py-0.5">
+                              <span className={`text-[15px] font-bold font-mono tabular-nums ${awayWinning ? 'text-emerald-400' : 'text-white'}`}>{awayScore}</span>
+                              <span className={`text-[15px] font-bold font-mono tabular-nums ${homeWinning ? 'text-emerald-400' : 'text-white'}`}>{homeScore}</span>
+                            </div>
+                          )}
+                          <div className="flex gap-3 flex-shrink-0 w-[220px]">
                             <div className="flex-1 flex flex-col gap-0.5 text-center">
                               <span className="text-[13px] font-semibold text-white leading-tight">{spreadPt(awaySpread) ?? '—'}</span>
                               <span className="text-[12px] font-mono text-gray-400">{fmt(awaySpread?.price)}</span>
