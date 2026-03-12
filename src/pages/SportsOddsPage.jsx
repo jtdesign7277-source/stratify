@@ -26,41 +26,13 @@ const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
 
 const NAV_SECTIONS = [
   {
-    label: 'Popular',
+    label: 'Sports',
     items: [
-      { key: 'live', label: 'Live now', icon: '🔴', badge: 29 },
-      { key: 'rewards', label: 'Rewards', icon: '🎁' },
       { key: 'basketball_nba', label: 'NBA', icon: '🏀' },
       { key: 'ice_hockey_nhl', label: 'NHL', icon: '🏒' },
-      { key: 'basketball_ncaab', label: 'NCAAB', icon: '🏀' },
-      { key: 'americanfootball_ncaaf', label: 'NCAAF', icon: '🏈' },
-      { key: 'baseball_mlb', label: 'MLB', icon: '⚾' },
       { key: 'americanfootball_nfl', label: 'NFL', icon: '🏈' },
-      { key: 'soccer_epl', label: 'Soccer', icon: '⚽' },
-      { key: 'basketball_ncaaw', label: 'NCAAW', icon: '🏀' },
-      { key: 'golf_pga', label: 'PGA Tour', icon: '⛳' },
-      { key: 'mma_mixed_martial_arts', label: 'UFC', icon: '🥊' },
-      { key: 'parlay', label: 'Parlay Hub', icon: '⚡' },
-      { key: 'popular_bets', label: 'Popular Bets', icon: '🔥' },
-      { key: 'womens', label: "Women's", icon: '👟' },
-      { key: 'learn', label: 'Learn to Bet', icon: '🎓', labelColor: '#00d455' },
-      { key: 'free_play', label: 'Free to Play', icon: '🆓', labelColor: '#00d455' },
-    ],
-  },
-  {
-    label: 'All Sports',
-    items: [
-      { key: 'aussie_rules_afl', label: 'Aussie Rules', icon: '🏉' },
-      { key: 'boxing_boxing', label: 'Boxing', icon: '🥊' },
-      { key: 'cricket_odi', label: 'Cricket', icon: '🏏' },
-      { key: 'cycling_tour_de_france', label: 'Cycling', icon: '🚴' },
-      { key: 'darts_pdc', label: 'Darts', icon: '🎯' },
-      { key: 'golf_pga', label: 'Golf', icon: '⛳' },
-      { key: 'handball_euro', label: 'Handball', icon: '🤾' },
-      { key: 'lacrosse_nll', label: 'Lacrosse', icon: '🥍' },
-      { key: 'motorsport_f1', label: 'Motorsport', icon: '🏎️' },
-      { key: 'tennis_atp', label: 'Tennis', icon: '🎾' },
-      { key: 'volleyball_ncaav', label: 'Volleyball', icon: '🏐' },
+      { key: 'baseball_mlb', label: 'MLB', icon: '⚾' },
+      { key: 'basketball_ncaab', label: 'NCAAB', icon: '🏀' },
     ],
   },
 ];
@@ -68,13 +40,9 @@ const NAV_SECTIONS = [
 const API_SPORTS = new Set([
   'basketball_nba',
   'ice_hockey_nhl',
-  'baseball_mlb',
   'americanfootball_nfl',
-  'americanfootball_ncaaf',
-  'mma_mixed_martial_arts',
+  'baseball_mlb',
   'basketball_ncaab',
-  'basketball_ncaaw',
-  'soccer_epl',
 ]);
 
 const BOOKS = [
