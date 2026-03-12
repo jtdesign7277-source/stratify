@@ -273,23 +273,23 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                                                                         <span className={`${WATCHLIST_TICKER_TEXT_CLASS} font-bold text-white`}>{stock.symbol}</span>span>
                                                                         <p className="text-xs text-zinc-500 truncate max-w-[140px]">{companyName}</p>p>
                                                         </div>div>
-                                                        <div className="text-right flex flex-col items-end gap-1">
+                                                        <div className="text-right flex flex-col items-end gap-0.5">
                                                           {isLoading && !hasData ? (
                                                               <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-400 rounded-full animate-spin" />
                                                             ) : (
                                                               <>
-                                                                <p className={`${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>
+                                                                <p className={`${WATCHLIST_TICKER_TEXT_CLASS} font-bold text-white tabular-nums`}>
                                                                   {isCrypto ? formatCryptoPrice(price) : formatStockPrice(price)}
                                                                 </p>
                                                                 {changePercentDisplay !== null && (
-                                                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold text-white ${change >= 0 ? 'bg-emerald-600' : 'bg-red-600'}`}>
-                                                                    {change >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%
+                                                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold text-white ${changePercent >= 0 ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                                                                    {changePercent >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%
                                                                   </span>
                                                                 )}
-                                                                {showExtendedHours && (
-                                                                  <div className="flex items-center gap-1 text-[11px] text-zinc-400">
-                                                                    <span className="text-purple-400">🌙</span>
-                                                                    <span>{extendedPercentLabel}</span>
+                                                                {showExtendedHours && extendedPercentLabel && (
+                                                                  <div className="flex items-center gap-1 text-[11px]">
+                                                                    <span>🌙</span>
+                                                                    <span className={extendedChangePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}>{extendedPercentLabel}</span>
                                                                   </div>
                                                                 )}
                                                               </>

@@ -218,6 +218,7 @@ function mapQuoteToSnapshot(quote) {
   );
 
   return {
+    name: quote?.name || null,
     latestTrade: {
       p: latestPrice,
       t: tradeTimestamp,
@@ -473,6 +474,7 @@ function buildBar(symbol, snapshot, sessionState) {
 
   return {
     symbol,
+    name: snapshot?.name || null,
     price,
     open: toNumberOrZero(daily.o),
     high: toNumberOrZero(daily.h),
