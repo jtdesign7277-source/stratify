@@ -210,7 +210,7 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
   const [activeLeague, setActiveLeague] = useState('nba');
 
   const hasLiveGame = events.some((e) => isGameLive(e.commence_time));
-  const sportParamMap = { nba: 'basketball_nba', nhl: 'ice_hockey_nhl', nfl: 'americanfootball_nfl', mlb: 'baseball_mlb' };
+  const sportParamMap = { nba: 'basketball_nba', nhl: 'ice_hockey_nhl', nfl: 'americanfootball_nfl', mlb: 'baseball_mlb', ncaab: 'basketball_ncaab' };
   const sportParam = sportParamMap[activeLeague] || 'basketball_nba';
 
   useEffect(() => {
@@ -320,6 +320,15 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         >
           <span className="inline-block mr-1.5">⚾</span>
           <span>MLB</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveLeague('ncaab')}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'ncaab' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          aria-label="NCAAB"
+        >
+          <span className="inline-block mr-1.5">🏀</span>
+          <span>NCAAB</span>
         </button>
       </div>
 
