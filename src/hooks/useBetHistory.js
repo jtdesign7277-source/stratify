@@ -35,17 +35,26 @@ export function useBetHistory() {
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchBets(userId) {
-      if (!userId || cancelled) return;
+    // Safety: never stay loading longer than 5s
+    const timeout = setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 5000);
+
+    (async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (!session?.user?.id) {
+          setBets([]);
+          setLoading(false);
+          return;
+        }
         const { data, error: queryError } = await supabase
           .from('paper_sports_bets')
           .select('*')
-          .eq('user_id', userId)
+          .eq('user_id', session.user.id)
           .order('created_at', { ascending: false });
-
         if (cancelled) return;
-
         if (queryError) {
           setError(queryError.message);
         } else {
@@ -56,39 +65,11 @@ export function useBetHistory() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
-
-    // Try immediate session first
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return;
-      if (session?.user?.id) {
-        fetchBets(session.user.id);
-      } else {
-        // No session — show empty state immediately
-        if (!cancelled) {
-          setBets([]);
-          setLoading(false);
-        }
-      }
-    });
-
-    // Only re-fetch on actual sign-in/sign-out, skip INITIAL_SESSION
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled) return;
-      if (event === 'INITIAL_SESSION') return; // already handled by getSession above
-      if (session?.user?.id) {
-        setLoading(true);
-        setError(null);
-        fetchBets(session.user.id);
-      } else {
-        setBets([]);
-        setLoading(false);
-      }
-    });
+    })();
 
     return () => {
       cancelled = true;
-      subscription?.unsubscribe();
+      clearTimeout(timeout);
     };
   }, []);
 
