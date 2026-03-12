@@ -992,7 +992,51 @@ const SPORTSBOOK_PANELS = [
   { key: 'bovada', name: 'Bovada', logo: '/logos/bovada.svg', color: '#cc0000', accent: '#cc0000', bg: 'from-[#1a0808]/60 to-transparent' },
 ];
 
-function BookGameRow({ ev, bookKey, sportKey }) {
+function BettableCell({ children, hasData, onPaperBet, onRealBet, className = '' }) {
+  const [open, setOpen] = useState(false);
+  if (!hasData) return <span className={className}>{children}</span>;
+  return (
+    <span className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className="w-full text-center hover:bg-white/[0.06] rounded px-0.5 py-0.5 transition-colors cursor-pointer"
+      >
+        {children}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute z-50 top-full mt-1 left-1/2 -translate-x-1/2 flex flex-col gap-1 bg-[#13141b] border border-white/10 rounded-xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.7)] min-w-[140px]"
+          >
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onPaperBet(); }}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-amber-400 hover:bg-amber-400/10 transition-colors whitespace-nowrap"
+            >
+              <Clipboard className="w-3.5 h-3.5" />
+              Paper Bet
+            </button>
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onRealBet(); }}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-400/10 transition-colors whitespace-nowrap"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Real Bet
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </span>
+  );
+}
+
+function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet }) {
   const book = (ev.bookmakers || []).find((b) => b.key === bookKey) || (ev.bookmakers || [])[0];
   const spreads = (book?.markets || []).find((m) => m.key === 'spreads')?.outcomes || [];
   const totals = (book?.markets || []).find((m) => m.key === 'totals')?.outcomes || [];
@@ -1006,6 +1050,23 @@ function BookGameRow({ ev, bookKey, sportKey }) {
   const awayMl = matchTeam(h2h, away);
   const homeMl = matchTeam(h2h, home);
   const noData = !book;
+
+  const sportLabel = NAV_SECTIONS.flatMap((s) => s.items).find((i) => i.key === sportKey)?.label || '';
+  const makeBet = (selection, betType, line, odds) => ({
+    selection,
+    bet_type: betType,
+    line: line != null ? String(line) : null,
+    odds,
+    book: bookName,
+    bookKey,
+    sport: sportKey,
+    league: sportLabel,
+    game_id: ev.id,
+    home_team: home,
+    away_team: away,
+    stake: 100,
+  });
+  const openReal = () => { window.open(getAffiliateUrl(bookKey, sportKey), '_blank'); };
 
   if (noData) {
     return (
@@ -1030,15 +1091,30 @@ function BookGameRow({ ev, bookKey, sportKey }) {
           <TeamLogo teamName={away} sportKey={sportKey} size={20} />
           <span className="text-sm text-white font-medium truncate">{teamAbbrev(away)}</span>
         </div>
-        <span className="text-sm font-mono text-center text-gray-300">
+        <BettableCell
+          hasData={!!awaySpread}
+          onPaperBet={() => onPaperBet(makeBet(away, 'spread', awaySpread?.point, awaySpread?.price))}
+          onRealBet={openReal}
+          className="text-sm font-mono text-center text-gray-300"
+        >
           {awaySpread ? <>{fmtPt(awaySpread.point)} <span className="text-gray-500">{fmtAm(awaySpread.price)}</span></> : '—'}
-        </span>
-        <span className="text-sm font-mono text-center text-gray-300">
+        </BettableCell>
+        <BettableCell
+          hasData={!!over}
+          onPaperBet={() => onPaperBet(makeBet('Over', 'total', over?.point, over?.price))}
+          onRealBet={openReal}
+          className="text-sm font-mono text-center text-gray-300"
+        >
           {over ? <>O{over.point} <span className="text-gray-500">{fmtAm(over.price)}</span></> : '—'}
-        </span>
-        <span className={`text-sm font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+        </BettableCell>
+        <BettableCell
+          hasData={!!awayMl}
+          onPaperBet={() => onPaperBet(makeBet(away, 'moneyline', null, awayMl?.price))}
+          onRealBet={openReal}
+          className={`text-sm font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}
+        >
           {awayMl ? fmtAm(awayMl.price) : '—'}
-        </span>
+        </BettableCell>
       </div>
       {/* Home */}
       <div className="grid grid-cols-[1fr_90px_90px_58px] gap-1 items-center mt-1">
@@ -1046,21 +1122,36 @@ function BookGameRow({ ev, bookKey, sportKey }) {
           <TeamLogo teamName={home} sportKey={sportKey} size={20} />
           <span className="text-sm text-white font-medium truncate">{teamAbbrev(home)}</span>
         </div>
-        <span className="text-sm font-mono text-center text-gray-300">
+        <BettableCell
+          hasData={!!homeSpread}
+          onPaperBet={() => onPaperBet(makeBet(home, 'spread', homeSpread?.point, homeSpread?.price))}
+          onRealBet={openReal}
+          className="text-sm font-mono text-center text-gray-300"
+        >
           {homeSpread ? <>{fmtPt(homeSpread.point)} <span className="text-gray-500">{fmtAm(homeSpread.price)}</span></> : '—'}
-        </span>
-        <span className="text-sm font-mono text-center text-gray-300">
+        </BettableCell>
+        <BettableCell
+          hasData={!!under}
+          onPaperBet={() => onPaperBet(makeBet('Under', 'total', under?.point, under?.price))}
+          onRealBet={openReal}
+          className="text-sm font-mono text-center text-gray-300"
+        >
           {under ? <>U{under.point} <span className="text-gray-500">{fmtAm(under.price)}</span></> : '—'}
-        </span>
-        <span className={`text-sm font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
+        </BettableCell>
+        <BettableCell
+          hasData={!!homeMl}
+          onPaperBet={() => onPaperBet(makeBet(home, 'moneyline', null, homeMl?.price))}
+          onRealBet={openReal}
+          className={`text-sm font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}
+        >
           {homeMl ? fmtAm(homeMl.price) : '—'}
-        </span>
+        </BettableCell>
       </div>
     </div>
   );
 }
 
-function LiveInGameLines({ sportKey }) {
+function LiveInGameLines({ sportKey, onPaperBet }) {
   const [liveEvents, setLiveEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1132,7 +1223,7 @@ function LiveInGameLines({ sportKey }) {
             ) : (
               <div className="flex flex-col gap-1">
                 {liveEvents.map((ev) => (
-                  <BookGameRow key={ev.id} ev={ev} bookKey={sb.key} sportKey={sportKey} />
+                  <BookGameRow key={ev.id} ev={ev} bookKey={sb.key} bookName={sb.name} sportKey={sportKey} onPaperBet={onPaperBet} />
                 ))}
               </div>
             )}
@@ -1406,7 +1497,7 @@ export default function SportsOddsPage() {
       </div>
 
       {/* Live In-Game Lines */}
-      <LiveInGameLines sportKey={activeSportKey} />
+      <LiveInGameLines sportKey={activeSportKey} onPaperBet={addBetToSlip} />
 
       {/* Main: Left nav + Center + Right sidebar */}
       <div className="flex gap-3 flex-1 min-h-0">
