@@ -431,8 +431,16 @@ function buildBar(symbol, snapshot, sessionState) {
 
   if (sessionState.isPreMarket) {
     price = latestPrice || 0;
-    change = dailyClose && prevClose ? dailyClose - prevClose : 0;
-    changePercent = prevClose && dailyClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
+
+    // Show only pre-market change (from previous close to current price),
+    // NOT the combined previous-session + pre-market total.
+    if (extendedPercentChange != null) {
+      change = extendedChange || 0;
+      changePercent = extendedPercentChange;
+    } else {
+      change = dailyClose && prevClose ? dailyClose - prevClose : 0;
+      changePercent = prevClose && dailyClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
+    }
 
     if (latestPrice && dailyClose) {
       preMarketPrice = latestPrice;
@@ -445,8 +453,16 @@ function buildBar(symbol, snapshot, sessionState) {
     }
   } else if (sessionState.isAfterHours) {
     price = dailyClose || latestPrice || 0;
-    change = prevClose ? dailyClose - prevClose : 0;
-    changePercent = prevClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
+
+    // Show only after-hours change (from regular close to current AH price),
+    // NOT the combined regular-session + after-hours total.
+    if (extendedPercentChange != null) {
+      change = extendedChange || 0;
+      changePercent = extendedPercentChange;
+    } else {
+      change = prevClose ? dailyClose - prevClose : 0;
+      changePercent = prevClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
+    }
 
     if (latestPrice && dailyClose && latestPrice !== dailyClose) {
       afterHoursPrice = latestPrice;
