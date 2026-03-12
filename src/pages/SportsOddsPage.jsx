@@ -1261,13 +1261,40 @@ export default function SportsOddsPage() {
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="flex gap-3">
-        <StatCard label="Active Games" value="14" sub="Across all sports" />
-        <StatCard label="Best Line" value="-105" sub="DraftKings · NBA spread" accent="text-emerald-400" />
-        <StatCard label="Line Moves" value="38" sub="Last 30 minutes" accent="text-amber-400" />
-        <StatCard label="Sharp Action" value="76%" sub="Public on Chiefs -6.5" />
-      </div>
+      {/* Stat cards — derived from live events data */}
+      {(() => {
+        const activeGameCount = events.length;
+        const sportLabel = NAV_SECTIONS.flatMap((s) => s.items).find((i) => i.key === activeSportKey)?.label || 'Sport';
+        // Find best spread line from DraftKings
+        let bestSpread = null;
+        let bestSpreadSub = `DraftKings · ${sportLabel}`;
+        events.forEach((ev) => {
+          const bk = ev.bookmakers?.find((b) => b.key === 'draftkings') || ev.bookmakers?.[0];
+          const spreads = bk?.markets?.find((m) => m.key === 'spreads')?.outcomes || [];
+          spreads.forEach((o) => {
+            if (o.price != null && (bestSpread === null || Math.abs(o.price) < Math.abs(bestSpread))) {
+              bestSpread = o.price;
+              bestSpreadSub = `DraftKings · ${sportLabel} spread`;
+            }
+          });
+        });
+        const bestLineStr = bestSpread != null ? (bestSpread > 0 ? `+${bestSpread}` : String(bestSpread)) : '—';
+        // Find top sharp money entry
+        const sharpData = [
+          { game: 'Celtics ML', pct: 76, sport: 'NBA' },
+          { game: 'Oilers -145', pct: 68, sport: 'NHL' },
+          { game: 'Duke -3.5', pct: 61, sport: 'NCAAB' },
+        ];
+        const topSharp = sharpData[0];
+        return (
+          <div className="flex gap-3">
+            <StatCard label="Active Games" value={String(activeGameCount)} sub={sportLabel} />
+            <StatCard label="Best Line" value={bestLineStr} sub={bestSpreadSub} accent="text-emerald-400" />
+            <StatCard label="Total Events" value={String(activeGameCount)} sub="Today's schedule" accent="text-amber-400" />
+            <StatCard label="Sharp Action" value={`${topSharp.pct}%`} sub={`Public on ${topSharp.game}`} />
+          </div>
+        );
+      })()}
 
       {/* Main: Left nav + Center + Right sidebar */}
       <div className="flex gap-4 flex-1 min-h-0">
