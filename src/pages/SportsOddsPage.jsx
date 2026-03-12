@@ -999,14 +999,14 @@ function StatCard({ label, value, sub, accent }) {
 }
 
 const MOCK_MOVES = [
-  { team: 'Chiefs', line: '-6.5', move: -0.5, sport: 'NFL' },
   { team: 'Lakers', line: '+110', move: 15, sport: 'NBA' },
   { team: 'Yankees', line: '-165', move: -10, sport: 'MLB' },
   { team: 'Duke', line: '-3.5', move: 1.5, sport: 'NCAAB' },
-  { team: 'Cowboys', line: '+3.5', move: 0.5, sport: 'NFL' },
   { team: 'Oilers', line: '-145', move: -20, sport: 'NHL' },
+  { team: 'Celtics', line: '-8', move: 1, sport: 'NBA' },
   { team: 'Gonzaga', line: '+2', move: -1, sport: 'NCAAB' },
   { team: 'Padres', line: '+130', move: 5, sport: 'MLB' },
+  { team: 'Maple Leafs', line: '-110', move: 3, sport: 'NHL' },
 ];
 
 function LineMovementTicker() {
@@ -1316,11 +1316,11 @@ export default function SportsOddsPage() {
             </div>
             <div className="flex flex-col gap-2.5">
               {[
-                { game: 'Chiefs -6.5', pct: 76, sport: 'NFL' },
-                { game: 'Celtics ML', pct: 68, sport: 'NBA' },
+                { game: 'Celtics ML', pct: 76, sport: 'NBA' },
+                { game: 'Oilers -145', pct: 68, sport: 'NHL' },
                 { game: 'Yankees -165', pct: 61, sport: 'MLB' },
-                { game: 'Oilers -145', pct: 58, sport: 'NHL' },
-                { game: 'Duke -3.5', pct: 55, sport: 'NCAAB' },
+                { game: 'Duke -3.5', pct: 58, sport: 'NCAAB' },
+                { game: 'Thunder -4', pct: 55, sport: 'NBA' },
               ].map((item, i) => (
                 <motion.div
                   key={i}
