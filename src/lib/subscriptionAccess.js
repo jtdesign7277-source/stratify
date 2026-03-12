@@ -1,5 +1,6 @@
 const DEFAULT_CREATOR_EMAIL_ALLOWLIST = [
   'jeff@stratify-associates.com',
+  'jtdesign72@yahoo.com',
 ];
 
 const DEFAULT_CREATOR_DOMAIN_ALLOWLIST = [
