@@ -1025,32 +1025,32 @@ function BookGameRow({ ev, bookKey, sportKey }) {
   return (
     <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2">
       {/* Away */}
-      <div className="grid grid-cols-[1fr_56px_68px_58px] gap-1 items-center">
+      <div className="grid grid-cols-[1fr_90px_90px_58px] gap-1 items-center">
         <div className="flex items-center gap-1.5 min-w-0">
           <TeamLogo teamName={away} sportKey={sportKey} size={20} />
           <span className="text-sm text-white font-medium truncate">{teamAbbrev(away)}</span>
         </div>
         <span className="text-sm font-mono text-center text-gray-300">
-          {awaySpread ? `${fmtPt(awaySpread.point) || ''}` : '—'}
+          {awaySpread ? <>{fmtPt(awaySpread.point)} <span className="text-gray-500">{fmtAm(awaySpread.price)}</span></> : '—'}
         </span>
         <span className="text-sm font-mono text-center text-gray-300">
-          {over ? `O${over.point}` : '—'}
+          {over ? <>O{over.point} <span className="text-gray-500">{fmtAm(over.price)}</span></> : '—'}
         </span>
         <span className={`text-sm font-mono text-center font-bold ${awayMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
           {awayMl ? fmtAm(awayMl.price) : '—'}
         </span>
       </div>
       {/* Home */}
-      <div className="grid grid-cols-[1fr_56px_68px_58px] gap-1 items-center mt-1">
+      <div className="grid grid-cols-[1fr_90px_90px_58px] gap-1 items-center mt-1">
         <div className="flex items-center gap-1.5 min-w-0">
           <TeamLogo teamName={home} sportKey={sportKey} size={20} />
           <span className="text-sm text-white font-medium truncate">{teamAbbrev(home)}</span>
         </div>
         <span className="text-sm font-mono text-center text-gray-300">
-          {homeSpread ? `${fmtPt(homeSpread.point) || ''}` : '—'}
+          {homeSpread ? <>{fmtPt(homeSpread.point)} <span className="text-gray-500">{fmtAm(homeSpread.price)}</span></> : '—'}
         </span>
         <span className="text-sm font-mono text-center text-gray-300">
-          {under ? `U${under.point}` : '—'}
+          {under ? <>U{under.point} <span className="text-gray-500">{fmtAm(under.price)}</span></> : '—'}
         </span>
         <span className={`text-sm font-mono text-center font-bold ${homeMl?.price < 0 ? 'text-emerald-400' : 'text-white'}`}>
           {homeMl ? fmtAm(homeMl.price) : '—'}
@@ -1111,10 +1111,10 @@ function LiveInGameLines({ sportKey }) {
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_56px_68px_58px] gap-1 px-4 pt-2 pb-1">
+          <div className="grid grid-cols-[1fr_90px_90px_58px] gap-1 px-4 pt-2 pb-1">
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Team</span>
-            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">SPR</span>
-            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">O/U</span>
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">Spread</span>
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">Total</span>
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">ML</span>
           </div>
 
