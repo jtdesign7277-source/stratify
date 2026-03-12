@@ -1,7 +1,7 @@
 // api/paper-trade.js — Execute a paper trade (buy/sell)
 // Grabs live price from Redis cache, validates, executes via Supabase RPC
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase.js';
 import {
   PAPER_BUY_NOTIONAL_LIMIT_USD,
   buildPaperUsageSnapshot,
@@ -12,11 +12,6 @@ import {
   incrementPaperBuyNotionalUsageUsd,
   isPaidStatus,
 } from './lib/pro-plus.js';
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 const redis = getRedisClient();
 
@@ -34,7 +29,10 @@ export default async function handler(req, res) {
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+    if (authError || !user) {
+      console.error('paper-trade auth failed:', authError?.message || 'no user');
+      return res.status(401).json({ error: 'Invalid token' });
+    }
 
     const { symbol, side, quantity } = req.body;
     const normalizedSide = String(side || '').toLowerCase();

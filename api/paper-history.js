@@ -1,12 +1,7 @@
 // api/paper-history.js — Get user's trade history
 // Returns paginated list of all executed trades
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { supabase } from './lib/supabase.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,7 +15,10 @@ export default async function handler(req, res) {
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+    if (authError || !user) {
+      console.error('paper-history auth failed:', authError?.message || 'no user');
+      return res.status(401).json({ error: 'Invalid token' });
+    }
 
     // Pagination params
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);

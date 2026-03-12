@@ -1,13 +1,8 @@
 // api/paper-portfolio.js — Get user's paper trading portfolio
 // Returns cash balance, positions with live P&L, and total account value
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase.js';
 import { Redis } from '@upstash/redis';
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -26,7 +21,10 @@ export default async function handler(req, res) {
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+    if (authError || !user) {
+      console.error('paper-portfolio auth failed:', authError?.message || 'no user');
+      return res.status(401).json({ error: 'Invalid token' });
+    }
 
     // Get portfolio
     const { data: portfolio, error: portError } = await supabase
