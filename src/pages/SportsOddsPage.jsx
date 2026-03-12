@@ -1036,7 +1036,15 @@ function BettableCell({ children, hasData, onPaperBet, onRealBet, className = ''
   );
 }
 
-function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet }) {
+const ESPN_SCORES_MAP = {
+  basketball_nba: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+  ice_hockey_nhl: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
+  americanfootball_nfl: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
+  baseball_mlb: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
+  basketball_ncaab: 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
+};
+
+function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet, scores }) {
   const book = (ev.bookmakers || []).find((b) => b.key === bookKey) || (ev.bookmakers || [])[0];
   const spreads = (book?.markets || []).find((m) => m.key === 'spreads')?.outcomes || [];
   const totals = (book?.markets || []).find((m) => m.key === 'totals')?.outcomes || [];
@@ -1050,6 +1058,8 @@ function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet }) {
   const awayMl = matchTeam(h2h, away);
   const homeMl = matchTeam(h2h, home);
   const noData = !book;
+  const awayScore = scores?.[away?.toLowerCase()]?.score;
+  const homeScore = scores?.[home?.toLowerCase()]?.score;
 
   const sportLabel = NAV_SECTIONS.flatMap((s) => s.items).find((i) => i.key === sportKey)?.label || '';
   const makeBet = (selection, betType, line, odds) => ({
@@ -1086,11 +1096,12 @@ function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet }) {
   return (
     <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2">
       {/* Away */}
-      <div className="grid grid-cols-[1fr_90px_90px_58px] gap-1 items-center">
+      <div className="grid grid-cols-[1fr_36px_90px_90px_58px] gap-1 items-center">
         <div className="flex items-center gap-1.5 min-w-0">
           <TeamLogo teamName={away} sportKey={sportKey} size={20} />
           <span className="text-sm text-white font-medium truncate">{teamAbbrev(away)}</span>
         </div>
+        <span className="text-sm font-mono text-center font-bold text-white">{awayScore ?? '—'}</span>
         <BettableCell
           hasData={!!awaySpread}
           onPaperBet={() => onPaperBet(makeBet(away, 'spread', awaySpread?.point, awaySpread?.price))}
@@ -1117,11 +1128,12 @@ function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet }) {
         </BettableCell>
       </div>
       {/* Home */}
-      <div className="grid grid-cols-[1fr_90px_90px_58px] gap-1 items-center mt-1">
+      <div className="grid grid-cols-[1fr_36px_90px_90px_58px] gap-1 items-center mt-1">
         <div className="flex items-center gap-1.5 min-w-0">
           <TeamLogo teamName={home} sportKey={sportKey} size={20} />
           <span className="text-sm text-white font-medium truncate">{teamAbbrev(home)}</span>
         </div>
+        <span className="text-sm font-mono text-center font-bold text-white">{homeScore ?? '—'}</span>
         <BettableCell
           hasData={!!homeSpread}
           onPaperBet={() => onPaperBet(makeBet(home, 'spread', homeSpread?.point, homeSpread?.price))}
@@ -1154,6 +1166,7 @@ function BookGameRow({ ev, bookKey, bookName, sportKey, onPaperBet }) {
 function LiveInGameLines({ sportKey, onPaperBet }) {
   const [liveEvents, setLiveEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scores, setScores] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -1174,6 +1187,33 @@ function LiveInGameLines({ sportKey, onPaperBet }) {
         .catch(() => { if (!cancelled) { setLiveEvents([]); setLoading(false); } });
     doFetch();
     const interval = setInterval(doFetch, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [sportKey]);
+
+  // ESPN live scores
+  useEffect(() => {
+    let cancelled = false;
+    const url = ESPN_SCORES_MAP[sportKey];
+    if (!url) return;
+    const fetchScores = () => {
+      fetch(url)
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          const map = {};
+          (data?.events || []).forEach((ev) => {
+            const comp = ev.competitions?.[0];
+            (comp?.competitors || []).forEach((c) => {
+              const name = c.team?.displayName;
+              if (name) map[name.toLowerCase()] = { score: c.score || '0', isLive: comp?.status?.type?.state === 'in' };
+            });
+          });
+          setScores(map);
+        })
+        .catch(() => {});
+    };
+    fetchScores();
+    const interval = setInterval(fetchScores, 30000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [sportKey]);
 
@@ -1202,8 +1242,9 @@ function LiveInGameLines({ sportKey, onPaperBet }) {
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_90px_90px_58px] gap-1 px-4 pt-2 pb-1">
+          <div className="grid grid-cols-[1fr_36px_90px_90px_58px] gap-1 px-4 pt-2 pb-1">
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Team</span>
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">Score</span>
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">Spread</span>
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">Total</span>
             <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider text-center">ML</span>
@@ -1223,7 +1264,7 @@ function LiveInGameLines({ sportKey, onPaperBet }) {
             ) : (
               <div className="flex flex-col gap-1">
                 {liveEvents.map((ev) => (
-                  <BookGameRow key={ev.id} ev={ev} bookKey={sb.key} bookName={sb.name} sportKey={sportKey} onPaperBet={onPaperBet} />
+                  <BookGameRow key={ev.id} ev={ev} bookKey={sb.key} bookName={sb.name} sportKey={sportKey} onPaperBet={onPaperBet} scores={scores} />
                 ))}
               </div>
             )}
