@@ -3,8 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Activity } from 'lucide-react';
 
 const ODDS_API = '/api/odds/events';
-const SCORES_API = '/api/odds/scores';
 const DRAFTKINGS_URL = 'https://draftkings.com';
+
+// ESPN scoreboard — same source as the top ESPN ticker pills
+const ESPN_ENDPOINTS = {
+  nba: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+  nhl: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
+  nfl: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
+  mlb: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
+  ncaab: 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
+};
 // Same book resolution as Sports page
 function getBook(bookmakers, preferredKey = 'draftkings') {
   const books = bookmakers || [];
@@ -203,12 +211,11 @@ const itemVariants = {
   },
 };
 
-function getScoreForTeam(scores, teamName) {
-  if (!Array.isArray(scores)) return null;
-  const s = scores.find(
-    (sc) => sc.name && String(sc.name).trim().toLowerCase() === String(teamName).trim().toLowerCase()
-  );
-  return s?.score ?? null;
+function getEspnScore(scoresMap, teamName) {
+  if (!scoresMap || !teamName) return null;
+  const key = String(teamName).trim().toLowerCase();
+  const entry = scoresMap[key];
+  return entry || null;
 }
 
 export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = false, onLiveLinesExpand, onLiveLinesCollapse, isBottomPanelExpanded }) {
@@ -263,17 +270,34 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
     return () => { cancelled = true; };
   }, [activeLeague]);
 
-  // Fetch live scores and poll every 30s
+  // Fetch live scores from ESPN (same source as top ESPN ticker) and poll every 30s
   useEffect(() => {
     let cancelled = false;
+    const espnUrl = ESPN_ENDPOINTS[activeLeague];
+    if (!espnUrl) return;
     const fetchScores = () => {
-      fetch(`${SCORES_API}?sport=${sportParam}`)
+      fetch(espnUrl)
         .then((r) => r.json())
         .then((data) => {
-          if (cancelled || !Array.isArray(data)) return;
+          if (cancelled) return;
+          const espnEvents = data?.events || [];
+          // Build map: key = lowercase team displayName, value = { score, isLive }
+          // We key by team name so we can match against The Odds API team names
           const map = {};
-          data.forEach((ev) => {
-            if (ev.id && ev.scores) map[ev.id] = ev.scores;
+          espnEvents.forEach((ev) => {
+            const comp = ev.competitions?.[0];
+            const competitors = comp?.competitors || [];
+            const status = comp?.status?.type?.state; // 'pre', 'in', 'post'
+            competitors.forEach((c) => {
+              const fullName = c.team?.displayName;
+              if (fullName) {
+                map[fullName.toLowerCase()] = {
+                  score: c.score || '0',
+                  isLive: status === 'in',
+                  isFinal: status === 'post',
+                };
+              }
+            });
           });
           setScoresMap(map);
         })
@@ -425,10 +449,11 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                     const homeTeam = event.home_team || 'Home';
                     const awayTeam = event.away_team || 'Away';
                     const timeStr = formatTime(event.commence_time);
-                    const live = isGameLive(event.commence_time);
-                    const scores = scoresMap[event.id];
-                    const awayScore = live ? getScoreForTeam(scores, awayTeam) : null;
-                    const homeScore = live ? getScoreForTeam(scores, homeTeam) : null;
+                    const awayEspn = getEspnScore(scoresMap, awayTeam);
+                    const homeEspn = getEspnScore(scoresMap, homeTeam);
+                    const live = (awayEspn?.isLive || homeEspn?.isLive) || isGameLive(event.commence_time);
+                    const awayScore = live ? (awayEspn?.score ?? null) : null;
+                    const homeScore = live ? (homeEspn?.score ?? null) : null;
 
                     const mlOutcomes = book ? getMoneylineOutcomes(book) : [];
                     const awayMl = matchOutcome(mlOutcomes, awayTeam);
