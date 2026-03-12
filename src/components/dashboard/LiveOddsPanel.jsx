@@ -331,15 +331,15 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
       {/* Column headers: Spread, Moneyline, Total */}
       <div className="shrink-0 grid grid-cols-[1fr_auto] gap-2 px-3 pb-1">
         <div />
-        <div className="flex gap-1.5 w-[180px]">
+        <div className="flex gap-3 w-[280px]">
           <div className="flex-1 text-center">
-            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Spread</span>
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Spread</span>
           </div>
           <div className="flex-1 text-center">
-            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Moneyline</span>
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Moneyline</span>
           </div>
           <div className="flex-1 text-center">
-            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total</span>
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Total</span>
           </div>
         </div>
       </div>
@@ -417,24 +417,24 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                               <span className="text-sm font-medium text-white truncate">{homeTeam}</span>
                             </div>
                           </div>
-                          <div className="flex gap-1.5 w-[180px] flex-shrink-0">
+                          <div className="flex gap-3 w-[280px] flex-shrink-0">
                             <div className="flex-1 flex flex-col gap-0.5 text-center">
-                              <span className="text-[11px] font-medium text-white">{spreadPt(awaySpread) ?? '—'}</span>
-                              <span className="text-[10px] font-mono text-gray-400">{fmt(awaySpread?.price)}</span>
-                              <span className="text-[11px] font-medium text-white mt-0.5">{spreadPt(homeSpread) ?? '—'}</span>
-                              <span className="text-[10px] font-mono text-gray-400">{fmt(homeSpread?.price)}</span>
+                              <span className="text-[13px] font-semibold text-white leading-tight">{spreadPt(awaySpread) ?? '—'}</span>
+                              <span className="text-[12px] font-mono text-gray-400">{fmt(awaySpread?.price)}</span>
+                              <span className="text-[13px] font-semibold text-white leading-tight mt-1">{spreadPt(homeSpread) ?? '—'}</span>
+                              <span className="text-[12px] font-mono text-gray-400">{fmt(homeSpread?.price)}</span>
                             </div>
                             <div className="flex-1 flex flex-col gap-0.5 text-center">
-                              <span className="text-[11px] text-white/80">—</span>
-                              <span className="text-[10px] font-mono text-emerald-400">{fmt(awayMl?.price)}</span>
-                              <span className="text-[11px] text-white/80 mt-0.5">—</span>
-                              <span className="text-[10px] font-mono text-emerald-400">{fmt(homeMl?.price)}</span>
+                              <span className="text-[12px] text-white/60">—</span>
+                              <span className="text-[13px] font-mono font-semibold text-emerald-400">{fmt(awayMl?.price)}</span>
+                              <span className="text-[12px] text-white/60 mt-1">—</span>
+                              <span className="text-[13px] font-mono font-semibold text-emerald-400">{fmt(homeMl?.price)}</span>
                             </div>
                             <div className="flex-1 flex flex-col gap-0.5 text-center">
-                              <span className="text-[11px] font-medium text-white">{totals.point != null ? `O ${totals.point}` : '—'}</span>
-                              <span className="text-[10px] font-mono text-gray-400">{fmt(totals.over?.price)}</span>
-                              <span className="text-[11px] font-medium text-white mt-0.5">{totals.point != null ? `U ${totals.point}` : '—'}</span>
-                              <span className="text-[10px] font-mono text-gray-400">{fmt(totals.under?.price)}</span>
+                              <span className="text-[13px] font-semibold text-white leading-tight">{totals.point != null ? `O ${totals.point}` : '—'}</span>
+                              <span className="text-[12px] font-mono text-gray-400">{fmt(totals.over?.price)}</span>
+                              <span className="text-[13px] font-semibold text-white leading-tight mt-1">{totals.point != null ? `U ${totals.point}` : '—'}</span>
+                              <span className="text-[12px] font-mono text-gray-400">{fmt(totals.under?.price)}</span>
                             </div>
                           </div>
                         </div>
