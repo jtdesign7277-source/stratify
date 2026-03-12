@@ -1548,7 +1548,7 @@ function StratifyAppContent() {
           </div>
         </div>
       </div>
-    ) : !isProUser ? (
+    ) : !isProUser && !subscriptionLoading ? (
       <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
         <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a1220] p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.4)]">
           <h1 className="text-2xl font-semibold">Complete Your Stratify Subscription</h1>
