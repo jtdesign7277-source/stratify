@@ -48,10 +48,11 @@ function NasdaqLogoIcon() {
 
 export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToLanding }) {
   const [mode, setMode] = useState(initialMode);
-  const [email, setEmail] = useState('');
+  const savedEmail = typeof window !== 'undefined' ? localStorage.getItem('stratify_remembered_email') : null;
+  const [email, setEmail] = useState(savedEmail || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(Boolean(savedEmail) || true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -224,6 +225,11 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
 
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
+      if (rememberMe) {
+        localStorage.setItem('stratify_remembered_email', email);
+      } else {
+        localStorage.removeItem('stratify_remembered_email');
+      }
       onSuccess();
     } catch (submitError) {
       const msg = String(submitError?.message || 'Unable to process your request.');
@@ -498,7 +504,7 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="h-4 w-4 rounded border border-white/40 bg-white/5 accent-[#609968]"
                   />
-                  Keep me logged in for up to 30 days
+                  Remember my username &amp; password
                 </label>
               )}
 
