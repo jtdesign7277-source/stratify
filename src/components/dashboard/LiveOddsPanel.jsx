@@ -438,6 +438,11 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                     const fmt = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? formatAmerican(v) : '—');
                     const spreadPt = (o) => (o?.point != null && o.point !== '' ? (Number(o.point) > 0 ? `+${o.point}` : String(o.point)) : null);
 
+                    const awayNum = awayScore != null ? Number(awayScore) : null;
+                    const homeNum = homeScore != null ? Number(homeScore) : null;
+                    const awayWinning = awayNum != null && homeNum != null && awayNum > homeNum;
+                    const homeWinning = awayNum != null && homeNum != null && homeNum > awayNum;
+
                     return (
                       <motion.div
                         key={event.id}
@@ -450,11 +455,11 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                             <div className="flex items-center gap-2 min-w-0">
                               <TeamLogo teamName={awayTeam} league={activeLeague} />
                               <span className="text-sm font-medium text-white truncate">{awayTeam}</span>
-                              {live && awayScore != null && (
-                                <span className="text-base font-bold text-white font-mono flex-shrink-0 ml-auto mr-1">{awayScore}</span>
-                              )}
                               {live && (
                                 <span className="text-xs font-bold text-emerald-400 uppercase flex-shrink-0 bg-emerald-400/10 px-1.5 py-0.5 rounded">LIVE</span>
+                              )}
+                              {live && awayScore != null && (
+                                <span className={`text-base font-bold font-mono flex-shrink-0 ml-auto ${awayWinning ? 'text-emerald-400' : 'text-white'}`}>{awayScore}</span>
                               )}
                             </div>
                             <div className="text-xs text-gray-500 mt-0.5 pl-9">AT</div>
@@ -462,7 +467,7 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                               <TeamLogo teamName={homeTeam} league={activeLeague} />
                               <span className="text-sm font-medium text-white truncate">{homeTeam}</span>
                               {live && homeScore != null && (
-                                <span className="text-base font-bold text-white font-mono flex-shrink-0 ml-auto mr-1">{homeScore}</span>
+                                <span className={`text-base font-bold font-mono flex-shrink-0 ml-auto ${homeWinning ? 'text-emerald-400' : 'text-white'}`}>{homeScore}</span>
                               )}
                             </div>
                           </div>
