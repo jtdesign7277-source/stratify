@@ -64,14 +64,18 @@ export function useBetHistory() {
       if (session?.user?.id) {
         fetchBets(session.user.id);
       } else {
-        // No session yet — wait for auth to initialize (covers production race)
-        if (!cancelled) setLoading(false);
+        // No session — show empty state immediately
+        if (!cancelled) {
+          setBets([]);
+          setLoading(false);
+        }
       }
     });
 
-    // Listen for auth changes — re-fetch when user signs in
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Only re-fetch on actual sign-in/sign-out, skip INITIAL_SESSION
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
+      if (event === 'INITIAL_SESSION') return; // already handled by getSession above
       if (session?.user?.id) {
         setLoading(true);
         setError(null);

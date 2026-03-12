@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity } from 'lucide-react';
+import { Activity, ClipboardList, X } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
+import { calcPayout } from '../../lib/sportsUtils';
 
 const ODDS_API = '/api/odds/events';
 const DRAFTKINGS_URL = 'https://draftkings.com';
@@ -257,8 +259,84 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
   const [error, setError] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeLeague, setActiveLeague] = useState('nba');
+  const [activeTab, setActiveTab] = useState('lines'); // 'lines' or 'slip'
+  const [slip, setSlip] = useState([]);
+  const [toast, setToast] = useState(null);
 
-  const hasLiveGame = events.some((e) => isGameLive(e.commence_time));
+  const addBetToSlip = useCallback((payload) => {
+    setSlip((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        team: payload.selection,
+        betType: payload.bet_type,
+        selection: payload.selection,
+        line: payload.line,
+        odds: payload.odds,
+        book: payload.book,
+        stake: 100,
+        sport: payload.sport,
+        league: payload.league,
+        home_team: payload.home_team,
+        away_team: payload.away_team,
+        game_id: payload.game_id,
+      },
+    ]);
+    setActiveTab('slip');
+  }, []);
+
+  const handleSlipStakeChange = useCallback((id, value) => {
+    setSlip((prev) => prev.map((b) => (b.id === id ? { ...b, stake: Math.max(1, Number(value) || 0) } : b)));
+  }, []);
+  const handleSlipRemove = useCallback((id) => setSlip((prev) => prev.filter((b) => b.id !== id)), []);
+  const handleSlipClear = useCallback(() => setSlip([]), []);
+
+  const handlePlaceBets = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user?.id) return;
+    const { data: bankroll } = await supabase
+      .from('paper_sports_bankroll')
+      .select('balance, total_wagered')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const totalStake = slip.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+    if (!bankroll || totalStake > Number(bankroll.balance)) return;
+    const betsToInsert = slip.map((bet) => ({
+      user_id: user.id,
+      sport: bet.sport,
+      league: bet.league,
+      game_id: bet.game_id,
+      home_team: bet.home_team,
+      away_team: bet.away_team,
+      bet_type: bet.betType,
+      selection: bet.selection,
+      line: bet.line,
+      odds: bet.odds,
+      stake: Number(bet.stake),
+      potential_payout: calcPayout(Number(bet.stake), bet.odds),
+      book: bet.book,
+      status: 'pending',
+    }));
+    await supabase.from('paper_sports_bets').insert(betsToInsert);
+    await supabase
+      .from('paper_sports_bankroll')
+      .update({
+        balance: Number(bankroll.balance) - totalStake,
+        total_wagered: (Number(bankroll.total_wagered) || 0) + totalStake,
+      })
+      .eq('user_id', user.id);
+    setSlip([]);
+    setToast('Bets placed! Good luck');
+    setTimeout(() => setToast(null), 3000);
+  }, [slip]);
+
+  // Show Score column if any game is live OR final (so final scores remain visible)
+  const hasLiveGame = events.some((e) => {
+    const away = getEspnScore(scoresMap, e.away_team);
+    const home = getEspnScore(scoresMap, e.home_team);
+    return away?.isLive || home?.isLive || away?.isFinal || home?.isFinal || isGameLive(e.commence_time);
+  });
   const sportParamMap = { nba: 'basketball_nba', nhl: 'ice_hockey_nhl', nfl: 'americanfootball_nfl', mlb: 'baseball_mlb', ncaab: 'basketball_ncaab' };
   const sportParam = sportParamMap[activeLeague] || 'basketball_nba';
 
@@ -319,14 +397,16 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
           espnEvents.forEach((ev) => {
             const comp = ev.competitions?.[0];
             const competitors = comp?.competitors || [];
-            const status = comp?.status?.type?.state; // 'pre', 'in', 'post'
+            const state = comp?.status?.type?.state; // 'pre', 'in', 'post'
+            const shortDetail = comp?.status?.type?.shortDetail || ''; // "Final", "Q3 5:32", etc.
             competitors.forEach((c) => {
               const fullName = c.team?.displayName;
               if (fullName) {
                 map[fullName.toLowerCase()] = {
                   score: c.score || '0',
-                  isLive: status === 'in',
-                  isFinal: status === 'post',
+                  isLive: state === 'in',
+                  isFinal: state === 'post',
+                  statusDetail: shortDetail,
                 };
               }
             });
@@ -374,8 +454,8 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         </button>
         <button
           type="button"
-          onClick={() => setActiveLeague('nba')}
-          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nba' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          onClick={() => { setActiveLeague('nba'); setActiveTab('lines'); }}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nba' && activeTab === 'lines' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
           aria-label="NBA"
         >
           <span className="inline-block mr-1.5">🏀</span>
@@ -383,8 +463,8 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         </button>
         <button
           type="button"
-          onClick={() => setActiveLeague('nhl')}
-          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nhl' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          onClick={() => { setActiveLeague('nhl'); setActiveTab('lines'); }}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nhl' && activeTab === 'lines' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
           aria-label="NHL"
         >
           <span className="inline-block mr-1.5">🏒</span>
@@ -392,8 +472,8 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         </button>
         <button
           type="button"
-          onClick={() => setActiveLeague('nfl')}
-          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nfl' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          onClick={() => { setActiveLeague('nfl'); setActiveTab('lines'); }}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'nfl' && activeTab === 'lines' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
           aria-label="NFL"
         >
           <span className="inline-block mr-1.5">🏈</span>
@@ -401,8 +481,8 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         </button>
         <button
           type="button"
-          onClick={() => setActiveLeague('mlb')}
-          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'mlb' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          onClick={() => { setActiveLeague('mlb'); setActiveTab('lines'); }}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'mlb' && activeTab === 'lines' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
           aria-label="MLB"
         >
           <span className="inline-block mr-1.5">⚾</span>
@@ -410,18 +490,125 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
         </button>
         <button
           type="button"
-          onClick={() => setActiveLeague('ncaab')}
-          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'ncaab' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          onClick={() => { setActiveLeague('ncaab'); setActiveTab('lines'); }}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeLeague === 'ncaab' && activeTab === 'lines' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
           aria-label="NCAAB"
         >
           <span className="inline-block mr-1.5">🏀</span>
           <span>NCAAB</span>
         </button>
+        {/* Spacer to push Paper Slip to the right */}
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setActiveTab(activeTab === 'slip' ? 'lines' : 'slip')}
+          className={`relative text-xs font-medium px-3 py-2 cursor-pointer transition-colors flex-shrink-0 ${activeTab === 'slip' ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
+          aria-label="Paper Slip"
+        >
+          <ClipboardList className="w-3.5 h-3.5 inline-block mr-1 align-middle" strokeWidth={1.5} />
+          <span>Paper Slip</span>
+          {slip.length > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-[10px] font-bold text-black">{slip.length}</span>
+          )}
+        </button>
       </div>
 
-      {/* Collapsed: minimal content; expanded: full game list */}
+      {/* Collapsed: minimal content; expanded: full game list or slip */}
       {!isExpanded ? (
         <div className="flex-1 min-h-0" style={{ minHeight: 24 }} aria-hidden />
+      ) : activeTab === 'slip' ? (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {slip.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center py-12">
+              <span className="mb-2 text-2xl opacity-60">📋</span>
+              <p className="text-center text-sm text-gray-500">Click any odds to add to slip</p>
+            </div>
+          ) : (
+            <>
+              {/* Bet cards */}
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 scrollbar-hide">
+                <AnimatePresence initial={false}>
+                  {slip.map((b) => (
+                    <motion.div
+                      key={b.id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20, height: 0 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      className="mb-2 rounded-xl border border-white/[0.04] bg-black/20 p-3"
+                    >
+                      <div className="flex items-start justify-between">
+                        <span className="text-sm font-medium text-white">{b.team}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleSlipRemove(b.id)}
+                          className="text-gray-500 transition-colors hover:text-red-400"
+                          aria-label="Remove"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="font-mono text-xs text-gray-400">
+                        {b.betType} · {b.line != null ? b.line : '—'} · {Number(b.odds) > 0 ? `+${b.odds}` : b.odds}
+                      </div>
+                      <div className="text-xs text-gray-500">{b.book}</div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-gray-400">$</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={b.stake}
+                          onChange={(e) => handleSlipStakeChange(b.id, e.target.value)}
+                          className="w-24 rounded-lg border border-white/[0.04] bg-black/40 px-2 py-1 font-mono text-sm text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]"
+                        />
+                      </div>
+                      <div className="mt-1 font-mono text-xs text-emerald-400">
+                        Payout: ${calcPayout(Number(b.stake) || 0, Number(b.odds)).toFixed(2)}
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+
+              {/* Footer: totals + place bet */}
+              <div className="shrink-0 border-t border-white/[0.06] px-4 py-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">Total stake</span>
+                  <span className="font-mono text-white">${slip.reduce((s, b) => s + Number(b.stake || 0), 0).toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">Potential payout</span>
+                  <span className="font-mono text-emerald-400">${slip.reduce((s, b) => s + calcPayout(Number(b.stake) || 0, Number(b.odds)), 0).toFixed(2)}</span>
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  <motion.button
+                    type="button"
+                    onClick={handlePlaceBets}
+                    disabled={slip.length === 0}
+                    className="w-full rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  >
+                    Place Paper Bet
+                  </motion.button>
+                  <button
+                    type="button"
+                    onClick={handleSlipClear}
+                    className="w-full py-1.5 text-xs text-gray-500 transition-colors duration-200 hover:text-white"
+                  >
+                    Clear Slip
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+          {toast && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-emerald-500/90 text-black text-xs font-semibold px-4 py-2 rounded-lg shadow-lg z-50">
+              {toast}
+            </div>
+          )}
+        </div>
       ) : (
         <>
       {/* Column headers: Score (if live), Spread, Moneyline, Total */}
@@ -478,14 +665,19 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                 >
                   {events.map((event) => {
                     const book = getBook(event.bookmakers, 'draftkings');
+                    const bookName = book?.title || book?.key || 'DraftKings';
                     const homeTeam = event.home_team || 'Home';
                     const awayTeam = event.away_team || 'Away';
                     const timeStr = formatTime(event.commence_time);
                     const awayEspn = getEspnScore(scoresMap, awayTeam);
                     const homeEspn = getEspnScore(scoresMap, homeTeam);
-                    const live = (awayEspn?.isLive || homeEspn?.isLive) || isGameLive(event.commence_time);
-                    const awayScore = live ? (awayEspn?.score ?? null) : null;
-                    const homeScore = live ? (homeEspn?.score ?? null) : null;
+                    const isFinal = awayEspn?.isFinal || homeEspn?.isFinal;
+                    const isEspnLive = awayEspn?.isLive || homeEspn?.isLive;
+                    const live = isFinal ? false : (isEspnLive || (!awayEspn && !homeEspn && isGameLive(event.commence_time)));
+                    const showScores = live || isFinal;
+                    const awayScore = showScores ? (awayEspn?.score ?? null) : null;
+                    const homeScore = showScores ? (homeEspn?.score ?? null) : null;
+                    const statusDetail = awayEspn?.statusDetail || homeEspn?.statusDetail || '';
 
                     const mlOutcomes = book ? getMoneylineOutcomes(book) : [];
                     const awayMl = matchOutcome(mlOutcomes, awayTeam);
@@ -505,12 +697,15 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                     const awayWinning = awayNum != null && homeNum != null && awayNum > homeNum;
                     const homeWinning = awayNum != null && homeNum != null && homeNum > awayNum;
 
+                    // Helpers to build bet payload for this game
+                    const betBase = { sport: sportParam, league: activeLeague, home_team: homeTeam, away_team: awayTeam, game_id: event.id, book: bookName };
+                    const canBet = !isFinal; // Don't allow betting on finished games
+
                     return (
                       <motion.div
                         key={event.id}
                         variants={itemVariants}
-                        className="py-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
-                        onClick={openDraftKings}
+                        className="py-3"
                       >
                         <div className="flex items-start gap-2">
                           <div className="flex-1 min-w-0">
@@ -518,7 +713,12 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                               <TeamLogo teamName={awayTeam} league={activeLeague} />
                               <span className="text-sm font-medium text-white truncate">{awayTeam}</span>
                               {live && (
-                                <span className="text-xs font-bold text-emerald-400 uppercase flex-shrink-0 bg-emerald-400/10 px-1.5 py-0.5 rounded">LIVE</span>
+                                <span className="text-xs font-bold text-emerald-400 uppercase flex-shrink-0 bg-emerald-400/10 px-1.5 py-0.5 rounded">
+                                  LIVE{statusDetail && !statusDetail.toLowerCase().startsWith('final') ? ` · ${statusDetail}` : ''}
+                                </span>
+                              )}
+                              {isFinal && (
+                                <span className="text-xs font-bold text-gray-400 uppercase flex-shrink-0 bg-white/[0.06] px-1.5 py-0.5 rounded">FINAL</span>
                               )}
                             </div>
                             <div className="text-xs text-gray-500 mt-0.5 pl-9">AT</div>
@@ -529,32 +729,64 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
                           </div>
                           {hasLiveGame && (
                             <div className="flex flex-col items-center justify-between flex-shrink-0 w-10 self-stretch py-0.5">
-                              {live && awayScore != null ? (
+                              {showScores && awayScore != null ? (
                                 <AnimatedScore score={awayScore} isWinning={awayWinning} />
                               ) : <span />}
-                              {live && homeScore != null ? (
+                              {showScores && homeScore != null ? (
                                 <AnimatedScore score={homeScore} isWinning={homeWinning} />
                               ) : <span />}
                             </div>
                           )}
                           <div className="flex gap-3 flex-shrink-0 w-[240px]">
+                            {/* Spread column — clickable */}
                             <div className="flex-1 flex flex-col gap-0.5 text-center">
-                              <span className="text-[15px] font-semibold text-white leading-tight">{spreadPt(awaySpread) ?? '—'}</span>
-                              <span className="text-[13px] font-mono text-gray-400">{fmt(awaySpread?.price)}</span>
-                              <span className="text-[15px] font-semibold text-white leading-tight mt-1">{spreadPt(homeSpread) ?? '—'}</span>
-                              <span className="text-[13px] font-mono text-gray-400">{fmt(homeSpread?.price)}</span>
+                              <ClickableOddsCell
+                                label={spreadPt(awaySpread)}
+                                odds={awaySpread?.price}
+                                canBet={canBet && awaySpread?.price != null}
+                                onClick={() => addBetToSlip({ ...betBase, bet_type: 'spread', selection: awayTeam, line: awaySpread?.point, odds: awaySpread?.price })}
+                              />
+                              <ClickableOddsCell
+                                label={spreadPt(homeSpread)}
+                                odds={homeSpread?.price}
+                                canBet={canBet && homeSpread?.price != null}
+                                onClick={() => addBetToSlip({ ...betBase, bet_type: 'spread', selection: homeTeam, line: homeSpread?.point, odds: homeSpread?.price })}
+                                className="mt-1"
+                              />
                             </div>
+                            {/* Moneyline column — clickable */}
                             <div className="flex-1 flex flex-col gap-0.5 text-center">
-                              <span className="text-[13px] text-white/60">—</span>
-                              <span className="text-[15px] font-mono font-semibold text-emerald-400">{fmt(awayMl?.price)}</span>
-                              <span className="text-[13px] text-white/60 mt-1">—</span>
-                              <span className="text-[15px] font-mono font-semibold text-emerald-400">{fmt(homeMl?.price)}</span>
+                              <ClickableOddsCell
+                                label={null}
+                                odds={awayMl?.price}
+                                isMoneyline
+                                canBet={canBet && awayMl?.price != null}
+                                onClick={() => addBetToSlip({ ...betBase, bet_type: 'moneyline', selection: awayTeam, line: null, odds: awayMl?.price })}
+                              />
+                              <ClickableOddsCell
+                                label={null}
+                                odds={homeMl?.price}
+                                isMoneyline
+                                canBet={canBet && homeMl?.price != null}
+                                onClick={() => addBetToSlip({ ...betBase, bet_type: 'moneyline', selection: homeTeam, line: null, odds: homeMl?.price })}
+                                className="mt-1"
+                              />
                             </div>
+                            {/* Totals column — clickable */}
                             <div className="flex-1 flex flex-col gap-0.5 text-center">
-                              <span className="text-[15px] font-semibold text-white leading-tight">{totals.point != null ? `O ${totals.point}` : '—'}</span>
-                              <span className="text-[13px] font-mono text-gray-400">{fmt(totals.over?.price)}</span>
-                              <span className="text-[15px] font-semibold text-white leading-tight mt-1">{totals.point != null ? `U ${totals.point}` : '—'}</span>
-                              <span className="text-[13px] font-mono text-gray-400">{fmt(totals.under?.price)}</span>
+                              <ClickableOddsCell
+                                label={totals.point != null ? `O ${totals.point}` : null}
+                                odds={totals.over?.price}
+                                canBet={canBet && totals.over?.price != null}
+                                onClick={() => addBetToSlip({ ...betBase, bet_type: 'total', selection: 'Over', line: totals.point, odds: totals.over?.price })}
+                              />
+                              <ClickableOddsCell
+                                label={totals.point != null ? `U ${totals.point}` : null}
+                                odds={totals.under?.price}
+                                canBet={canBet && totals.under?.price != null}
+                                onClick={() => addBetToSlip({ ...betBase, bet_type: 'total', selection: 'Under', line: totals.point, odds: totals.under?.price })}
+                                className="mt-1"
+                              />
                             </div>
                           </div>
                         </div>
@@ -573,23 +805,38 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
           </AnimatePresence>
         )}
       </div>
+      {toast && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-emerald-500/90 text-black text-xs font-semibold px-4 py-2 rounded-lg shadow-lg z-50">
+          {toast}
+        </div>
+      )}
         </>
       )}
     </div>
   );
 }
 
-function OddsCell({ value, odds }) {
-  const oddsClass = odds != null && Number.isFinite(Number(odds)) ? 'text-emerald-400' : 'text-gray-500';
+function ClickableOddsCell({ label, odds, isMoneyline, canBet, onClick, className = '' }) {
+  const fmtOdds = odds != null && odds !== '' && Number.isFinite(Number(odds)) ? formatAmerican(odds) : '—';
+  const hasOdds = fmtOdds !== '—';
+
+  if (!hasOdds) {
+    return (
+      <div className={className}>
+        <span className="text-[13px] text-gray-500">—</span>
+      </div>
+    );
+  }
 
   return (
-    <motion.div
-      className="bg-[#1a1a1a] rounded-lg border border-white/[0.06] text-center px-3 py-2 text-xs"
-      whileHover={{ scale: 1.05 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+    <div
+      className={`${canBet ? 'cursor-pointer hover:bg-emerald-500/10 rounded-md transition-colors' : ''} ${className}`}
+      onClick={canBet ? (e) => { e.stopPropagation(); onClick(); } : undefined}
     >
-      {value != null && value !== '' && <div className="text-white">{value}</div>}
-      <div className={oddsClass}>{formatAmerican(odds)}</div>
-    </motion.div>
+      {label != null && <span className="text-[15px] font-semibold text-white leading-tight">{label}</span>}
+      <span className={`text-[${isMoneyline ? '15' : '13'}px] font-mono ${isMoneyline ? 'font-semibold text-emerald-400' : 'text-gray-400'}`}>
+        {fmtOdds}
+      </span>
+    </div>
   );
 }
