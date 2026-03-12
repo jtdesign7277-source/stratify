@@ -516,12 +516,12 @@ export default async function handler(req, res) {
   const cacheKeyExact = makeCacheKey(query, refreshNonce);
   const cacheKeyQueryOnly = makeCacheKey(query, null);
 
-  if (redis) {
+  // Only serve cached data when there is no refreshNonce (i.e. initial load).
+  // When refreshNonce is present the caller explicitly wants fresh results.
+  const hasRefreshNonce = refreshNonce != null && String(refreshNonce).trim() !== '';
+  if (redis && !hasRefreshNonce) {
     try {
-      let cached = await redis.get(cacheKeyExact);
-      if (!cached && cacheKeyQueryOnly !== cacheKeyExact) {
-        cached = await redis.get(cacheKeyQueryOnly);
-      }
+      const cached = await redis.get(cacheKeyQueryOnly);
       if (cached) {
         const data = typeof cached === 'string' ? JSON.parse(cached) : cached;
         res.setHeader('X-Cache', 'HIT');
