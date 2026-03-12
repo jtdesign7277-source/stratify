@@ -1510,7 +1510,7 @@ function StratifyAppContent() {
       />
     ) : currentPage === 'sports' && (!isAuthenticated || !isProUser) ? (
       <SportsOddsPage onBack={() => navigateToPage('dashboard')} />
-    ) : !isAuthenticated ? (
+    ) : !isAuthenticated && !loading ? (
       <LandingPage
         onEnter={() => openAuth('login')}
         onSignUp={() => openAuth('signup')}
