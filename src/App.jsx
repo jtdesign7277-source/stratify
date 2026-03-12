@@ -1066,6 +1066,7 @@ function StratifyAppContent() {
   const [authInitialMode, setAuthInitialMode] = useState('login');
   const [isCheckoutVerifying, setIsCheckoutVerifying] = useState(false);
   const [isSubscriptionRestoring, setIsSubscriptionRestoring] = useState(false);
+  const [subscriptionRestoreCompleted, setSubscriptionRestoreCompleted] = useState(false);
   const attemptedSubscriptionRestoreRef = useRef(new Set());
 
   useEffect(() => {
@@ -1181,6 +1182,7 @@ function StratifyAppContent() {
     setIsCheckoutRedirecting(false);
     setIsCheckoutVerifying(false);
     setIsSubscriptionRestoring(false);
+    setSubscriptionRestoreCompleted(false);
     if (user?.id) {
       attemptedSubscriptionRestoreRef.current.delete(user.id);
     }
@@ -1192,6 +1194,7 @@ function StratifyAppContent() {
     setIsCheckoutRedirecting(false);
     setIsCheckoutVerifying(false);
     setIsSubscriptionRestoring(false);
+    setSubscriptionRestoreCompleted(false);
     clearPendingCheckoutSession();
     handledCheckoutSessionsRef.current.clear();
     attemptedSubscriptionRestoreRef.current.clear();
@@ -1455,6 +1458,7 @@ function StratifyAppContent() {
       } finally {
         window.clearTimeout(timeoutId);
         setIsSubscriptionRestoring(false);
+        setSubscriptionRestoreCompleted(true);
         if (!restored) {
           attemptedSubscriptionRestoreRef.current.delete(user.id);
         }
@@ -1548,7 +1552,7 @@ function StratifyAppContent() {
           </div>
         </div>
       </div>
-    ) : !isProUser && !subscriptionLoading ? (
+    ) : !isProUser && !subscriptionLoading && !loading && subscriptionRestoreCompleted ? (
       <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
         <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a1220] p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.4)]">
           <h1 className="text-2xl font-semibold">Complete Your Stratify Subscription</h1>
