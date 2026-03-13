@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
 import LiveAlertsTicker from './LiveAlertsTicker';
+import PolymarketTicker from './PolymarketTicker';
 import DataTable from './DataTable';
 import RightPanel from './RightPanel';
 import SophiaPanel from './SophiaPanel';
@@ -3073,6 +3074,8 @@ export default function Dashboard({
         onClose={() => setIsFloatingGrokOpen(false)}
         onMessageCountChange={setGrokMessageCount}
       />
+
+      <PolymarketTicker />
 
       </div>
     </MotionConfig>
