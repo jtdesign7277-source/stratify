@@ -1,222 +1,180 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 
-const POLYMARKET_REST_URL = '/api/polymarket';
-const POLYMARKET_WS_URL = 'wss://ws-subscriptions-clob.polymarket.com/ws/market';
-const REFRESH_MS = 60_000;
-const MIN_SCROLL_DURATION_SECONDS = 100;
-const TARGET_SCROLL_PIXELS_PER_SECOND = 18;
-const STORED_KEY = 'stratify-polymarket-ticker-v1';
-const STORED_MAX_AGE_MS = 1000 * 60 * 60 * 4;
+const POLYMARKET_API = '/api/polymarket';
+const POLL_MS = 5 * 60_000; // 5 minutes
+const MIN_SCROLL_DURATION = 100;
+const PX_PER_SECOND = 18;
+const CACHE_KEY = 'stratify-polymarket-v2';
+const CACHE_MAX_AGE = 1000 * 60 * 60 * 4; // 4 hours
 
-// ─── Topic icons — emoji mapped by keyword ──────────────────────────────────
-const TOPIC_ICONS = [
-  { keywords: ['trump'], icon: '🇺🇸' },
-  { keywords: ['biden'], icon: '🏛️' },
-  { keywords: ['sam altman', 'openai', 'open ai'], icon: '🤖' },
-  { keywords: ['gpt', 'chatgpt'], icon: '💬' },
-  { keywords: ['elon', 'musk', 'tesla', 'spacex'], icon: '🚀' },
-  { keywords: ['bitcoin', 'btc'], icon: '₿' },
-  { keywords: ['ethereum', 'eth'], icon: 'Ξ' },
-  { keywords: ['crypto', 'coin'], icon: '🪙' },
-  { keywords: ['fed', 'rate', 'inflation', 'cpi'], icon: '🏦' },
-  { keywords: ['war', 'military', 'troops', 'attack'], icon: '⚔️' },
-  { keywords: ['ukraine', 'zelensky'], icon: '🇺🇦' },
-  { keywords: ['russia', 'putin'], icon: '🇷🇺' },
-  { keywords: ['china', 'xi'], icon: '🇨🇳' },
-  { keywords: ['israel', 'gaza', 'hamas'], icon: '🇮🇱' },
-  { keywords: ['iran'], icon: '🇮🇷' },
-  { keywords: ['north korea', 'kim'], icon: '🇰🇵' },
-  { keywords: ['election', 'vote', 'ballot'], icon: '🗳️' },
-  { keywords: ['apple', 'aapl', 'iphone'], icon: '🍎' },
-  { keywords: ['nvidia', 'nvda'], icon: '🎮' },
-  { keywords: ['meta', 'facebook', 'zuckerberg'], icon: '👓' },
-  { keywords: ['google', 'alphabet', 'gemini'], icon: '🔍' },
-  { keywords: ['amazon', 'amzn'], icon: '📦' },
-  { keywords: ['microsoft', 'msft'], icon: '🪟' },
-  { keywords: ['ai', 'artificial intelligence'], icon: '🧠' },
-  { keywords: ['nfl', 'football', 'super bowl'], icon: '🏈' },
-  { keywords: ['nba', 'basketball'], icon: '🏀' },
-  { keywords: ['mlb', 'baseball'], icon: '⚾' },
-  { keywords: ['soccer', 'fifa', 'world cup'], icon: '⚽' },
-  { keywords: ['ufc', 'mma', 'fight'], icon: '🥊' },
-  { keywords: ['oil', 'opec', 'energy'], icon: '🛢️' },
-  { keywords: ['gold'], icon: '🥇' },
-  { keywords: ['stock', 'market', 'spy', 'qqq', 's&p'], icon: '📈' },
-  { keywords: ['recession'], icon: '📉' },
-  { keywords: ['climate', 'weather', 'hurricane'], icon: '🌪️' },
-  { keywords: ['covid', 'pandemic', 'virus'], icon: '🦠' },
-  { keywords: ['spacex', 'nasa', 'mars', 'moon', 'rocket'], icon: '🚀' },
-  { keywords: ['tiktok'], icon: '📱' },
-  { keywords: ['twitter', 'x.com'], icon: '𝕏' },
-];
-
-function getIconForQuestion(question) {
-  const lower = (question || '').toLowerCase();
-  for (const { keywords, icon } of TOPIC_ICONS) {
-    if (keywords.some(kw => lower.includes(kw))) return icon;
+// ─── Parse Yes % from outcomePrices ─────────────────────────────────────────
+function parseYesPercent(outcomePrices) {
+  try {
+    const prices = typeof outcomePrices === 'string'
+      ? JSON.parse(outcomePrices)
+      : outcomePrices;
+    if (!Array.isArray(prices) || prices.length === 0) return null;
+    const yes = parseFloat(prices[0]);
+    if (!Number.isFinite(yes)) return null;
+    return Math.round(yes * 100);
+  } catch {
+    return null;
   }
-  return '📊';
 }
 
-function readStored() {
+// ─── Icon from market image or question keyword ─────────────────────────────
+function getIcon(market) {
+  // Prefer the market's own image/icon if available
+  if (market.image) return { type: 'img', src: market.image };
+
+  const q = (market.question || '').toLowerCase();
+
+  const KEYWORD_ICONS = [
+    [['trump', 'maga', 'republican'], '🇺🇸'],
+    [['biden', 'democrat', 'democratic'], '🏛️'],
+    [['election', 'vote', 'ballot', 'nominee', 'primary', 'senate'], '🗳️'],
+    [['vance'], '🇺🇸'],
+    [['newsom'], '🏛️'],
+    [['elon', 'musk', 'tesla'], '🚀'],
+    [['openai', 'chatgpt', 'gpt-5', 'gpt5', 'sam altman'], '🤖'],
+    [['ai', 'artificial intelligence', 'llm'], '🧠'],
+    [['bitcoin', 'btc'], '₿'],
+    [['ethereum', 'eth'], 'Ξ'],
+    [['crypto', 'coin', 'solana', 'sol'], '🪙'],
+    [['fed', 'rate cut', 'rate hike', 'inflation', 'cpi', 'recession'], '🏦'],
+    [['iran', 'hormuz', 'iranian'], '🇮🇷'],
+    [['ukraine', 'zelensky'], '🇺🇦'],
+    [['russia', 'putin'], '🇷🇺'],
+    [['china', 'xi jinping', 'chinese'], '🇨🇳'],
+    [['israel', 'gaza', 'hamas', 'netanyahu'], '🇮🇱'],
+    [['north korea', 'kim jong'], '🇰🇵'],
+    [['war', 'military', 'troops', 'attack', 'forces'], '⚔️'],
+    [['oil', 'crude', 'opec', 'energy'], '🛢️'],
+    [['gold', 'xau'], '🥇'],
+    [['stock', 'market', 'spy', 'qqq', 's&p', 'nasdaq', 'dow'], '📈'],
+    [['apple', 'aapl', 'iphone'], '🍎'],
+    [['nvidia', 'nvda'], '🎮'],
+    [['meta', 'facebook', 'zuckerberg'], '👓'],
+    [['google', 'alphabet', 'gemini'], '🔍'],
+    [['amazon', 'amzn'], '📦'],
+    [['microsoft', 'msft'], '🪟'],
+    [['nfl', 'football', 'super bowl'], '🏈'],
+    [['nba', 'basketball', 'knicks', 'lakers', 'celtics', 'suns', 'pacers', 'raptors'], '🏀'],
+    [['mlb', 'baseball', 'world series'], '⚾'],
+    [['nhl', 'hockey', 'oilers', 'blues'], '🏒'],
+    [['soccer', 'fifa', 'champions league', 'premier league', 'arsenal', 'uefa'], '⚽'],
+    [['wbc'], '⚾'],
+    [['ufc', 'mma', 'fight'], '🥊'],
+    [['oscar', 'best picture', 'academy award'], '🎬'],
+    [['tiktok'], '📱'],
+    [['twitter', 'x.com'], '𝕏'],
+    [['spacex', 'nasa', 'mars', 'moon', 'rocket', 'launch'], '🚀'],
+    [['covid', 'pandemic', 'virus'], '🦠'],
+    [['climate', 'hurricane', 'weather', 'earthquake'], '🌪️'],
+    [['stripe', 'ipo'], '💰'],
+  ];
+
+  for (const [keywords, icon] of KEYWORD_ICONS) {
+    if (keywords.some(kw => q.includes(kw))) return { type: 'emoji', value: icon };
+  }
+  return { type: 'emoji', value: '📊' };
+}
+
+function probColor(pct) {
+  if (pct == null) return 'text-white/50';
+  if (pct >= 70) return 'text-emerald-400';
+  if (pct <= 30) return 'text-red-400';
+  return 'text-amber-400';
+}
+
+// ─── Cache helpers ──────────────────────────────────────────────────────────
+function readCache() {
   try {
-    const raw = localStorage.getItem(STORED_KEY);
+    const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (Date.now() - (parsed?.storedAt || 0) > STORED_MAX_AGE_MS) return [];
+    if (Date.now() - (parsed?.storedAt || 0) > CACHE_MAX_AGE) return [];
     return parsed?.markets || [];
   } catch {
     return [];
   }
 }
 
-function writeStored(markets) {
+function writeCache(markets) {
   try {
-    localStorage.setItem(STORED_KEY, JSON.stringify({ storedAt: Date.now(), markets }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ storedAt: Date.now(), markets }));
   } catch {}
 }
 
-function formatProb(price) {
-  const p = parseFloat(price);
-  if (!Number.isFinite(p)) return '—';
-  return `${Math.round(p * 100)}%`;
-}
-
-function probColor(price) {
-  const p = parseFloat(price);
-  if (!Number.isFinite(p)) return 'text-white/50';
-  if (p >= 0.7) return 'text-emerald-400';
-  if (p <= 0.3) return 'text-red-400';
-  return 'text-amber-400';
-}
-
 // ─── Component ──────────────────────────────────────────────────────────────
-// Props: minimized, onToggleMinimize, statusBar (React element fallback)
 const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
-  const [markets, setMarkets] = useState(() => readStored());
-  const [scrollDurationSeconds, setScrollDurationSeconds] = useState(MIN_SCROLL_DURATION_SECONDS);
+  const [markets, setMarkets] = useState(() => readCache());
+  const [scrollDuration, setScrollDuration] = useState(MIN_SCROLL_DURATION);
   const contentRef = useRef(null);
-  const wsRef = useRef(null);
 
   const fetchMarkets = useCallback(async () => {
     try {
-      const res = await fetch(POLYMARKET_REST_URL);
+      const res = await fetch(POLYMARKET_API);
       if (!res.ok) return;
       const data = await res.json();
       if (!Array.isArray(data) || data.length === 0) return;
 
       const cleaned = data
-        .filter(m => m.question && m.outcomePrices)
         .map(m => {
-          let prices;
-          try {
-            prices = typeof m.outcomePrices === 'string' ? JSON.parse(m.outcomePrices) : m.outcomePrices;
-          } catch {
-            prices = [];
-          }
+          const yesPct = parseYesPercent(m.outcomePrices);
+          if (yesPct == null || !m.question) return null;
           return {
             id: m.id,
-            conditionId: m.conditionId,
             question: m.question,
-            yesPrice: prices[0] || 0,
-            image: m.image || null,
-            volume24hr: m.volume24hr || 0,
-            icon: getIconForQuestion(m.question),
+            yesPct,
+            icon: getIcon(m),
+            volume: m.volume24hr || 0,
           };
-        });
+        })
+        .filter(Boolean);
 
-      setMarkets(cleaned);
-      writeStored(cleaned);
+      if (cleaned.length > 0) {
+        setMarkets(cleaned);
+        writeCache(cleaned);
+      }
     } catch (err) {
       console.error('[PolymarketTicker] fetch error:', err);
     }
   }, []);
 
-  // WebSocket for live price updates
-  useEffect(() => {
-    if (markets.length === 0) return;
-
-    const connectWs = () => {
-      try {
-        const ws = new WebSocket(POLYMARKET_WS_URL);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          const assets = markets
-            .filter(m => m.conditionId)
-            .map(m => ({ asset_id: m.conditionId, type: 'market' }));
-          if (assets.length > 0) {
-            ws.send(JSON.stringify({ type: 'subscribe', assets }));
-          }
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const msg = JSON.parse(event.data);
-            if (msg.type === 'price_change' && msg.asset_id && msg.price != null) {
-              setMarkets(prev => prev.map(m =>
-                m.conditionId === msg.asset_id ? { ...m, yesPrice: msg.price } : m
-              ));
-            }
-          } catch {}
-        };
-
-        ws.onerror = () => {};
-        ws.onclose = () => {
-          setTimeout(connectWs, 5000);
-        };
-      } catch {}
-    };
-
-    connectWs();
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.onclose = null;
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-    };
-  }, [markets.length > 0]);
-
+  // Poll every 5 minutes
   useEffect(() => {
     fetchMarkets();
-    const interval = setInterval(fetchMarkets, REFRESH_MS);
+    const interval = setInterval(fetchMarkets, POLL_MS);
     return () => clearInterval(interval);
   }, [fetchMarkets]);
 
+  // Duplicate items for seamless loop
   const allItems = useMemo(() => {
     if (markets.length === 0) return [];
     return [...markets, ...markets];
   }, [markets]);
 
+  // Calculate scroll speed based on content width
   useEffect(() => {
-    const content = contentRef.current;
-    if (!content) return;
+    const el = contentRef.current;
+    if (!el) return;
 
-    const updateDuration = () => {
-      const totalWidth = content.scrollWidth;
-      if (!Number.isFinite(totalWidth) || totalWidth <= 0) return;
-      const oneCycleWidth = totalWidth / 2;
-      if (!Number.isFinite(oneCycleWidth) || oneCycleWidth <= 0) return;
-      const nextDuration = Math.max(
-        MIN_SCROLL_DURATION_SECONDS,
-        Math.round(oneCycleWidth / TARGET_SCROLL_PIXELS_PER_SECOND),
-      );
-      setScrollDurationSeconds(prev => (prev === nextDuration ? prev : nextDuration));
+    const update = () => {
+      const total = el.scrollWidth;
+      if (!total || total <= 0) return;
+      const half = total / 2;
+      const dur = Math.max(MIN_SCROLL_DURATION, Math.round(half / PX_PER_SECOND));
+      setScrollDuration(prev => prev === dur ? prev : dur);
     };
 
-    const raf = window.requestAnimationFrame(updateDuration);
-    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateDuration) : null;
-    resizeObserver?.observe(content);
-
-    return () => {
-      window.cancelAnimationFrame(raf);
-      resizeObserver?.disconnect();
-    };
+    const raf = requestAnimationFrame(update);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    ro?.observe(el);
+    return () => { cancelAnimationFrame(raf); ro?.disconnect(); };
   }, [allItems.length, minimized]);
 
-  // When minimized or no data: show StatusBar with a small Polymarket toggle
+  // ─── Minimized / no data: show StatusBar + toggle on right ──────────────
   if (minimized || markets.length === 0) {
     return (
       <div className="flex items-center">
@@ -224,7 +182,7 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
         {markets.length > 0 && (
           <button
             onClick={onToggleMinimize}
-            className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-medium text-white/30 hover:text-white/50 transition-colors cursor-pointer shrink-0 border-t border-white/[0.06]"
+            className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer shrink-0"
             title="Show Polymarket ticker"
           >
             <svg className="w-2.5 h-2.5 rotate-180" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -237,13 +195,15 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
     );
   }
 
+  // ─── Expanded ticker ────────────────────────────────────────────────────
   return (
     <div className="relative">
       {/* Toggle bar */}
       <div className="flex items-center px-4 py-1 bg-[#111111] border-t border-white/[0.06]">
+        <div className="flex-1" />
         <button
           onClick={onToggleMinimize}
-          className="flex items-center gap-1.5 text-[10px] font-medium text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
           title="Minimize Polymarket ticker"
         >
           <svg className="w-2.5 h-2.5" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -251,46 +211,55 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
           </svg>
           POLYMARKET
         </button>
-        <span className="text-[9px] text-white/15 ml-auto font-mono">LIVE</span>
+        <span className="text-[9px] text-white/15 ml-3 font-mono">LIVE</span>
       </div>
 
       {/* Scrolling ticker */}
       <div className="relative h-8 overflow-hidden bg-[#111111]">
         <style>{`
-          @keyframes poly-ticker-scroll {
+          @keyframes poly-scroll {
             from { transform: translateX(-50%); }
             to { transform: translateX(0); }
           }
-          .poly-ticker-track {
+          .poly-track {
             display: flex;
             align-items: center;
             height: 100%;
             overflow: hidden;
           }
-          .poly-ticker-content {
+          .poly-content {
             display: inline-flex;
             align-items: center;
             white-space: nowrap;
-            animation: poly-ticker-scroll ${scrollDurationSeconds}s linear infinite;
+            animation: poly-scroll ${scrollDuration}s linear infinite;
           }
-          .poly-ticker-content:hover,
-          .poly-ticker-track:hover .poly-ticker-content {
+          .poly-content:hover,
+          .poly-track:hover .poly-content {
             animation-play-state: paused;
           }
         `}</style>
 
-        <div className="poly-ticker-track">
-          <div ref={contentRef} className="poly-ticker-content">
-            {allItems.map((market, idx) => (
-              <span key={`${market.id}-${idx}`} className="flex items-center">
-                <span className="text-sm mr-1.5 shrink-0">{market.icon}</span>
+        <div className="poly-track">
+          <div ref={contentRef} className="poly-content">
+            {allItems.map((m, idx) => (
+              <span key={`${m.id}-${idx}`} className="flex items-center">
+                {m.icon.type === 'img' ? (
+                  <img
+                    src={m.icon.src}
+                    alt=""
+                    className="w-4 h-4 rounded-sm mr-1.5 shrink-0 object-cover"
+                    onError={e => { e.target.style.display = 'none'; }}
+                  />
+                ) : (
+                  <span className="text-sm mr-1.5 shrink-0">{m.icon.value}</span>
+                )}
                 <span className="text-xs font-medium text-[#E8EAED] max-w-[280px] truncate">
-                  {market.question}
+                  {m.question}
                 </span>
-                <span className={`text-xs font-bold font-mono ml-1.5 ${probColor(market.yesPrice)}`}>
-                  {formatProb(market.yesPrice)}
+                <span className={`text-xs font-bold font-mono ml-1.5 ${probColor(m.yesPct)}`}>
+                  {m.yesPct}%
                 </span>
-                <span className="mx-4 text-[#5f6368]">•</span>
+                <span className="mx-4 text-[#5f6368]">·</span>
               </span>
             ))}
           </div>
