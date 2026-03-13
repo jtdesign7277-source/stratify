@@ -1123,6 +1123,7 @@ export default function Dashboard({
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [showMarketIntel, setShowMarketIntel] = useState(false);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
+  const [polymarketMinimized, setPolymarketMinimized] = useState(false);
   const [connectedBrokers, setConnectedBrokers] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-connected-brokers');
@@ -2896,16 +2897,23 @@ export default function Dashboard({
           onWizardPromptConsumed={() => setSophiaWizardPrompt(null)}
         />
       </div>
-      <StatusBar
-        connectionStatus={connectionStatus}
-        theme={theme}
-        themeClasses={themeClasses}
-        onOpenNewsletter={() => setShowNewsletter(true)}
-        onOpenMarketIntel={() => {
-          setActiveSection('market-intel');
-          setShowMarketIntel(true);
-        }}
-      />
+      {polymarketMinimized ? (
+        <div className="flex items-center justify-between">
+          <StatusBar
+            connectionStatus={connectionStatus}
+            theme={theme}
+            themeClasses={themeClasses}
+            onOpenNewsletter={() => setShowNewsletter(true)}
+            onOpenMarketIntel={() => {
+              setActiveSection('market-intel');
+              setShowMarketIntel(true);
+            }}
+          />
+          <PolymarketTicker minimized onToggleMinimize={() => setPolymarketMinimized(false)} />
+        </div>
+      ) : (
+        <PolymarketTicker minimized={false} onToggleMinimize={() => setPolymarketMinimized(true)} />
+      )}
 
       <ProPlusPlanModal
         open={Boolean(proPlusModalState.open)}
@@ -3074,8 +3082,6 @@ export default function Dashboard({
         onClose={() => setIsFloatingGrokOpen(false)}
         onMessageCountChange={setGrokMessageCount}
       />
-
-      <PolymarketTicker />
 
       </div>
     </MotionConfig>

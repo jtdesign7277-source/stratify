@@ -6,7 +6,7 @@ const REFRESH_MS = 60_000;
 const MIN_SCROLL_DURATION_SECONDS = 100;
 const TARGET_SCROLL_PIXELS_PER_SECOND = 18;
 const STORED_KEY = 'stratify-polymarket-ticker-v1';
-const STORED_MAX_AGE_MS = 1000 * 60 * 60 * 4; // 4 hours
+const STORED_MAX_AGE_MS = 1000 * 60 * 60 * 4;
 
 // ─── Topic icons — emoji mapped by keyword ──────────────────────────────────
 const TOPIC_ICONS = [
@@ -58,7 +58,6 @@ function getIconForQuestion(question) {
   return '📊';
 }
 
-// ─── Local storage cache ────────────────────────────────────────────────────
 function readStored() {
   try {
     const raw = localStorage.getItem(STORED_KEY);
@@ -77,7 +76,6 @@ function writeStored(markets) {
   } catch {}
 }
 
-// ─── Format probability ─────────────────────────────────────────────────────
 function formatProb(price) {
   const p = parseFloat(price);
   if (!Number.isFinite(p)) return '—';
@@ -93,14 +91,13 @@ function probColor(price) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
-const PolymarketTicker = () => {
+// Props: minimized, onToggleMinimize
+const PolymarketTicker = ({ minimized, onToggleMinimize }) => {
   const [markets, setMarkets] = useState(() => readStored());
-  const [minimized, setMinimized] = useState(false);
   const [scrollDurationSeconds, setScrollDurationSeconds] = useState(MIN_SCROLL_DURATION_SECONDS);
   const contentRef = useRef(null);
   const wsRef = useRef(null);
 
-  // ─── REST fetch ───────────────────────────────────────────────────────────
   const fetchMarkets = useCallback(async () => {
     try {
       const res = await fetch(
@@ -137,7 +134,7 @@ const PolymarketTicker = () => {
     }
   }, []);
 
-  // ─── WebSocket for live price updates ─────────────────────────────────────
+  // WebSocket for live price updates
   useEffect(() => {
     if (markets.length === 0) return;
 
@@ -147,7 +144,6 @@ const PolymarketTicker = () => {
         wsRef.current = ws;
 
         ws.onopen = () => {
-          // Subscribe to all market condition IDs
           const assets = markets
             .filter(m => m.conditionId)
             .map(m => ({ asset_id: m.conditionId, type: 'market' }));
@@ -169,7 +165,6 @@ const PolymarketTicker = () => {
 
         ws.onerror = () => {};
         ws.onclose = () => {
-          // Reconnect after 5s
           setTimeout(connectWs, 5000);
         };
       } catch {}
@@ -179,24 +174,22 @@ const PolymarketTicker = () => {
 
     return () => {
       if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect on cleanup
+        wsRef.current.onclose = null;
         wsRef.current.close();
         wsRef.current = null;
       }
     };
-  }, [markets.length > 0]); // only re-run when we go from 0 to having markets
+  }, [markets.length > 0]);
 
-  // ─── Data fetch lifecycle ─────────────────────────────────────────────────
   useEffect(() => {
     fetchMarkets();
     const interval = setInterval(fetchMarkets, REFRESH_MS);
     return () => clearInterval(interval);
   }, [fetchMarkets]);
 
-  // ─── Scroll duration ─────────────────────────────────────────────────────
   const allItems = useMemo(() => {
     if (markets.length === 0) return [];
-    return [...markets, ...markets]; // duplicate for seamless loop
+    return [...markets, ...markets];
   }, [markets]);
 
   useEffect(() => {
@@ -223,75 +216,88 @@ const PolymarketTicker = () => {
       window.cancelAnimationFrame(raf);
       resizeObserver?.disconnect();
     };
-  }, [allItems.length]);
+  }, [allItems.length, minimized]);
 
-  if (markets.length === 0) return null;
-
-  return (
-    <div className="fixed bottom-0 inset-x-0 z-50">
-      {/* Minimize toggle */}
+  // When minimized, just render the toggle tab (sits inside StatusBar area)
+  if (minimized) {
+    return (
       <button
-        onClick={() => setMinimized(prev => !prev)}
-        className="absolute -top-6 right-4 h-6 px-2.5 flex items-center gap-1.5 rounded-t-md bg-[#111111] border border-b-0 border-white/[0.06] text-[10px] font-medium text-white/40 hover:text-white/60 transition-colors cursor-pointer"
+        onClick={onToggleMinimize}
+        className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+        title="Show Polymarket ticker"
       >
-        <svg
-          className={`w-2.5 h-2.5 transition-transform ${minimized ? 'rotate-180' : ''}`}
-          viewBox="0 0 10 6"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
+        <svg className="w-2.5 h-2.5 rotate-180" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M1 1l4 4 4-4" />
         </svg>
         POLYMARKET
       </button>
+    );
+  }
 
-      {!minimized && (
-        <div className="relative h-8 overflow-hidden bg-[#111111] border-t border-white/[0.06]">
-          <style>{`
-            @keyframes poly-ticker-scroll {
-              from { transform: translateX(-50%); }
-              to { transform: translateX(0); }
-            }
-            .poly-ticker-track {
-              display: flex;
-              align-items: center;
-              height: 100%;
-              overflow: hidden;
-            }
-            .poly-ticker-content {
-              display: inline-flex;
-              align-items: center;
-              white-space: nowrap;
-              animation: poly-ticker-scroll ${scrollDurationSeconds}s linear infinite;
-            }
-            .poly-ticker-content:hover,
-            .poly-ticker-track:hover .poly-ticker-content {
-              animation-play-state: paused;
-            }
-          `}</style>
+  if (markets.length === 0) return null;
 
-          <div className="poly-ticker-track">
-            <div ref={contentRef} className="poly-ticker-content">
-              {allItems.map((market, idx) => (
-                <span key={`${market.id}-${idx}`} className="flex items-center">
-                  <span className="text-sm mr-1.5 shrink-0">{market.icon}</span>
-                  <span className="text-xs font-medium text-[#E8EAED] max-w-[280px] truncate">
-                    {market.question}
-                  </span>
-                  <span className={`text-xs font-bold font-mono ml-1.5 ${probColor(market.yesPrice)}`}>
-                    {formatProb(market.yesPrice)}
-                  </span>
-                  <span className="mx-4 text-[#5f6368]">•</span>
+  return (
+    <div className="relative">
+      {/* Toggle bar */}
+      <div className="flex items-center px-4 py-1 bg-[#111111] border-t border-white/[0.06]">
+        <button
+          onClick={onToggleMinimize}
+          className="flex items-center gap-1.5 text-[10px] font-medium text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+          title="Minimize Polymarket ticker"
+        >
+          <svg className="w-2.5 h-2.5" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M1 1l4 4 4-4" />
+          </svg>
+          POLYMARKET
+        </button>
+        <span className="text-[9px] text-white/15 ml-auto font-mono">LIVE</span>
+      </div>
+
+      {/* Scrolling ticker */}
+      <div className="relative h-8 overflow-hidden bg-[#111111]">
+        <style>{`
+          @keyframes poly-ticker-scroll {
+            from { transform: translateX(-50%); }
+            to { transform: translateX(0); }
+          }
+          .poly-ticker-track {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            overflow: hidden;
+          }
+          .poly-ticker-content {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            animation: poly-ticker-scroll ${scrollDurationSeconds}s linear infinite;
+          }
+          .poly-ticker-content:hover,
+          .poly-ticker-track:hover .poly-ticker-content {
+            animation-play-state: paused;
+          }
+        `}</style>
+
+        <div className="poly-ticker-track">
+          <div ref={contentRef} className="poly-ticker-content">
+            {allItems.map((market, idx) => (
+              <span key={`${market.id}-${idx}`} className="flex items-center">
+                <span className="text-sm mr-1.5 shrink-0">{market.icon}</span>
+                <span className="text-xs font-medium text-[#E8EAED] max-w-[280px] truncate">
+                  {market.question}
                 </span>
-              ))}
-            </div>
+                <span className={`text-xs font-bold font-mono ml-1.5 ${probColor(market.yesPrice)}`}>
+                  {formatProb(market.yesPrice)}
+                </span>
+                <span className="mx-4 text-[#5f6368]">•</span>
+              </span>
+            ))}
           </div>
-
-          {/* Right fade */}
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[#111111] to-transparent" />
         </div>
-      )}
+
+        {/* Right fade */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[#111111] to-transparent" />
+      </div>
     </div>
   );
 };
