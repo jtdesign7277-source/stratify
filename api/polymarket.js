@@ -44,6 +44,7 @@ export default async function handler(req, res) {
           question: m.question,
           yesPct: Math.round(parseFloat(prices[0]) * 100),
           image: m.image || m.icon || null,
+          slug: m.slug || null,
         };
       });
 

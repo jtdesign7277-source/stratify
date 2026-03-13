@@ -133,7 +133,13 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
         <div className="poly-track pl-2 pr-2 py-0.5">
           <div ref={contentRef} className="poly-content">
             {allItems.map((m, idx) => (
-              <span key={`${m.id}-${idx}`} className="flex items-center gap-2 px-2">
+              <a
+                key={`${m.id}-${idx}`}
+                href={m.slug ? `https://polymarket.com/event/${m.slug}` : 'https://polymarket.com'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-2 hover:bg-white/5 rounded transition-colors cursor-pointer no-underline"
+              >
                 {m.image ? (
                   <img
                     src={m.image}
@@ -155,7 +161,7 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
                   {m.yesPct}%
                 </span>
                 <span className="text-white/30 text-[16px]">•</span>
-              </span>
+              </a>
             ))}
           </div>
         </div>
