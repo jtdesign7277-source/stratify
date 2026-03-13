@@ -59,18 +59,19 @@ export default function SportsBankroll() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl"
+      animate={{ opacity: 1, y: 0, width: open ? '100%' : 'fit-content' }}
+      transition={{ duration: 0.25, ease: 'easeInOut' }}
+      className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl"
     >
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-3 text-left"
+        className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left"
       >
-        <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+        <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 whitespace-nowrap">
           Bankroll
         </span>
         <svg
-          className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : '-rotate-90'}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
