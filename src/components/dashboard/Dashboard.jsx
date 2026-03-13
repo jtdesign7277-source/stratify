@@ -2897,8 +2897,10 @@ export default function Dashboard({
           onWizardPromptConsumed={() => setSophiaWizardPrompt(null)}
         />
       </div>
-      {polymarketMinimized ? (
-        <div className="flex items-center justify-between">
+      <PolymarketTicker
+        minimized={polymarketMinimized}
+        onToggleMinimize={() => setPolymarketMinimized(prev => !prev)}
+        statusBar={
           <StatusBar
             connectionStatus={connectionStatus}
             theme={theme}
@@ -2909,11 +2911,8 @@ export default function Dashboard({
               setShowMarketIntel(true);
             }}
           />
-          <PolymarketTicker minimized onToggleMinimize={() => setPolymarketMinimized(false)} />
-        </div>
-      ) : (
-        <PolymarketTicker minimized={false} onToggleMinimize={() => setPolymarketMinimized(true)} />
-      )}
+        }
+      />
 
       <ProPlusPlanModal
         open={Boolean(proPlusModalState.open)}

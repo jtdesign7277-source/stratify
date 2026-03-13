@@ -91,8 +91,8 @@ function probColor(price) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
-// Props: minimized, onToggleMinimize
-const PolymarketTicker = ({ minimized, onToggleMinimize }) => {
+// Props: minimized, onToggleMinimize, statusBar (React element fallback)
+const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
   const [markets, setMarkets] = useState(() => readStored());
   const [scrollDurationSeconds, setScrollDurationSeconds] = useState(MIN_SCROLL_DURATION_SECONDS);
   const contentRef = useRef(null);
@@ -218,23 +218,26 @@ const PolymarketTicker = ({ minimized, onToggleMinimize }) => {
     };
   }, [allItems.length, minimized]);
 
-  // When minimized, just render the toggle tab (sits inside StatusBar area)
-  if (minimized) {
+  // When minimized or no data: show StatusBar with a small Polymarket toggle
+  if (minimized || markets.length === 0) {
     return (
-      <button
-        onClick={onToggleMinimize}
-        className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium text-white/30 hover:text-white/50 transition-colors cursor-pointer"
-        title="Show Polymarket ticker"
-      >
-        <svg className="w-2.5 h-2.5 rotate-180" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M1 1l4 4 4-4" />
-        </svg>
-        POLYMARKET
-      </button>
+      <div className="flex items-center">
+        <div className="flex-1 min-w-0">{statusBar}</div>
+        {markets.length > 0 && (
+          <button
+            onClick={onToggleMinimize}
+            className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-medium text-white/30 hover:text-white/50 transition-colors cursor-pointer shrink-0 border-t border-white/[0.06]"
+            title="Show Polymarket ticker"
+          >
+            <svg className="w-2.5 h-2.5 rotate-180" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M1 1l4 4 4-4" />
+            </svg>
+            POLYMARKET
+          </button>
+        )}
+      </div>
     );
   }
-
-  if (markets.length === 0) return null;
 
   return (
     <div className="relative">
