@@ -171,10 +171,10 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
         <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#1a1a1a] to-transparent" />
       </div>
 
-      {/* POLYMARKET label — right side */}
+      {/* POLYMARKET label — right side, above ticker */}
       <button
         onClick={onToggleMinimize}
-        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer bg-[#1a1a1a]/90 backdrop-blur-sm rounded"
+        className="absolute right-2 -top-5 z-10 flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer bg-[#1a1a1a]/90 backdrop-blur-sm rounded"
         title="Minimize Polymarket ticker"
       >
         <svg className="w-2.5 h-2.5" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
