@@ -61,17 +61,17 @@ export default function SportsBankroll() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0, width: open ? '100%' : 'fit-content' }}
       transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl"
+      className="rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl"
     >
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-4 px-6 py-3.5 text-left"
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
       >
-        <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 whitespace-nowrap">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 whitespace-nowrap">
           Bankroll
         </span>
         <svg
-          className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${open ? 'rotate-90' : '-rotate-90'}`}
+          className={`h-3.5 w-3.5 text-gray-500 transition-transform duration-200 ${open ? 'rotate-90' : '-rotate-90'}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -87,10 +87,10 @@ export default function SportsBankroll() {
         transition={{ duration: 0.2, ease: 'easeInOut' }}
         className="overflow-hidden"
       >
-        <div className="flex flex-wrap items-center gap-6 px-5 pb-5">
+        <div className="flex flex-wrap items-center gap-4 px-3 pb-3">
           <div className="min-w-0 flex-1">
-            <div className="mb-1 text-xs uppercase tracking-widest text-gray-500">PAPER BANKROLL</div>
-            <div className="text-2xl font-mono text-white">
+            <div className="mb-0.5 text-[10px] uppercase tracking-widest text-gray-500">PAPER BANKROLL</div>
+            <div className="text-lg font-mono text-white">
               $
               <CountUp
                 start={0}
@@ -104,33 +104,33 @@ export default function SportsBankroll() {
             </div>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="mb-1 text-xs uppercase tracking-widest text-gray-500">TOTAL P&L</div>
-            <div className={`text-2xl font-mono ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className="mb-0.5 text-[10px] uppercase tracking-widest text-gray-500">TOTAL P&L</div>
+            <div className={`text-lg font-mono ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {pnl >= 0 ? '+' : ''}
               <CountUp start={0} end={pnl} duration={0.8} separator="," decimals={2} useEasing />
             </div>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="mb-1 text-xs uppercase tracking-widest text-gray-500">ROI</div>
-            <div className={`text-2xl font-mono ${Number(roi) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className="mb-0.5 text-[10px] uppercase tracking-widest text-gray-500">ROI</div>
+            <div className={`text-lg font-mono ${Number(roi) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {Number(roi) >= 0 ? '+' : ''}
               {roi}%
             </div>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="mb-1 text-xs uppercase tracking-widest text-gray-500">RECORD</div>
-            <div className="text-2xl font-mono text-white">
+            <div className="mb-0.5 text-[10px] uppercase tracking-widest text-gray-500">RECORD</div>
+            <div className="text-lg font-mono text-white">
               {wins}-{losses}-{pushes}
             </div>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="mb-1 text-xs uppercase tracking-widest text-gray-500">WIN RATE</div>
-            <div className="text-2xl font-mono text-emerald-400">{winRate}%</div>
+            <div className="mb-0.5 text-[10px] uppercase tracking-widest text-gray-500">WIN RATE</div>
+            <div className="text-lg font-mono text-emerald-400">{winRate}%</div>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="mb-1 text-xs uppercase tracking-widest text-gray-500">STREAK</div>
+            <div className="mb-0.5 text-[10px] uppercase tracking-widest text-gray-500">STREAK</div>
             <div
-              className={`text-2xl font-mono ${currentStreak > 0 ? 'text-emerald-400' : currentStreak < 0 ? 'text-red-400' : 'text-white'}`}
+              className={`text-lg font-mono ${currentStreak > 0 ? 'text-emerald-400' : currentStreak < 0 ? 'text-red-400' : 'text-white'}`}
             >
               {currentStreak > 0 ? `W${currentStreak}` : currentStreak < 0 ? `L${Math.abs(currentStreak)}` : '—'}
             </div>
