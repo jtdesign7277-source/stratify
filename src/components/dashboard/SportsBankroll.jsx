@@ -65,13 +65,13 @@ export default function SportsBankroll() {
     >
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left"
+        className="flex w-full items-center justify-between gap-4 px-6 py-3.5 text-left"
       >
         <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 whitespace-nowrap">
           Bankroll
         </span>
         <svg
-          className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : '-rotate-90'}`}
+          className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${open ? 'rotate-90' : '-rotate-90'}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
