@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 
-const POLYMARKET_REST_URL = 'https://gamma-api.polymarket.com/markets';
+const POLYMARKET_REST_URL = '/api/polymarket';
 const POLYMARKET_WS_URL = 'wss://ws-subscriptions-clob.polymarket.com/ws/market';
 const REFRESH_MS = 60_000;
 const MIN_SCROLL_DURATION_SECONDS = 100;
@@ -100,9 +100,7 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
 
   const fetchMarkets = useCallback(async () => {
     try {
-      const res = await fetch(
-        `${POLYMARKET_REST_URL}?limit=20&active=true&closed=false&order=volume24hr&ascending=false`
-      );
+      const res = await fetch(POLYMARKET_REST_URL);
       if (!res.ok) return;
       const data = await res.json();
       if (!Array.isArray(data) || data.length === 0) return;
