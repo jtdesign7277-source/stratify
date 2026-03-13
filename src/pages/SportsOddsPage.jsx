@@ -1215,7 +1215,7 @@ function LiveInGameLines({ sportKey, onPaperBet }) {
   }, [sportKey]);
 
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid gap-3 overflow-x-auto min-w-0" style={{ gridTemplateColumns: 'repeat(4, minmax(280px, 1fr))' }}>
       {SPORTSBOOK_PANELS.map((sb, idx) => (
         <motion.div
           key={sb.key}
