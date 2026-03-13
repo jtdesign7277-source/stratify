@@ -61,7 +61,7 @@ export default function SportsBankroll() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0, width: open ? '100%' : 'fit-content' }}
       transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl"
+      className="self-start rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl"
     >
       <button
         onClick={() => setOpen((v) => !v)}
