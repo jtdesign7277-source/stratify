@@ -138,8 +138,11 @@ const CHART_TIMEFRAME_OPTIONS = [
 ];
 const CHART_BG_THEMES = [
   { id: 'black', label: 'Black', color: '#000000' },
-  { id: 'dark', label: 'Dark', color: '#0b0b0b' },
-  { id: 'charcoal', label: 'Charcoal', color: '#1a1a1a' },
+  { id: 'dark', label: 'Dark', color: '#131722' },
+  { id: 'charcoal', label: 'Charcoal', color: '#1e222d' },
+  { id: 'navy', label: 'Navy', color: '#161b2d' },
+  { id: 'midnight', label: 'Midnight', color: '#0c1018' },
+  { id: 'slate', label: 'Slate', color: '#2a2e39' },
 ];
 
 const CHART_TIMEFRAME_BY_ID = CHART_TIMEFRAME_OPTIONS.reduce((accumulator, option) => {
