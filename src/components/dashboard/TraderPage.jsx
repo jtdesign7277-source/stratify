@@ -136,6 +136,12 @@ const CHART_TIMEFRAME_OPTIONS = [
   { id: '1Mo', label: '1Mo', interval: '1month', outputsize: '320' },
   { id: 'ALL', label: 'ALL', interval: '1week', outputsize: MAX_CHART_OUTPUTSIZE },
 ];
+const CHART_BG_THEMES = [
+  { id: 'black', label: 'Black', color: '#000000' },
+  { id: 'dark', label: 'Dark', color: '#0b0b0b' },
+  { id: 'charcoal', label: 'Charcoal', color: '#1a1a1a' },
+];
+
 const CHART_TIMEFRAME_BY_ID = CHART_TIMEFRAME_OPTIONS.reduce((accumulator, option) => {
   accumulator[option.id] = option;
   return accumulator;
@@ -1657,6 +1663,9 @@ export default function TraderPage({
   });
   const [chartReady, setChartReady] = useState(false);
   const [chartTimeframe, setChartTimeframe] = useState('1D');
+  const [chartBgTheme, setChartBgTheme] = useState(() => {
+    try { return sessionStorage.getItem('stratify-chart-bg') || 'black'; } catch { return 'black'; }
+  });
   const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
   const [timeframeDropdownPosition, setTimeframeDropdownPosition] = useState(null);
   const timeframeDropdownRef = useRef(null);
@@ -2801,7 +2810,7 @@ export default function TraderPage({
     const chart = createChart(chartContainerRef.current, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: '#000000' },
+        background: { type: ColorType.Solid, color: (CHART_BG_THEMES.find((t) => t.id === chartBgTheme) || CHART_BG_THEMES[0]).color },
         textColor: '#6b7280',
       },
       grid: {
@@ -2928,6 +2937,15 @@ export default function TraderPage({
       drawingPendingPointRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const theme = CHART_BG_THEMES.find((t) => t.id === chartBgTheme) || CHART_BG_THEMES[0];
+    chartRef.current.applyOptions({
+      layout: { background: { type: ColorType.Solid, color: theme.color } },
+    });
+    try { sessionStorage.setItem('stratify-chart-bg', chartBgTheme); } catch {}
+  }, [chartBgTheme]);
 
   useEffect(() => {
     const handler = () => {
@@ -5065,6 +5083,22 @@ export default function TraderPage({
                       </div>,
                       document.body
                     )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 ml-1">
+                    {CHART_BG_THEMES.map((theme) => (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => setChartBgTheme(theme.id)}
+                        className={`w-5 h-5 rounded-full border transition-all duration-300 ${
+                          chartBgTheme === theme.id
+                            ? 'border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.2)] scale-110'
+                            : 'border-white/[0.1] hover:border-white/[0.2] hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: theme.color }}
+                        title={theme.label}
+                      />
+                    ))}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
