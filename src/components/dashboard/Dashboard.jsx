@@ -3053,7 +3053,7 @@ export default function Dashboard({
       )}
 
       {showNewsletter && (
-        <div className="fixed inset-0 z-50 bg-[#0a0a0a]">
+        <div className="fixed inset-0 z-[500] bg-[#0a0a0a]">
           <NewsletterPage onClose={() => setShowNewsletter(false)} />
         </div>
       )}
