@@ -1832,6 +1832,7 @@ export default function TraderPage({
   const lastBarRef = useRef(null);
   const lastCandleDataRef = useRef([]);
   const highLowPriceLinesRef = useRef([]);
+  const updateHighLowLinesRef = useRef(null);
   const drawingPriceLinesRef = useRef([]);
   const drawingTrendLinesRef = useRef([]);
   const drawingRectanglesRef = useRef([]);
@@ -2848,7 +2849,8 @@ export default function TraderPage({
       lastValueVisible: true,
       priceLineVisible: true,
       priceLineColor: PRICE_LINE_BLUE,
-      priceLineWidth: 1,
+      priceLineWidth: 2,
+      priceLineStyle: LineStyle.Dashed,
     });
 
     const lineToolsPlugin = createLineToolsPlugin(chart, candleSeries);
@@ -2916,7 +2918,8 @@ export default function TraderPage({
     const updateHighLowLines = () => {
       const series = candleSeriesRef.current;
       const data = lastCandleDataRef.current;
-      if (!series || !data || data.length === 0) return;
+      const ts = chartRef.current?.timeScale();
+      if (!series || !data || data.length === 0 || !ts) return;
 
       // Remove previous high/low lines
       highLowPriceLinesRef.current.forEach((line) => {
@@ -2924,7 +2927,7 @@ export default function TraderPage({
       });
       highLowPriceLinesRef.current = [];
 
-      const visibleRange = timeScale.getVisibleRange();
+      const visibleRange = ts.getVisibleRange();
       if (!visibleRange) return;
 
       const visibleBars = data.filter(
@@ -2959,6 +2962,7 @@ export default function TraderPage({
 
       highLowPriceLinesRef.current = [highLine, lowLine];
     };
+    updateHighLowLinesRef.current = updateHighLowLines;
 
     const handleVisibleRangeChange = () => {
       const visibleRange = timeScale.getVisibleRange();
@@ -2972,10 +2976,12 @@ export default function TraderPage({
       updateHighLowLines();
     };
     timeScale.subscribeVisibleTimeRangeChange(handleVisibleRangeChange);
+    timeScale.subscribeVisibleLogicalRangeChange(updateHighLowLines);
 
     return () => {
       setChartReady(false);
       timeScale.unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
+      timeScale.unsubscribeVisibleLogicalRangeChange(updateHighLowLines);
       lineToolsPlugin.removeAllLineTools?.();
       volumeProfileRef.current = null;
       if (sessionHighlightRef.current) sessionHighlightRef.current = null;
@@ -3505,6 +3511,8 @@ export default function TraderPage({
             }
           }
         } catch {}
+        // Update high/low lines after layout settles
+        updateHighLowLinesRef.current?.();
       }, 200);
     } catch (error) {
       if (requestId !== chartRequestIdRef.current) return;
