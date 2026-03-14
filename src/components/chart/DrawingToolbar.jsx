@@ -50,7 +50,7 @@ function ToolButton({ toolName, label, Icon, isClear, activeTool, onToolSelect }
       </motion.button>
       {hover && (
         <div
-          className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 bg-black/80 px-2 py-1 rounded-lg pointer-events-none whitespace-nowrap z-50"
+          className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 bg-gradient-to-br from-white/[0.08] to-white/[0.03] backdrop-blur-2xl border border-white/[0.08] px-2 py-1 rounded-xl pointer-events-none whitespace-nowrap z-50 shadow-[0_8px_24px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)]"
         >
           {label}
         </div>
@@ -63,7 +63,7 @@ export default function DrawingToolbar({ lineTools, activeTool, onToolSelect }) 
   let lastGroup = 0;
   return (
     <div
-      className="flex flex-col w-9 py-2 px-1 rounded-none border-r border-white/10 bg-[#0b0b0b] self-stretch flex-shrink-0"
+      className="flex flex-col w-9 py-2 px-1 rounded-none border-r border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-white/[0.01] backdrop-blur-xl self-stretch flex-shrink-0 shadow-[2px_0_8px_rgba(0,0,0,0.3),inset_1px_0_0_rgba(255,255,255,0.03)]"
       role="toolbar"
       aria-label="Drawing tools"
     >

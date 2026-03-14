@@ -4873,7 +4873,7 @@ export default function TraderPage({
 
         <section className="flex min-w-0 flex-1 min-h-0 overflow-hidden">
           <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-visible" style={chartPanelStyle}>
-            <div className="shrink-0 border-b border-white/[0.06] px-4 py-2">
+            <div className="shrink-0 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-white/[0.02] px-4 py-2 backdrop-blur-xl shadow-[0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
                   <div className="flex items-center gap-1.5 shrink-0 relative">
@@ -4884,7 +4884,7 @@ export default function TraderPage({
                         onClick={() => setCandlePaletteDropdownOpen((o) => !o)}
                         whileTap={{ scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        className={`flex items-center gap-1.5 rounded border px-2 py-1 text-xs transition-colors ${candlePaletteDropdownOpen ? 'border-white/20 bg-white/10' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04] text-gray-400 hover:text-gray-300'}`}
+                        className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition-all duration-300 ${candlePaletteDropdownOpen ? 'border-white/20 bg-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.3)]' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.06] hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] text-gray-400 hover:text-gray-300'}`}
                         title="Candle color palette"
                       >
                         {(() => {
@@ -4902,7 +4902,7 @@ export default function TraderPage({
                       {candlePaletteDropdownOpen && candlePaletteDropdownPosition && createPortal(
                         <div
                           ref={candlePaletteDropdownPanelRef}
-                          className="min-w-[7rem] rounded border border-white/10 bg-[#0b0b0b] py-1 shadow-lg"
+                          className="min-w-[7rem] rounded-xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] to-white/[0.02] py-1 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]"
                           style={{
                             position: 'fixed',
                             top: candlePaletteDropdownPosition.top,
@@ -4941,7 +4941,7 @@ export default function TraderPage({
                           onClick={() => setChartDisplayMode(opt.id)}
                           whileTap={{ scale: 0.96 }}
                           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          className={`flex items-center justify-center rounded border w-7 h-7 transition-colors ${isActive ? 'border-white/20 bg-white/10 text-white' : 'border-white/[0.06] bg-transparent text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'}`}
+                          className={`flex items-center justify-center rounded-lg border w-7 h-7 transition-all duration-300 ${isActive ? 'border-white/20 bg-white/10 text-white shadow-[0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]' : 'border-white/[0.06] bg-transparent text-gray-500 hover:bg-white/[0.06] hover:text-gray-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]'}`}
                           title={opt.name}
                         >
                           <Icon className="h-4 w-4 shrink-0" />
@@ -5026,10 +5026,10 @@ export default function TraderPage({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       transition={interactiveTransition}
-                      className={`flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
+                      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition-all duration-300 ${
                         timeframeDropdownOpen
-                          ? 'border-emerald-400 text-emerald-400'
-                          : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                          ? 'border-emerald-400/60 text-emerald-400 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.15),inset_0_1px_0_rgba(255,255,255,0.05)]'
+                          : 'border-white/[0.06] text-gray-300 hover:bg-white/[0.06] hover:text-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]'
                       }`}
                       aria-expanded={timeframeDropdownOpen}
                     >
@@ -5039,7 +5039,7 @@ export default function TraderPage({
                     {timeframeDropdownOpen && timeframeDropdownPosition && createPortal(
                       <div
                         ref={timeframeDropdownPanelRef}
-                        className="min-w-[5rem] rounded border border-white/10 bg-[#0b0b0b] py-1 shadow-lg"
+                        className="min-w-[5rem] rounded-xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] to-white/[0.02] py-1 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]"
                         style={{
                           position: 'fixed',
                           top: timeframeDropdownPosition.top,
@@ -5073,10 +5073,10 @@ export default function TraderPage({
                     whileTap={{ scale: 0.98 }}
                     transition={interactiveTransition}
                     disabled={chartStatus.loading || !selectedSymbol}
-                    className={`inline-flex h-7 shrink-0 items-center gap-1.5 border px-2.5 text-[11px] font-medium transition-colors ${
+                    className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition-all duration-300 ${
                       chartStatus.loading || !selectedSymbol
-                        ? 'cursor-not-allowed border-white/[0.12] text-gray-500'
-                        : 'border-white/[0.14] text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                        ? 'cursor-not-allowed border-white/[0.06] text-gray-500'
+                        : 'border-white/[0.06] text-gray-300 hover:bg-white/[0.06] hover:text-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]'
                     }`}
                     title="Refresh chart and reset viewport"
                     aria-label="Refresh chart"
@@ -5142,14 +5142,18 @@ export default function TraderPage({
                 </div>
 
                 {chartStatus.loading && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/55 text-sm text-[#9ca3af]">
-                    Loading candles...
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm text-sm text-gray-400">
+                    <div className="rounded-xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] px-4 py-2">
+                      Loading candles...
+                    </div>
                   </div>
                 )}
 
                 {!chartStatus.loading && chartStatus.error && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/65 px-6 text-center text-sm text-[#9ca3af]">
-                    {chartStatus.error}
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm px-6 text-center text-sm">
+                    <div className="rounded-xl bg-gradient-to-br from-red-500/[0.1] to-red-900/[0.05] backdrop-blur-xl border border-red-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_16px_rgba(239,68,68,0.08)] px-4 py-2 text-red-200">
+                      {chartStatus.error}
+                    </div>
                   </div>
                 )}
               </div>
