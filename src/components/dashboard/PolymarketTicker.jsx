@@ -77,31 +77,23 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
     return () => { cancelAnimationFrame(raf); ro?.disconnect(); };
   }, [allItems.length, minimized]);
 
-  // Chevron toggle icon (inline, same height as ticker)
-  const chevronButton = (rotated) => (
-    <button
-      onClick={onToggleMinimize}
-      className="flex items-center gap-1 px-2 py-1 text-blue-400 hover:text-blue-300 transition-colors cursor-pointer shrink-0"
-      title={minimized ? 'Show Polymarket ticker' : 'Minimize Polymarket ticker'}
-    >
-      <svg
-        className={`w-3 h-3 transition-transform ${rotated ? 'rotate-180' : ''}`}
-        viewBox="0 0 10 6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <path d="M1 1l4 4 4-4" />
-      </svg>
-    </button>
-  );
-
-  // ─── Minimized / no data: StatusBar + chevron on right ────────────────
+  // ─── Minimized / no data: StatusBar + "POLYMARKET" label on right ─────
   if (minimized || markets.length === 0) {
     return (
       <div className="flex items-center">
         <div className="flex-1 min-w-0">{statusBar}</div>
-        {markets.length > 0 && chevronButton(true)}
+        {markets.length > 0 && (
+          <button
+            onClick={onToggleMinimize}
+            className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer shrink-0"
+            title="Show Polymarket ticker"
+          >
+            <svg className="w-2.5 h-2.5 rotate-180" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M1 1l4 4 4-4" />
+            </svg>
+            POLYMARKET
+          </button>
+        )}
       </div>
     );
   }
@@ -175,7 +167,15 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
       </div>
 
       {/* Chevron toggle — inline, right end, same line */}
-      {chevronButton(false)}
+      <button
+        onClick={onToggleMinimize}
+        className="flex items-center px-2 py-1 text-blue-400 hover:text-blue-300 transition-colors cursor-pointer shrink-0"
+        title="Minimize Polymarket ticker"
+      >
+        <svg className="w-3 h-3" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M1 1l4 4 4-4" />
+        </svg>
+      </button>
     </div>
   );
 };
