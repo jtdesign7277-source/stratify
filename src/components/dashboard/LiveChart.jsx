@@ -10,12 +10,10 @@ import {
 const CHART_CANDLES_URL = '/api/chart/candles';
 const WS_CONFIG_URL = '/api/lse/ws-config';
 
-const GRID_COLOR = '#1a2332';
-const TEXT_COLOR = '#8892a0';
 const UP_COLOR = '#22c55e';
 const DOWN_COLOR = '#ef4444';
-const VOLUME_UP = 'rgba(34, 197, 94, 0.35)';
-const VOLUME_DOWN = 'rgba(239, 68, 68, 0.35)';
+const VOLUME_UP = 'rgba(34, 197, 94, 0.2)';
+const VOLUME_DOWN = 'rgba(239, 68, 68, 0.2)';
 
 const INTERVAL_OPTIONS = [
   { label: '1m', value: '1min' },
@@ -307,28 +305,29 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
       width: Math.max(320, containerRef.current.clientWidth || 0),
       height: Math.max(240, containerRef.current.clientHeight || 0),
       layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: TEXT_COLOR,
+        background: { type: ColorType.Solid, color: '#000000' },
+        textColor: '#6b7280',
       },
       grid: {
-        vertLines: { color: GRID_COLOR },
-        horzLines: { color: GRID_COLOR },
+        vertLines: { visible: false },
+        horzLines: { visible: false },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: 'rgba(136,146,160,0.35)' },
-        horzLine: { color: 'rgba(136,146,160,0.35)' },
+        vertLine: { color: 'rgba(255,255,255,0.12)', width: 1, style: 3 },
+        horzLine: { color: 'rgba(255,255,255,0.12)', width: 1, style: 3 },
       },
       rightPriceScale: {
-        borderColor: GRID_COLOR,
-        scaleMargins: { top: 0.05, bottom: 0.32 },
+        borderVisible: false,
+        scaleMargins: { top: 0.06, bottom: 0.1 },
+        textColor: '#6b7280',
       },
       timeScale: {
-        borderColor: GRID_COLOR,
+        borderVisible: false,
         timeVisible: activeIntervalRef.current !== '1day',
         secondsVisible: false,
         rightOffset: 4,
-        barSpacing: 8,
+        barSpacing: 6,
         tickMarkFormatter: (time) => formatTimeTick(time, activeIntervalRef.current),
       },
       localization: {
@@ -354,7 +353,7 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
     });
 
     chart.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.72, bottom: 0 },
+      scaleMargins: { top: 0.92, bottom: 0 },
       borderVisible: false,
     });
 

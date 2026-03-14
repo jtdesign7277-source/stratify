@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
-import { createChart, CandlestickSeries, ColorType, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
+import { createChart, CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import { Activity, AlarmClock, BarChart2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsDown, ChevronsLeft, ChevronsRight, ChevronsUp, Clock, GripVertical, Newspaper, Pin, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
@@ -232,8 +232,8 @@ const UP_COLOR = '#34d399';
 const DOWN_COLOR = '#ef4444';
 const TRADER_CANDLE_PALETTE_KEY = 'stratify-trader-candle-palette';
 const TRADER_CHART_DISPLAY_KEY = 'stratify-trader-chart-display';
-const VOLUME_UP = 'rgba(52, 211, 153, 0.3)';
-const VOLUME_DOWN = 'rgba(239, 68, 68, 0.3)';
+const VOLUME_UP = 'rgba(52, 211, 153, 0.2)';
+const VOLUME_DOWN = 'rgba(239, 68, 68, 0.2)';
 const DRAG_PREVIEW_SCALE_BY_DISTANCE = [
   { distance: 200, scale: 1 },
   { distance: 100, scale: 0.75 },
@@ -2801,27 +2801,29 @@ export default function TraderPage({
     const chart = createChart(chartContainerRef.current, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: '#0b0b0b' },
-        textColor: '#9ca3af',
+        background: { type: ColorType.Solid, color: '#000000' },
+        textColor: '#6b7280',
       },
       grid: {
         vertLines: { visible: false },
         horzLines: { visible: false },
       },
       crosshair: {
-        vertLine: { color: 'rgba(255,255,255,0.15)', width: 1 },
-        horzLine: { color: 'rgba(255,255,255,0.15)', width: 1 },
+        mode: CrosshairMode.Normal,
+        vertLine: { color: 'rgba(255,255,255,0.12)', width: 1, style: 3 },
+        horzLine: { color: 'rgba(255,255,255,0.12)', width: 1, style: 3 },
       },
       rightPriceScale: {
-        borderColor: '#1f1f1f',
-        scaleMargins: { top: 0.08, bottom: 0.2 },
+        borderVisible: false,
+        scaleMargins: { top: 0.06, bottom: 0.1 },
+        textColor: '#6b7280',
       },
       timeScale: {
-        borderColor: '#1f1f1f',
+        borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
         rightOffset: 3,
-        barSpacing: 5,
+        barSpacing: 6,
       },
     });
 
@@ -2860,7 +2862,7 @@ export default function TraderPage({
     });
 
     chart.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.82, bottom: 0 },
+      scaleMargins: { top: 0.92, bottom: 0 },
       borderVisible: false,
     });
 
