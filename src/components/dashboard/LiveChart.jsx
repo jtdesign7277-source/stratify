@@ -594,9 +594,9 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
   }, [onSymbolChange, symbolInput]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)] [box-shadow:0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)]">
       {/* Top bar: symbol, interval buttons, OHLCV data */}
-      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between border-b border-[#1a2332] bg-black/20 px-3 py-1.5 backdrop-blur-sm">
+      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between border-b border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-white/[0.02] px-3 py-1.5 backdrop-blur-xl shadow-[0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono min-w-0">
           <span className="text-white/75 font-semibold shrink-0">{activeSymbol || '--'}</span>
 
@@ -607,10 +607,10 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
                 key={option.value}
                 type="button"
                 onClick={() => setActiveInterval(option.value)}
-                className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-all duration-300 ${
                   activeInterval === option.value
-                    ? 'bg-emerald-500/15 text-emerald-300'
-                    : 'text-gray-500 hover:bg-white/5 hover:text-white'
+                    ? 'bg-emerald-500/15 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.15),inset_0_1px_0_rgba(255,255,255,0.05)] border border-emerald-500/20'
+                    : 'text-gray-500 hover:bg-white/[0.06] hover:text-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent'
                 }`}
               >
                 {option.label}
@@ -637,12 +637,12 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
               if (event.key === 'Enter') submitSymbol();
             }}
             placeholder="Symbol"
-            className="h-6 w-24 rounded border border-[#1a2332] bg-black/30 px-2 text-[11px] text-white outline-none placeholder:text-gray-500 focus:border-emerald-500/70"
+            className="h-6 w-24 rounded-xl bg-black/40 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] border border-white/[0.04] px-2 text-[11px] text-white outline-none placeholder:text-gray-500 focus:border-emerald-500/40 focus:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02),0_0_12px_rgba(16,185,129,0.1)] transition-all duration-300"
           />
           <button
             type="button"
             onClick={submitSymbol}
-            className="h-6 rounded border border-emerald-500/40 bg-emerald-500/10 px-2 text-[11px] font-semibold text-emerald-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+            className="h-6 rounded-xl bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border border-emerald-500/20 px-2 text-[11px] font-semibold text-emerald-300 shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_12px_rgba(16,185,129,0.08)] transition-all duration-300 hover:from-emerald-500/25 hover:to-emerald-500/10 hover:border-emerald-400/40 hover:text-emerald-200 hover:shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_20px_rgba(16,185,129,0.15)]"
           >
             Go
           </button>
@@ -652,9 +652,15 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
       <div ref={containerRef} className="h-full w-full pt-8" />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
-        {status.loading && <div className="rounded bg-black/55 px-2 py-1 text-[11px] text-gray-300">Loading candles...</div>}
+        {status.loading && (
+          <div className="rounded-xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] px-3 py-1.5 text-[11px] text-gray-300">
+            Loading candles...
+          </div>
+        )}
         {!status.loading && status.error && (
-          <div className="rounded bg-red-900/35 px-2 py-1 text-[11px] text-red-200">{status.error}</div>
+          <div className="rounded-xl bg-gradient-to-br from-red-500/[0.1] to-red-900/[0.05] backdrop-blur-xl border border-red-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_16px_rgba(239,68,68,0.08)] px-3 py-1.5 text-[11px] text-red-200">
+            {status.error}
+          </div>
         )}
       </div>
     </div>
