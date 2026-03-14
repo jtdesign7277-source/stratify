@@ -2912,6 +2912,54 @@ export default function TraderPage({
     priceAlertsRef.current = pa;
 
     const timeScale = chart.timeScale();
+
+    const updateHighLowLines = () => {
+      const series = candleSeriesRef.current;
+      const data = lastCandleDataRef.current;
+      if (!series || !data || data.length === 0) return;
+
+      // Remove previous high/low lines
+      highLowPriceLinesRef.current.forEach((line) => {
+        try { series.removePriceLine(line); } catch {}
+      });
+      highLowPriceLinesRef.current = [];
+
+      const visibleRange = timeScale.getVisibleRange();
+      if (!visibleRange) return;
+
+      const visibleBars = data.filter(
+        (b) => b.time >= visibleRange.from && b.time <= visibleRange.to
+      );
+      if (visibleBars.length === 0) return;
+
+      const periodHigh = Math.max(...visibleBars.map((b) => b.high));
+      const periodLow = Math.min(...visibleBars.map((b) => b.low));
+
+      const highLine = series.createPriceLine({
+        price: periodHigh,
+        color: PRICE_LINE_BLUE,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dotted,
+        axisLabelVisible: true,
+        title: 'High',
+        axisLabelColor: PRICE_LINE_BLUE,
+        axisLabelTextColor: '#ffffff',
+      });
+
+      const lowLine = series.createPriceLine({
+        price: periodLow,
+        color: PRICE_LINE_BLUE,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dotted,
+        axisLabelVisible: true,
+        title: 'Low',
+        axisLabelColor: PRICE_LINE_BLUE,
+        axisLabelTextColor: '#ffffff',
+      });
+
+      highLowPriceLinesRef.current = [highLine, lowLine];
+    };
+
     const handleVisibleRangeChange = () => {
       const visibleRange = timeScale.getVisibleRange();
       const symbol = selectedSymbolRef.current;
@@ -2921,6 +2969,7 @@ export default function TraderPage({
           to: visibleRange.to,
         });
       }
+      updateHighLowLines();
     };
     timeScale.subscribeVisibleTimeRangeChange(handleVisibleRangeChange);
 
@@ -3415,44 +3464,6 @@ export default function TraderPage({
           color: bar.close >= bar.open ? VOLUME_UP : VOLUME_DOWN,
         }))
       );
-
-      // Remove previous high/low price lines
-      highLowPriceLinesRef.current.forEach((line) => {
-        try { candleSeriesRef.current?.removePriceLine(line); } catch {}
-      });
-      highLowPriceLinesRef.current = [];
-
-      // Add High/Low price lines
-      if (deduped.length > 0) {
-        const allHighs = deduped.map((b) => b.high);
-        const allLows = deduped.map((b) => b.low);
-        const periodHigh = Math.max(...allHighs);
-        const periodLow = Math.min(...allLows);
-
-        const highLine = candleSeriesRef.current.createPriceLine({
-          price: periodHigh,
-          color: PRICE_LINE_BLUE,
-          lineWidth: 1,
-          lineStyle: LineStyle.Dotted,
-          axisLabelVisible: true,
-          title: 'High',
-          axisLabelColor: PRICE_LINE_BLUE,
-          axisLabelTextColor: '#ffffff',
-        });
-
-        const lowLine = candleSeriesRef.current.createPriceLine({
-          price: periodLow,
-          color: PRICE_LINE_BLUE,
-          lineWidth: 1,
-          lineStyle: LineStyle.Dotted,
-          axisLabelVisible: true,
-          title: 'Low',
-          axisLabelColor: PRICE_LINE_BLUE,
-          axisLabelTextColor: '#ffffff',
-        });
-
-        highLowPriceLinesRef.current = [highLine, lowLine];
-      }
 
       // Force price scale (Y-axis) to fit new ticker's data so right-side prices update (e.g. HIMS $15 -> NVDA $177)
       try {
