@@ -2814,7 +2814,7 @@ export default function TraderPage({
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: (CHART_BG_THEMES.find((t) => t.id === chartBgTheme) || CHART_BG_THEMES[0]).color },
-        textColor: '#6b7280',
+        textColor: '#4c7aaf',
       },
       grid: {
         vertLines: { visible: false },
@@ -2828,7 +2828,6 @@ export default function TraderPage({
       rightPriceScale: {
         borderVisible: false,
         scaleMargins: { top: 0.06, bottom: 0.1 },
-        textColor: '#6b7280',
       },
       timeScale: {
         borderVisible: false,

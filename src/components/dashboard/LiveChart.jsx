@@ -306,7 +306,7 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
       height: Math.max(240, containerRef.current.clientHeight || 0),
       layout: {
         background: { type: ColorType.Solid, color: '#000000' },
-        textColor: '#6b7280',
+        textColor: '#4c7aaf',
       },
       grid: {
         vertLines: { visible: false },
@@ -320,7 +320,6 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
       rightPriceScale: {
         borderVisible: false,
         scaleMargins: { top: 0.06, bottom: 0.1 },
-        textColor: '#6b7280',
       },
       timeScale: {
         borderVisible: false,
