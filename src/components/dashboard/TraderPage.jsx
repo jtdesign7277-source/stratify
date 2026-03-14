@@ -236,6 +236,7 @@ const modalPanelMotion = {
 
 const UP_COLOR = '#34d399';
 const DOWN_COLOR = '#ef4444';
+const PRICE_LINE_BLUE = '#2962FF';
 const TRADER_CANDLE_PALETTE_KEY = 'stratify-trader-candle-palette';
 const TRADER_CHART_DISPLAY_KEY = 'stratify-trader-chart-display';
 const VOLUME_UP = 'rgba(52, 211, 153, 0.2)';
@@ -1830,6 +1831,7 @@ export default function TraderPage({
   const volumeSeriesRef = useRef(null);
   const lastBarRef = useRef(null);
   const lastCandleDataRef = useRef([]);
+  const highLowPriceLinesRef = useRef([]);
   const drawingPriceLinesRef = useRef([]);
   const drawingTrendLinesRef = useRef([]);
   const drawingRectanglesRef = useRef([]);
@@ -2843,6 +2845,10 @@ export default function TraderPage({
       wickDownColor: DOWN_COLOR,
       borderUpColor: UP_COLOR,
       borderDownColor: DOWN_COLOR,
+      lastValueVisible: true,
+      priceLineVisible: true,
+      priceLineColor: PRICE_LINE_BLUE,
+      priceLineWidth: 1,
     });
 
     const lineToolsPlugin = createLineToolsPlugin(chart, candleSeries);
@@ -3409,6 +3415,44 @@ export default function TraderPage({
           color: bar.close >= bar.open ? VOLUME_UP : VOLUME_DOWN,
         }))
       );
+
+      // Remove previous high/low price lines
+      highLowPriceLinesRef.current.forEach((line) => {
+        try { candleSeriesRef.current?.removePriceLine(line); } catch {}
+      });
+      highLowPriceLinesRef.current = [];
+
+      // Add High/Low price lines
+      if (deduped.length > 0) {
+        const allHighs = deduped.map((b) => b.high);
+        const allLows = deduped.map((b) => b.low);
+        const periodHigh = Math.max(...allHighs);
+        const periodLow = Math.min(...allLows);
+
+        const highLine = candleSeriesRef.current.createPriceLine({
+          price: periodHigh,
+          color: PRICE_LINE_BLUE,
+          lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: 'High',
+          axisLabelColor: PRICE_LINE_BLUE,
+          axisLabelTextColor: '#ffffff',
+        });
+
+        const lowLine = candleSeriesRef.current.createPriceLine({
+          price: periodLow,
+          color: PRICE_LINE_BLUE,
+          lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: 'Low',
+          axisLabelColor: PRICE_LINE_BLUE,
+          axisLabelTextColor: '#ffffff',
+        });
+
+        highLowPriceLinesRef.current = [highLine, lowLine];
+      }
 
       // Force price scale (Y-axis) to fit new ticker's data so right-side prices update (e.g. HIMS $15 -> NVDA $177)
       try {
