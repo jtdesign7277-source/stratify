@@ -104,8 +104,22 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
   // ─── Expanded ticker — matches top bar style ──────────────────────────
   return (
     <div className="relative">
+      {/* POLYMARKET label bar — above ticker */}
+      <div className="flex items-center justify-end px-3 py-0.5 bg-[#1a1a1a] border-t border-white/[0.06]">
+        <button
+          onClick={onToggleMinimize}
+          className="flex items-center gap-1 text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+          title="Minimize Polymarket ticker"
+        >
+          <svg className="w-2.5 h-2.5" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M1 1l4 4 4-4" />
+          </svg>
+          POLYMARKET
+        </button>
+      </div>
+
       {/* Scrolling ticker */}
-      <div className="relative h-[34px] overflow-hidden bg-[#1a1a1a] border-t border-white/[0.06]">
+      <div className="relative h-[34px] overflow-hidden bg-[#1a1a1a]">
         <style>{`
           @keyframes poly-scroll {
             from { transform: translateX(-${100 / repeatCount}%); }
@@ -171,17 +185,6 @@ const PolymarketTicker = ({ minimized, onToggleMinimize, statusBar }) => {
         <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#1a1a1a] to-transparent" />
       </div>
 
-      {/* POLYMARKET label — right side, above ticker */}
-      <button
-        onClick={onToggleMinimize}
-        className="absolute right-2 -top-5 z-10 flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer bg-[#1a1a1a]/90 backdrop-blur-sm rounded"
-        title="Minimize Polymarket ticker"
-      >
-        <svg className="w-2.5 h-2.5" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M1 1l4 4 4-4" />
-        </svg>
-        POLYMARKET
-      </button>
     </div>
   );
 };
