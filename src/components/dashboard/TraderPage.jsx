@@ -4592,7 +4592,7 @@ export default function TraderPage({
                                   ? (liveDollarChange / previousClose) * 100
                                   : null;
                               const quoteMarketOpen = parseMarketOpen(quote?.isMarketOpen ?? quote?.is_market_open);
-                              const shouldShowExtendedPercent = quoteMarketOpen === false && Number.isFinite(extendedChangePercent);
+                              const shouldShowExtendedPercent = extendedHoursStatus != null && quoteMarketOpen === false && Number.isFinite(extendedChangePercent);
                               const secondarySession = quoteMarketOpen === true
                                 ? 'live'
                                 : extendedHoursStatus === 'pre-market'
@@ -4617,7 +4617,7 @@ export default function TraderPage({
                                   ? 'Post-market change (% / $)'
                                   : 'Live change (% / $)';
                               const stock = quote;
-                              const isExtended = !(stock?.is_market_open ?? stock?.isMarketOpen) && (stock?.extended_percent_change != null || stock?.extendedPercentChange != null);
+                              const isExtended = extendedHoursStatus != null && !(stock?.is_market_open ?? stock?.isMarketOpen) && (stock?.extended_percent_change != null || stock?.extendedPercentChange != null);
                               const displayPercent = isExtended
                                 ? (parseFloat(stock?.extended_percent_change ?? stock?.extendedPercentChange) || 0).toFixed(2)
                                 : (parseFloat(stock?.percent_change ?? stock?.changePercent) || 0).toFixed(2);

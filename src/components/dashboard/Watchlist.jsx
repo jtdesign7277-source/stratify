@@ -73,7 +73,13 @@ const getEasternMinutes = (date) => {
     return hour * 60 + minute;
 };
 
+const isWeekendET = () => {
+    const dayStr = new Intl.DateTimeFormat('en-US', { timeZone: EASTERN_TIMEZONE, weekday: 'short' }).format(new Date());
+    return dayStr === 'Sat' || dayStr === 'Sun';
+};
+
 const getMarketSession = () => {
+    if (isWeekendET()) return 'closed';
     const minutes = getEasternMinutes(new Date());
     if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre_market';
     if (minutes >= PRE_MARKET_END_MINUTES && minutes < AFTER_HOURS_START_MINUTES) return 'regular';
@@ -255,7 +261,8 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                   const changePercentDisplay = isCrypto ? (Number.isFinite(changePercent) ? changePercent : null) : changePercent;
                   const volume = isCrypto ? null : (quote.volume || stock.volume);
                   const companyName = isCrypto ? stock.name : (quote.name || stock.name || '');
-                  const resolvedMarketSession = isCrypto ? null : (quote.marketSession || localMarketSession);
+                  const isWeekend = isWeekendET();
+                  const resolvedMarketSession = isCrypto ? null : (isWeekend ? 'closed' : (quote.marketSession || localMarketSession));
                   const isPreMarket = resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'pre';
                   const isAfterHours = resolvedMarketSession === 'post_market' || resolvedMarketSession === 'after';
                   const extendedChangePercent = isCrypto ? null : (isPreMarket ? quote.preMarketChangePercent : quote.afterHoursChangePercent) ?? quote.extended_percent_change ?? null;
