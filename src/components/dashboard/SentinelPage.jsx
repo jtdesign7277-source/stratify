@@ -346,13 +346,13 @@ function SentinelPageInner() {
                 <div className="mt-1"><WinRateColor value={account.win_rate || 0} /></div>
               </MetricTooltip>
               <MetricTooltip label="Avg R" tip="Average risk-reward per trade. 1R = the amount risked. If Sentinel risks $100 and averages $200 profit, that's 2.00R. Negative means average losses exceed the planned risk.">
-                <div className="mt-1 text-emerald-400 font-mono">{(account.avg_r || 0).toFixed(2)}R</div>
+                <div className={`mt-1 font-mono ${(account.avg_r || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(account.avg_r || 0).toFixed(2)}R</div>
               </MetricTooltip>
               <MetricTooltip label="Total Trades" tip="Total number of trades Sentinel has executed since launch. More trades = more data for the brain to learn from.">
-                <div className="mt-1 text-white font-mono">{account.total_trades || 0}</div>
+                <div className="mt-1 text-white font-mono">{(account.total_trades || 0) || (openTrades.length + recentClosedTrades.length)}</div>
               </MetricTooltip>
               <MetricTooltip label="Expectancy" tip="Expected profit per trade in R units. Combines win rate and average win/loss size: (win% × avg win) − (loss% × avg loss). Positive = profitable system over time.">
-                <div className="mt-1 text-emerald-400 font-mono">+{(account.expectancy || 0).toFixed(1)}R</div>
+                <div className={`mt-1 font-mono ${(account.expectancy || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(account.expectancy || 0) >= 0 ? '+' : ''}{(account.expectancy || 0).toFixed(1)}R</div>
               </MetricTooltip>
             </div>
           </div>

@@ -203,21 +203,30 @@ export default async function handler(req, res) {
             session_date: new Date().toISOString().split('T')[0],
           }).eq('id', trade.id);
 
-          // Update account
+          // Recompute all account metrics from actual closed trades
           const newBalance = (account.current_balance || 500000) + pnl;
-          const newWins = (account.wins || 0) + (win ? 1 : 0);
-          const newLosses = (account.losses || 0) + (win ? 0 : 1);
-          const newClosedTrades = (account.closed_trades || 0) + 1;
-          const newWinRate = (newWins + newLosses) > 0 ? (newWins / (newWins + newLosses)) * 100 : 0;
           const newTotalPnl = (account.total_pnl || 0) + pnl;
+          const { data: allClosed } = await supabase.from('sentinel_trades').select('pnl, result_r, win').eq('status', 'closed');
+          const { count: totalTradeCount } = await supabase.from('sentinel_trades').select('id', { count: 'exact', head: true });
+          const closedCount = allClosed?.length || 0;
+          const newWins = allClosed?.filter(t => t.win).length || 0;
+          const newLosses = closedCount - newWins;
+          const newWinRate = closedCount > 0 ? (newWins / closedCount) * 100 : 0;
+          const avgR = closedCount > 0 ? allClosed.reduce((s, t) => s + (t.result_r || 0), 0) / closedCount : 0;
+          const avgWin = newWins > 0 ? allClosed.filter(t => t.win).reduce((s, t) => s + (t.result_r || 0), 0) / newWins : 0;
+          const avgLoss = newLosses > 0 ? Math.abs(allClosed.filter(t => !t.win).reduce((s, t) => s + (t.result_r || 0), 0) / newLosses) : 0;
+          const expectancy = closedCount > 0 ? ((newWinRate / 100) * avgWin) - (((100 - newWinRate) / 100) * avgLoss) : 0;
 
           await supabase.from('sentinel_account').update({
             current_balance: +newBalance.toFixed(2),
             total_pnl: +newTotalPnl.toFixed(2),
-            closed_trades: newClosedTrades,
+            closed_trades: closedCount,
+            total_trades: totalTradeCount || 0,
             wins: newWins,
             losses: newLosses,
-            win_rate: +newWinRate.toFixed(1),
+            win_rate: +newWinRate.toFixed(2),
+            avg_r: +avgR.toFixed(2),
+            expectancy: +expectancy.toFixed(2),
             updated_at: new Date().toISOString(),
           }).eq('id', ACCOUNT_ID);
 

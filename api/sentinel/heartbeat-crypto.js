@@ -159,8 +159,18 @@ export default async function handler(req, res) {
                                     const resultR = stopHit ? -1 : trade.reward_r;
                                     const win = !stopHit;
                                     await supabase.from('sentinel_trades').update({ status:'closed', closed_at:new Date().toISOString(), exit_price:exitPrice, result_r:resultR, pnl:parseFloat(pnl.toFixed(2)), win, session_date:new Date().toISOString().split('T')[0] }).eq('id', trade.id);
-                                    const newWins = account.wins+(win?1:0), newLosses = account.losses+(win?0:1), closedCount = account.closed_trades+1;
-                                    await supabase.from('sentinel_account').update({ current_balance:parseFloat((account.current_balance+pnl).toFixed(2)), total_pnl:parseFloat((account.total_pnl+pnl).toFixed(2)), wins:newWins, losses:newLosses, closed_trades:closedCount, win_rate:parseFloat(((newWins/closedCount)*100).toFixed(2)), updated_at:new Date().toISOString() }).eq('id', SENTINEL_ACCOUNT_ID);
+                                    // Recompute all account metrics from actual closed trades
+                                    const { data: allClosed } = await supabase.from('sentinel_trades').select('pnl, result_r, win').eq('status', 'closed');
+                                    const { count: totalTradeCount } = await supabase.from('sentinel_trades').select('id', { count: 'exact', head: true });
+                                    const closedCount = allClosed?.length || 0;
+                                    const newWins = allClosed?.filter(t => t.win).length || 0;
+                                    const newLosses = closedCount - newWins;
+                                    const winRate = closedCount > 0 ? (newWins / closedCount) * 100 : 0;
+                                    const avgR = closedCount > 0 ? allClosed.reduce((s, t) => s + (t.result_r || 0), 0) / closedCount : 0;
+                                    const avgWin = newWins > 0 ? allClosed.filter(t => t.win).reduce((s, t) => s + (t.result_r || 0), 0) / newWins : 0;
+                                    const avgLoss = newLosses > 0 ? Math.abs(allClosed.filter(t => !t.win).reduce((s, t) => s + (t.result_r || 0), 0) / newLosses) : 0;
+                                    const expectancy = closedCount > 0 ? ((winRate / 100) * avgWin) - (((100 - winRate) / 100) * avgLoss) : 0;
+                                    await supabase.from('sentinel_account').update({ current_balance:parseFloat((account.current_balance+pnl).toFixed(2)), total_pnl:parseFloat((account.total_pnl+pnl).toFixed(2)), wins:newWins, losses:newLosses, closed_trades:closedCount, total_trades:totalTradeCount||0, win_rate:parseFloat(winRate.toFixed(2)), avg_r:parseFloat(avgR.toFixed(2)), expectancy:parseFloat(expectancy.toFixed(2)), updated_at:new Date().toISOString() }).eq('id', SENTINEL_ACCOUNT_ID);
                                     await supabase.from('sentinel_copied_trades').update({ status:'closed', closed_at:new Date().toISOString(), exit_price:exitPrice, result_r:resultR, win }).eq('sentinel_trade_id', trade.id).eq('status','open');
                                     const { data: subs } = await supabase.from('sentinel_user_settings').select('user_id').eq('yolo_active',true).in('subscription_status',['trialing','active']);
                                     for (const u of (subs||[])) {
