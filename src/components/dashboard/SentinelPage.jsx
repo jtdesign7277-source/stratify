@@ -48,6 +48,7 @@ function SentinelPageInner() {
   const [notifications, setNotifications] = useState([]);
   const [expandedSession, setExpandedSession] = useState(null);
   const [brainModalSession, setBrainModalSession] = useState(null);
+  const [brainExpanded, setBrainExpanded] = useState(false);
   const [showYoloConfirm, setShowYoloConfirm] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const lastFetchRef = useRef(null);
@@ -635,43 +636,66 @@ function SentinelPageInner() {
               transition={{ delay: 0.15, ...SPRING }}
               className={`${GLASS} p-5 transition-all duration-300`}
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SENTINEL BRAIN</span>
-                <span className="text-xs text-gray-500 font-mono">Session {memory.sessions_processed || 0}</span>
-              </div>
-              {memory.brain_summary && (
-                <p className="text-sm text-gray-400 leading-relaxed mb-4">{memory.brain_summary}</p>
-              )}
-              {!memory.brain_summary && (
-                <p className="text-sm text-gray-500 leading-relaxed mb-4">Sentinel is in early learning mode. Analyzing first sessions.</p>
-              )}
-              <div className="space-y-1 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-                {recentSessions.filter((s) => s.claude_analysis).length === 0 && (
-                  <p className="text-[10px] text-gray-600 font-mono">No analysis sessions yet</p>
-                )}
-                {recentSessions.map((session) => (
-                  <motion.button
-                    key={session.id}
-                    onClick={() => setBrainModalSession(session)}
-                    whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                    className="flex items-center justify-between w-full py-2 px-3 rounded-xl text-xs font-mono transition-all duration-300 text-left"
+              <motion.div
+                onClick={() => setBrainExpanded((v) => !v)}
+                className="flex items-center justify-between cursor-pointer"
+                whileHover={{ opacity: 0.8 }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SENTINEL BRAIN</span>
+                  <span className="text-[10px] text-gray-600 font-mono">{recentSessions.length} sessions</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 font-mono">Session {memory.sessions_processed || 0}</span>
+                  <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${brainExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </motion.div>
+              <AnimatePresence>
+                {brainExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
                   >
-                    <span className="text-gray-300">
-                      {new Date(session.session_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className={`${(session.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {(session.gross_pnl || 0) >= 0 ? '+' : ''}${(session.gross_pnl || 0).toFixed(0)}
-                      </span>
-                      {session.claude_analysis ? (
-                        <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" /></svg>
+                    <div className="mt-3">
+                      {memory.brain_summary ? (
+                        <p className="text-sm text-gray-400 leading-relaxed mb-4">{memory.brain_summary}</p>
                       ) : (
-                        <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                        <p className="text-sm text-gray-500 leading-relaxed mb-4">Sentinel is in early learning mode. Analyzing first sessions.</p>
                       )}
+                      <div className="space-y-1 max-h-64 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                        {recentSessions.length === 0 && (
+                          <p className="text-[10px] text-gray-600 font-mono">No sessions yet</p>
+                        )}
+                        {recentSessions.map((session) => (
+                          <motion.button
+                            key={session.id}
+                            onClick={(e) => { e.stopPropagation(); setBrainModalSession(session); }}
+                            whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                            className="flex items-center justify-between w-full py-2 px-3 rounded-xl text-xs font-mono transition-all duration-300 text-left"
+                          >
+                            <span className="text-gray-300">
+                              {new Date(session.session_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`${(session.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {(session.gross_pnl || 0) >= 0 ? '+' : ''}${(session.gross_pnl || 0).toFixed(0)}
+                              </span>
+                              {session.claude_analysis ? (
+                                <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" /></svg>
+                              ) : (
+                                <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                              )}
+                            </div>
+                          </motion.button>
+                        ))}
+                      </div>
                     </div>
-                  </motion.button>
-                ))}
-              </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
             {/* NOTIFICATIONS PANEL */}
