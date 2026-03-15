@@ -1,5 +1,5 @@
 // api/sentinel/heartbeat.js — Sentinel cron job (every 60s during market hours)
-// Checks open trades, scans for new signals, triggers learn at 4pm ET
+// Checks open trades, scans for new signals (1h swing + 5min scalp), triggers learn at 4pm ET
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -14,10 +14,15 @@ const supabase = createClient(
   { auth: { persistSession: false } }
 );
 
-const SCAN_SYMBOLS = ['SPY', 'QQQ', 'AAPL', 'NVDA', 'TSLA', 'MSFT', 'META', 'AMZN', 'GOOGL'];
+const SCAN_SYMBOLS = [
+  'SPY', 'QQQ', 'AAPL', 'NVDA', 'TSLA', 'MSFT', 'META', 'AMZN', 'GOOGL',
+  'AMD', 'NFLX', 'COIN', 'PLTR', 'SOFI', 'RIVN', 'UBER', 'SQ', 'SHOP', 'MARA',
+  'SMCI', 'ARM', 'AVGO', 'CRM', 'SNOW',
+];
 const SCAN_CRYPTO = ['BTC/USD', 'ETH/USD'];
 const ALL_SYMBOLS = [...SCAN_SYMBOLS, ...SCAN_CRYPTO];
 const ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
+const MAX_OPEN_TRADES = 10; // Allow more concurrent positions
 
 function getETTime() {
   const now = new Date();
@@ -47,9 +52,9 @@ async function fetchQuote(symbol) {
   return +data.close;
 }
 
-async function fetchBars(symbol) {
+async function fetchBars(symbol, interval = '1h') {
   const cleanSymbol = symbol.replace('/', '');
-  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(cleanSymbol)}&interval=1h&outputsize=100&apikey=${TWELVE_DATA_KEY}`;
+  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(cleanSymbol)}&interval=${interval}&outputsize=100&apikey=${TWELVE_DATA_KEY}`;
   const resp = await fetch(url);
   const data = await resp.json();
   if (data.status === 'error' || !data.values) throw new Error(data.message || 'Bars error');
@@ -105,6 +110,7 @@ function generateSignal(symbol, bars, timeframe) {
     if (atrPct > 3.5) regime = 'VOLATILE';
     else { const spread = ((e20 - e50) / e50) * 100; if (e20 > e50 && price > e20 && spread > 0.5) regime = 'BULL_TRENDING'; else if (e20 < e50 && price < e20 && spread < -0.5) regime = 'BEAR_TRENDING'; }
   }
+  const isScalp = timeframe === '5min';
   // Signals
   const pe9 = ema9[last - 1], pe21 = ema21[last - 1];
   if (pe9 <= pe21 && e9 > e21 && price > e50) { direction = 'LONG'; setup = 'EMA Crossover'; confidence = 62; reasons.push('EMA9 crossed above EMA21'); }
@@ -113,11 +119,54 @@ function generateSignal(symbol, bars, timeframe) {
   if (direction === 'WAIT' && pe9 >= pe21 && e9 < e21 && price < e50) { direction = 'SHORT'; setup = 'EMA Crossover'; confidence = 62; }
   if (direction === 'WAIT' && regime === 'BEAR_TRENDING' && Math.abs(price - e21) / a < 0.5 && r > 55 && r < 70) { direction = 'SHORT'; setup = 'Break & Retest'; confidence = 65; }
   if (direction === 'WAIT' && r > 70 && price < e50) { direction = 'SHORT'; setup = 'RSI Overbought Rejection'; confidence = 58; }
-  if (regime === 'VOLATILE') confidence = Math.max(0, confidence - 15);
-  if (regime === 'RANGING' && setup === 'EMA Crossover') confidence = Math.max(0, confidence - 10);
+
+  // === SCALP-ONLY SETUPS (5min) ===
+  if (isScalp && direction === 'WAIT') {
+    // Momentum Burst — price ripping above EMA9 with RSI 55-75 (strong but not exhausted)
+    const pctAboveE9 = ((price - e9) / e9) * 100;
+    if (pctAboveE9 > 0.05 && pctAboveE9 < 0.4 && r > 55 && r < 75 && e9 > e21) {
+      direction = 'LONG'; setup = 'Momentum Burst'; confidence = 60;
+      reasons.push('Price riding above EMA9 with momentum');
+    }
+    // Momentum Burst Short
+    if (direction === 'WAIT' && pctAboveE9 < -0.05 && pctAboveE9 > -0.4 && r < 45 && r > 25 && e9 < e21) {
+      direction = 'SHORT'; setup = 'Momentum Burst'; confidence = 60;
+      reasons.push('Price sliding below EMA9 with momentum');
+    }
+    // Mean Reversion — price stretched far from EMA21, snapping back
+    const pctFromE21 = ((price - e21) / e21) * 100;
+    if (direction === 'WAIT' && pctFromE21 < -0.15 && r < 30) {
+      direction = 'LONG'; setup = 'Mean Reversion'; confidence = 58;
+      reasons.push('Price stretched below EMA21, RSI oversold');
+    }
+    if (direction === 'WAIT' && pctFromE21 > 0.15 && r > 70) {
+      direction = 'SHORT'; setup = 'Mean Reversion'; confidence = 58;
+      reasons.push('Price stretched above EMA21, RSI overbought');
+    }
+    // EMA9 Bounce — price touching EMA9 from above in uptrend
+    if (direction === 'WAIT' && Math.abs(price - e9) / a < 0.3 && e9 > e21 && r > 45 && r < 65) {
+      direction = 'LONG'; setup = 'EMA9 Bounce'; confidence = 57;
+      reasons.push('Price bouncing off EMA9 support');
+    }
+    if (direction === 'WAIT' && Math.abs(price - e9) / a < 0.3 && e9 < e21 && r > 35 && r < 55) {
+      direction = 'SHORT'; setup = 'EMA9 Bounce'; confidence = 57;
+      reasons.push('Price rejecting off EMA9 resistance');
+    }
+  }
+
+  if (regime === 'VOLATILE') confidence = Math.max(0, confidence - (isScalp ? 5 : 15));
+  if (regime === 'RANGING' && setup === 'EMA Crossover') confidence = Math.max(0, confidence - (isScalp ? 3 : 10));
+
   let stop = null, target = null;
-  if (direction === 'LONG') { stop = price - a * 1.5; target = price + a * 3; }
-  else if (direction === 'SHORT') { stop = price + a * 1.5; target = price - a * 3; }
+  if (isScalp) {
+    // Scalp: tight stops, quick targets
+    if (direction === 'LONG') { stop = price - a * 0.75; target = price + a * 1.5; }
+    else if (direction === 'SHORT') { stop = price + a * 0.75; target = price - a * 1.5; }
+  } else {
+    // Swing: wider stops
+    if (direction === 'LONG') { stop = price - a * 1.5; target = price + a * 3; }
+    else if (direction === 'SHORT') { stop = price + a * 1.5; target = price - a * 3; }
+  }
   return { symbol, timeframe, direction, confidence: Math.round(Math.min(100, Math.max(0, confidence))), regime, setup, entry: +price.toFixed(4), stop: stop ? +stop.toFixed(4) : null, target: target ? +target.toFixed(4) : null, rewardR: direction !== 'WAIT' ? 2 : null, reasons, generatedAt: new Date().toISOString() };
 }
 
@@ -275,20 +324,43 @@ export default async function handler(req, res) {
       }
     }
 
-    // === SCAN FOR NEW SIGNALS ===
-    const openSymbols = new Set(openTrades.filter(t => t.status === 'open').map(t => t.symbol));
+    // === SCAN FOR NEW SIGNALS (5min scalp primary, 1h swing secondary) ===
+    const openKeys = new Set(openTrades.filter(t => t.status === 'open').map(t => `${t.symbol}_${t.timeframe}`));
+    const totalOpen = openTrades.filter(t => t.status === 'open').length;
 
-    for (const symbol of ALL_SYMBOLS) {
+    // Rotate through symbols to stay within API rate limits (~8 per minute)
+    // Use current minute to pick a batch — covers all symbols across multiple heartbeats
+    const { minute: currentMinute } = getETTime();
+    const BATCH_SIZE = 8;
+    const batchIndex = currentMinute % Math.ceil(ALL_SYMBOLS.length / BATCH_SIZE);
+    const batchSymbols = ALL_SYMBOLS.slice(batchIndex * BATCH_SIZE, (batchIndex + 1) * BATCH_SIZE);
+
+    // 5min scalps every run, 1h swings every 5th minute
+    const doSwingScan = currentMinute % 5 === 0;
+
+    const scanJobs = [];
+    for (const symbol of batchSymbols) {
       const cleanSymbol = symbol.replace('/', '');
-      if (openSymbols.has(cleanSymbol) || openSymbols.has(symbol)) continue;
+      if (!openKeys.has(`${cleanSymbol}_5min`)) scanJobs.push({ symbol, cleanSymbol, timeframe: '5min' });
+      if (doSwingScan && !openKeys.has(`${cleanSymbol}_1h`)) scanJobs.push({ symbol, cleanSymbol, timeframe: '1h' });
+    }
+
+    for (const job of scanJobs) {
+      // Respect max open trades
+      if (totalOpen + newSignals >= MAX_OPEN_TRADES) break;
 
       try {
-        const bars = await fetchBars(symbol);
-        let signal = generateSignal(cleanSymbol, bars, '1h');
+        const bars = await fetchBars(job.symbol, job.timeframe);
+        let signal = generateSignal(job.cleanSymbol, bars, job.timeframe);
         signal = applyMemoryWeights(signal, memory);
 
-        if (signal.direction !== 'WAIT' && signal.confidence >= 65) {
-          const riskAmount = (account.current_balance || 500000) * 0.01;
+        // Lower confidence gate: 55 for scalps, 60 for swings
+        const minConfidence = job.timeframe === '5min' ? 55 : 60;
+
+        if (signal.direction !== 'WAIT' && signal.confidence >= minConfidence) {
+          // Scalps risk 0.5% of account, swings risk 1%
+          const riskPct = job.timeframe === '5min' ? 0.005 : 0.01;
+          const riskAmount = (account.current_balance || 500000) * riskPct;
           const riskPerShare = Math.abs(signal.entry - signal.stop);
           const size = riskPerShare > 0 ? Math.floor(riskAmount / riskPerShare) : 0;
           const dollarSize = size * signal.entry;
@@ -296,10 +368,10 @@ export default async function handler(req, res) {
           if (size > 0) {
             // Insert trade
             const { data: newTrade } = await supabase.from('sentinel_trades').insert({
-              symbol: cleanSymbol,
+              symbol: job.cleanSymbol,
               direction: signal.direction,
               setup: signal.setup,
-              timeframe: '1h',
+              timeframe: job.timeframe,
               regime: signal.regime,
               entry: signal.entry,
               stop: signal.stop,
@@ -343,7 +415,7 @@ export default async function handler(req, res) {
                 copies.push({
                   user_id: user.user_id,
                   sentinel_trade_id: newTrade.id,
-                  symbol: cleanSymbol,
+                  symbol: job.cleanSymbol,
                   direction: signal.direction,
                   entry: signal.entry,
                   stop: signal.stop,
@@ -355,8 +427,8 @@ export default async function handler(req, res) {
                 notifications.push({
                   user_id: user.user_id,
                   type: 'trade_opened',
-                  title: `Sentinel ${signal.direction} ${cleanSymbol}`,
-                  body: `⚡ ${signal.direction} $${cleanSymbol} @ $${signal.entry} — ${signal.confidence}% confidence — ${signal.setup}`,
+                  title: `Sentinel ${signal.direction} ${job.cleanSymbol}`,
+                  body: `⚡ ${signal.direction} $${job.cleanSymbol} @ $${signal.entry} — ${signal.confidence}% confidence — ${signal.setup}`,
                   trade_id: newTrade.id,
                 });
               }
@@ -369,9 +441,9 @@ export default async function handler(req, res) {
           }
         }
 
-        await sleep(200);
+        await sleep(150); // Slightly faster between API calls
       } catch (err) {
-        console.error(`[heartbeat] Error scanning ${symbol}:`, err.message);
+        console.error(`[heartbeat] Error scanning ${job.cleanSymbol} ${job.timeframe}:`, err.message);
       }
     }
 

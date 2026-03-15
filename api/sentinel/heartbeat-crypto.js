@@ -11,7 +11,9 @@ const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const CRYPTO_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD'];
-const CRYPTO_MIN_CONFIDENCE = 60;
+const CRYPTO_MIN_CONFIDENCE_SWING = 60;
+const CRYPTO_MIN_CONFIDENCE_SCALP = 55;
+const MAX_OPEN_CRYPTO = 6; // Allow more concurrent crypto positions
 const SENTINEL_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -119,19 +121,74 @@ function generateSignal(symbol, bars, timeframe) {
     const volSlice = volumes.slice(Math.max(0,last-20),last+1);
     const avgVol = volSlice.reduce((a,b)=>a+b,0)/volSlice.length;
     const aboveAvgVol = volumes[last] > avgVol;
+    const isScalp = timeframe === '5min';
+
+    let direction = 'WAIT', confidence = 0, setup = 'No Setup', reasons = [];
+
+    // Core momentum scoring
     const longScore = [price>ema8, ema8>ema21, rsi>=40&&rsi<=65, aboveAvgVol, regime.trend==='BULL'].filter(Boolean).length;
     const shortScore = [price<ema8, ema8<ema21, rsi>=35&&rsi<=60, aboveAvgVol, regime.trend==='BEAR'].filter(Boolean).length;
-    if (longScore < 3 && shortScore < 3) return { ...WAIT, regime };
-    const direction = longScore >= shortScore ? 'LONG' : 'SHORT';
-    const score = direction === 'LONG' ? longScore : shortScore;
-    let confidence = Math.min(100, Math.round((score/5)*80 + (aboveAvgVol?10:0) + (direction==='LONG'?regime.trend==='BULL':regime.trend==='BEAR'?10:0)));
-    if (regime.type === 'VOLATILE') confidence = Math.max(0, confidence-15);
-    const stop = direction === 'LONG' ? price - atr*1.5 : price + atr*1.5;
-    const stopDist = Math.abs(price-stop);
-    const mult = regime.type === 'RANGING' ? 1.5 : 2.0;
+
+    if (longScore >= 3 || shortScore >= 3) {
+      direction = longScore >= shortScore ? 'LONG' : 'SHORT';
+      const score = direction === 'LONG' ? longScore : shortScore;
+      confidence = Math.min(100, Math.round((score/5)*80 + (aboveAvgVol?10:0) + (direction==='LONG'?regime.trend==='BULL':regime.trend==='BEAR'?10:0)));
+      setup = direction==='LONG'?'Momentum Long':'Momentum Short';
+      reasons = [`EMA8 (${ema8.toFixed(2)}) ${direction==='LONG'?'>':'<'} EMA21 (${ema21.toFixed(2)})`, `RSI ${rsi.toFixed(1)}`, aboveAvgVol ? `Volume ${(volumes[last]/avgVol).toFixed(1)}x avg` : 'Volume average'];
+    }
+
+    // Scalp-only setups (5min)
+    if (isScalp && direction === 'WAIT') {
+      const pctAboveE8 = ((price - ema8) / ema8) * 100;
+      // Momentum Burst Long
+      if (pctAboveE8 > 0.03 && pctAboveE8 < 0.3 && rsi > 50 && rsi < 72 && ema8 > ema21) {
+        direction = 'LONG'; setup = 'Momentum Burst'; confidence = 58;
+        reasons = ['Price riding above EMA8 with momentum'];
+      }
+      // Momentum Burst Short
+      if (direction === 'WAIT' && pctAboveE8 < -0.03 && pctAboveE8 > -0.3 && rsi < 50 && rsi > 28 && ema8 < ema21) {
+        direction = 'SHORT'; setup = 'Momentum Burst'; confidence = 58;
+        reasons = ['Price sliding below EMA8 with momentum'];
+      }
+      // Mean Reversion
+      const pctFromE21 = ((price - ema21) / ema21) * 100;
+      if (direction === 'WAIT' && pctFromE21 < -0.15 && rsi < 32) {
+        direction = 'LONG'; setup = 'Mean Reversion'; confidence = 57;
+        reasons = ['Price oversold below EMA21'];
+      }
+      if (direction === 'WAIT' && pctFromE21 > 0.15 && rsi > 68) {
+        direction = 'SHORT'; setup = 'Mean Reversion'; confidence = 57;
+        reasons = ['Price overbought above EMA21'];
+      }
+      // EMA8 Bounce
+      if (direction === 'WAIT' && Math.abs(price - ema8) / atr < 0.3 && ema8 > ema21 && rsi > 45 && rsi < 62) {
+        direction = 'LONG'; setup = 'EMA8 Bounce'; confidence = 56;
+        reasons = ['Price bouncing off EMA8 support'];
+      }
+      if (direction === 'WAIT' && Math.abs(price - ema8) / atr < 0.3 && ema8 < ema21 && rsi > 38 && rsi < 55) {
+        direction = 'SHORT'; setup = 'EMA8 Bounce'; confidence = 56;
+        reasons = ['Price rejecting off EMA8 resistance'];
+      }
+    }
+
+    if (direction === 'WAIT') return { ...WAIT, regime };
+
+    if (regime.type === 'VOLATILE') confidence = Math.max(0, confidence - (isScalp ? 5 : 15));
+
+    // Scalps: tight stops/targets. Swings: wider
+    let stop, stopDist, mult;
+    if (isScalp) {
+      stop = direction === 'LONG' ? price - atr*0.75 : price + atr*0.75;
+      stopDist = Math.abs(price-stop);
+      mult = 1.5;
+    } else {
+      stop = direction === 'LONG' ? price - atr*1.5 : price + atr*1.5;
+      stopDist = Math.abs(price-stop);
+      mult = regime.type === 'RANGING' ? 1.5 : 2.0;
+    }
     const target = direction === 'LONG' ? price + stopDist*mult : price - stopDist*mult;
-    const reasons = [`EMA8 (${ema8.toFixed(2)}) ${direction==='LONG'?'>':'<'} EMA21 (${ema21.toFixed(2)})`, `RSI ${rsi.toFixed(1)}`, aboveAvgVol ? `Volume ${(volumes[last]/avgVol).toFixed(1)}x avg` : 'Volume average'].filter(Boolean);
-    return { symbol, direction, confidence, entry: parseFloat(price.toFixed(2)), stop: parseFloat(stop.toFixed(2)), target: parseFloat(target.toFixed(2)), riskR: 1, rewardR: mult, setup: direction==='LONG'?'Momentum Long':'Momentum Short', reasons, warnings: regime.type==='VOLATILE'?['Volatile regime — reduced confidence']:[], regime, timeframe, timestamp: new Date().toISOString() };
+
+    return { symbol, direction, confidence, entry: parseFloat(price.toFixed(2)), stop: parseFloat(stop.toFixed(2)), target: parseFloat(target.toFixed(2)), riskR: 1, rewardR: mult, setup, reasons, warnings: regime.type==='VOLATILE'?['Volatile regime — reduced confidence']:[], regime, timeframe, timestamp: new Date().toISOString() };
 }
 
 export default async function handler(req, res) {
@@ -204,40 +261,59 @@ export default async function handler(req, res) {
               } catch (err) { log.push(`Error checking ${trade.symbol}: ${err.message}`); }
       }
 
+      // Scan both 5min scalps and 1h swings for each crypto symbol
+      const openKeys = new Set((openTrades||[]).map(t => `${t.symbol}_${t.timeframe}`));
+      const totalOpenCrypto = (openTrades||[]).filter(t => t.status === 'open').length;
+      const currentMinute = new Date().getMinutes();
+      const doSwingScan = currentMinute % 5 === 0; // 1h swings every 5 min
+
+      const cryptoJobs = [];
       for (const symbol of CRYPTO_SYMBOLS) {
-              if (openSymbols.has(symbol)) { log.push(`${symbol}: skipped — open position`); continue; }
+        // 5min scalps every run
+        if (!openKeys.has(`${symbol}_5min`)) cryptoJobs.push({ symbol, timeframe: '5min' });
+        // 1h swings every 5th minute
+        if (doSwingScan && !openKeys.has(`${symbol}_1h`)) cryptoJobs.push({ symbol, timeframe: '1h' });
+      }
+
+      for (const job of cryptoJobs) {
+              if (totalOpenCrypto + newSignals >= MAX_OPEN_CRYPTO) break;
               try {
-                        const cacheKey = `sentinel:crypto:signal:${symbol}:1h`;
+                        const cacheKey = `sentinel:crypto:signal:${job.symbol}:${job.timeframe}`;
+                        const cacheTTL = job.timeframe === '5min' ? 60 : 300; // 1min cache for scalps, 5min for swings
                         let signal = await redisGet(cacheKey);
                         if (!signal) {
-                                    const bars = await fetchBars(symbol, '1h');
-                                    signal = generateSignal(symbol, bars, '1h');
-                                    await redisSet(cacheKey, signal, 300);
-                                    log.push(`${symbol}: fresh — ${signal.direction} conf ${signal.confidence}`);
+                                    const interval = job.timeframe === '5min' ? '5m' : '1h';
+                                    const bars = await fetchBars(job.symbol, interval);
+                                    signal = generateSignal(job.symbol, bars, job.timeframe);
+                                    await redisSet(cacheKey, signal, cacheTTL);
+                                    log.push(`${job.symbol} ${job.timeframe}: fresh — ${signal.direction} conf ${signal.confidence}`);
                         } else {
-                                    log.push(`${symbol}: cached — ${signal.direction} conf ${signal.confidence}`);
+                                    log.push(`${job.symbol} ${job.timeframe}: cached — ${signal.direction} conf ${signal.confidence}`);
                         }
-                        if (signal.direction !== 'WAIT' && signal.confidence >= CRYPTO_MIN_CONFIDENCE) {
-                                    const riskAmt = account.current_balance * 0.01;
+                        const minConf = job.timeframe === '5min' ? CRYPTO_MIN_CONFIDENCE_SCALP : CRYPTO_MIN_CONFIDENCE_SWING;
+                        if (signal.direction !== 'WAIT' && signal.confidence >= minConf) {
+                                    // Scalps risk 0.5%, swings risk 1%
+                                    const riskPct = job.timeframe === '5min' ? 0.005 : 0.01;
+                                    const riskAmt = account.current_balance * riskPct;
                                     const stopDist = Math.abs(signal.entry - signal.stop);
                                     const size = stopDist > 0 ? riskAmt/stopDist : 0;
                                     const dollarSize = size * signal.entry;
-                                    const { data: newTrade } = await supabase.from('sentinel_trades').insert({ symbol, direction:signal.direction, setup:signal.setup, timeframe:'1h', regime:`${signal.regime.trend}/${signal.regime.type}`, entry:signal.entry, stop:signal.stop, target:signal.target, size:parseFloat(size.toFixed(6)), dollar_size:parseFloat(dollarSize.toFixed(2)), risk_r:1, reward_r:signal.rewardR, confidence:signal.confidence, reasons:signal.reasons, status:'open', session_date:new Date().toISOString().split('T')[0], opened_at:new Date().toISOString() }).select().single();
+                                    const { data: newTrade } = await supabase.from('sentinel_trades').insert({ symbol: job.symbol, direction:signal.direction, setup:signal.setup, timeframe:job.timeframe, regime:`${signal.regime.trend}/${signal.regime.type}`, entry:signal.entry, stop:signal.stop, target:signal.target, size:parseFloat(size.toFixed(6)), dollar_size:parseFloat(dollarSize.toFixed(2)), risk_r:1, reward_r:signal.rewardR, confidence:signal.confidence, reasons:signal.reasons, status:'open', session_date:new Date().toISOString().split('T')[0], opened_at:new Date().toISOString() }).select().single();
                                     await supabase.from('sentinel_account').update({ total_trades:account.total_trades+1, updated_at:new Date().toISOString() }).eq('id', SENTINEL_ACCOUNT_ID);
                                     if (newTrade) {
                                                   const { data: subs } = await supabase.from('sentinel_user_settings').select('*').eq('yolo_active',true).in('subscription_status',['trialing','active']);
                                                   for (const u of (subs||[])) {
                                                                   const uRisk = u.allocated_capital*(u.risk_per_trade_pct/100);
                                                                   const uSize = stopDist > 0 ? uRisk/stopDist : 0;
-                                                                  await supabase.from('sentinel_copied_trades').insert({ user_id:u.user_id, sentinel_trade_id:newTrade.id, symbol, direction:signal.direction, entry:signal.entry, stop:signal.stop, target:signal.target, size:parseFloat(uSize.toFixed(6)), dollar_size:parseFloat((uSize*signal.entry).toFixed(2)), opened_at:new Date().toISOString(), status:'open' });
-                                                                  await supabase.from('sentinel_notifications').insert({ user_id:u.user_id, type:'trade_opened', title:`⚡ Sentinel ${signal.direction} ${symbol.replace('/USD','')}`, body:`Entry $${signal.entry.toLocaleString()} · Stop $${signal.stop.toLocaleString()} · Target $${signal.target.toLocaleString()} · Conf ${signal.confidence}`, trade_id:newTrade.id, read:false });
+                                                                  await supabase.from('sentinel_copied_trades').insert({ user_id:u.user_id, sentinel_trade_id:newTrade.id, symbol:job.symbol, direction:signal.direction, entry:signal.entry, stop:signal.stop, target:signal.target, size:parseFloat(uSize.toFixed(6)), dollar_size:parseFloat((uSize*signal.entry).toFixed(2)), opened_at:new Date().toISOString(), status:'open' });
+                                                                  await supabase.from('sentinel_notifications').insert({ user_id:u.user_id, type:'trade_opened', title:`⚡ Sentinel ${signal.direction} ${job.symbol.replace('/USD','')}`, body:`Entry $${signal.entry.toLocaleString()} · Stop $${signal.stop.toLocaleString()} · Target $${signal.target.toLocaleString()} · Conf ${signal.confidence} · ${job.timeframe}`, trade_id:newTrade.id, read:false });
                                                   }
                                     }
-                                    newSignals++; openSymbols.add(symbol);
-                                    log.push(`✓ OPENED ${signal.direction} ${symbol} @ ${signal.entry} conf ${signal.confidence}`);
+                                    newSignals++; openSymbols.add(job.symbol);
+                                    log.push(`✓ OPENED ${signal.direction} ${job.symbol} ${job.timeframe} @ ${signal.entry} conf ${signal.confidence}`);
                         }
-                        await sleep(300);
-              } catch (err) { log.push(`Error scanning ${symbol}: ${err.message}`); }
+                        await sleep(200);
+              } catch (err) { log.push(`Error scanning ${job.symbol} ${job.timeframe}: ${err.message}`); }
       }
 
       const nowUTC = new Date();
