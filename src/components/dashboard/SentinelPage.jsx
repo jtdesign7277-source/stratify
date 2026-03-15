@@ -347,7 +347,7 @@ function SentinelPageInner() {
                 const pctChange = (totalPnl / 2000000) * 100;
                 return (
                   <span className={`text-sm font-mono ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Total P&L: {totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     {' '}({pctChange.toFixed(2)}%)
                   </span>
                 );
