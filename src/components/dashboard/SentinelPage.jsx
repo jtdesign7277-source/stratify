@@ -500,10 +500,10 @@ function SentinelPageInner() {
             >
               <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">LIVE FEED</span>
               <div className="mt-3 max-h-64 overflow-y-auto space-y-1" style={{ scrollbarWidth: 'none' }}>
-                {recentClosedTrades.length === 0 && openTrades.length === 0 && (
-                  <p className="text-xs text-gray-600 font-mono py-4">Waiting for first signals...</p>
+                {openTrades.length === 0 && (
+                  <p className="text-xs text-gray-600 font-mono py-4">No open positions</p>
                 )}
-                {[...openTrades, ...recentClosedTrades].slice(0, 20).map((trade, i) => (
+                {openTrades.map((trade, i) => (
                   <motion.div
                     key={trade.id}
                     initial={{ opacity: 0, x: -8 }}
