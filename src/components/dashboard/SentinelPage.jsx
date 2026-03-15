@@ -616,7 +616,7 @@ function SentinelPageInner() {
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-3">
-                                    <span className="text-gray-500">${trade.entry} → ${trade.exit_price}</span>
+                                    <span className="text-white text-xs">${trade.entry} → ${trade.exit_price}</span>
                                     <span className={`font-semibold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                       {trade.pnl >= 0 ? '+' : ''}${(trade.pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
