@@ -1,7 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import CountUp from 'react-countup';
 import { Trash2 } from 'lucide-react';
 import { STORAGE_KEY_PREFIX } from '../../plugins/PriceAlertsPlugin';
+import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
 const CHART_ALERTS_UPDATED_EVENT = 'stratify-chart-alerts-updated';
 
@@ -85,7 +87,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="soft-glass-panel absolute right-0 top-full mt-2 w-80 bg-[#0b0b0b] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
+    <>
       <div className="px-4 py-3 border-b border-[#2a2a3d] flex items-center gap-2">
         <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -134,13 +136,75 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
           </ul>
         )}
       </div>
+    </>
+  );
+};
+
+// Sentinel Notifications Section
+const SentinelNotificationsSection = ({ isOpen }) => {
+  const { user } = useAuth();
+  const [sentinelNotifs, setSentinelNotifs] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen || !user?.id) return;
+    supabase
+      .from('sentinel_notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }) => setSentinelNotifs(data || []));
+  }, [isOpen, user?.id]);
+
+  const handleMarkAllRead = async () => {
+    if (!user?.id) return;
+    await supabase.from('sentinel_notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+    setSentinelNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const unread = sentinelNotifs.filter((n) => !n.read).length;
+  if (!isOpen) return null;
+
+  return (
+    <div className="border-t border-[#2a2a3d]">
+      <div className="px-4 py-2 flex items-center justify-between">
+        <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">Sentinel</span>
+        {unread > 0 && (
+          <button onClick={handleMarkAllRead} className="text-[10px] text-gray-500 hover:text-white transition-colors">
+            Mark all read
+          </button>
+        )}
+      </div>
+      {sentinelNotifs.length === 0 ? (
+        <p className="text-[11px] text-white/40 px-4 py-2">No Sentinel notifications</p>
+      ) : (
+        <ul className="max-h-48 overflow-y-auto px-4 pb-2 space-y-1.5">
+          {sentinelNotifs.map((n) => (
+            <li key={n.id} className={`text-[11px] py-1 ${n.read ? 'text-gray-600' : 'text-gray-300'}`}>
+              <span>
+                {n.type === 'trade_opened' && '⚡'}
+                {n.type === 'trade_closed' && '✓'}
+                {n.type === 'brain_update' && '🧠'}
+                {n.type === 'yolo_unlocked' && '🔓'}
+                {n.type === 'session_summary' && '📊'}
+              </span>{' '}
+              <span className="font-semibold">{n.title}</span>
+              <span className="text-gray-500 ml-1">
+                {new Date(n.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };
 
-// Notification Button with Dropdown — opens chart price alerts panel
+// Notification Button with Dropdown — opens chart price alerts panel + Sentinel notifications
 const NotificationButton = ({ themeClasses }) => {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [sentinelUnreadCount, setSentinelUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -153,19 +217,48 @@ const NotificationButton = ({ themeClasses }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Fetch unread count
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('sentinel_notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('read', false)
+      .then(({ count }) => setSentinelUnreadCount(count || 0));
+  }, [user?.id, isOpen]);
+
+  // Realtime unread badge
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel('sentinel-bell')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sentinel_notifications', filter: `user_id=eq.${user.id}` }, () => {
+        setSentinelUnreadCount((c) => c + 1);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors relative ${themeClasses.textMuted}`}
-        title="Chart price alerts"
-        aria-label="Chart price alerts"
+        title="Notifications"
+        aria-label="Notifications"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
+        {sentinelUnreadCount > 0 && (
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-400" />
+        )}
       </button>
-      <NotificationDropdown isOpen={isOpen} onClose={() => setIsOpen(false)} themeClasses={themeClasses} />
+      <div className={`${isOpen ? 'block' : 'hidden'} soft-glass-panel absolute right-0 top-full mt-2 w-80 bg-[#0b0b0b] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden`}>
+        <NotificationDropdown isOpen={isOpen} onClose={() => setIsOpen(false)} themeClasses={themeClasses} />
+        <SentinelNotificationsSection isOpen={isOpen} />
+      </div>
     </div>
   );
 };

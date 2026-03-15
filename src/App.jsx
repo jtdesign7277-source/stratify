@@ -18,6 +18,7 @@ import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
 import AppErrorBoundary from './components/shared/AppErrorBoundary';
 import StrategyRadarPage from './components/dashboard/StrategyRadarPage';
 import SportsOddsPage from './pages/SportsOddsPage';
+import SentinelToast from './components/dashboard/SentinelToast';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProModal from './components/dashboard/ProModal';
 import { Radar } from 'lucide-react';
@@ -1697,6 +1698,7 @@ function StratifyAppContent() {
           onClose={() => setIsSocialFeedOpen(false)}
         />
         <ProModal open={showProModal} onClose={() => setShowProModal(false)} />
+        <SentinelToast onNavigateToSentinel={() => { navigateToPage('dashboard'); }} />
       </div>
     </div>
   );

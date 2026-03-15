@@ -29,10 +29,17 @@ import { supabase } from '../../lib/supabaseClient';
 import { UserAvatar } from './community/CommunityShared';
 import { readCurrentUserAvatar } from './community/communityHelpers';
 
-const Sidebar = ({ 
-  activeTab = 'war-room', 
-  setActiveTab, 
-  onTabChange, 
+// Lightning bolt icon for Sentinel (distinct from Zap used by Sports)
+const SentinelIcon = ({ className, strokeWidth = 1.5 }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={strokeWidth}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+  </svg>
+);
+
+const Sidebar = ({
+  activeTab = 'war-room',
+  setActiveTab,
+  onTabChange,
   onNavigate,
   expanded,
   onToggle,
@@ -40,7 +47,8 @@ const Sidebar = ({
   deployedStrategies = [],
   activeStrategyCount,
   onRemoveSavedStrategy,
-  onLogout
+  onLogout,
+  sentinelUnread = false,
 }) => {
   const { user, signOut, isAuthenticated } = useAuth();
   const handleSignOut = async () => {
@@ -93,6 +101,7 @@ const Sidebar = ({
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
+    { id: 'sentinel', label: 'Sentinel', icon: SentinelIcon, sentinelDot: true },
     { id: 'sports', label: 'Sports', icon: Zap },
   ];
 
@@ -145,11 +154,16 @@ const Sidebar = ({
                   {isActive && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-linear-accent rounded-r-full" aria-hidden />
                   )}
-                  <Icon 
-                    className={`relative z-10 w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-linear-accent' : 'text-linear-text-muted'}`}
-                    strokeWidth={1.5}
-                    fill="none"
-                  />
+                  <span className="relative z-10 flex-shrink-0">
+                    <Icon
+                      className={`w-[18px] h-[18px] ${isActive ? 'text-linear-accent' : 'text-linear-text-muted'}`}
+                      strokeWidth={1.5}
+                      fill="none"
+                    />
+                    {item.sentinelDot && sentinelUnread && (
+                      <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-400" />
+                    )}
+                  </span>
                   {!collapsed && (
                     <div className="relative z-10 flex items-center gap-2 overflow-hidden">
                       <span className="whitespace-nowrap">{item.label}</span>

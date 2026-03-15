@@ -113,6 +113,7 @@ import FredPage from './FredPage';
 import EconomicsCalendarPage from './EconomicsCalendarPage';
 import XRayPage from '../xray/XRayPage';
 import SportsOddsPage from '../../pages/SportsOddsPage';
+import SentinelPage from './SentinelPage';
 import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
@@ -2546,6 +2547,11 @@ export default function Dashboard({
               if (typeof setCurrentPage === 'function') setCurrentPage('sports');
               return;
             }
+
+            if (tabId === 'sentinel') {
+              setActiveTab('sentinel');
+              return;
+            }
           }}
           savedStrategies={savedStrategies}
           deployedStrategies={deployedStrategies}
@@ -2599,6 +2605,7 @@ export default function Dashboard({
                 onGameDrop={handleGameDrop}
                 onRemovePinnedGame={handleRemovePinnedGame}
                 paperTotalGainLoss={shouldUsePaperTopBarMetrics ? { dollar: syncedPaperUnrealizedPnL, percent: syncedPaperTotalGainLossPercent } : null}
+                onNavigateToSentinel={() => setActiveTab('sentinel')}
               />
             </Suspense>
           )}
@@ -2847,6 +2854,9 @@ export default function Dashboard({
             <AppErrorBoundary>
               <SportsOddsPage />
             </AppErrorBoundary>
+          )}
+          {activeTab === 'sentinel' && (
+            <SentinelPage />
           )}
           {activeTab === 'more' && <MoreInfoPage />}
               </motion.div>
