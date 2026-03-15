@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CountUp from 'react-countup';
 import { useAuth } from '../../context/AuthContext';
@@ -41,23 +42,34 @@ function WinRateColor({ value }) {
 
 function MetricTooltip({ label, tip, children }) {
   const [show, setShow] = useState(false);
+  const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const handleEnter = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 8, left: Math.max(8, rect.right - 224) });
+    }
+    setShow(true);
+  };
+
   return (
-    <div className="text-right relative z-[60]" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+    <div className="text-right" ref={ref} onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}>
       <span className="text-xs tracking-widest text-gray-500 uppercase cursor-help">{label}</span>
       {children}
-      <AnimatePresence>
-        {show && (
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.15 }}
-            className="absolute top-full right-0 mt-2 z-[100] w-56 p-3 rounded-xl bg-black/90 backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] text-left"
-          >
-            <p className="text-[11px] text-gray-300 leading-relaxed">{tip}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {show && createPortal(
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.15 }}
+          style={{ position: 'fixed', top: pos.top, left: pos.left }}
+          className="z-[9999] w-56 p-3 rounded-xl bg-black/95 border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] text-left"
+        >
+          <p className="text-[11px] text-gray-300 leading-relaxed">{tip}</p>
+        </motion.div>,
+        document.body
+      )}
     </div>
   );
 }
