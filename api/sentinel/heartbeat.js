@@ -199,6 +199,7 @@ export default async function handler(req, res) {
             result_r: +resultR.toFixed(2),
             pnl: +pnl.toFixed(2),
             win,
+            session_date: new Date().toISOString().split('T')[0],
           }).eq('id', trade.id);
 
           // Update account

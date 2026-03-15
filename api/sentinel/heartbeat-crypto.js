@@ -158,7 +158,7 @@ export default async function handler(req, res) {
                                     const pnl = isLong ? (exitPrice-trade.entry)*(trade.dollar_size/trade.entry) : (trade.entry-exitPrice)*(trade.dollar_size/trade.entry);
                                     const resultR = stopHit ? -1 : trade.reward_r;
                                     const win = !stopHit;
-                                    await supabase.from('sentinel_trades').update({ status:'closed', closed_at:new Date().toISOString(), exit_price:exitPrice, result_r:resultR, pnl:parseFloat(pnl.toFixed(2)), win }).eq('id', trade.id);
+                                    await supabase.from('sentinel_trades').update({ status:'closed', closed_at:new Date().toISOString(), exit_price:exitPrice, result_r:resultR, pnl:parseFloat(pnl.toFixed(2)), win, session_date:new Date().toISOString().split('T')[0] }).eq('id', trade.id);
                                     const newWins = account.wins+(win?1:0), newLosses = account.losses+(win?0:1), closedCount = account.closed_trades+1;
                                     await supabase.from('sentinel_account').update({ current_balance:parseFloat((account.current_balance+pnl).toFixed(2)), total_pnl:parseFloat((account.total_pnl+pnl).toFixed(2)), wins:newWins, losses:newLosses, closed_trades:closedCount, win_rate:parseFloat(((newWins/closedCount)*100).toFixed(2)), updated_at:new Date().toISOString() }).eq('id', SENTINEL_ACCOUNT_ID);
                                     await supabase.from('sentinel_copied_trades').update({ status:'closed', closed_at:new Date().toISOString(), exit_price:exitPrice, result_r:resultR, win }).eq('sentinel_trade_id', trade.id).eq('status','open');

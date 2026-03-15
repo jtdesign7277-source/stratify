@@ -229,6 +229,7 @@ async function executeDecision(analysis, trade, account) {
       pnl: parseFloat(pnl.toFixed(2)),
       result_r: parseFloat((pnl / (account.current_balance * 0.01)).toFixed(2)),
       win: pnl > 0,
+      session_date: new Date().toISOString().split('T')[0],
     }).eq('id', trade.id);
 
     // Update account
