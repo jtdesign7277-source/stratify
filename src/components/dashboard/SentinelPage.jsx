@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CountUp from 'react-countup';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import AppErrorBoundary from '../shared/AppErrorBoundary';
+import { useTwelveDataWS } from '../xray/hooks/useTwelveDataWS';
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
 const GLASS = 'bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)]';
@@ -49,6 +50,9 @@ function SentinelPageInner() {
   const [showYoloConfirm, setShowYoloConfirm] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const lastFetchRef = useRef(null);
+
+  // Live prices via Twelve Data WebSocket
+  const { prices: livePrices, subscribe: wsSubscribe, unsubscribe: wsUnsubscribe } = useTwelveDataWS();
 
   // Local settings state
   const [allocatedCapital, setAllocatedCapital] = useState(5000);
@@ -193,6 +197,34 @@ function SentinelPageInner() {
   const account = data?.account || {};
   const todaySession = data?.todaySession || {};
   const openTrades = data?.openTrades || [];
+
+  // Subscribe to open trade symbols for live prices
+  const openSymbols = useMemo(() => openTrades.map((t) => t.symbol), [openTrades]);
+  const prevSymbolsRef = useRef([]);
+  useEffect(() => {
+    const prev = prevSymbolsRef.current;
+    const toUnsub = prev.filter((s) => !openSymbols.includes(s));
+    const toSub = openSymbols.filter((s) => !prev.includes(s));
+    if (toUnsub.length > 0) wsUnsubscribe(toUnsub);
+    if (toSub.length > 0) wsSubscribe(toSub);
+    prevSymbolsRef.current = openSymbols;
+  }, [openSymbols, wsSubscribe, wsUnsubscribe]);
+
+  // Compute live unrealized P&L from WebSocket prices
+  const liveUnrealizedPnl = useMemo(() => {
+    let total = 0;
+    let hasLive = false;
+    for (const trade of openTrades) {
+      const lp = livePrices[trade.symbol.toUpperCase()]?.price;
+      if (lp && trade.entry && trade.size) {
+        hasLive = true;
+        total += (lp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1);
+      } else if (trade.unrealized_pnl != null) {
+        total += trade.unrealized_pnl;
+      }
+    }
+    return hasLive ? total : (data?.totalUnrealizedPnl || 0);
+  }, [openTrades, livePrices, data?.totalUnrealizedPnl]);
   const recentSessions = data?.recentSessions || [];
   const recentClosedTrades = data?.recentClosedTrades || [];
   const memory = data?.memory || {};
@@ -251,8 +283,8 @@ function SentinelPageInner() {
                   $<CountUp end={data?.liveBalance || account.current_balance || 500000} duration={1.2} decimals={2} separator="," preserveValue />
                 </span>
               </div>
-              <span className={`text-sm font-mono ${(data?.totalUnrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {(data?.totalUnrealizedPnl || 0) >= 0 ? '+' : ''}${(data?.totalUnrealizedPnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className={`text-sm font-mono ${(liveUnrealizedPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {(liveUnrealizedPnl) >= 0 ? '+' : ''}${(liveUnrealizedPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 {' '}({data?.liveBalance ? (((data.liveBalance - 2000000) / 2000000) * 100).toFixed(2) : '0.00'}%)
               </span>
             </div>
@@ -386,8 +418,8 @@ function SentinelPageInner() {
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 uppercase">P&L</span>
-                  <div className={`font-mono ${((data?.totalUnrealizedPnl || 0) + (todaySession.gross_pnl || 0)) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {((data?.totalUnrealizedPnl || 0) + (todaySession.gross_pnl || 0)) >= 0 ? '+' : ''}${((data?.totalUnrealizedPnl || 0) + (todaySession.gross_pnl || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className={`font-mono ${((liveUnrealizedPnl) + (todaySession.gross_pnl || 0)) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {((liveUnrealizedPnl) + (todaySession.gross_pnl || 0)) >= 0 ? '+' : ''}${((liveUnrealizedPnl) + (todaySession.gross_pnl || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
@@ -413,14 +445,30 @@ function SentinelPageInner() {
                       <div className="flex items-center gap-4 text-xs font-mono">
                         <span className="text-gray-400">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
                         <span className="text-gray-500">Entry ${trade.entry}</span>
-                        {trade.current_price && <span className="text-gray-400">Now ${trade.current_price}</span>}
-                        <span className="text-gray-500">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
-                        {trade.unrealized_pnl != null && (
-                          <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                            {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        )}
-                        <span className="text-gray-500">Size ${(trade.dollar_size || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                        {(() => {
+                          const livePrice = livePrices[trade.symbol.toUpperCase()]?.price;
+                          const currentPrice = livePrice || trade.current_price;
+                          const pnl = currentPrice && trade.entry && trade.size
+                            ? (currentPrice - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
+                            : trade.unrealized_pnl;
+                          const dollarSize = currentPrice && trade.size ? currentPrice * trade.size : trade.dollar_size || 0;
+                          return (
+                            <>
+                              {currentPrice && (
+                                <span className="text-white">
+                                  {trade.symbol.includes('/') ? '' : '$'}{trade.symbol} <span className="text-gray-400">${Number(currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </span>
+                              )}
+                              <span className="text-gray-500">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
+                              {pnl != null && (
+                                <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                  {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              )}
+                              <span className="text-gray-500">Size ${dollarSize.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </motion.div>
                   ))}
@@ -458,12 +506,23 @@ function SentinelPageInner() {
                     <span className="text-white font-semibold w-20">{trade.symbol.includes('/') ? '' : '$'}{trade.symbol}</span>
                     <span className="text-gray-400">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' units' : ''}</span>
                     <span className="text-gray-500">Entry ${trade.entry}</span>
-            {trade.unrealized_pnl != null && (
-              <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            )}
-            <span className="text-gray-500">Size ${(trade.dollar_size || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+            {(() => {
+              const lp = livePrices[trade.symbol.toUpperCase()]?.price;
+              const pnl = (lp && trade.entry && trade.size && trade.status === 'open')
+                ? (lp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
+                : trade.unrealized_pnl;
+              const ds = (lp && trade.size && trade.status === 'open') ? lp * trade.size : (trade.dollar_size || 0);
+              return pnl != null ? (
+                <>
+                  <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className="text-gray-500">Size ${ds.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                </>
+              ) : (
+                <span className="text-gray-500">Size ${ds.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+              );
+            })()}
             <span className={`w-2 h-2 rounded-full ${trade.status === 'open' ? 'bg-emerald-400' : trade.win ? 'bg-emerald-400' : 'bg-red-400'}`} />
                   </motion.div>
                 ))}
