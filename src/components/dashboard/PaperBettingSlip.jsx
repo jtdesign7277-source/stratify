@@ -6,7 +6,7 @@ import { calcPayout } from '../../lib/sportsUtils';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 30 };
 
-export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClear, onPlace, onCollapse }) {
+export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClear, onPlace, onCollapse, placing = false }) {
   const [parlay, setParlay] = useState(false);
   const [bankroll, setBankroll] = useState(null);
 
@@ -164,13 +164,13 @@ export default function PaperBettingSlip({ bets, onRemove, onStakeChange, onClea
               <motion.button
                 type="button"
                 onClick={onPlace}
-                disabled={bets.length === 0 || insufficientBankroll}
+                disabled={bets.length === 0 || insufficientBankroll || placing}
                 className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.96 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               >
-                Place Paper Bet
+                {placing ? 'Placing...' : 'Place Paper Bet'}
               </motion.button>
               <button
                 type="button"

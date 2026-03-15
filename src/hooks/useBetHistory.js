@@ -31,16 +31,21 @@ export function useBetHistory() {
   const [bets, setBets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refresh = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
+        setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
         if (!session?.user?.id) {
           setBets([]);
+          setLoading(false);
           return;
         }
         const { data, error: queryError } = await supabase
@@ -50,7 +55,6 @@ export function useBetHistory() {
           .order('created_at', { ascending: false });
         if (cancelled) return;
         if (queryError) {
-          // Don't treat RLS / missing table as fatal — just show empty
           console.warn('useBetHistory query error:', queryError.message);
           setBets([]);
         } else {
@@ -61,13 +65,39 @@ export function useBetHistory() {
           console.warn('useBetHistory error:', err?.message);
           setBets([]);
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
 
     return () => { cancelled = true; };
+  }, [refreshKey]);
+
+  // Realtime: listen for inserts/updates to paper_sports_bets
+  useEffect(() => {
+    let channel;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user?.id) return;
+      channel = supabase
+        .channel('paper-bets-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'paper_sports_bets',
+            filter: `user_id=eq.${session.user.id}`,
+          },
+          () => refresh()
+        )
+        .subscribe();
+    });
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
-  return { bets, loading, error };
+  return { bets, loading, error, refresh };
 }
 
 /**

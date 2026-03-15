@@ -1322,8 +1322,9 @@ export default function SportsOddsPage() {
   const [slipOpen, setSlipOpen] = useState(false);
   const [confirmBet, setConfirmBet] = useState(null);
   const [toast, setToast] = useState(null);
+  const [placing, setPlacing] = useState(false);
   const [activeView, setActiveView] = useState('odds');
-  const { bets, loading: historyLoading, error: historyError } = useBetHistory();
+  const { bets, loading: historyLoading, error: historyError, refresh: refreshHistory } = useBetHistory();
   const activeSportKey = API_SPORTS.has(activeNavKey) ? activeNavKey : 'basketball_nba';
   const addBetToSlip = useCallback((payload) => {
     setSlipOpen(true);
@@ -1357,54 +1358,68 @@ export default function SportsOddsPage() {
   }, []);
 
   const handlePlaceBets = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    if (!user?.id) return;
-    let { data: bankroll } = await supabase
-      .from('paper_sports_bankroll')
-      .select('balance, total_wagered')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (!bankroll) {
-      const { data: inserted } = await supabase
+    if (placing) return;
+    setPlacing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user?.id) return;
+      let { data: bankroll } = await supabase
         .from('paper_sports_bankroll')
-        .upsert({ user_id: user.id, balance: 100000, total_wagered: 0, wins: 0, losses: 0, total_pushes: 0, current_streak: 0 }, { onConflict: 'user_id' })
         .select('balance, total_wagered')
-        .single();
-      bankroll = inserted;
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!bankroll) {
+        const { data: inserted } = await supabase
+          .from('paper_sports_bankroll')
+          .upsert({ user_id: user.id, balance: 100000, total_wagered: 0, wins: 0, losses: 0, total_pushes: 0, current_streak: 0 }, { onConflict: 'user_id' })
+          .select('balance, total_wagered')
+          .single();
+        bankroll = inserted;
+      }
+      const totalStake = slip.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+      if (!bankroll || totalStake > Number(bankroll.balance)) {
+        setToast('Insufficient bankroll');
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+      const betsToInsert = slip.map((bet) => ({
+        user_id: user.id,
+        sport: bet.sport,
+        league: bet.league,
+        game_id: bet.game_id,
+        home_team: bet.home_team,
+        away_team: bet.away_team,
+        bet_type: bet.betType,
+        selection: bet.selection,
+        line: bet.line,
+        odds: bet.odds,
+        stake: Number(bet.stake),
+        potential_payout: calcPayout(Number(bet.stake), bet.odds),
+        book: bet.book,
+        status: 'pending',
+      }));
+      const { error: insertError } = await supabase.from('paper_sports_bets').insert(betsToInsert);
+      if (insertError) {
+        setToast('Failed to place bet');
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+      await supabase
+        .from('paper_sports_bankroll')
+        .update({
+          balance: Number(bankroll.balance) - totalStake,
+          total_wagered: (Number(bankroll.total_wagered) || 0) + totalStake,
+        })
+        .eq('user_id', user.id);
+      setSlip([]);
+      refreshHistory();
+      setToast('Bets placed! Good luck');
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setPlacing(false);
     }
-    const totalStake = slip.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
-    if (!bankroll || totalStake > Number(bankroll.balance)) {
-      return;
-    }
-    const betsToInsert = slip.map((bet) => ({
-      user_id: user.id,
-      sport: bet.sport,
-      league: bet.league,
-      game_id: bet.game_id,
-      home_team: bet.home_team,
-      away_team: bet.away_team,
-      bet_type: bet.betType,
-      selection: bet.selection,
-      line: bet.line,
-      odds: bet.odds,
-      stake: Number(bet.stake),
-      potential_payout: calcPayout(Number(bet.stake), bet.odds),
-      book: bet.book,
-      status: 'pending',
-    }));
-    await supabase.from('paper_sports_bets').insert(betsToInsert);
-    await supabase
-      .from('paper_sports_bankroll')
-      .update({
-        balance: Number(bankroll.balance) - totalStake,
-        total_wagered: (Number(bankroll.total_wagered) || 0) + totalStake,
-      })
-      .eq('user_id', user.id);
-    setSlip([]);
-    setToast('Bets placed! Good luck 🎯');
-    setTimeout(() => setToast(null), 3000);
-  }, [slip]);
+  }, [slip, placing, refreshHistory]);
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     setTimeout(() => {
@@ -1722,6 +1737,7 @@ export default function SportsOddsPage() {
               onClear={handleSlipClear}
               onPlace={handlePlaceBets}
               onCollapse={() => setSlipOpen(false)}
+              placing={placing}
             />
           </div>
         ) : (
