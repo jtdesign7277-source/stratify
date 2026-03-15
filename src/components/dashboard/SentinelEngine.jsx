@@ -447,7 +447,7 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
     return { paths, endings, ox, oy, STEPS };
   }, []);
 
-  // Animate: progressively reveal paths + shimmer
+  // Animate: reveal once over ~6s, then hold with gentle shimmer
   const render = useCallback(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -472,13 +472,20 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
 
     ctx.clearRect(0, 0, W, H);
 
-    // How far paths are revealed (animate in over ~3 seconds at 60fps)
-    const reveal = Math.min(1, frame / 180);
+    // Reveal over ~6 seconds (360 frames at 60fps), then stay at 1
+    const reveal = Math.min(1, frame / 360);
     const visibleSteps = Math.floor(reveal * STEPS);
+    const revealed = reveal >= 1;
+
+    // After reveal, slow the animation loop to ~15fps to save CPU
+    if (revealed && frame % 4 !== 0) {
+      rafRef.current = requestAnimationFrame(render);
+      return;
+    }
 
     // Draw paths
     for (let i = 0; i < paths.length; i++) {
-      const { pts, profit, finalY } = paths[i];
+      const { pts, profit } = paths[i];
       const stepsToShow = Math.min(visibleSteps, pts.length);
       if (stepsToShow < 2) continue;
 
@@ -488,19 +495,20 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
         ctx.lineTo(pts[s].x, pts[s].y);
       }
 
-      // Shimmer: slight opacity pulse based on frame
-      const shimmer = 0.03 + Math.sin((frame + i * 7) * 0.02) * 0.015;
+      // Gentle shimmer — slow breathing after reveal
+      const speed = revealed ? 0.005 : 0.02;
+      const shimmer = 0.03 + Math.sin((frame + i * 7) * speed) * 0.012;
 
       if (profit) {
-        ctx.strokeStyle = `rgba(16, 185, 129, ${shimmer + Math.random() * 0.02})`;
+        ctx.strokeStyle = `rgba(16, 185, 129, ${shimmer})`;
       } else {
-        ctx.strokeStyle = `rgba(255, 68, 68, ${shimmer * 0.7 + Math.random() * 0.015})`;
+        ctx.strokeStyle = `rgba(255, 68, 68, ${shimmer * 0.7})`;
       }
       ctx.lineWidth = 0.4;
       ctx.stroke();
     }
 
-    // Distribution histogram on right edge (only when fully revealed)
+    // Distribution histogram on right edge (fade in near end of reveal)
     if (reveal > 0.8) {
       const histAlpha = Math.min(1, (reveal - 0.8) * 5);
       const bins = 30;
@@ -537,15 +545,16 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
     ctx.fillStyle = grad;
     ctx.fillRect(ox - 35, oy - 35, 70, 70);
 
-    // Origin dot with pulse
-    const pulseR = 5 + Math.sin(frame * 0.05) * 1.5;
+    // Origin dot with slow pulse
+    const pulseSpeed = revealed ? 0.015 : 0.05;
+    const pulseR = 5 + Math.sin(frame * pulseSpeed) * 1.5;
     ctx.beginPath();
     ctx.arc(ox, oy, pulseR, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
     ctx.beginPath();
     ctx.arc(ox, oy, pulseR + 4, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255,255,255,${0.15 + Math.sin(frame * 0.03) * 0.1})`;
+    ctx.strokeStyle = `rgba(255,255,255,${0.15 + Math.sin(frame * 0.01) * 0.08})`;
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -565,7 +574,6 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
       ctx.fillStyle = 'rgba(255,68,68,0.15)';
       ctx.fillText(`-${pct}`, 6, yDn + 3);
       ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      // Faint grid line
       ctx.strokeStyle = 'rgba(255,255,255,0.02)';
       ctx.lineWidth = 0.5;
       ctx.beginPath(); ctx.moveTo(ox, yUp); ctx.lineTo(W - 40, yUp); ctx.stroke();
@@ -576,13 +584,6 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
     ctx.fillStyle = 'rgba(255,255,255,0.025)';
     ctx.font = '11px monospace';
     ctx.fillText('STRATIFY SENTINEL · 1000 SCENARIOS', ox + 10, H - 10);
-
-    // Re-generate paths every ~8 seconds for fresh simulation
-    if (frame > 0 && frame % 480 === 0) {
-      const rect2 = c.getBoundingClientRect();
-      pathsRef.current = generatePaths(rect2.width, rect2.height);
-      frameRef.current = 0;
-    }
 
     rafRef.current = requestAnimationFrame(render);
   }, [generatePaths]);
