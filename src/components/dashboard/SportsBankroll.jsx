@@ -14,11 +14,19 @@ export default function SportsBankroll() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user?.id || cancelled) return;
-      const { data } = await supabase
+      let { data } = await supabase
         .from('paper_sports_bankroll')
         .select('*')
         .eq('user_id', session.user.id)
         .maybeSingle();
+      if (!data && !cancelled) {
+        const { data: inserted } = await supabase
+          .from('paper_sports_bankroll')
+          .upsert({ user_id: session.user.id, balance: INITIAL_BANKROLL, total_wagered: 0, wins: 0, losses: 0, total_pushes: 0, current_streak: 0 }, { onConflict: 'user_id' })
+          .select()
+          .single();
+        data = inserted;
+      }
       if (!cancelled) setRow(data);
     })();
     return () => { cancelled = true; };

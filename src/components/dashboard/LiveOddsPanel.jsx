@@ -295,11 +295,19 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
     if (!user?.id) return;
-    const { data: bankroll } = await supabase
+    let { data: bankroll } = await supabase
       .from('paper_sports_bankroll')
       .select('balance, total_wagered')
       .eq('user_id', user.id)
       .maybeSingle();
+    if (!bankroll) {
+      const { data: inserted } = await supabase
+        .from('paper_sports_bankroll')
+        .upsert({ user_id: user.id, balance: 100000, total_wagered: 0, wins: 0, losses: 0, total_pushes: 0, current_streak: 0 }, { onConflict: 'user_id' })
+        .select('balance, total_wagered')
+        .single();
+      bankroll = inserted;
+    }
     const totalStake = slip.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
     if (!bankroll || totalStake > Number(bankroll.balance)) return;
     const betsToInsert = slip.map((bet) => ({
