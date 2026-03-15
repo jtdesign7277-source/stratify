@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import AppErrorBoundary from '../shared/AppErrorBoundary';
 import { useTwelveDataWS } from '../xray/hooks/useTwelveDataWS';
+import SentinelEngine from './SentinelEngine';
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
 const GLASS = 'bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)]';
@@ -88,6 +89,7 @@ function SentinelPageInner() {
   const [activeSkillModal, setActiveSkillModal] = useState(null);
   const [showYoloConfirm, setShowYoloConfirm] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [subTab, setSubTab] = useState('overview');
   const lastFetchRef = useRef(null);
 
   // Live prices via Twelve Data WebSocket
@@ -328,9 +330,31 @@ function SentinelPageInner() {
             />
           )}
         </div>
-        <span className="text-xs text-gray-600 font-mono">Last updated: {timeAgo(lastFetchRef.current)}</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5">
+            {[{ id: 'overview', label: 'Overview' }, { id: 'engine', label: 'Engine' }].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSubTab(tab.id)}
+                className={`px-3 py-1 rounded-md text-xs font-mono tracking-wider transition-all duration-200 ${
+                  subTab === tab.id
+                    ? 'bg-white/[0.08] text-white border border-white/[0.1]'
+                    : 'text-gray-500 hover:text-gray-300 border border-transparent'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-gray-600 font-mono">Last updated: {timeAgo(lastFetchRef.current)}</span>
+        </div>
       </div>
 
+      {subTab === 'engine' ? (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <SentinelEngine />
+        </div>
+      ) : (<>
       {/* SCROLLABLE CONTENT */}
       <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-6" style={{ scrollbarWidth: 'none' }}>
         {/* ACCOUNT CARD */}
@@ -559,45 +583,45 @@ function SentinelPageInner() {
                 className={`${GLASS} p-5 transition-all duration-300`}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">POLYMARKET</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">BTC PREDICTIONS</span>
+                  <span className="text-sm font-semibold tracking-widest text-gray-500 uppercase">POLYMARKET</span>
+                  <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">BTC PREDICTIONS</span>
                 </div>
                 {polyOpenTrades.length > 0 && (
                   <div className="space-y-2 mb-3">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Bets</span>
+                    <span className="text-xs text-gray-500 uppercase tracking-widest">Open Bets</span>
                     {polyOpenTrades.map((trade) => {
                       const potentialPayout = trade.shares * 1.0;
                       const potentialProfit = potentialPayout - trade.dollar_cost;
                       return (
                         <div key={trade.id} className="flex items-start gap-3 py-2 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${trade.side === 'YES' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${trade.side === 'YES' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                             {trade.side}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-white font-medium truncate">{trade.question}</p>
-                            <div className="flex gap-4 mt-1 text-[10px] font-mono text-gray-500">
+                            <p className="text-sm text-white font-medium truncate">{trade.question}</p>
+                            <div className="flex gap-4 mt-1 text-xs font-mono text-gray-500">
                               <span>Entry: ${trade.entry_price?.toFixed(3)}</span>
                               <span>Shares: {trade.shares?.toLocaleString()}</span>
                               <span>Cost: ${trade.dollar_cost?.toFixed(2)}</span>
                               <span className="text-emerald-400">Potential: +${potentialProfit.toFixed(2)}</span>
                             </div>
                             {trade.closes_at && (
-                              <p className="text-[10px] text-gray-600 mt-0.5">Resolves: {new Date(trade.closes_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                              <p className="text-xs text-gray-600 mt-0.5">Resolves: {new Date(trade.closes_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                             )}
                           </div>
-                          <span className="text-[10px] font-mono text-gray-600">{trade.confidence}%</span>
+                          <span className="text-xs font-mono text-gray-600">{trade.confidence}%</span>
                         </div>
                       );
                     })}
                   </div>
                 )}
                 {polyResolved.length > 0 && (
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">Resolved</span>
-                    {polyResolved.slice(0, 5).map((trade) => (
-                      <div key={trade.id} className="flex items-center gap-2 py-1 text-xs font-mono">
+                  <div className="space-y-1.5">
+                    <span className="text-xs text-gray-500 uppercase tracking-widest">Resolved</span>
+                    {polyResolved.map((trade) => (
+                      <div key={trade.id} className="flex items-center gap-2 py-1.5 text-sm font-mono">
                         <span className={`w-4 text-center ${trade.win ? 'text-emerald-400' : 'text-red-400'}`}>{trade.win ? '✓' : '✗'}</span>
-                        <span className={`text-[10px] font-bold px-1 rounded ${trade.side === 'YES' ? 'bg-emerald-500/10 text-emerald-400/70' : 'bg-red-500/10 text-red-400/70'}`}>{trade.side}</span>
+                        <span className={`text-xs font-bold px-1 rounded ${trade.side === 'YES' ? 'bg-emerald-500/10 text-emerald-400/70' : 'bg-red-500/10 text-red-400/70'}`}>{trade.side}</span>
                         <span className="text-gray-400 truncate flex-1">{trade.question}</span>
                         <span className={`${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {trade.pnl >= 0 ? '+' : ''}${trade.pnl?.toFixed(2)}
@@ -1038,6 +1062,7 @@ function SentinelPageInner() {
           )}
         </div>
       </div>
+      </>)}
 
       {/* YOLO CONFIRMATION MODAL */}
       <AnimatePresence>
