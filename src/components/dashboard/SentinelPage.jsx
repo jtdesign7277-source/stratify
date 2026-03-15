@@ -225,10 +225,10 @@ function SentinelPageInner() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
           </svg>
           <span className="font-mono tracking-widest text-sm font-bold text-white">SENTINEL</span>
-          <span className={`text-xs font-mono ${marketOpen ? 'text-emerald-400' : 'text-gray-500'}`}>
-            {marketOpen ? 'MARKET OPEN' : 'MARKET CLOSED'}
+          <span className={`text-xs font-mono ${(marketOpen || openTrades.length > 0) ? 'text-emerald-400' : 'text-gray-500'}`}>
+            {marketOpen ? 'MARKET OPEN' : openTrades.length > 0 ? 'CRYPTO 24/7' : 'MARKET CLOSED'}
           </span>
-          {marketOpen && (
+          {(marketOpen || openTrades.length > 0) && (
             <motion.span
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
@@ -248,12 +248,12 @@ function SentinelPageInner() {
               <span className="text-gray-500 text-sm">Starting $500,000</span>
               <div className="mt-1">
                 <span className="font-mono text-3xl font-bold text-white">
-                  $<CountUp end={account.current_balance || 500000} duration={1.2} decimals={2} separator="," preserveValue />
+                  $<CountUp end={data?.liveBalance || account.current_balance || 500000} duration={1.2} decimals={2} separator="," preserveValue />
                 </span>
               </div>
-              <span className={`text-sm font-mono ${(account.total_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {(account.total_pnl || 0) >= 0 ? '+' : ''}${(account.total_pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                {' '}({account.current_balance ? (((account.current_balance - 500000) / 500000) * 100).toFixed(2) : '0.00'}%)
+              <span className={`text-sm font-mono ${(data?.totalUnrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {(data?.totalUnrealizedPnl || 0) >= 0 ? '+' : ''}${(data?.totalUnrealizedPnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {' '}({data?.liveBalance ? (((data.liveBalance - 500000) / 500000) * 100).toFixed(2) : '0.00'}%)
               </span>
             </div>
             <div className="flex gap-8">
@@ -363,7 +363,7 @@ function SentinelPageInner() {
                   <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">
                     {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                   </span>
-                  {marketOpen && (
+                  {(marketOpen || openTrades.length > 0) && (
                     <span className="flex items-center gap-1">
                       <motion.span animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                       <span className="text-[10px] text-emerald-400 font-mono">LIVE</span>
@@ -408,10 +408,17 @@ function SentinelPageInner() {
                         <span className={`text-xs font-mono font-semibold ${trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
                           {trade.direction === 'LONG' ? '↑' : '↓'} {trade.direction}
                         </span>
-                        <span className="font-mono font-semibold text-white">${trade.symbol}</span>
+                        <span className="font-mono font-semibold text-white">{trade.symbol.includes('/') ? '' : '$'}{trade.symbol}</span>
                       </div>
                       <div className="flex items-center gap-4 text-xs font-mono">
                         <span className="text-gray-500">Entry ${trade.entry}</span>
+                        {trade.current_price && <span className="text-gray-400">Now ${trade.current_price}</span>}
+                        <span className="text-gray-500">${(trade.dollar_size || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                        {trade.unrealized_pnl != null && (
+                          <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                            {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
                         <span className="text-gray-400">{trade.confidence}%</span>
                       </div>
                     </motion.div>
