@@ -455,7 +455,9 @@ function SentinelPageInner() {
                     <span className={`w-12 font-semibold ${trade.direction === 'LONG' ? 'text-emerald-400' : trade.direction === 'SHORT' ? 'text-red-400' : 'text-gray-600'}`}>
                       {trade.direction === 'LONG' ? '↑' : trade.direction === 'SHORT' ? '↓' : '—'} {trade.direction}
                     </span>
-                    <span className="text-white font-semibold w-20">{trade.symbol.includes('/') ? '' : ' ${trade.entry}</span>
+                    <span className="text-white font-semibold w-20">{trade.symbol.includes('/') ? '' : '$'}{trade.symbol}</span>
+                    <span className="text-gray-400">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' units' : ''}</span>
+                    <span className="text-gray-500">Entry ${trade.entry}</span>
             {trade.unrealized_pnl != null && (
               <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                 {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
