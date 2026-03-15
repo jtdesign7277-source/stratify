@@ -120,6 +120,10 @@
                 {
                                 "path": "/api/sentinel/heartbeat-crypto",
                                 "schedule": "* * * * *"
-                }
+                },
+        {
+            "path": "/api/sentinel/polymarket-heartbeat",
+            "schedule": "*/5 * * * *"
+        }
     ]
 }

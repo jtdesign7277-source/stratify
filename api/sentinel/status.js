@@ -55,13 +55,15 @@ export default async function handler(req, res) {
 
       const today = new Date().toISOString().slice(0, 10);
 
-      const [accountRes, sessionRes, recentSessionsRes, openTradesRes, closedTradesRes, memoryRes] = await Promise.all([
+      const [accountRes, sessionRes, recentSessionsRes, openTradesRes, closedTradesRes, memoryRes, polyOpenRes, polyClosedRes] = await Promise.all([
               supabase.from('sentinel_account').select('*').eq('id', '00000000-0000-0000-0000-000000000001').single(),
               supabase.from('sentinel_sessions').select('*').eq('session_date', today).maybeSingle(),
               supabase.from('sentinel_sessions').select('*').order('session_date', { ascending: false }).limit(10),
               supabase.from('sentinel_trades').select('*').eq('status', 'open').order('opened_at', { ascending: false }),
               supabase.from('sentinel_trades').select('*').eq('status', 'closed').order('closed_at', { ascending: false }).limit(100),
               supabase.from('sentinel_memory').select('brain_summary, sessions_processed, suspended_conditions').eq('id', 1).single(),
+              supabase.from('sentinel_polymarket_trades').select('*').eq('status', 'open').order('opened_at', { ascending: false }),
+              supabase.from('sentinel_polymarket_trades').select('*').eq('status', 'resolved').order('resolved_at', { ascending: false }).limit(50),
             ]);
 
       const openTrades = openTradesRes.data || [];
@@ -104,6 +106,10 @@ export default async function handler(req, res) {
               recentClosedTrades: closedTradesRes.data || [],
               memory: memoryRes.data || {},
               currentPrices,
+              polymarket: {
+                openTrades: polyOpenRes.data || [],
+                recentResolved: polyClosedRes.data || [],
+              },
               unlockStatus: {
                         closedTrades,
                         winRate: +winRate.toFixed(1),
