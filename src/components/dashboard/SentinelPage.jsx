@@ -374,7 +374,7 @@ function SentinelPageInner() {
               <div className="flex gap-6 mb-4">
                 <div>
                   <span className="text-[10px] text-gray-500 uppercase">Trades</span>
-                  <div className="text-white font-mono">{todaySession.trades_fired || 0}</div>
+                  <div className="text-white font-mono">{openTrades.length + (todaySession.trades_closed || 0)}</div>
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 uppercase">Wins</span>
@@ -386,8 +386,8 @@ function SentinelPageInner() {
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 uppercase">P&L</span>
-                  <div className={`font-mono ${(todaySession.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {(todaySession.gross_pnl || 0) >= 0 ? '+' : ''}${(todaySession.gross_pnl || 0).toFixed(2)}
+                  <div className={`font-mono ${((data?.totalUnrealizedPnl || 0) + (todaySession.gross_pnl || 0)) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {((data?.totalUnrealizedPnl || 0) + (todaySession.gross_pnl || 0)) >= 0 ? '+' : ''}${((data?.totalUnrealizedPnl || 0) + (todaySession.gross_pnl || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
