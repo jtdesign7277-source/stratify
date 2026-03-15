@@ -23,12 +23,12 @@ async function fetchCurrentPrices(symbols) {
                                         prices[sym] = cached.price;
                                         return;
                             }
-                            const tdSymbol = encodeURIComponent(sym);
                             const res = await fetch(
-                                        `https://api.twelvedata.com/quote?symbol=${tdSymbol}&apikey=${TD_KEY}`
-                                      );
-                            const data = await res.json();
-                            if (data && data.close) {
+                                                        `https://api.twelvedata.com/quote?symbol=${sym}&apikey=${TD_KEY}`
+                                                    );
+                                          const data = await res.json();
+                                          console.log(`[sentinel/status] Price response for ${sym}:`, JSON.stringify(data));
+                                          if (data && data.close) {
                                         prices[sym] = parseFloat(data.close);
                                         await redis.set(cacheKey, { price: prices[sym] }, { ex: 30 }).catch(() => {});
                             }
