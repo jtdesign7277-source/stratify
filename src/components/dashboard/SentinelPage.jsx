@@ -370,55 +370,6 @@ function SentinelPageInner() {
           </div>
         </motion.div>
 
-        {/* UNLOCK PROGRESS */}
-        {!unlock.unlocked && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, ...SPRING }}
-            className={`${GLASS} p-6 transition-all duration-300`}
-          >
-            <span className="text-xs tracking-widest text-gray-500 font-semibold uppercase">YOLO UNLOCKS WHEN:</span>
-            <div className="flex gap-8 mt-4">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">{unlock.closedTrades || 0} / 20 trades</span>
-                  {(unlock.closedTrades || 0) >= 20 ? (
-                    <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                  )}
-                </div>
-                <div className="h-1 rounded-full bg-white/[0.08]">
-                  <motion.div
-                    className="h-full rounded-full bg-emerald-400"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(100, ((unlock.closedTrades || 0) / 20) * 100)}%` }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                  />
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">{(unlock.winRate || 0).toFixed(1)}% / 65% win rate</span>
-                  {(unlock.winRate || 0) >= 65 ? (
-                    <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                  )}
-                </div>
-                <div className="h-1 rounded-full bg-white/[0.08]">
-                  <motion.div
-                    className="h-full rounded-full bg-emerald-400"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(100, ((unlock.winRate || 0) / 65) * 100)}%` }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                  />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {unlock.unlocked && !isSubscribed && (
           <motion.div
