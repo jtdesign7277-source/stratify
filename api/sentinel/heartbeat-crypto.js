@@ -13,7 +13,8 @@ const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const CRYPTO_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD'];
 const CRYPTO_MIN_CONFIDENCE_SWING = 60;
 const CRYPTO_MIN_CONFIDENCE_SCALP = 55;
-const MAX_OPEN_CRYPTO = 6; // Allow more concurrent crypto positions
+const MAX_OPEN_CRYPTO = 6;
+const MAX_POSITION_PCT = 0.05; // Max 5% of account per position — no million-dollar bets
 const SENTINEL_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -294,10 +295,17 @@ export default async function handler(req, res) {
                         if (signal.direction !== 'WAIT' && signal.confidence >= minConf) {
                                     // Scalps risk 0.5%, swings risk 1%
                                     const riskPct = job.timeframe === '5min' ? 0.005 : 0.01;
-                                    const riskAmt = account.current_balance * riskPct;
+                                    const bal = account.current_balance || 500000;
+                                    const riskAmt = bal * riskPct;
                                     const stopDist = Math.abs(signal.entry - signal.stop);
-                                    const size = stopDist > 0 ? riskAmt/stopDist : 0;
-                                    const dollarSize = size * signal.entry;
+                                    let size = stopDist > 0 ? riskAmt/stopDist : 0;
+                                    let dollarSize = size * signal.entry;
+                                    // Cap position size at MAX_POSITION_PCT of account
+                                    const maxDollar = bal * MAX_POSITION_PCT;
+                                    if (dollarSize > maxDollar) {
+                                      size = maxDollar / signal.entry;
+                                      dollarSize = maxDollar;
+                                    }
                                     const { data: newTrade } = await supabase.from('sentinel_trades').insert({ symbol: job.symbol, direction:signal.direction, setup:signal.setup, timeframe:job.timeframe, regime:`${signal.regime.trend}/${signal.regime.type}`, entry:signal.entry, stop:signal.stop, target:signal.target, size:parseFloat(size.toFixed(6)), dollar_size:parseFloat(dollarSize.toFixed(2)), risk_r:1, reward_r:signal.rewardR, confidence:signal.confidence, reasons:signal.reasons, status:'open', session_date:new Date().toISOString().split('T')[0], opened_at:new Date().toISOString() }).select().single();
                                     await supabase.from('sentinel_account').update({ total_trades:account.total_trades+1, updated_at:new Date().toISOString() }).eq('id', SENTINEL_ACCOUNT_ID);
                                     if (newTrade) {

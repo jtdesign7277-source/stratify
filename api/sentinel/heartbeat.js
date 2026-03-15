@@ -22,7 +22,8 @@ const SCAN_SYMBOLS = [
 const SCAN_CRYPTO = ['BTC/USD', 'ETH/USD'];
 const ALL_SYMBOLS = [...SCAN_SYMBOLS, ...SCAN_CRYPTO];
 const ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
-const MAX_OPEN_TRADES = 10; // Allow more concurrent positions
+const MAX_OPEN_TRADES = 10;
+const MAX_POSITION_PCT = 0.05; // Max 5% of account per position
 
 function getETTime() {
   const now = new Date();
@@ -360,10 +361,17 @@ export default async function handler(req, res) {
         if (signal.direction !== 'WAIT' && signal.confidence >= minConfidence) {
           // Scalps risk 0.5% of account, swings risk 1%
           const riskPct = job.timeframe === '5min' ? 0.005 : 0.01;
-          const riskAmount = (account.current_balance || 500000) * riskPct;
+          const bal = account.current_balance || 500000;
+          const riskAmount = bal * riskPct;
           const riskPerShare = Math.abs(signal.entry - signal.stop);
-          const size = riskPerShare > 0 ? Math.floor(riskAmount / riskPerShare) : 0;
-          const dollarSize = size * signal.entry;
+          let size = riskPerShare > 0 ? Math.floor(riskAmount / riskPerShare) : 0;
+          let dollarSize = size * signal.entry;
+          // Cap position size at MAX_POSITION_PCT of account
+          const maxDollar = bal * MAX_POSITION_PCT;
+          if (dollarSize > maxDollar) {
+            size = Math.floor(maxDollar / signal.entry);
+            dollarSize = size * signal.entry;
+          }
 
           if (size > 0) {
             // Insert trade
