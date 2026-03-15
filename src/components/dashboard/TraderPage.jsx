@@ -4982,7 +4982,7 @@ export default function TraderPage({
 
         <section className="flex min-w-0 flex-1 min-h-0 overflow-hidden">
           <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-visible" style={chartPanelStyle}>
-            <div className="shrink-0 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-white/[0.02] px-4 py-2 backdrop-blur-xl shadow-[0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <div className="shrink-0 border-b border-white/[0.06] bg-[#0b0b0b] px-4 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
                   <div className="flex items-center gap-1.5 shrink-0 relative">
