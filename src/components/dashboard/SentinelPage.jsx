@@ -245,7 +245,7 @@ function SentinelPageInner() {
         <motion.div className={`${GLASS} ${GLASS_HOVER} p-6 transition-all duration-300`} whileHover={{ y: -2 }}>
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-gray-500 text-sm">Starting $500,000</span>
+              <span className="text-gray-500 text-sm">Starting $2,000,000</span>
               <div className="mt-1">
                 <span className="font-mono text-3xl font-bold text-white">
                   $<CountUp end={data?.liveBalance || account.current_balance || 500000} duration={1.2} decimals={2} separator="," preserveValue />
@@ -253,7 +253,7 @@ function SentinelPageInner() {
               </div>
               <span className={`text-sm font-mono ${(data?.totalUnrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {(data?.totalUnrealizedPnl || 0) >= 0 ? '+' : ''}${(data?.totalUnrealizedPnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                {' '}({data?.liveBalance ? (((data.liveBalance - 500000) / 500000) * 100).toFixed(2) : '0.00'}%)
+                {' '}({data?.liveBalance ? (((data.liveBalance - 2000000) / 2000000) * 100).toFixed(2) : '0.00'}%)
               </span>
             </div>
             <div className="flex gap-8">
