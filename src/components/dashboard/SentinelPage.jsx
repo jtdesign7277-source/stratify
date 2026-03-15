@@ -508,19 +508,25 @@ function SentinelPageInner() {
                     <span className="text-gray-500">Entry ${trade.entry}</span>
             {(() => {
               const lp = livePrices[trade.symbol.toUpperCase()]?.price;
-              const pnl = (lp && trade.entry && trade.size && trade.status === 'open')
-                ? (lp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
+              const currentPrice = (trade.status === 'open' && lp) ? lp : trade.current_price;
+              const pnl = (currentPrice && trade.entry && trade.size && trade.status === 'open')
+                ? (currentPrice - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
                 : trade.unrealized_pnl;
-              const ds = (lp && trade.size && trade.status === 'open') ? lp * trade.size : (trade.dollar_size || 0);
-              return pnl != null ? (
+              const ds = (currentPrice && trade.size && trade.status === 'open') ? currentPrice * trade.size : (trade.dollar_size || 0);
+              return (
                 <>
-                  <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                  {currentPrice && trade.status === 'open' && (
+                    <span className="text-white">
+                      {trade.symbol.includes('/') ? '' : '$'}{trade.symbol} <span className="text-gray-400">${Number(currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </span>
+                  )}
+                  {pnl != null && (
+                    <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  )}
                   <span className="text-gray-500">Size ${ds.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                 </>
-              ) : (
-                <span className="text-gray-500">Size ${ds.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
               );
             })()}
             <span className={`w-2 h-2 rounded-full ${trade.status === 'open' ? 'bg-emerald-400' : trade.win ? 'bg-emerald-400' : 'bg-red-400'}`} />
