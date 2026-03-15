@@ -1856,7 +1856,7 @@ export default function TraderPage({
   const lineToolsRef = useRef(null);
   const [activeTool, setActiveTool] = useState('cursor');
   const volumeProfileRef = useRef(null);
-  const [volumeProfileVisible, setVolumeProfileVisible] = useState(true);
+  const [volumeProfileVisible, setVolumeProfileVisible] = useState(false);
   const sessionHighlightRef = useRef(null);
   const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
   const priceAlertsRef = useRef(null);
@@ -2917,6 +2917,7 @@ export default function TraderPage({
     try {
       if (chart.panes && chart.panes()[0]) chart.panes()[0].attachPrimitive(vp);
     } catch (_) {}
+    vp.setVisible?.(false);
     volumeProfileRef.current = vp;
 
     const sh = new SessionHighlightPlugin({ showLabels: true });
