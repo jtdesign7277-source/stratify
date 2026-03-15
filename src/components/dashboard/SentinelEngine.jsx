@@ -17,15 +17,15 @@ const COLORS = {
   bg: '#080808',
   panel: '#0d0d0d',
   border: '#1a1a1a',
-  text: '#e0e0e0',
+  text: '#f0f0f0',
   green: '#10b981',
   greenBright: '#00ff88',
   red: '#ff4444',
   amber: '#ffaa00',
   blue: '#4488ff',
   cyan: '#00ccff',
-  dim: '#555555',
-  dimmer: '#333333',
+  dim: '#8a8a8a',
+  dimmer: '#555555',
   white: '#ffffff',
 };
 
@@ -824,16 +824,16 @@ function PulsingDot({ color = COLORS.green }) {
 }
 
 function Val({ children, color }) {
-  return <span style={{ color: color || COLORS.text }} className="font-mono text-xs">{children}</span>;
+  return <span style={{ color: color || COLORS.text }} className="font-mono text-[11px] tabular-nums">{children}</span>;
 }
 
 function Dim({ children }) {
-  return <span style={{ color: COLORS.dim }} className="font-mono text-[11px]">{children}</span>;
+  return <span style={{ color: COLORS.dim }} className="font-mono text-[10px]">{children}</span>;
 }
 
 function Row({ label, value, color }) {
   return (
-    <div className="flex justify-between items-center py-[2px] px-3">
+    <div className="flex justify-between items-center py-[1px] px-3">
       <Dim>{label}</Dim>
       <Val color={color}>{value}</Val>
     </div>
@@ -905,11 +905,11 @@ export default function SentinelEngine() {
 
   const headerStyle = {
     color: COLORS.dim,
-    fontSize: '11px',
+    fontSize: '10px',
     fontFamily: 'monospace',
     textTransform: 'uppercase',
     letterSpacing: '0.12em',
-    padding: '8px 10px 6px',
+    padding: '4px 10px 3px',
     borderBottom: `1px solid ${COLORS.border}`,
   };
 
@@ -934,7 +934,7 @@ export default function SentinelEngine() {
       {/* HEADER BAR */}
       <div
         className="flex-shrink-0 flex items-center justify-between px-4"
-        style={{ height: 36, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.panel }}
+        style={{ height: 30, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.panel }}
       >
         <div className="flex items-center gap-3">
           <span className="text-[13px] font-bold tracking-widest" style={{ color: COLORS.white }}>
@@ -979,10 +979,10 @@ export default function SentinelEngine() {
             <div style={headerStyle}>
               <div>BAYESIAN MODEL</div>
             </div>
-            <div className="px-3 py-1" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-              <span className="text-[10px]" style={{ color: COLORS.dimmer }}>P(H|D) = P(D|H) × P(H) / P(D)</span>
+            <div className="px-3 py-0.5" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+              <span className="text-[9px]" style={{ color: COLORS.dimmer }}>P(H|D) = P(D|H) × P(H) / P(D)</span>
             </div>
-            <div className="flex-1 overflow-y-auto sentinel-scroll py-0.5">
+            <div className="flex-1 overflow-y-auto sentinel-scroll py-0">
               <Row label="prior" value={bayesian.prior} color={COLORS.text} />
               <Row label="post" value={bayesian.post} color={COLORS.green} />
               <Row label="ev" value={bayesian.ev} color={+bayesian.ev > 0 ? COLORS.green : COLORS.red} />
@@ -1002,18 +1002,18 @@ export default function SentinelEngine() {
             </div>
             <div className="flex flex-1 min-h-0">
               <div className="flex-1 flex flex-col overflow-y-auto sentinel-scroll" style={{ borderRight: `1px solid ${COLORS.border}` }}>
-                <div className="px-3 py-0.5 text-[10px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>EV_net = q - p - c</div>
+                <div className="px-3 py-0 text-[9px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>EV_net = q - p - c</div>
                 <div className="py-0.5">
                   <Row label="EV" value={edge.ev} color={COLORS.text} />
                   <Row label="cost" value={edge.cost} color={COLORS.text} />
                   <Row label="net" value={edge.net} color={edge.pass ? COLORS.green : COLORS.red} />
-                  <div className="px-3 py-0.5">
-                    <span className="text-xs font-bold" style={{ color: edge.pass ? COLORS.green : COLORS.red }}>{edge.pass ? 'PASS' : 'FAIL'}</span>
+                  <div className="px-3 py-0">
+                    <span className="text-[10px] font-bold" style={{ color: edge.pass ? COLORS.green : COLORS.red }}>{edge.pass ? 'PASS' : 'FAIL'}</span>
                   </div>
                 </div>
               </div>
               <div className="flex-1 flex flex-col overflow-y-auto sentinel-scroll">
-                <div className="px-3 py-0.5 text-[10px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>z = (s - μ_s) / σ_s</div>
+                <div className="px-3 py-0 text-[9px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>z = (s - μ_s) / σ_s</div>
                 <div className="py-0.5">
                   <Row label="z-score" value={spread.z} color={Math.abs(spread.z) > 1.5 ? COLORS.amber : COLORS.text} />
                   <Row label="p_sum" value={spread.pSum} color={+spread.pSum < 1 ? COLORS.green : COLORS.text} />
@@ -1052,10 +1052,10 @@ export default function SentinelEngine() {
           {/* BOT METRICS */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
             <div style={headerStyle}>BOT METRICS</div>
-            <div className="flex-1 overflow-y-auto sentinel-scroll py-0.5">
-              <div className="px-3 pt-0.5 pb-1">
-                <div className="text-[11px]" style={{ color: COLORS.dim }}>Balance</div>
-                <div className="text-lg font-bold tabular-nums" style={{ color: COLORS.green }}>${metrics.balance.toLocaleString()}</div>
+            <div className="flex-1 overflow-y-auto sentinel-scroll py-0">
+              <div className="px-3 pt-0.5 pb-0">
+                <div className="text-[9px]" style={{ color: COLORS.dim }}>Balance</div>
+                <div className="text-[13px] font-bold tabular-nums" style={{ color: COLORS.green }}>${metrics.balance.toLocaleString()}</div>
               </div>
               <Row label="ROI" value={`${metrics.roi}%`} color={+metrics.roi >= 0 ? COLORS.green : COLORS.red} />
               <Row label="Win Rate" value={`${metrics.winRate}%`} color={+metrics.winRate > 50 ? COLORS.green : COLORS.red} />
@@ -1071,13 +1071,13 @@ export default function SentinelEngine() {
           </div>
 
           {/* TRAINING STREAM */}
-          <div className="flex-[1.5] flex flex-col overflow-hidden min-h-0" style={panelStyle}>
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
             <div style={headerStyle}>TRAINING STREAM</div>
             <div className="flex-1 overflow-y-auto sentinel-scroll px-2 py-0.5">
               {stream.map(e => (
-                <div key={e.id} className="flex gap-1.5 py-[1px] text-[11px] leading-tight">
-                  <span style={{ color: COLORS.dim }} className="w-[52px] flex-shrink-0 tabular-nums">{e.ts}</span>
-                  <span style={{ color: e.color }} className="font-bold w-[52px] flex-shrink-0">[{e.type}]</span>
+                <div key={e.id} className="flex gap-1 py-0 text-[10px] leading-tight">
+                  <span style={{ color: COLORS.dim }} className="w-[48px] flex-shrink-0 tabular-nums">{e.ts}</span>
+                  <span style={{ color: e.color }} className="font-bold w-[48px] flex-shrink-0">[{e.type}]</span>
                   <span style={{ color: e.type === 'FILTER' ? COLORS.red : COLORS.dim }} className="truncate">{e.detail}</span>
                 </div>
               ))}
@@ -1090,7 +1090,7 @@ export default function SentinelEngine() {
 
           {/* MC / EQUITY CANVAS — main visualization */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
-            <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ height: 28, borderBottom: `1px solid ${COLORS.border}` }}>
+            <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ height: 24, borderBottom: `1px solid ${COLORS.border}` }}>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold tracking-widest" style={{ color: COLORS.dim }}>
                   {vizMode === 'mc' ? 'MONTE CARLO' : 'EQUITY CURVE'}
@@ -1123,8 +1123,8 @@ export default function SentinelEngine() {
           </div>
 
           {/* P&L CURVE — compact below visualization */}
-          <div className="flex flex-col overflow-hidden" style={{ ...panelStyle, height: 90 }}>
-            <div className="flex items-center justify-between px-3" style={{ height: 24, borderBottom: `1px solid ${COLORS.border}` }}>
+          <div className="flex flex-col overflow-hidden" style={{ ...panelStyle, height: 70 }}>
+            <div className="flex items-center justify-between px-3" style={{ height: 20, borderBottom: `1px solid ${COLORS.border}` }}>
               <span className="text-[10px] tracking-widest font-bold" style={{ color: COLORS.dim }}>P&L</span>
               <span className="text-[13px] font-bold tabular-nums" style={{ color: totalPnl >= 0 ? COLORS.green : COLORS.red }}>
                 ${Math.abs(totalPnl) < 1 ? totalPnl.toFixed(2) : totalPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -1140,7 +1140,7 @@ export default function SentinelEngine() {
       {/* STATUS BAR */}
       <div
         className="flex-shrink-0 flex items-center overflow-hidden"
-        style={{ height: 28, borderTop: `1px solid ${COLORS.border}`, background: COLORS.panel, padding: '0 12px' }}
+        style={{ height: 22, borderTop: `1px solid ${COLORS.border}`, background: COLORS.panel, padding: '0 12px' }}
       >
         <div className="overflow-hidden whitespace-nowrap w-full">
           <motion.div
