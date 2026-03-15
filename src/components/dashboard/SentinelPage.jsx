@@ -321,10 +321,18 @@ function SentinelPageInner() {
                   $<CountUp end={data?.liveBalance || account.current_balance || 500000} duration={1.2} decimals={2} separator="," preserveValue />
                 </span>
               </div>
-              <span className={`text-sm font-mono ${(liveUnrealizedPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {(liveUnrealizedPnl) >= 0 ? '+' : ''}${(liveUnrealizedPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                {' '}({data?.liveBalance ? (((data.liveBalance - 2000000) / 2000000) * 100).toFixed(2) : '0.00'}%)
-              </span>
+              {(() => {
+                // Total P&L = realized (baked into current_balance) + live unrealized from WS
+                const realizedBase = (account.current_balance || 2000000);
+                const totalPnl = (realizedBase + liveUnrealizedPnl) - 2000000;
+                const pctChange = (totalPnl / 2000000) * 100;
+                return (
+                  <span className={`text-sm font-mono ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {' '}({pctChange.toFixed(2)}%)
+                  </span>
+                );
+              })()}
             </div>
             <div className="flex gap-8">
               <MetricTooltip label="Win Rate" tip="Percentage of trades that were profitable. Higher is better — 50%+ with good R means a strong edge.">

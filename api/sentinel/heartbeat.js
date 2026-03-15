@@ -173,6 +173,7 @@ export default async function handler(req, res) {
     let tradesChecked = 0;
     let tradesClosed = 0;
     let newSignals = 0;
+    let sessionWins = 0, sessionLosses = 0, sessionGrossPnl = 0;
 
     // === CHECK OPEN TRADES ===
     for (const trade of openTrades) {
@@ -255,6 +256,8 @@ export default async function handler(req, res) {
           }
 
           tradesClosed++;
+          if (win) sessionWins++; else sessionLosses++;
+          sessionGrossPnl += +pnl.toFixed(2);
         }
 
         await sleep(200);
@@ -374,12 +377,18 @@ export default async function handler(req, res) {
       await supabase.from('sentinel_sessions').update({
         trades_fired: (existingSession.trades_fired || 0) + newSignals,
         trades_closed: (existingSession.trades_closed || 0) + tradesClosed,
+        wins: (existingSession.wins || 0) + sessionWins,
+        losses: (existingSession.losses || 0) + sessionLosses,
+        gross_pnl: parseFloat(((existingSession.gross_pnl || 0) + sessionGrossPnl).toFixed(2)),
       }).eq('id', existingSession.id);
     } else {
       await supabase.from('sentinel_sessions').insert({
         session_date: today,
         trades_fired: newSignals,
         trades_closed: tradesClosed,
+        wins: sessionWins,
+        losses: sessionLosses,
+        gross_pnl: parseFloat(sessionGrossPnl.toFixed(2)),
         session_started_at: new Date().toISOString(),
       });
     }

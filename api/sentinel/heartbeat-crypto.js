@@ -136,7 +136,7 @@ function generateSignal(symbol, bars, timeframe) {
 
 export default async function handler(req, res) {
     const startTime = Date.now();
-    let newSignals = 0, tradesClosed = 0;
+    let newSignals = 0, tradesClosed = 0, sessionWins = 0, sessionLosses = 0, sessionGrossPnl = 0;
     const log = [];
 
   try {
@@ -168,6 +168,8 @@ export default async function handler(req, res) {
                                     }
                                     openSymbols.delete(trade.symbol);
                                     tradesClosed++;
+                                    if (win) sessionWins++; else sessionLosses++;
+                                    sessionGrossPnl += parseFloat(pnl.toFixed(2));
                                     log.push(`Closed ${trade.direction} ${trade.symbol} @ ${exitPrice} — ${win?'WIN':'LOSS'} ${resultR}R`);
                         }
                         // Volatility check — even if stop/target not hit, check for rapid moves
@@ -240,7 +242,26 @@ export default async function handler(req, res) {
         }
 
       const today = new Date().toISOString().split('T')[0];
-        await supabase.from('sentinel_sessions').upsert({ session_date:today, trades_fired:newSignals, session_started_at:new Date().toISOString() }, { onConflict:'session_date', ignoreDuplicates:false });
+        const { data: existingSession } = await supabase.from('sentinel_sessions').select('*').eq('session_date', today).maybeSingle();
+        if (existingSession) {
+          await supabase.from('sentinel_sessions').update({
+            trades_fired: (existingSession.trades_fired || 0) + newSignals,
+            trades_closed: (existingSession.trades_closed || 0) + tradesClosed,
+            wins: (existingSession.wins || 0) + sessionWins,
+            losses: (existingSession.losses || 0) + sessionLosses,
+            gross_pnl: parseFloat(((existingSession.gross_pnl || 0) + sessionGrossPnl).toFixed(2)),
+          }).eq('id', existingSession.id);
+        } else {
+          await supabase.from('sentinel_sessions').insert({
+            session_date: today,
+            trades_fired: newSignals,
+            trades_closed: tradesClosed,
+            wins: sessionWins,
+            losses: sessionLosses,
+            gross_pnl: parseFloat(sessionGrossPnl.toFixed(2)),
+            session_started_at: new Date().toISOString(),
+          });
+        }
 
       return res.status(200).json({ processed:true, cryptoSymbols:CRYPTO_SYMBOLS, openTradesChecked:openTrades?.length??0, tradesClosed, newSignals, duration:Date.now()-startTime, log, timestamp:new Date().toISOString() });
 
