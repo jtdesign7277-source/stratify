@@ -968,34 +968,24 @@ export default function SentinelEngine() {
         </div>
       </div>
 
-      {/* CONTENT */}
-      <div className="flex-1 min-h-0 flex flex-col" style={{ padding: 1, gap: 1 }}>
+      {/* CONTENT — left/right split */}
+      <div className="flex-1 min-h-0 flex" style={{ padding: 1, gap: 1 }}>
 
-        {/* TOP ROW: 3 MODEL PANELS */}
-        <div className="flex gap-[1px] flex-shrink-0" style={{ height: '27%' }}>
+        {/* LEFT COLUMN: model panels + stream + metrics */}
+        <div className="flex flex-col gap-[1px]" style={{ width: '32%', minWidth: 280 }}>
 
           {/* BAYESIAN MODEL */}
-          <div className="flex-1 flex flex-col overflow-hidden" style={panelStyle}>
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
             <div style={headerStyle}>
               <div>BAYESIAN MODEL</div>
-              <div className="mt-0.5 text-[10px]" style={{ color: COLORS.dim, letterSpacing: '0.05em' }}>BAYESIAN UPDATE</div>
             </div>
-            <div className="px-3 py-1.5" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-              <span className="text-[11px]" style={{ color: COLORS.dimmer }}>
-                P(H|D) = P(D|H) × P(H) / P(D)
-              </span>
+            <div className="px-3 py-1" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+              <span className="text-[10px]" style={{ color: COLORS.dimmer }}>P(H|D) = P(D|H) × P(H) / P(D)</span>
             </div>
-            <div className="flex-1 overflow-y-auto sentinel-scroll py-1">
-              <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>H = outcome hypothesis</div>
-              <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>D = new market data (spot, vol, imb)</div>
-              <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>P(H) = prior from last window</div>
-              <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>P(H|D) = posterior probability</div>
-              <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>recalculated every 5 ticks</div>
-              <div className="h-1" />
+            <div className="flex-1 overflow-y-auto sentinel-scroll py-0.5">
               <Row label="prior" value={bayesian.prior} color={COLORS.text} />
               <Row label="post" value={bayesian.post} color={COLORS.green} />
               <Row label="ev" value={bayesian.ev} color={+bayesian.ev > 0 ? COLORS.green : COLORS.red} />
-              <div className="h-1" />
               <Row label="epoch" value={bayesian.epoch} />
               <Row label="loss" value={bayesian.loss} />
               <Row label="conf" value={`${bayesian.conf}%`} color={COLORS.green} />
@@ -1003,49 +993,28 @@ export default function SentinelEngine() {
           </div>
 
           {/* EDGE + SPREAD */}
-          <div className="flex-1 flex flex-col overflow-hidden" style={panelStyle}>
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
             <div style={headerStyle}>
               <div className="flex justify-between">
-                <span>EDGE + SPREAD</span>
-              </div>
-              <div className="flex justify-between mt-0.5">
-                <span className="text-[10px]" style={{ color: COLORS.dim }}>EDGE FILTER</span>
-                <span className="text-[10px]" style={{ color: COLORS.dim }}>SPREAD EDGE</span>
+                <span>EDGE FILTER</span>
+                <span>SPREAD</span>
               </div>
             </div>
             <div className="flex flex-1 min-h-0">
               <div className="flex-1 flex flex-col overflow-y-auto sentinel-scroll" style={{ borderRight: `1px solid ${COLORS.border}` }}>
-                <div className="px-3 py-1.5 text-[11px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>
-                  EV_net = q - p - c
-                </div>
-                <div className="py-1">
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>q = model probability</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>p = market price</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>c = fees + spread + slippage</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>only +EV entries pass</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>main system filter</div>
-                  <div className="h-1" />
+                <div className="px-3 py-0.5 text-[10px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>EV_net = q - p - c</div>
+                <div className="py-0.5">
                   <Row label="EV" value={edge.ev} color={COLORS.text} />
                   <Row label="cost" value={edge.cost} color={COLORS.text} />
                   <Row label="net" value={edge.net} color={edge.pass ? COLORS.green : COLORS.red} />
                   <div className="px-3 py-0.5">
-                    <span className="text-xs font-bold" style={{ color: edge.pass ? COLORS.green : COLORS.red }}>
-                      {edge.pass ? 'PASS' : 'FAIL'}
-                    </span>
+                    <span className="text-xs font-bold" style={{ color: edge.pass ? COLORS.green : COLORS.red }}>{edge.pass ? 'PASS' : 'FAIL'}</span>
                   </div>
                 </div>
               </div>
               <div className="flex-1 flex flex-col overflow-y-auto sentinel-scroll">
-                <div className="px-3 py-1.5 text-[11px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>
-                  z = (s - μ_s) / σ_s
-                </div>
-                <div className="py-1">
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>p1 = polymarket arb opportunity</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>if sum {'<'} 1: these moves exist</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>net edge after all costs</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>typically 1-3% on 5m mkts</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>calculates robustness</div>
-                  <div className="h-1" />
+                <div className="px-3 py-0.5 text-[10px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>z = (s - μ_s) / σ_s</div>
+                <div className="py-0.5">
                   <Row label="z-score" value={spread.z} color={Math.abs(spread.z) > 1.5 ? COLORS.amber : COLORS.text} />
                   <Row label="p_sum" value={spread.pSum} color={+spread.pSum < 1 ? COLORS.green : COLORS.text} />
                 </div>
@@ -1054,162 +1023,114 @@ export default function SentinelEngine() {
           </div>
 
           {/* EXECUTION LAYER */}
-          <div className="flex-1 flex flex-col overflow-hidden" style={panelStyle}>
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
             <div style={headerStyle}>
-              <div>EXECUTION LAYER</div>
-              <div className="flex justify-between mt-0.5">
-                <span className="text-[10px]" style={{ color: COLORS.dim }}>STOIKOV QUOTING</span>
-                <span className="text-[10px]" style={{ color: COLORS.dim }}>MONTE CARLO</span>
+              <div className="flex justify-between">
+                <span>STOIKOV</span>
+                <span>MONTE CARLO</span>
               </div>
             </div>
             <div className="flex flex-1 min-h-0">
               <div className="flex-1 flex flex-col overflow-y-auto sentinel-scroll" style={{ borderRight: `1px solid ${COLORS.border}` }}>
-                <div className="px-3 py-1.5 text-[11px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>
-                  r = s - q*gamma*sigma²*(T-t)
-                </div>
-                <div className="py-1">
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>r = reservation price</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>s = mid price</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>q = inventory, gamma = risk</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>sigma² = variance</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>T-t = time remaining</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>adjusts execution price</div>
-                  <div className="h-1" />
+                <div className="py-0.5">
                   <Row label="q" value={stoikov.q} />
-                  <Row label="gamma" value={stoikov.gamma} />
-                  <Row label="s²" value={stoikov.s2} />
+                  <Row label="γ" value={stoikov.gamma} />
+                  <Row label="σ²" value={stoikov.s2} />
                   <Row label="r" value={`$${stoikov.r}`} color={COLORS.green} />
                 </div>
               </div>
               <div className="flex-1 flex flex-col overflow-y-auto sentinel-scroll">
-                <div className="px-3 py-1.5 text-[11px]" style={{ color: COLORS.dimmer, borderBottom: `1px solid ${COLORS.border}` }}>
-                  W(t+1) = W(t) × (1 + r(t))
-                </div>
-                <div className="py-1">
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>DD = max((Peak-W)/Peak)</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>1000 scenarios per cycle</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>tests fill rates, slippage</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>random execution delays</div>
-                  <div className="px-3 py-0.5 text-[11px]" style={{ color: COLORS.dim }}>validates robustness</div>
-                  <div className="h-1" />
+                <div className="py-0.5">
                   <Row label="f*" value={mc.fStar} color={COLORS.green} />
                   <Row label="f" value={mc.f} />
-                  <Row label="max DD" value={`${mc.dd}%`} color={COLORS.red} />
+                  <Row label="DD" value={`${mc.dd}%`} color={COLORS.red} />
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* MONTE CARLO / EQUITY CURVE TOGGLE */}
-        <div className="flex-shrink-0 overflow-hidden flex flex-col" style={{ ...panelStyle, height: '30%' }}>
-          <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ height: 28, borderBottom: `1px solid ${COLORS.border}` }}>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold tracking-widest" style={{ color: COLORS.dim }}>
-                {vizMode === 'mc' ? 'MONTE CARLO' : 'EQUITY CURVE'}
-              </span>
-              {vizMode === 'equity' && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: COLORS.green, color: '#000' }}>LIVE</span>
-              )}
-            </div>
-            <div className="flex items-center gap-1" style={{ background: COLORS.bg, borderRadius: 4, padding: 2 }}>
-              {[{ id: 'mc', label: 'MC' }, { id: 'equity', label: 'EQUITY' }].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setVizMode(tab.id)}
-                  className="transition-all duration-150"
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: 3,
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    fontWeight: 600,
-                    letterSpacing: '0.05em',
-                    background: vizMode === tab.id ? COLORS.border : 'transparent',
-                    color: vizMode === tab.id ? COLORS.white : COLORS.dim,
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex-1 min-h-0">
-            {vizMode === 'mc' ? <MonteCarloCanvas /> : <EquityCurveCanvas data={pnl} deposit={metrics.deposit} />}
-          </div>
-        </div>
-
-        {/* BOTTOM ROW */}
-        <div className="flex gap-[1px] flex-1 min-h-0">
-
-          {/* TRAINING STREAM */}
-          <div className="flex flex-col overflow-hidden" style={{ ...panelStyle, flex: '1.15' }}>
-            <div style={headerStyle}>TRAINING STREAM</div>
-            <div className="flex-1 overflow-y-auto sentinel-scroll px-2 py-1">
-              {stream.map(e => (
-                <div key={e.id} className="flex gap-1.5 py-[1px] text-[11px] leading-tight">
-                  <span style={{ color: COLORS.dim }} className="w-[56px] flex-shrink-0 tabular-nums">{e.ts}</span>
-                  <span style={{ color: e.color }} className="font-bold w-[56px] flex-shrink-0">[{e.type}]</span>
-                  <span style={{ color: e.type === 'FILTER' ? COLORS.red : COLORS.dim }}>{e.detail}</span>
-                </div>
-              ))}
             </div>
           </div>
 
           {/* BOT METRICS */}
-          <div className="flex flex-col overflow-hidden" style={{ ...panelStyle, flex: '0.85' }}>
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
             <div style={headerStyle}>BOT METRICS</div>
-            <div className="flex-1 overflow-y-auto sentinel-scroll py-1">
-              <div className="px-3 pt-1 pb-2">
+            <div className="flex-1 overflow-y-auto sentinel-scroll py-0.5">
+              <div className="px-3 pt-0.5 pb-1">
                 <div className="text-[11px]" style={{ color: COLORS.dim }}>Balance</div>
-                <div className="text-[22px] font-bold tabular-nums" style={{ color: COLORS.green }}>
-                  ${metrics.balance.toLocaleString()}
-                </div>
+                <div className="text-lg font-bold tabular-nums" style={{ color: COLORS.green }}>${metrics.balance.toLocaleString()}</div>
               </div>
-              <Row label="Deposit" value={`$${metrics.deposit.toLocaleString()}`} />
               <Row label="ROI" value={`${metrics.roi}%`} color={+metrics.roi >= 0 ? COLORS.green : COLORS.red} />
               <Row label="Win Rate" value={`${metrics.winRate}%`} color={+metrics.winRate > 50 ? COLORS.green : COLORS.red} />
-              <Row label="Edge" value={`${metrics.edge || '—'}%`} color={COLORS.green} />
-              <Row label="Trades/Hr" value={metrics.tradesHr} />
-              <Row label="Total" value={metrics.total.toLocaleString()} />
               <Row label="Sharpe" value={metrics.sharpe} color={+metrics.sharpe > 1.5 ? COLORS.green : COLORS.text} />
               <Row label="Max DD" value={`${metrics.maxDd}%`} color={COLORS.red} />
-              <Row label="Orders" value={metrics.orders.toLocaleString()} />
-              <Row label="Strategy" value={metrics.strategy} color={COLORS.cyan} />
-              <Row label="Hedging" value={metrics.hedging} />
-
-              <div className="mt-2 pt-1.5" style={{ borderTop: `1px solid ${COLORS.border}` }}>
-                <div className="px-3 pb-1 text-[11px] font-bold tracking-wider" style={{ color: COLORS.dim }}>STATUS</div>
-                {Object.entries(metrics.status).map(([k, v]) => (
-                  <Row
-                    key={k}
-                    label={k.charAt(0).toUpperCase() + k.slice(1)}
-                    value={typeof v === 'number' ? `${v}%` : v}
-                    color={v === 'ONLINE' ? COLORS.green : v === 'ACTIVE' ? COLORS.green : v === 'SCAN' ? COLORS.amber : typeof v === 'number' ? COLORS.green : v === 'CONNECTING' ? COLORS.amber : COLORS.red}
-                  />
-                ))}
-              </div>
+              <Row label="Trades" value={metrics.total.toLocaleString()} />
+              <Row label="Trades/Hr" value={metrics.tradesHr} />
+              {Object.entries(metrics.status).map(([k, v]) => (
+                <Row key={k} label={k} value={typeof v === 'number' ? `${v}%` : v}
+                  color={v === 'ONLINE' || v === 'ACTIVE' ? COLORS.green : v === 'SCAN' || v === 'CONNECTING' ? COLORS.amber : typeof v === 'number' ? COLORS.green : COLORS.red} />
+              ))}
             </div>
           </div>
 
-          {/* P&L CURVE */}
-          <div className="flex flex-col overflow-hidden" style={{ ...panelStyle, flex: '1' }}>
-            <div style={headerStyle}>
-              <div className="flex justify-between items-center">
-                <span>P&L CURVE</span>
+          {/* TRAINING STREAM */}
+          <div className="flex-[1.5] flex flex-col overflow-hidden min-h-0" style={panelStyle}>
+            <div style={headerStyle}>TRAINING STREAM</div>
+            <div className="flex-1 overflow-y-auto sentinel-scroll px-2 py-0.5">
+              {stream.map(e => (
+                <div key={e.id} className="flex gap-1.5 py-[1px] text-[11px] leading-tight">
+                  <span style={{ color: COLORS.dim }} className="w-[52px] flex-shrink-0 tabular-nums">{e.ts}</span>
+                  <span style={{ color: e.color }} className="font-bold w-[52px] flex-shrink-0">[{e.type}]</span>
+                  <span style={{ color: e.type === 'FILTER' ? COLORS.red : COLORS.dim }} className="truncate">{e.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: MC/Equity visualization (full height) */}
+        <div className="flex-1 flex flex-col gap-[1px] min-w-0">
+
+          {/* MC / EQUITY CANVAS — main visualization */}
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
+            <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ height: 28, borderBottom: `1px solid ${COLORS.border}` }}>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold tracking-widest" style={{ color: COLORS.dim }}>
+                  {vizMode === 'mc' ? 'MONTE CARLO' : 'EQUITY CURVE'}
+                </span>
+                {vizMode === 'equity' && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: COLORS.green, color: '#000' }}>LIVE</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1" style={{ background: COLORS.bg, borderRadius: 4, padding: 2 }}>
+                {[{ id: 'mc', label: 'MC' }, { id: 'equity', label: 'EQUITY' }].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setVizMode(tab.id)}
+                    className="transition-all duration-150"
+                    style={{
+                      padding: '2px 8px', borderRadius: 3, fontSize: 10, fontFamily: 'monospace',
+                      fontWeight: 600, letterSpacing: '0.05em', border: 'none', cursor: 'pointer',
+                      background: vizMode === tab.id ? COLORS.border : 'transparent',
+                      color: vizMode === tab.id ? COLORS.white : COLORS.dim,
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="px-3 pt-2 pb-1">
-              <div className="text-[22px] font-bold tabular-nums" style={{ color: totalPnl >= 0 ? COLORS.green : COLORS.red }}>
+            <div className="flex-1 min-h-0">
+              {vizMode === 'mc' ? <MonteCarloCanvas /> : <EquityCurveCanvas data={pnl} deposit={metrics.deposit} />}
+            </div>
+          </div>
+
+          {/* P&L CURVE — compact below visualization */}
+          <div className="flex flex-col overflow-hidden" style={{ ...panelStyle, height: 90 }}>
+            <div className="flex items-center justify-between px-3" style={{ height: 24, borderBottom: `1px solid ${COLORS.border}` }}>
+              <span className="text-[10px] tracking-widest font-bold" style={{ color: COLORS.dim }}>P&L</span>
+              <span className="text-[13px] font-bold tabular-nums" style={{ color: totalPnl >= 0 ? COLORS.green : COLORS.red }}>
                 ${Math.abs(totalPnl) < 1 ? totalPnl.toFixed(2) : totalPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </div>
-              <div className="text-[11px]" style={{ color: COLORS.dim }}>
-                from ${metrics.deposit.toLocaleString()}
-              </div>
+              </span>
             </div>
-            <div className="flex-1 min-h-0 px-1 pb-1">
+            <div className="flex-1 min-h-0 px-1">
               <PnlCanvas data={pnl} />
             </div>
           </div>
