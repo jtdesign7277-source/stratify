@@ -1670,6 +1670,10 @@ export default function TraderPage({
   const [chartBgTheme, setChartBgTheme] = useState(() => {
     try { return sessionStorage.getItem('stratify-chart-bg') || 'black'; } catch { return 'black'; }
   });
+  const [bgThemeDropdownOpen, setBgThemeDropdownOpen] = useState(false);
+  const [bgThemeDropdownPosition, setBgThemeDropdownPosition] = useState(null);
+  const bgThemeDropdownRef = useRef(null);
+  const bgThemeDropdownPanelRef = useRef(null);
   const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
   const [timeframeDropdownPosition, setTimeframeDropdownPosition] = useState(null);
   const timeframeDropdownRef = useRef(null);
@@ -2268,6 +2272,25 @@ export default function TraderPage({
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [timeframeDropdownOpen]);
+
+  useLayoutEffect(() => {
+    if (bgThemeDropdownOpen && bgThemeDropdownRef.current) {
+      const rect = bgThemeDropdownRef.current.getBoundingClientRect();
+      setBgThemeDropdownPosition({ top: rect.bottom + 4, left: rect.left });
+    } else if (!bgThemeDropdownOpen) {
+      setBgThemeDropdownPosition(null);
+    }
+  }, [bgThemeDropdownOpen]);
+  useEffect(() => {
+    if (!bgThemeDropdownOpen) return;
+    const onMouseDown = (e) => {
+      const inTrigger = bgThemeDropdownRef.current?.contains(e.target);
+      const inPanel = bgThemeDropdownPanelRef.current?.contains(e.target);
+      if (!inTrigger && !inPanel) setBgThemeDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [bgThemeDropdownOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -5149,21 +5172,52 @@ export default function TraderPage({
                       document.body
                     )}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0 ml-1">
-                    {CHART_BG_THEMES.map((theme) => (
-                      <button
-                        key={theme.id}
-                        type="button"
-                        onClick={() => setChartBgTheme(theme.id)}
-                        className={`w-5 h-5 rounded-full border transition-all duration-300 ${
-                          chartBgTheme === theme.id
-                            ? 'border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.2)] scale-110'
-                            : 'border-white/[0.1] hover:border-white/[0.2] hover:scale-105'
-                        }`}
-                        style={{ backgroundColor: theme.color }}
-                        title={theme.label}
-                      />
-                    ))}
+                  <div className="relative shrink-0" ref={bgThemeDropdownRef}>
+                    <motion.button
+                      type="button"
+                      onClick={() => setBgThemeDropdownOpen((o) => !o)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
+                      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition-all duration-300 ${
+                        bgThemeDropdownOpen
+                          ? 'border-emerald-400/60 text-emerald-400 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.15),inset_0_1px_0_rgba(255,255,255,0.05)]'
+                          : 'border-white/[0.06] text-gray-300 hover:bg-white/[0.06] hover:text-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]'
+                      }`}
+                      aria-expanded={bgThemeDropdownOpen}
+                    >
+                      <span className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: (CHART_BG_THEMES.find((t) => t.id === chartBgTheme) || CHART_BG_THEMES[0]).color }} />
+                      <span>{(CHART_BG_THEMES.find((t) => t.id === chartBgTheme) || CHART_BG_THEMES[0]).label}</span>
+                      <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${bgThemeDropdownOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
+                    </motion.button>
+                    {bgThemeDropdownOpen && bgThemeDropdownPosition && createPortal(
+                      <div
+                        ref={bgThemeDropdownPanelRef}
+                        className="min-w-[7rem] rounded-xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] to-white/[0.02] py-1 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]"
+                        style={{
+                          position: 'fixed',
+                          top: bgThemeDropdownPosition.top,
+                          left: bgThemeDropdownPosition.left,
+                          zIndex: 9999,
+                        }}
+                      >
+                        {CHART_BG_THEMES.map((theme) => (
+                          <button
+                            key={theme.id}
+                            type="button"
+                            onClick={() => {
+                              setChartBgTheme(theme.id);
+                              setBgThemeDropdownOpen(false);
+                            }}
+                            className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-white/[0.08] ${chartBgTheme === theme.id ? 'bg-white/10 text-emerald-400' : 'text-gray-400'}`}
+                          >
+                            <span className="w-3 h-3 rounded-full flex-shrink-0 border border-white/20" style={{ backgroundColor: theme.color }} />
+                            <span>{theme.label}</span>
+                          </button>
+                        ))}
+                      </div>,
+                      document.body
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
