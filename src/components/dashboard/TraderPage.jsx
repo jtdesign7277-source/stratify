@@ -137,12 +137,12 @@ const CHART_TIMEFRAME_OPTIONS = [
   { id: 'ALL', label: 'ALL', interval: '1week', outputsize: MAX_CHART_OUTPUTSIZE },
 ];
 const CHART_BG_THEMES = [
-  { id: 'black', label: 'Black', color: '#000000' },
-  { id: 'dark', label: 'Dark', color: '#131722' },
-  { id: 'charcoal', label: 'Charcoal', color: '#1e222d' },
-  { id: 'navy', label: 'Navy', color: '#161b2d' },
+  { id: 'stratify', label: 'Stratify', color: '#060d18' },
+  { id: 'deep', label: 'Deep', color: '#070e19' },
+  { id: 'abyss', label: 'Abyss', color: '#080f1a' },
+  { id: 'void', label: 'Void', color: '#0a0a0f' },
   { id: 'midnight', label: 'Midnight', color: '#0c1018' },
-  { id: 'slate', label: 'Slate', color: '#2a2e39' },
+  { id: 'black', label: 'Black', color: '#000000' },
 ];
 
 const CHART_TIMEFRAME_BY_ID = CHART_TIMEFRAME_OPTIONS.reduce((accumulator, option) => {
