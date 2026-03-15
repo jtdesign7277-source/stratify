@@ -42,7 +42,7 @@ function WinRateColor({ value }) {
 function MetricTooltip({ label, tip, children }) {
   const [show, setShow] = useState(false);
   return (
-    <div className="text-right relative" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+    <div className="text-right relative z-[60]" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
       <span className="text-xs tracking-widest text-gray-500 uppercase cursor-help">{label}</span>
       {children}
       <AnimatePresence>
@@ -52,7 +52,7 @@ function MetricTooltip({ label, tip, children }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full right-0 mt-2 z-50 w-56 p-3 rounded-xl bg-black/90 backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] text-left"
+            className="absolute top-full right-0 mt-2 z-[100] w-56 p-3 rounded-xl bg-black/90 backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.6)] text-left"
           >
             <p className="text-[11px] text-gray-300 leading-relaxed">{tip}</p>
           </motion.div>
