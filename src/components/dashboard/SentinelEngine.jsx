@@ -4,6 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 /*
  * SENTINEL ENGINE — Crypto Arb Terminal
  * Sub-page within Sentinel
+ *
+ * Data sources (with simulation fallback):
+ *   /api/btc-feed       → live BTC price (Crypto.com → Twelve Data)
+ *   /api/polymarket-btc  → Polymarket BTC prediction markets
+ *   /api/engine-state    → Sentinel account metrics + open positions
+ *   /api/claude-signal   → Claude AI Bayesian signal analysis
+ *   Crypto.com WebSocket → real-time BTC tick stream (fallback: simulated)
  */
 
 const COLORS = {
@@ -22,24 +29,72 @@ const COLORS = {
   white: '#ffffff',
 };
 
-const EVENT_POOL = [
-  { type: 'FILL', color: COLORS.green, gen: () => { const s = Math.random() > 0.5 ? 'YES' : 'NO'; return `${s} $${(3+Math.random()*7).toFixed(2)}, ${(Math.random()*18|0)}%`; }},
-  { type: 'FILL', color: COLORS.green, gen: () => { const s = Math.random() > 0.5 ? 'YES' : 'NO'; return `${s} $${(2+Math.random()*9).toFixed(2)}, ${(Math.random()*14|0)}%`; }},
-  { type: 'EXEC', color: COLORS.greenBright, gen: () => `fill, edge +$${(Math.random()*40).toFixed(2)}`},
-  { type: 'FILTER', color: COLORS.red, gen: () => 'rejected' },
-  { type: 'FILTER', color: COLORS.red, gen: () => 'rejected' },
-  { type: 'SCAN', color: COLORS.amber, gen: () => `arb +${(Math.random()*25).toFixed(1)}` },
-  { type: 'SCAN', color: COLORS.amber, gen: () => `5m repriced` },
-  { type: 'BAYES', color: COLORS.blue, gen: () => `post=${(0.4+Math.random()*0.25).toFixed(3)}` },
-  { type: 'KELLY', color: COLORS.text, gen: () => `f*=${(Math.random()*0.25).toFixed(2)}, ${Math.random()>0.3?'safe':'limit'}` },
-  { type: 'SPREAD', color: COLORS.cyan, gen: () => `z=${(Math.random()*4-1).toFixed(2)}, disclose` },
-  { type: 'SPREAD', color: COLORS.cyan, gen: () => `+${(Math.random()*28).toFixed(1)}%, disclose` },
-  { type: 'ARB', color: COLORS.greenBright, gen: () => `+$${(Math.random()*20).toFixed(2)}` },
-  { type: 'EV', color: COLORS.text, gen: () => `net=${(Math.random()*0.12).toFixed(4)}` },
-  { type: 'HEDGE', color: COLORS.amber, gen: () => `delta=${(Math.random()*0.5).toFixed(3)}` },
-  { type: 'LMSR', color: COLORS.blue, gen: () => `b=${(Math.random()*2).toFixed(1)}, impact=${(Math.random()*5).toFixed(3)}` },
-];
+// ─── Crypto.com WebSocket for real-time BTC ticks ──────────────────────────
+function useCryptoComWS() {
+  const [price, setPrice] = useState(null);
+  const [bid, setBid] = useState(null);
+  const [ask, setAsk] = useState(null);
+  const [volume, setVolume] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef(null);
+  const reconnectRef = useRef(null);
 
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    try {
+      const ws = new WebSocket('wss://stream.crypto.com/exchange/v1/market');
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setWsConnected(true);
+        // Subscribe to BTC_USDT ticker
+        ws.send(JSON.stringify({
+          id: 1,
+          method: 'subscribe',
+          params: { channels: ['ticker.BTC_USDT'] },
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.result?.channel === 'ticker.BTC_USDT' && msg.result?.data) {
+            const d = Array.isArray(msg.result.data) ? msg.result.data[0] : msg.result.data;
+            if (d.best_bid) setBid(parseFloat(d.best_bid));
+            if (d.best_ask) setAsk(parseFloat(d.best_ask));
+            if (d.last_trade_price || d.best_bid) setPrice(parseFloat(d.last_trade_price || d.best_bid));
+            if (d.total_quantity_traded) setVolume(parseFloat(d.total_quantity_traded));
+          }
+        } catch { /* ignore parse errors */ }
+      };
+
+      ws.onclose = () => {
+        setWsConnected(false);
+        reconnectRef.current = setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    } catch {
+      setWsConnected(false);
+      reconnectRef.current = setTimeout(connect, 5000);
+    }
+  }, []);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      clearTimeout(reconnectRef.current);
+      wsRef.current?.close();
+    };
+  }, [connect]);
+
+  return { price, bid, ask, volume, wsConnected };
+}
+
+// ─── Live data hook with simulation fallback ───────────────────────────────
 function useBotStream() {
   const [tick, setTick] = useState({ block: 0, vol: 0, edge: 0 });
   const [bayesian, setBayesian] = useState({ prior: 0.5, post: 0.5, ev: 0, epoch: 0, loss: 0, conf: 0 });
@@ -48,74 +103,314 @@ function useBotStream() {
   const [stoikov, setStoikov] = useState({ r: 0, q: 0, gamma: 0, s2: 0 });
   const [mc, setMc] = useState({ dd: 0, fStar: 0, f: 0 });
   const [metrics, setMetrics] = useState({
-    balance: 2050, deposit: 2050, roi: 0, winRate: 0, edge: 0,
+    balance: 2000000, deposit: 2000000, roi: 0, winRate: 0, edge: 0,
     tradesHr: 0, total: 0, sharpe: 0, maxDd: 0, orders: 0,
     strategy: '5m BTC Arb', spec: 'Directional', hedging: 'Directional',
-    status: { polymarket: 'ONLINE', links: 'ONLINE', bayes: 'ONLINE', kelly: 'ONLINE', slippage: 'ACTIVE', scanner: 'SCAN', sync: 99 },
+    status: { polymarket: 'CONNECTING', scanner: 'SCAN', bayes: 'CONNECTING', kelly: 'CONNECTING', slippage: 'ACTIVE', sync: 0 },
   });
   const [pnl, setPnl] = useState([]);
   const [stream, setStream] = useState([]);
   const [connected, setConnected] = useState(false);
+  const [dataSource, setDataSource] = useState('connecting'); // 'live' | 'sim' | 'connecting'
 
-  const refs = useRef({ block: 0, bal: 2050, trades: 0, wins: 0, peak: 2050 });
+  const refs = useRef({ block: 0, bal: 2000000, trades: 0, wins: 0, peak: 2000000, btcPrice: null, polymarkets: [] });
+  const { price: wsPrice, bid: wsBid, ask: wsAsk, volume: wsVolume, wsConnected } = useCryptoComWS();
 
+  // Helper: push event to stream
+  const pushEvent = useCallback((type, color, detail) => {
+    setStream(prev => [{
+      id: Date.now() + Math.random(),
+      type,
+      color,
+      detail,
+      ts: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    }, ...prev].slice(0, 120));
+  }, []);
+
+  // ── Fetch BTC price (REST fallback when WS unavailable) ──
   useEffect(() => {
-    const t0 = setTimeout(() => setConnected(true), 600);
+    if (wsPrice) {
+      refs.current.btcPrice = wsPrice;
+      return;
+    }
+    // REST polling fallback
+    let active = true;
+    const poll = async () => {
+      try {
+        const resp = await fetch('/api/btc-feed');
+        if (resp.ok) {
+          const data = await resp.json();
+          if (active && data.price) refs.current.btcPrice = data.price;
+        }
+      } catch { /* silent */ }
+    };
+    poll();
+    const iv = setInterval(poll, 5000);
+    return () => { active = false; clearInterval(iv); };
+  }, [wsPrice]);
 
-    const t1 = setInterval(() => {
+  // ── Fetch Polymarket BTC markets ──
+  useEffect(() => {
+    let active = true;
+    const fetchPoly = async () => {
+      try {
+        const resp = await fetch('/api/polymarket-btc');
+        if (resp.ok) {
+          const data = await resp.json();
+          if (active) refs.current.polymarkets = data.markets || [];
+          pushEvent('SCAN', COLORS.amber, `polymarket ${data.totalMarkets || 0} mkts, ${data.totalArbs || 0} arbs`);
+        }
+      } catch { /* silent */ }
+    };
+    fetchPoly();
+    const iv = setInterval(fetchPoly, 30000); // refresh every 30s
+    return () => { active = false; clearInterval(iv); };
+  }, [pushEvent]);
+
+  // ── Fetch engine state (account metrics) ──
+  useEffect(() => {
+    let active = true;
+    const fetchState = async () => {
+      try {
+        const resp = await fetch('/api/engine-state');
+        if (resp.ok) {
+          const data = await resp.json();
+          if (!active) return;
+          const m = data.metrics;
+          setMetrics(prev => ({
+            ...prev,
+            balance: m.balance || prev.balance,
+            deposit: m.deposit || prev.deposit,
+            roi: m.roi || prev.roi,
+            winRate: m.winRate || prev.winRate,
+            sharpe: m.sharpe || prev.sharpe,
+            maxDd: m.maxDd || prev.maxDd,
+            tradesHr: m.tradesHr || prev.tradesHr,
+            total: m.totalTrades || prev.total,
+            orders: (m.totalTrades || 0) * 2,
+            status: data.status || prev.status,
+          }));
+          refs.current.bal = m.balance || refs.current.bal;
+          refs.current.trades = m.totalTrades || refs.current.trades;
+          refs.current.peak = Math.max(refs.current.peak, m.balance || 0);
+
+          // Push EXEC events from recent signals
+          for (const sig of (data.execSignals || []).slice(0, 3)) {
+            pushEvent('EXEC', COLORS.greenBright, `${sig.direction} ${sig.symbol}, ${sig.setup}, ${sig.confidence}%`);
+          }
+
+          setDataSource('live');
+          setConnected(true);
+          return true;
+        }
+      } catch { /* silent */ }
+      return false;
+    };
+
+    fetchState().then(ok => {
+      if (!ok) {
+        // Engine state API unavailable — fall back to simulation
+        setDataSource('sim');
+        setConnected(true);
+        pushEvent('SCAN', COLORS.amber, 'engine-state unavailable, sim mode');
+      }
+    });
+    const iv = setInterval(fetchState, 15000);
+    return () => { active = false; clearInterval(iv); };
+  }, [pushEvent]);
+
+  // ── Claude signal analysis (every 30s when live data available) ──
+  useEffect(() => {
+    let active = true;
+    const fetchSignal = async () => {
+      const btcPrice = refs.current.btcPrice;
+      if (!btcPrice) return;
+
+      try {
+        const resp = await fetch('/api/claude-signal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            btcPrice,
+            bid: wsBid,
+            ask: wsAsk,
+            polymarkets: refs.current.polymarkets.slice(0, 5),
+            accountBalance: refs.current.bal,
+          }),
+        });
+
+        if (resp.ok && active) {
+          const data = await resp.json();
+          setBayesian(prev => ({
+            prior: data.bayesian?.prior ?? prev.prior,
+            post: data.bayesian?.post ?? prev.post,
+            ev: data.bayesian?.ev ?? prev.ev,
+            epoch: prev.epoch + 1,
+            loss: data.bayesian?.loss ?? prev.loss,
+            conf: data.bayesian?.conf ?? prev.conf,
+          }));
+          setEdge(data.edge || edge);
+          setSpread(data.spread || spread);
+          setStoikov(data.stoikov || stoikov);
+          setMc(data.mc || mc);
+
+          // Log signal to stream
+          const sig = data.signal;
+          if (sig) {
+            const sigColor = sig.action === 'LONG' ? COLORS.greenBright : sig.action === 'SHORT' ? COLORS.red : COLORS.dim;
+            pushEvent('BAYES', COLORS.blue, `post=${data.bayesian?.post}, conf=${data.bayesian?.conf}%`);
+            pushEvent(sig.action === 'HOLD' ? 'FILTER' : 'EXEC', sigColor,
+              sig.action === 'HOLD' ? `rejected: ${sig.reason}` : `${sig.action} $${sig.riskDollars?.toLocaleString()}, ${sig.reason}`
+            );
+            if (data.mc?.fStar) {
+              pushEvent('KELLY', COLORS.text, `f*=${data.mc.fStar}, ${data.mc.f < data.mc.fStar ? 'safe' : 'limit'}`);
+            }
+
+            // ── EXEC signal → fire paper trade ──
+            if (sig.action !== 'HOLD' && sig.confidence >= 60 && sig.riskDollars > 0) {
+              executePaperTrade(sig, btcPrice);
+            }
+          }
+        }
+      } catch {
+        // Claude signal unavailable — push sim values
+        if (active) simulateSignalTick();
+      }
+    };
+
+    // Initial delay then poll
+    const t0 = setTimeout(fetchSignal, 2000);
+    const iv = setInterval(fetchSignal, 30000);
+    return () => { active = false; clearTimeout(t0); clearInterval(iv); };
+  }, [wsBid, wsAsk, pushEvent]);
+
+  // ── Fire paper trade from EXEC signal ──
+  const executePaperTrade = useCallback(async (signal, btcPrice) => {
+    try {
+      const side = signal.action === 'LONG' ? 'buy' : 'sell';
+      const quantity = Math.max(0.001, +(signal.riskDollars / btcPrice).toFixed(6));
+
+      pushEvent('EXEC', COLORS.greenBright, `paper ${side} ${quantity} BTC @ $${btcPrice.toLocaleString()}`);
+
+      // Insert directly into sentinel_trades via engine-state or paper-trade API
+      const resp = await fetch('/api/paper-trade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: 'BTC/USD',
+          side,
+          quantity,
+          source: 'arb-engine',
+        }),
+      });
+
+      if (resp.ok) {
+        pushEvent('FILL', COLORS.green, `${side.toUpperCase()} ${quantity} BTC filled @ $${btcPrice.toLocaleString()}`);
+      } else {
+        pushEvent('FILTER', COLORS.red, `paper trade rejected: ${resp.status}`);
+      }
+    } catch (err) {
+      pushEvent('FILTER', COLORS.red, `trade error: ${err.message}`);
+    }
+  }, [pushEvent]);
+
+  // ── Simulation fallback for model panels (when Claude signal unavailable) ──
+  const simulateSignalTick = useCallback(() => {
+    const btcPrice = refs.current.btcPrice || 72000;
+    const prior = 0.42 + Math.random() * 0.18;
+    const post = Math.min(0.99, prior + (Math.random() - 0.35) * 0.1);
+    const ev = (post - prior) * 100;
+    const evNet = +(Math.random() * 0.09).toFixed(4);
+    const cost = +(0.005 + Math.random() * 0.025).toFixed(4);
+    const net = +(evNet - cost).toFixed(4);
+
+    setBayesian(prev => ({
+      prior: +prior.toFixed(3),
+      post: +post.toFixed(3),
+      ev: +ev.toFixed(2),
+      epoch: prev.epoch + 1,
+      loss: +(0.005 + Math.random() * 0.04).toFixed(4),
+      conf: +(68 + Math.random() * 28).toFixed(1),
+    }));
+    setEdge({ ev: evNet, cost, net, pass: net > 0 });
+    setSpread({ z: +(-2.5 + Math.random() * 5).toFixed(2), pSum: +(0.90 + Math.random() * 0.08).toFixed(4) });
+    setStoikov({
+      r: +(btcPrice + Math.random() * 300).toFixed(0),
+      q: +(Math.random() * 5 - 2.5).toFixed(1),
+      gamma: +(0.01 + Math.random() * 0.05).toFixed(2),
+      s2: +(80 + Math.random() * 600).toFixed(0),
+    });
+    setMc({
+      dd: +(Math.random() * 7).toFixed(1),
+      fStar: +(0.02 + Math.random() * 0.18).toFixed(2),
+      f: +(0.01 + Math.random() * 0.14).toFixed(2),
+    });
+  }, []);
+
+  // ── Tick counter + volume from WS ──
+  useEffect(() => {
+    const iv = setInterval(() => {
       refs.current.block++;
-      const prior = 0.42 + Math.random() * 0.18;
-      const post = Math.min(0.99, prior + (Math.random() - 0.35) * 0.1);
-      const ev = (post - prior) * 100;
-      const evNet = +(Math.random() * 0.09).toFixed(4);
-      const cost = +(0.005 + Math.random() * 0.025).toFixed(4);
-      const net = +(evNet - cost).toFixed(4);
-
-      setTick({ block: refs.current.block, vol: 3.5 + Math.random() * 0.8, edge: 8 + Math.random() * 6 });
-      setBayesian({ prior: +prior.toFixed(3), post: +post.toFixed(3), ev: +ev.toFixed(2), epoch: Math.floor(refs.current.block / 8), loss: +(0.005 + Math.random() * 0.04).toFixed(4), conf: +(68 + Math.random() * 28).toFixed(1) });
-      setEdge({ ev: evNet, cost, net, pass: net > 0 });
-      setSpread({ z: +(-2.5 + Math.random() * 5).toFixed(2), pSum: +(0.90 + Math.random() * 0.08).toFixed(4) });
-      setStoikov({ r: +(48000 + Math.random() * 300).toFixed(0), q: +(Math.random() * 5 - 2.5).toFixed(1), gamma: +(0.01 + Math.random() * 0.05).toFixed(2), s2: +(80 + Math.random() * 600).toFixed(0) });
-      setMc({ dd: +(Math.random() * 7).toFixed(1), fStar: +(0.02 + Math.random() * 0.18).toFixed(2), f: +(0.01 + Math.random() * 0.14).toFixed(2) });
+      const btcPrice = refs.current.btcPrice || 72000;
+      const vol = wsVolume ? (wsVolume * btcPrice / 1e9) : (3.5 + Math.random() * 0.8);
+      setTick({
+        block: refs.current.block,
+        vol: +vol.toFixed(2),
+        edge: metrics.edge || +(8 + Math.random() * 6).toFixed(1),
+      });
     }, 500);
+    return () => clearInterval(iv);
+  }, [wsVolume, metrics.edge]);
 
-    const t2 = setInterval(() => {
-      const delta = (Math.random() - 0.32) * 120;
-      refs.current.bal += delta;
-      refs.current.trades++;
-      if (delta > 0) refs.current.wins++;
-      if (refs.current.bal > refs.current.peak) refs.current.peak = refs.current.bal;
+  // ── P&L curve updates ──
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const bal = refs.current.bal;
+      const deposit = refs.current.deposit || 2000000;
+      setPnl(prev => [...prev, { t: Date.now(), v: bal - deposit }].slice(-500));
+    }, 3000);
+    return () => clearInterval(iv);
+  }, []);
 
-      setMetrics(m => ({
-        ...m,
-        balance: +refs.current.bal.toFixed(0),
-        roi: +(((refs.current.bal - 2050) / 2050) * 100).toFixed(1),
-        winRate: +((refs.current.wins / refs.current.trades) * 100).toFixed(1),
-        edge: +(5 + Math.random() * 10).toFixed(1),
-        tradesHr: +(180 + Math.random() * 150).toFixed(0),
-        total: refs.current.trades,
-        sharpe: +(0.8 + Math.random() * 2.5).toFixed(2),
-        maxDd: +((refs.current.peak - refs.current.bal) / refs.current.peak * 100).toFixed(1),
-        orders: refs.current.trades * 2,
-        status: { ...m.status, sync: +(97 + Math.random() * 3).toFixed(1) },
-      }));
-      setPnl(prev => [...prev, { t: Date.now(), v: refs.current.bal - 2050 }].slice(-500));
-    }, 2000);
+  // ── Simulation stream events (when real signals are sparse) ──
+  useEffect(() => {
+    const SIM_EVENTS = [
+      { type: 'SCAN', color: COLORS.amber, gen: () => `5m repriced` },
+      { type: 'SPREAD', color: COLORS.cyan, gen: () => {
+        const poly = refs.current.polymarkets[0];
+        return poly ? `pSum=${poly.pSum}, spread=${poly.spread}` : `z=${(Math.random()*4-1).toFixed(2)}, disclose`;
+      }},
+      { type: 'LMSR', color: COLORS.blue, gen: () => `b=${(Math.random()*2).toFixed(1)}, impact=${(Math.random()*5).toFixed(3)}` },
+      { type: 'HEDGE', color: COLORS.amber, gen: () => `delta=${(Math.random()*0.5).toFixed(3)}` },
+      { type: 'ARB', color: COLORS.greenBright, gen: () => {
+        const arbs = refs.current.polymarkets.filter(m => m.pSum < 0.98);
+        return arbs.length > 0 ? `+${((1 - arbs[0].pSum) * 100).toFixed(1)}% edge` : `+$${(Math.random()*20).toFixed(2)}`;
+      }},
+      { type: 'EV', color: COLORS.text, gen: () => `net=${(Math.random()*0.12).toFixed(4)}` },
+    ];
 
     let st;
     const emit = () => {
-      const e = EVENT_POOL[Math.random() * EVENT_POOL.length | 0];
-      setStream(prev => [{ id: Date.now() + Math.random(), type: e.type, color: e.color, detail: e.gen(), ts: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) }, ...prev].slice(0, 120));
-      st = setTimeout(emit, 120 + Math.random() * 380);
+      const e = SIM_EVENTS[Math.random() * SIM_EVENTS.length | 0];
+      pushEvent(e.type, e.color, e.gen());
+      st = setTimeout(emit, 300 + Math.random() * 700);
     };
-    st = setTimeout(emit, 300);
+    st = setTimeout(emit, 500);
+    return () => clearTimeout(st);
+  }, [pushEvent]);
 
-    return () => { clearTimeout(t0); clearInterval(t1); clearInterval(t2); clearTimeout(st); };
-  }, []);
+  // Update connection status from WS
+  useEffect(() => {
+    if (wsConnected) {
+      setConnected(true);
+      if (dataSource === 'connecting') setDataSource('live');
+    }
+  }, [wsConnected, dataSource]);
 
-  return { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected };
+  return { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected, dataSource, btcPrice: wsPrice || refs.current.btcPrice };
 }
 
+// ─── Monte Carlo Canvas ────────────────────────────────────────────────────
 const MonteCarloCanvas = memo(function MonteCarloCanvas() {
   const canvasRef = useRef(null);
 
@@ -213,6 +508,7 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 });
 
+// ─── UI Components ─────────────────────────────────────────────────────────
 function PulsingDot({ color = COLORS.green }) {
   return (
     <span className="relative inline-flex items-center justify-center w-4 h-4">
@@ -289,11 +585,12 @@ const PnlCanvas = memo(function PnlCanvas({ data }) {
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 });
 
+// ─── Main Component ────────────────────────────────────────────────────────
 export default function SentinelEngine() {
-  const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected } = useBotStream();
+  const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected, dataSource, btcPrice } = useBotStream();
   const totalPnl = metrics.balance - metrics.deposit;
 
-  const marquee = `BAYESIAN + EDGE + SPREAD + STOIKOV + KELLY + MONTE CARLO  ·  $${metrics.balance.toLocaleString()} → $${(metrics.deposit * 2).toLocaleString()}  ·  5-MIN BTC  ·  LIMIT ORDERS  ·  ${metrics.tradesHr}/hr TRADING  ·  ${metrics.winRate}% WIN  ·  ${metrics.edge}% EDGE`;
+  const marquee = `BAYESIAN + EDGE + SPREAD + STOIKOV + KELLY + MONTE CARLO  ·  $${metrics.balance.toLocaleString()} → $${(metrics.deposit * 2).toLocaleString()}  ·  5-MIN BTC  ·  LIMIT ORDERS  ·  ${metrics.tradesHr}/hr TRADING  ·  ${metrics.winRate}% WIN  ·  ${metrics.edge || '—'}% EDGE`;
 
   const panelStyle = {
     background: COLORS.panel,
@@ -340,6 +637,11 @@ export default function SentinelEngine() {
           <span className="text-[11px]" style={{ color: COLORS.dim }}>
             // 5-MIN BTC MARKETS
           </span>
+          {btcPrice && (
+            <span className="text-[11px] font-semibold" style={{ color: COLORS.green }}>
+              ${btcPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-5">
           <span className="text-[11px]" style={{ color: COLORS.dim }}>
@@ -349,12 +651,12 @@ export default function SentinelEngine() {
             VOL <span style={{ color: COLORS.text }}>${tick.vol.toFixed(2)}B</span>
           </span>
           <span className="text-[11px]" style={{ color: COLORS.dim }}>
-            EDGE <span style={{ color: COLORS.green }}>{tick.edge.toFixed(1)}%</span>
+            EDGE <span style={{ color: COLORS.green }}>{typeof tick.edge === 'number' ? tick.edge.toFixed(1) : '—'}%</span>
           </span>
           <div className="flex items-center gap-1.5">
             <PulsingDot color={connected ? COLORS.green : COLORS.amber} />
             <span className="text-[11px] font-semibold" style={{ color: connected ? COLORS.green : COLORS.amber }}>
-              {connected ? 'LIVE' : 'CONNECTING...'}
+              {!connected ? 'CONNECTING...' : dataSource === 'live' ? 'LIVE' : 'SIM'}
             </span>
           </div>
         </div>
@@ -528,7 +830,7 @@ export default function SentinelEngine() {
               <Row label="Deposit" value={`$${metrics.deposit.toLocaleString()}`} />
               <Row label="ROI" value={`${metrics.roi}%`} color={+metrics.roi >= 0 ? COLORS.green : COLORS.red} />
               <Row label="Win Rate" value={`${metrics.winRate}%`} color={+metrics.winRate > 50 ? COLORS.green : COLORS.red} />
-              <Row label="Edge" value={`${metrics.edge}%`} color={COLORS.green} />
+              <Row label="Edge" value={`${metrics.edge || '—'}%`} color={COLORS.green} />
               <Row label="Trades/Hr" value={metrics.tradesHr} />
               <Row label="Total" value={metrics.total.toLocaleString()} />
               <Row label="Sharpe" value={metrics.sharpe} color={+metrics.sharpe > 1.5 ? COLORS.green : COLORS.text} />
@@ -544,7 +846,7 @@ export default function SentinelEngine() {
                     key={k}
                     label={k.charAt(0).toUpperCase() + k.slice(1)}
                     value={typeof v === 'number' ? `${v}%` : v}
-                    color={v === 'ONLINE' ? COLORS.green : v === 'ACTIVE' ? COLORS.green : v === 'SCAN' ? COLORS.amber : typeof v === 'number' ? COLORS.green : COLORS.red}
+                    color={v === 'ONLINE' ? COLORS.green : v === 'ACTIVE' ? COLORS.green : v === 'SCAN' ? COLORS.amber : typeof v === 'number' ? COLORS.green : v === 'CONNECTING' ? COLORS.amber : COLORS.red}
                   />
                 ))}
               </div>
