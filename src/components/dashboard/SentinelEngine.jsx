@@ -410,100 +410,207 @@ function useBotStream() {
   return { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected, dataSource, btcPrice: wsPrice || refs.current.btcPrice };
 }
 
-// ─── Monte Carlo Canvas ────────────────────────────────────────────────────
+// ─── Monte Carlo Canvas — animated fan with distribution histogram ─────────
 const MonteCarloCanvas = memo(function MonteCarloCanvas() {
   const canvasRef = useRef(null);
+  const pathsRef = useRef(null);   // pre-generated path data
+  const frameRef = useRef(0);
+  const rafRef = useRef(null);
 
-  const draw = useCallback(() => {
+  // Generate a batch of random-walk paths (called once + on resize)
+  const generatePaths = useCallback((W, H) => {
+    const ox = 40, oy = H * 0.45;
+    const STEPS = 200;
+    const TOTAL = 600;
+    const sx = (W - 80) / STEPS;
+    const drift = 0.0003;     // slight upward bias
+    const vol = 0.018;
+
+    const paths = [];
+    const endings = [];
+
+    for (let i = 0; i < TOTAL; i++) {
+      const pts = [{ x: ox, y: oy }];
+      let y = oy;
+      for (let s = 1; s <= STEPS; s++) {
+        // Brownian motion with drift — variance grows with sqrt(t)
+        const noise = (Math.random() + Math.random() + Math.random() - 1.5) * 2; // approx normal
+        y -= (drift + vol * noise * Math.sqrt(s / STEPS)) * H;
+        pts.push({ x: ox + s * sx, y });
+      }
+      const finalY = pts[pts.length - 1].y;
+      const profit = finalY < oy;
+      paths.push({ pts, profit, finalY });
+      endings.push(finalY);
+    }
+
+    return { paths, endings, ox, oy, STEPS };
+  }, []);
+
+  // Animate: progressively reveal paths + shimmer
+  const render = useCallback(() => {
     const c = canvasRef.current;
     if (!c) return;
     const ctx = c.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
     const rect = c.getBoundingClientRect();
-    c.width = rect.width * dpr;
-    c.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
     const W = rect.width, H = rect.height;
+
+    if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
+      c.width = W * dpr;
+      c.height = H * dpr;
+      ctx.scale(dpr, dpr);
+      pathsRef.current = generatePaths(W, H);
+    }
+
+    if (!pathsRef.current) {
+      pathsRef.current = generatePaths(W, H);
+    }
+
+    const { paths, endings, ox, oy, STEPS } = pathsRef.current;
+    const frame = frameRef.current++;
+
     ctx.clearRect(0, 0, W, H);
 
-    const ox = 50, oy = H / 2;
-    const steps = 30;
-    const sx = (W - 100) / steps;
-    const vol = 0.025, edg = 0.012;
-    const paths = 800;
+    // How far paths are revealed (animate in over ~3 seconds at 60fps)
+    const reveal = Math.min(1, frame / 180);
+    const visibleSteps = Math.floor(reveal * STEPS);
 
-    for (let i = 0; i < paths; i++) {
+    // Draw paths
+    for (let i = 0; i < paths.length; i++) {
+      const { pts, profit, finalY } = paths[i];
+      const stepsToShow = Math.min(visibleSteps, pts.length);
+      if (stepsToShow < 2) continue;
+
       ctx.beginPath();
-      let y = oy;
-      ctx.moveTo(ox, y);
-      for (let s = 1; s <= steps; s++) {
-        y -= (edg / steps + vol * (Math.random() * 2 - 1) * Math.sqrt(1 / steps)) * H * 2.5;
-        ctx.lineTo(ox + s * sx, y);
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let s = 1; s < stepsToShow; s++) {
+        ctx.lineTo(pts[s].x, pts[s].y);
       }
-      if (y < oy - 5) {
-        ctx.strokeStyle = `rgba(16, 185, 129, ${0.06 + Math.random() * 0.08})`;
-      } else if (y > oy + 5) {
-        ctx.strokeStyle = `rgba(255, 68, 68, ${0.04 + Math.random() * 0.06})`;
+
+      // Shimmer: slight opacity pulse based on frame
+      const shimmer = 0.03 + Math.sin((frame + i * 7) * 0.02) * 0.015;
+
+      if (profit) {
+        ctx.strokeStyle = `rgba(16, 185, 129, ${shimmer + Math.random() * 0.02})`;
       } else {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+        ctx.strokeStyle = `rgba(255, 68, 68, ${shimmer * 0.7 + Math.random() * 0.015})`;
       }
-      ctx.lineWidth = 0.5;
+      ctx.lineWidth = 0.4;
       ctx.stroke();
     }
 
-    const grad = ctx.createRadialGradient(ox, oy, 0, ox, oy, 30);
-    grad.addColorStop(0, 'rgba(255,255,255,0.6)');
-    grad.addColorStop(0.3, 'rgba(255,255,255,0.15)');
+    // Distribution histogram on right edge (only when fully revealed)
+    if (reveal > 0.8) {
+      const histAlpha = Math.min(1, (reveal - 0.8) * 5);
+      const bins = 30;
+      const minY = Math.min(...endings);
+      const maxY = Math.max(...endings);
+      const binH = (maxY - minY) / bins;
+      const counts = new Array(bins).fill(0);
+      for (const ey of endings) {
+        const bi = Math.min(bins - 1, Math.floor((ey - minY) / binH));
+        counts[bi]++;
+      }
+      const maxCount = Math.max(...counts);
+      const barX = W - 36;
+      const barMaxW = 28;
+
+      for (let b = 0; b < bins; b++) {
+        const by = minY + b * binH;
+        const bw = (counts[b] / maxCount) * barMaxW;
+        if (bw < 1) continue;
+        const isProfit = (by + binH / 2) < oy;
+        ctx.fillStyle = isProfit
+          ? `rgba(16, 185, 129, ${0.25 * histAlpha})`
+          : `rgba(255, 68, 68, ${0.2 * histAlpha})`;
+        ctx.fillRect(barX, by, bw, Math.max(1, binH - 1));
+      }
+    }
+
+    // Origin glow
+    const grad = ctx.createRadialGradient(ox, oy, 0, ox, oy, 35);
+    grad.addColorStop(0, 'rgba(255,255,255,0.7)');
+    grad.addColorStop(0.2, 'rgba(255,255,255,0.2)');
+    grad.addColorStop(0.5, 'rgba(255,255,255,0.05)');
     grad.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = grad;
-    ctx.fillRect(ox - 30, oy - 30, 60, 60);
+    ctx.fillRect(ox - 35, oy - 35, 70, 70);
 
+    // Origin dot with pulse
+    const pulseR = 5 + Math.sin(frame * 0.05) * 1.5;
     ctx.beginPath();
-    ctx.arc(ox, oy, 6, 0, Math.PI * 2);
+    ctx.arc(ox, oy, pulseR, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(ox, oy, 10, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.arc(ox, oy, pulseR + 4, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,255,${0.15 + Math.sin(frame * 0.03) * 0.1})`;
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    ctx.setLineDash([3, 5]);
-    ctx.lineWidth = 0.8;
-    ctx.strokeStyle = COLORS.green;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(W - 50, oy - H * 0.22);
-    ctx.stroke();
-    ctx.strokeStyle = COLORS.red;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(W - 50, oy + H * 0.15);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
+    // Axis labels
     ctx.font = '10px monospace';
     ctx.fillStyle = COLORS.green;
-    ctx.fillText(`+${(edg * 800).toFixed(1)}%`, W - 46, oy - H * 0.22 - 6);
-    ctx.fillStyle = COLORS.red;
-    ctx.fillText(`-${(vol * 400).toFixed(1)}%`, W - 46, oy + H * 0.15 + 14);
+    ctx.fillText('0', ox - 14, oy + 3);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.03)';
-    ctx.font = '12px monospace';
-    ctx.fillText('STRATIFY SENTINEL', 14, H - 12);
-  }, []);
+    // Y-axis scale
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.font = '9px monospace';
+    const scaleSteps = [20, 40, 60, 80];
+    for (const pct of scaleSteps) {
+      const yUp = oy - (pct / 100) * H * 0.4;
+      const yDn = oy + (pct / 100) * H * 0.4;
+      ctx.fillText(`+${pct}`, 6, yUp + 3);
+      ctx.fillStyle = 'rgba(255,68,68,0.15)';
+      ctx.fillText(`-${pct}`, 6, yDn + 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      // Faint grid line
+      ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(ox, yUp); ctx.lineTo(W - 40, yUp); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ox, yDn); ctx.lineTo(W - 40, yDn); ctx.stroke();
+    }
+
+    // Watermark
+    ctx.fillStyle = 'rgba(255,255,255,0.025)';
+    ctx.font = '11px monospace';
+    ctx.fillText('STRATIFY SENTINEL · 1000 SCENARIOS', ox + 10, H - 10);
+
+    // Re-generate paths every ~8 seconds for fresh simulation
+    if (frame > 0 && frame % 480 === 0) {
+      const rect2 = c.getBoundingClientRect();
+      pathsRef.current = generatePaths(rect2.width, rect2.height);
+      frameRef.current = 0;
+    }
+
+    rafRef.current = requestAnimationFrame(render);
+  }, [generatePaths]);
 
   useEffect(() => {
-    draw();
-    const iv = setInterval(draw, 5000);
-    return () => clearInterval(iv);
-  }, [draw]);
+    // Kick off initial sizing
+    const c = canvasRef.current;
+    if (c) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = c.getBoundingClientRect();
+      c.width = rect.width * dpr;
+      c.height = rect.height * dpr;
+      const ctx = c.getContext('2d');
+      ctx.scale(dpr, dpr);
+      pathsRef.current = generatePaths(rect.width, rect.height);
+    }
+    rafRef.current = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [render, generatePaths]);
 
   useEffect(() => {
-    const h = () => draw();
+    const h = () => {
+      pathsRef.current = null; // force regenerate on resize
+      frameRef.current = 0;
+    };
     window.addEventListener('resize', h);
     return () => window.removeEventListener('resize', h);
-  }, [draw]);
+  }, []);
 
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 });
