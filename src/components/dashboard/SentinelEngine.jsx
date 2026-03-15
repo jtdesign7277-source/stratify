@@ -416,6 +416,7 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
   const pathsRef = useRef(null);   // pre-generated path data
   const frameRef = useRef(0);
   const rafRef = useRef(null);
+  const timerRef = useRef(null);
 
   // Generate a batch of random-walk paths (called once + on resize)
   const generatePaths = useCallback((W, H) => {
@@ -470,21 +471,15 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
     const { paths, endings, ox, oy, STEPS } = pathsRef.current;
     const frame = frameRef.current++;
 
-    ctx.clearRect(0, 0, W, H);
-
     // Reveal over ~6 seconds (360 frames at 60fps), then stay at 1
     const reveal = Math.min(1, frame / 360);
     const visibleSteps = Math.floor(reveal * STEPS);
     const revealed = reveal >= 1;
 
-    // After reveal, drop to ~4fps — just enough for a gentle breathe
-    if (revealed && frame % 15 !== 0) {
-      rafRef.current = requestAnimationFrame(render);
-      return;
-    }
-
-    // Use wall-clock time for post-reveal shimmer so frame-skip doesn't cause jitter
+    // Wall-clock time for smooth animation regardless of frame rate
     const now = Date.now() / 1000;
+
+    ctx.clearRect(0, 0, W, H);
 
     // Draw paths
     for (let i = 0; i < paths.length; i++) {
@@ -592,7 +587,14 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
     ctx.font = '11px monospace';
     ctx.fillText('STRATIFY SENTINEL · 1000 SCENARIOS', ox + 10, H - 10);
 
-    rafRef.current = requestAnimationFrame(render);
+    // During reveal: full 60fps. After: throttle to ~10fps to save CPU (no blink — we always draw before scheduling next)
+    if (revealed) {
+      timerRef.current = setTimeout(() => {
+        rafRef.current = requestAnimationFrame(render);
+      }, 100);
+    } else {
+      rafRef.current = requestAnimationFrame(render);
+    }
   }, [generatePaths]);
 
   useEffect(() => {
@@ -608,7 +610,7 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
       pathsRef.current = generatePaths(rect.width, rect.height);
     }
     rafRef.current = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => { cancelAnimationFrame(rafRef.current); clearTimeout(timerRef.current); };
   }, [render, generatePaths]);
 
   useEffect(() => {
@@ -955,17 +957,15 @@ export default function SentinelEngine() {
         </div>
       </div>
 
-      {/* CONTENT — left/right split */}
+      {/* CONTENT — 3-column layout: models | MC/Equity | training stream */}
       <div className="flex-1 min-h-0 flex" style={{ padding: 1, gap: 1 }}>
 
-        {/* LEFT COLUMN: model panels + stream + metrics */}
-        <div className="flex flex-col gap-[1px]" style={{ width: '32%', minWidth: 280 }}>
+        {/* LEFT COLUMN: model panels + metrics */}
+        <div className="flex flex-col gap-[1px]" style={{ width: '24%', minWidth: 240 }}>
 
           {/* BAYESIAN MODEL */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
-            <div style={headerStyle}>
-              <div>BAYESIAN MODEL</div>
-            </div>
+            <div style={headerStyle}>BAYESIAN MODEL</div>
             <div className="px-3 py-0.5" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
               <span className="text-[9px]" style={{ color: COLORS.dimmer }}>P(H|D) = P(D|H) × P(H) / P(D)</span>
             </div>
@@ -1056,23 +1056,9 @@ export default function SentinelEngine() {
               ))}
             </div>
           </div>
-
-          {/* TRAINING STREAM */}
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
-            <div style={headerStyle}>TRAINING STREAM</div>
-            <div className="flex-1 overflow-y-auto sentinel-scroll px-2 py-0.5">
-              {stream.map(e => (
-                <div key={e.id} className="flex gap-1 py-0 text-[10px] leading-tight">
-                  <span style={{ color: COLORS.dim }} className="w-[48px] flex-shrink-0 tabular-nums">{e.ts}</span>
-                  <span style={{ color: e.color }} className="font-bold w-[48px] flex-shrink-0">[{e.type}]</span>
-                  <span style={{ color: e.type === 'FILTER' ? COLORS.red : COLORS.dim }} className="truncate">{e.detail}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* RIGHT COLUMN: MC/Equity visualization (full height) */}
+        {/* CENTER COLUMN: MC/Equity visualization + P&L */}
         <div className="flex-1 flex flex-col gap-[1px] min-w-0">
 
           {/* MC / EQUITY CANVAS — main visualization */}
@@ -1119,6 +1105,22 @@ export default function SentinelEngine() {
             </div>
             <div className="flex-1 min-h-0 px-1">
               <PnlCanvas data={pnl} />
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Training Stream (full height) */}
+        <div className="flex flex-col gap-[1px]" style={{ width: '20%', minWidth: 200 }}>
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={panelStyle}>
+            <div style={headerStyle}>TRAINING STREAM</div>
+            <div className="flex-1 overflow-y-auto sentinel-scroll px-2 py-0.5">
+              {stream.map(e => (
+                <div key={e.id} className="flex gap-1 py-0 text-[10px] leading-tight">
+                  <span style={{ color: COLORS.dim }} className="w-[48px] flex-shrink-0 tabular-nums">{e.ts}</span>
+                  <span style={{ color: e.color }} className="font-bold w-[48px] flex-shrink-0">[{e.type}]</span>
+                  <span style={{ color: e.type === 'FILTER' ? COLORS.red : COLORS.dim }} className="truncate">{e.detail}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
