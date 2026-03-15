@@ -1628,6 +1628,8 @@ export default function TraderPage({
   onGameDrop = () => {},
   onRemovePinnedGame = () => {},
   paperTotalGainLoss = null,
+  yoloActive = false,
+  onYoloClick,
 }) {
   const tradingModeState = useTradingMode();
   const resolvedTradingMode = tradingModeOverride || tradingModeState.tradingMode;
@@ -5248,6 +5250,23 @@ export default function TraderPage({
                   >
                     H/L
                   </motion.button>
+                  {onYoloClick && (
+                    <motion.button
+                      type="button"
+                      onClick={onYoloClick}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
+                      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold tracking-[0.15em] transition-all duration-300 ${
+                        yoloActive
+                          ? 'border-red-500/40 text-red-400 bg-red-500/10 shadow-[0_0_12px_rgba(239,68,68,0.15)]'
+                          : 'border-white/[0.06] text-gray-500 hover:bg-white/[0.06] hover:text-gray-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]'
+                      }`}
+                      title={yoloActive ? 'YOLO is active — click to stop' : 'Activate YOLO copy trading'}
+                    >
+                      {yoloActive ? 'YOLO ON' : 'YOLO'}
+                    </motion.button>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <motion.button

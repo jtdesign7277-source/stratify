@@ -98,21 +98,6 @@ export default function TradePage({
             </motion.span>
           )}
         </AnimatePresence>
-
-        {/* YOLO Tab */}
-        <motion.button
-          onClick={handleYoloClick}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.96 }}
-          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-[0.15em] border transition-all duration-300 ${
-            yoloActive
-              ? 'border-red-500/40 text-red-400 bg-red-500/10 shadow-[0_0_12px_rgba(239,68,68,0.15)]'
-              : 'border-white/10 text-gray-500 bg-white/[0.03] hover:text-gray-300 hover:border-white/20'
-          }`}
-        >
-          {yoloActive && <span>⚡</span>}
-          <span>{yoloActive ? 'YOLO ON' : 'YOLO'}</span>
-        </motion.button>
       </div>
 
       <motion.div {...sectionMotion(1)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -126,6 +111,8 @@ export default function TradePage({
           onGameDrop={onGameDrop}
           onRemovePinnedGame={onRemovePinnedGame}
           paperTotalGainLoss={paperTotalGainLoss}
+          yoloActive={yoloActive}
+          onYoloClick={handleYoloClick}
         />
       </motion.div>
 
