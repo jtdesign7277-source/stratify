@@ -85,44 +85,56 @@ function analyzeMomentum(bars) {
   return { bias: 'NEUTRAL', confidence: 50, rsi, ema8: e8, ema21: e21 };
 }
 
-// Fetch BTC strike markets from Polymarket
-async function fetchBTCStrikeMarkets() {
+// Fetch BTC prediction markets from Polymarket
+async function fetchBTCMarkets() {
+  const markets = [];
   try {
-    const resp = await fetch(`${GAMMA_API}/events?tag=crypto&active=true&closed=false&limit=50`);
-    const events = await resp.json();
-    const strikeEvents = events.filter(e =>
-      e.title?.toLowerCase().includes('bitcoin') &&
-      (e.title?.toLowerCase().includes('above') || e.slug?.includes('btc-multi-strikes'))
-    );
+    // 1. Search for BTC strike events by keyword (events API)
+    const searchUrls = [
+      `${GAMMA_API}/events?active=true&closed=false&limit=200`,
+    ];
 
-    const markets = [];
-    for (const event of strikeEvents) {
-      if (!event.markets) continue;
-      for (const m of event.markets) {
-        if (!m.acceptingOrders) continue;
-        const yesPrice = m.outcomePrices ? JSON.parse(m.outcomePrices)[0] : null;
-        const noPrice = m.outcomePrices ? JSON.parse(m.outcomePrices)[1] : null;
-        if (!yesPrice) continue;
+    for (const url of searchUrls) {
+      const resp = await fetch(url);
+      const events = await resp.json();
 
-        // Extract strike price from question
-        const strikeMatch = m.question?.match(/\$?([\d,]+)/);
-        const strike = strikeMatch ? +strikeMatch[1].replace(/,/g, '') : null;
+      // Filter for Bitcoin-related events
+      const btcEvents = events.filter(e => {
+        const t = (e.title || '').toLowerCase();
+        const s = (e.slug || '').toLowerCase();
+        return (t.includes('bitcoin') || t.includes('btc')) &&
+               (t.includes('above') || t.includes('price') || t.includes('hit') || s.includes('btc'));
+      });
 
-        markets.push({
-          id: String(m.id),
-          conditionId: m.conditionId,
-          question: m.question,
-          strike,
-          yesPrice: +yesPrice,
-          noPrice: +noPrice,
-          bestBid: +m.bestBid,
-          bestAsk: +m.bestAsk,
-          endDate: m.endDate || event.endDate,
-          volume: +m.volume || 0,
-          liquidity: +m.liquidity || 0,
-        });
+      for (const event of btcEvents) {
+        if (!event.markets) continue;
+        for (const m of event.markets) {
+          if (!m.acceptingOrders) continue;
+          const prices = m.outcomePrices ? JSON.parse(m.outcomePrices) : null;
+          if (!prices || !prices[0]) continue;
+
+          // Extract strike price from question
+          const strikeMatch = m.question?.match(/\$?([\d,]+)/);
+          const strike = strikeMatch ? +strikeMatch[1].replace(/,/g, '') : null;
+
+          markets.push({
+            id: String(m.id),
+            conditionId: m.conditionId,
+            question: m.question,
+            strike,
+            yesPrice: +prices[0],
+            noPrice: +prices[1],
+            bestBid: +(m.bestBid || 0),
+            bestAsk: +(m.bestAsk || 0),
+            endDate: m.endDate || event.endDate,
+            volume: +m.volume || 0,
+            liquidity: +m.liquidity || 0,
+            closed: m.closed,
+          });
+        }
       }
     }
+
     return markets.sort((a, b) => (a.strike || 0) - (b.strike || 0));
   } catch (err) {
     console.error('[polymarket] Error fetching markets:', err.message);
@@ -210,20 +222,20 @@ export default async function handler(req, res) {
 
     // === SCAN FOR NEW TRADES ===
     if (openTrades.length - resolved < MAX_OPEN_POLY_TRADES) {
-      const [btcPrice, bars, strikeMarkets] = await Promise.all([
+      const [btcPrice, bars, btcMarkets] = await Promise.all([
         fetchBTCPrice(),
         fetchBTCBars(),
-        fetchBTCStrikeMarkets(),
+        fetchBTCMarkets(),
       ]);
 
       const momentum = analyzeMomentum(bars);
       log.push(`BTC: $${btcPrice?.toLocaleString()} | Momentum: ${momentum.bias} (${momentum.confidence}%) | RSI: ${momentum.rsi?.toFixed(1)}`);
 
-      if (momentum.bias !== 'NEUTRAL' && strikeMarkets.length > 0) {
+      if (momentum.bias !== 'NEUTRAL' && btcMarkets.length > 0) {
         // Find tradeable strike markets
         const openMarketIds = new Set(openTrades.filter(t => t.status === 'open').map(t => t.market_id));
 
-        for (const market of strikeMarkets) {
+        for (const market of btcMarkets) {
           if (openMarketIds.has(market.id)) continue;
           if (!market.strike || !market.yesPrice) continue;
           if (openTrades.length - resolved + newTrades >= MAX_OPEN_POLY_TRADES) break;
