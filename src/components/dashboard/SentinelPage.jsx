@@ -413,7 +413,8 @@ function SentinelPageInner() {
                       <div className="flex items-center gap-4 text-xs font-mono">
                         <span className="text-gray-500">Entry ${trade.entry}</span>
                         {trade.current_price && <span className="text-gray-400">Now ${trade.current_price}</span>}
-                        <span className="text-gray-500">${(trade.dollar_size || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                        <span className="text-gray-500">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
+                        <span className="text-gray-500">Size ${(trade.dollar_size || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                         {trade.unrealized_pnl != null && (
                           <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                             {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -454,11 +455,17 @@ function SentinelPageInner() {
                     <span className={`w-12 font-semibold ${trade.direction === 'LONG' ? 'text-emerald-400' : trade.direction === 'SHORT' ? 'text-red-400' : 'text-gray-600'}`}>
                       {trade.direction === 'LONG' ? '↑' : trade.direction === 'SHORT' ? '↓' : '—'} {trade.direction}
                     </span>
-                    <span className="text-white font-semibold w-16">${trade.symbol}</span>
+                    <span className="text-white font-semibold w-20">{trade.symbol.includes('/') ? '' : '$'}{trade.symbol}</span>
                     <span className="text-gray-500">{trade.timeframe || '1h'}</span>
                     <span className="text-gray-400">{trade.confidence}%</span>
-                    <span className="text-gray-500">${trade.entry}</span>
-                    <span className={`w-2 h-2 rounded-full ${trade.status === 'open' ? 'bg-emerald-400' : trade.win ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                    <span className="text-gray-500">Entry ${trade.entry}</span>
+                    <span className="text-gray-500">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' units' : ''}</span>
+            {trade.unrealized_pnl != null && (
+              <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            )}
+            <span className={`w-2 h-2 rounded-full ${trade.status === 'open' ? 'bg-emerald-400' : trade.win ? 'bg-emerald-400' : 'bg-red-400'}`} />
                   </motion.div>
                 ))}
               </div>
