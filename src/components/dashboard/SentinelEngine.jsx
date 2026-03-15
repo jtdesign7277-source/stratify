@@ -884,7 +884,7 @@ export default function SentinelEngine() {
           <motion.div
             className="inline-block text-[11px]"
             style={{ color: COLORS.dim }}
-            animate={{ x: ['0%', '-50%'] }}
+            animate={{ x: ['-50%', '0%'] }}
             transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
           >
             {marquee}{'          ·          '}{marquee}
