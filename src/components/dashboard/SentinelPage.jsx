@@ -630,6 +630,14 @@ function SentinelPageInner() {
                     </motion.div>
                   );
                 })}
+                {recentClosedTrades.length > 0 && (
+                  <div className="flex items-center justify-between pt-3 mt-2 border-t border-white/[0.06] px-3 text-xs font-mono">
+                    <span className="text-gray-400">Total P&L</span>
+                    <span className={`font-semibold ${recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? '+' : ''}${recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
