@@ -1857,6 +1857,10 @@ export default function TraderPage({
   const [activeTool, setActiveTool] = useState('cursor');
   const volumeProfileRef = useRef(null);
   const [volumeProfileVisible, setVolumeProfileVisible] = useState(false);
+  const [showHighLow, setShowHighLow] = useState(() => {
+    try { return sessionStorage.getItem('stratify-chart-highlow') !== 'false'; } catch { return true; }
+  });
+  const showHighLowRef = useRef(showHighLow);
   const sessionHighlightRef = useRef(null);
   const [sessionHighlightVisible, setSessionHighlightVisible] = useState(false);
   const priceAlertsRef = useRef(null);
@@ -2953,6 +2957,9 @@ export default function TraderPage({
       });
       highLowPriceLinesRef.current = [];
 
+      // If High/Low is toggled off, just clear and return
+      if (!showHighLowRef.current) return;
+
       const visibleRange = ts.getVisibleRange();
       if (!visibleRange) return;
 
@@ -3033,6 +3040,12 @@ export default function TraderPage({
     });
     try { sessionStorage.setItem('stratify-chart-bg', chartBgTheme); } catch {}
   }, [chartBgTheme]);
+
+  useEffect(() => {
+    showHighLowRef.current = showHighLow;
+    try { sessionStorage.setItem('stratify-chart-highlow', showHighLow ? 'true' : 'false'); } catch {}
+    updateHighLowLinesRef.current?.();
+  }, [showHighLow]);
 
   useEffect(() => {
     const handler = () => {
@@ -5220,6 +5233,21 @@ export default function TraderPage({
                       document.body
                     )}
                   </div>
+                  <motion.button
+                    type="button"
+                    onClick={() => setShowHighLow((v) => !v)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition-all duration-300 ${
+                      showHighLow
+                        ? 'border-emerald-400/60 text-emerald-400 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.15),inset_0_1px_0_rgba(255,255,255,0.05)]'
+                        : 'border-white/[0.06] text-gray-300 hover:bg-white/[0.06] hover:text-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]'
+                    }`}
+                    title={showHighLow ? 'Hide High/Low lines' : 'Show High/Low lines'}
+                  >
+                    H/L
+                  </motion.button>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <motion.button
