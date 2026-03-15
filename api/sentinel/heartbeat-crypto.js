@@ -170,6 +170,24 @@ export default async function handler(req, res) {
                                     tradesClosed++;
                                     log.push(`Closed ${trade.direction} ${trade.symbol} @ ${exitPrice} — ${win?'WIN':'LOSS'} ${resultR}R`);
                         }
+                        // Volatility check — even if stop/target not hit, check for rapid moves
+                        if (!stopHit && !targetHit) {
+                          try {
+                            const volRes = await fetch(`${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/sentinel/volatility-check`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ symbol: trade.symbol, trade: { ...trade, current_price: currentPrice }, currentPrice }),
+                            });
+                            const volResult = await volRes.json();
+                            if (volResult.detected) {
+                              log.push(`⚠️ VOLATILITY ${trade.symbol}: ${volResult.move?.magnitude?.toFixed(1)}% in ${volResult.move?.duration}min → ${volResult.analysis?.decision} (${volResult.analysis?.confidence}%)`);
+                              if (volResult.execution?.action === 'closed') {
+                                openSymbols.delete(trade.symbol);
+                                tradesClosed++;
+                              }
+                            }
+                          } catch (volErr) { log.push(`Vol check error ${trade.symbol}: ${volErr.message}`); }
+                        }
                         await sleep(200);
               } catch (err) { log.push(`Error checking ${trade.symbol}: ${err.message}`); }
       }

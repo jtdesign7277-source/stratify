@@ -72,6 +72,8 @@ function SentinelPageInner() {
   const [expandedSession, setExpandedSession] = useState(null);
   const [brainModalSession, setBrainModalSession] = useState(null);
   const [brainExpanded, setBrainExpanded] = useState(false);
+  const [skillsExpanded, setSkillsExpanded] = useState(false);
+  const [activeSkillModal, setActiveSkillModal] = useState(null);
   const [showYoloConfirm, setShowYoloConfirm] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const lastFetchRef = useRef(null);
@@ -717,6 +719,68 @@ function SentinelPageInner() {
               </AnimatePresence>
             </motion.div>
 
+            {/* SKILLS — collapsible */}
+            <motion.div
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.18, ...SPRING }}
+              className={`${GLASS} p-5 transition-all duration-300`}
+            >
+              <motion.div
+                onClick={() => setSkillsExpanded((v) => !v)}
+                className="flex items-center justify-between cursor-pointer"
+                whileHover={{ opacity: 0.8 }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SKILLS</span>
+                  <span className="text-[10px] text-gray-600 font-mono">1 active</span>
+                </div>
+                <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${skillsExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </motion.div>
+              <AnimatePresence>
+                {skillsExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 space-y-1.5">
+                      {[
+                        {
+                          id: 'volatility-check',
+                          name: 'Volatility Check',
+                          status: 'active',
+                          icon: '⚡',
+                          description: 'Detects rapid price moves (1%+ drops or spikes in under 15 minutes) on open positions. When triggered, Sentinel analyzes the last 4-6 hours of 5-minute price action — volume spikes, support breaks, ATR context — then decides whether to de-risk (reduce position), close entirely, hold, or open a short. Every event is tracked with what actually happened afterward (bounce, continued dump, sideways), so Sentinel learns from each decision. Over time it recognizes patterns like "high-volume BTC dumps that break support tend to continue" vs "low-volume SOL dips that hold EMA21 usually bounce." The goal: always-improving risk management that protects capital in real time.',
+                        },
+                      ].map((skill) => (
+                        <motion.button
+                          key={skill.id}
+                          onClick={(e) => { e.stopPropagation(); setActiveSkillModal(skill); }}
+                          whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                          className="flex items-center justify-between w-full py-2.5 px-3 rounded-xl text-xs font-mono transition-all duration-300 text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{skill.icon}</span>
+                            <span className="text-gray-200 font-semibold">{skill.name}</span>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                            skill.status === 'active'
+                              ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                              : 'text-gray-500 border-white/[0.06]'
+                          }`}>
+                            {skill.status}
+                          </span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
             {/* NOTIFICATIONS PANEL */}
             <motion.div
               initial={{ opacity: 0, x: 8 }}
@@ -1046,6 +1110,41 @@ function SentinelPageInner() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SKILL DETAIL MODAL */}
+      <AnimatePresence>
+        {activeSkillModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+            onClick={() => setActiveSkillModal(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -12, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.96 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-[0_24px_64px_rgba(0,0,0,0.6)] p-6 max-w-md w-full mx-4"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{activeSkillModal.icon}</span>
+                  <h3 className="text-white font-mono font-bold text-lg">{activeSkillModal.name}</h3>
+                </div>
+                <button onClick={() => setActiveSkillModal(null)} className="text-gray-500 hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-mono ${
+                activeSkillModal.status === 'active' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-gray-500 border-white/[0.06]'
+              }`}>{activeSkillModal.status}</span>
+              <p className="text-sm text-gray-300 leading-relaxed mt-4">{activeSkillModal.description}</p>
             </motion.div>
           </motion.div>
         )}
