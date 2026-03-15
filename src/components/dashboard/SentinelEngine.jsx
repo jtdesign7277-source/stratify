@@ -615,6 +615,203 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 });
 
+// ─── Equity Curve Canvas — live animated amber curve ───────────────────────
+const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
+  const canvasRef = useRef(null);
+  const rafRef = useRef(null);
+  const revealRef = useRef(0);
+  const lastLenRef = useRef(0);
+
+  useEffect(() => {
+    const render = () => {
+      const c = canvasRef.current;
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = c.getBoundingClientRect();
+
+      if (c.width !== Math.round(rect.width * dpr) || c.height !== Math.round(rect.height * dpr)) {
+        c.width = rect.width * dpr;
+        c.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+      }
+
+      const W = rect.width, H = rect.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const pad = { top: 30, right: 20, bottom: 30, left: 55 };
+      const cw = W - pad.left - pad.right;
+      const ch = H - pad.top - pad.bottom;
+
+      // Convert pnl data to equity values
+      const dep = deposit || 2000000;
+      const equity = data.length > 0
+        ? data.map(d => dep + d.v)
+        : [dep];
+
+      // Progressive reveal: animate new points in
+      if (data.length > lastLenRef.current) {
+        // new data arrived, don't reset reveal — let it grow
+        lastLenRef.current = data.length;
+      }
+      revealRef.current = Math.min(equity.length, revealRef.current + 0.8);
+      const visibleCount = Math.floor(revealRef.current);
+      if (visibleCount < 2) { rafRef.current = requestAnimationFrame(render); return; }
+
+      const visible = equity.slice(0, visibleCount);
+      const minV = Math.min(...visible) * 0.995;
+      const maxV = Math.max(...visible) * 1.005;
+      const range = maxV - minV || 1;
+
+      const toX = (i) => pad.left + (i / (visible.length - 1)) * cw;
+      const toY = (v) => pad.top + ch - ((v - minV) / range) * ch;
+
+      // Grid lines + Y-axis labels
+      const gridSteps = 5;
+      ctx.font = '9px monospace';
+      for (let g = 0; g <= gridSteps; g++) {
+        const val = minV + (g / gridSteps) * range;
+        const y = toY(val);
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(W - pad.right, y);
+        ctx.stroke();
+        // Label
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        const label = val >= 1e6 ? `$${(val / 1e6).toFixed(1)}M`
+          : val >= 1e3 ? `$${(val / 1e3).toFixed(0)}K`
+          : `$${val.toFixed(0)}`;
+        ctx.fillText(label, 4, y + 3);
+      }
+
+      // X-axis day markers
+      if (visible.length > 10) {
+        const dayInterval = Math.max(1, Math.floor(visible.length / 6));
+        for (let i = 0; i < visible.length; i += dayInterval) {
+          const x = toX(i);
+          ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, pad.top);
+          ctx.lineTo(x, H - pad.bottom);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.15)';
+          ctx.fillText(`DAY ${Math.floor(i * 30 / visible.length) + 1}`, x - 10, H - 10);
+        }
+      }
+
+      // Gradient fill under curve
+      const gradFill = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+      gradFill.addColorStop(0, 'rgba(255, 170, 0, 0.15)');
+      gradFill.addColorStop(0.5, 'rgba(255, 170, 0, 0.05)');
+      gradFill.addColorStop(1, 'rgba(255, 170, 0, 0)');
+
+      ctx.beginPath();
+      ctx.moveTo(toX(0), toY(dep));
+      for (let i = 0; i < visible.length; i++) {
+        ctx.lineTo(toX(i), toY(visible[i]));
+      }
+      ctx.lineTo(toX(visible.length - 1), H - pad.bottom);
+      ctx.lineTo(toX(0), H - pad.bottom);
+      ctx.closePath();
+      ctx.fillStyle = gradFill;
+      ctx.fill();
+
+      // Main curve line
+      ctx.beginPath();
+      for (let i = 0; i < visible.length; i++) {
+        const x = toX(i), y = toY(visible[i]);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      const lineGrad = ctx.createLinearGradient(pad.left, 0, W - pad.right, 0);
+      lineGrad.addColorStop(0, 'rgba(255, 170, 0, 0.5)');
+      lineGrad.addColorStop(0.7, 'rgba(255, 170, 0, 0.9)');
+      lineGrad.addColorStop(1, '#ffaa00');
+      ctx.strokeStyle = lineGrad;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // Current value dot + glow at end
+      if (visible.length > 1) {
+        const lastX = toX(visible.length - 1);
+        const lastY = toY(visible[visible.length - 1]);
+        const lastVal = visible[visible.length - 1];
+
+        // Glow
+        const dotGrad = ctx.createRadialGradient(lastX, lastY, 0, lastX, lastY, 20);
+        dotGrad.addColorStop(0, 'rgba(255, 170, 0, 0.4)');
+        dotGrad.addColorStop(1, 'rgba(255, 170, 0, 0)');
+        ctx.fillStyle = dotGrad;
+        ctx.fillRect(lastX - 20, lastY - 20, 40, 40);
+
+        // Dot
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 5.5, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Value label
+        ctx.font = '11px monospace';
+        ctx.fillStyle = '#ffaa00';
+        const valLabel = lastVal >= 1e6 ? `$${(lastVal / 1e6).toFixed(2)}M`
+          : lastVal >= 1e3 ? `$${(lastVal / 1e3).toFixed(0)}K`
+          : `$${lastVal.toFixed(0)}`;
+        ctx.fillText(valLabel, lastX + 8, lastY - 6);
+
+        // Milestone markers along curve
+        const milestones = [];
+        let nextMil = dep;
+        const step = range > dep * 0.1 ? dep * 0.05 : dep * 0.01;
+        while (nextMil < maxV) {
+          nextMil += step;
+          milestones.push(nextMil);
+        }
+        ctx.font = '8px monospace';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        for (const mil of milestones.slice(0, 5)) {
+          // Find closest data point to this milestone
+          let closest = -1;
+          for (let i = 0; i < visible.length; i++) {
+            if (visible[i] >= mil) { closest = i; break; }
+          }
+          if (closest > 0 && closest < visible.length - 5) {
+            const mx = toX(closest), my = toY(visible[closest]);
+            ctx.beginPath();
+            ctx.arc(mx, my, 2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+            const mLabel = mil >= 1e6 ? `$${(mil / 1e6).toFixed(1)}M` : `$${(mil / 1e3).toFixed(0)}K`;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.fillText(mLabel, mx + 4, my - 4);
+          }
+        }
+      }
+
+      rafRef.current = requestAnimationFrame(render);
+    };
+
+    revealRef.current = 0;
+    lastLenRef.current = 0;
+    rafRef.current = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [data, deposit]);
+
+  useEffect(() => {
+    const h = () => { revealRef.current = 0; };
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+
+  return <canvas ref={canvasRef} className="w-full h-full block" />;
+});
+
 // ─── UI Components ─────────────────────────────────────────────────────────
 function PulsingDot({ color = COLORS.green }) {
   return (
@@ -696,6 +893,7 @@ const PnlCanvas = memo(function PnlCanvas({ data }) {
 export default function SentinelEngine() {
   const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected, dataSource, btcPrice } = useBotStream();
   const totalPnl = metrics.balance - metrics.deposit;
+  const [vizMode, setVizMode] = useState('mc'); // 'mc' | 'equity'
 
   const marquee = `BAYESIAN + EDGE + SPREAD + STOIKOV + KELLY + MONTE CARLO  ·  $${metrics.balance.toLocaleString()} → $${(metrics.deposit * 2).toLocaleString()}  ·  5-MIN BTC  ·  LIMIT ORDERS  ·  ${metrics.tradesHr}/hr TRADING  ·  ${metrics.winRate}% WIN  ·  ${metrics.edge || '—'}% EDGE`;
 
@@ -902,9 +1100,44 @@ export default function SentinelEngine() {
           </div>
         </div>
 
-        {/* MONTE CARLO VISUALIZATION */}
-        <div className="flex-shrink-0 overflow-hidden" style={{ ...panelStyle, height: '30%' }}>
-          <MonteCarloCanvas />
+        {/* MONTE CARLO / EQUITY CURVE TOGGLE */}
+        <div className="flex-shrink-0 overflow-hidden flex flex-col" style={{ ...panelStyle, height: '30%' }}>
+          <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ height: 28, borderBottom: `1px solid ${COLORS.border}` }}>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold tracking-widest" style={{ color: COLORS.dim }}>
+                {vizMode === 'mc' ? 'MONTE CARLO' : 'EQUITY CURVE'}
+              </span>
+              {vizMode === 'equity' && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: COLORS.green, color: '#000' }}>LIVE</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1" style={{ background: COLORS.bg, borderRadius: 4, padding: 2 }}>
+              {[{ id: 'mc', label: 'MC' }, { id: 'equity', label: 'EQUITY' }].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setVizMode(tab.id)}
+                  className="transition-all duration-150"
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: 3,
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    fontWeight: 600,
+                    letterSpacing: '0.05em',
+                    background: vizMode === tab.id ? COLORS.border : 'transparent',
+                    color: vizMode === tab.id ? COLORS.white : COLORS.dim,
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 min-h-0">
+            {vizMode === 'mc' ? <MonteCarloCanvas /> : <EquityCurveCanvas data={pnl} deposit={metrics.deposit} />}
+          </div>
         </div>
 
         {/* BOTTOM ROW */}
