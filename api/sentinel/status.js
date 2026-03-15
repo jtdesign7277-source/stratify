@@ -23,7 +23,7 @@ async function fetchCurrentPrices(symbols) {
                                         prices[sym] = cached.price;
                                         return;
                             }
-                            const tdSymbol = sym.replace('/', '');
+                            const tdSymbol = encodeURIComponent(sym);
                             const res = await fetch(
                                         `https://api.twelvedata.com/quote?symbol=${tdSymbol}&apikey=${TD_KEY}`
                                       );
