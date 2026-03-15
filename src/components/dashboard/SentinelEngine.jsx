@@ -625,48 +625,20 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 });
 
-// ─── Equity Curve Canvas — realistic amber curve like a real trading account ─
+// ─── Equity Curve Canvas — real P&L, animated reveal then static ─────────────
 const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
-  const timerRef = useRef(null);
   const revealRef = useRef(0);
-  const curveRef = useRef(null); // pre-generated realistic curve
-
-  // Generate a realistic equity curve: exponential growth + micro-noise
-  const generateCurve = useCallback((totalPnl) => {
-    const POINTS = 500;
-    const target = totalPnl > 0 ? totalPnl : 5000;
-    const curve = [0];
-
-    // Seeded pseudo-random for consistency
-    let seed = 42;
-    const rand = () => { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; };
-
-    for (let i = 1; i < POINTS; i++) {
-      const t = i / POINTS;
-      // Exponential base curve
-      const base = target * (Math.pow(1 + t, 2.8) - 1) / (Math.pow(2, 2.8) - 1);
-      // Micro-noise that scales with position (bigger noise later)
-      const noise = (rand() - 0.48) * target * 0.008 * Math.sqrt(t);
-      // Occasional small dip (mean reversion feel)
-      const dip = rand() < 0.03 ? -target * 0.005 * t : 0;
-      const prev = curve[i - 1];
-      // Smooth: 85% follow the base curve, 15% carry forward momentum
-      const val = base * 0.85 + (prev + (base - curve[Math.max(0, i - 2)])) * 0.15 + noise + dip;
-      curve.push(Math.max(0, val));
-    }
-    return curve;
-  }, []);
+  const drawnRef = useRef(false);
 
   useEffect(() => {
-    const totalPnl = data.length > 0 ? data[data.length - 1].v : 5000;
-    curveRef.current = generateCurve(totalPnl);
     revealRef.current = 0;
+    drawnRef.current = false;
 
-    const render = () => {
+    const draw = () => {
       const c = canvasRef.current;
-      if (!c || !curveRef.current) return;
+      if (!c) return;
       const ctx = c.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
       const rect = c.getBoundingClientRect();
@@ -684,34 +656,39 @@ const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
       const cw = W - pad.left - pad.right;
       const ch = H - pad.top - pad.bottom;
 
-      const curve = curveRef.current;
-      // Progressive reveal: ~8 seconds to draw full curve
-      revealRef.current = Math.min(curve.length, revealRef.current + 1.2);
-      const visibleCount = Math.floor(revealRef.current);
-      const revealed = visibleCount >= curve.length;
+      // Build equity array from real P&L data, prepend $0
+      const equity = [0, ...data.map(d => d.v)];
+      const totalPoints = equity.length;
 
-      if (visibleCount < 2) {
-        rafRef.current = requestAnimationFrame(render);
+      if (totalPoints < 2) {
+        // Nothing to draw yet — just show $0
+        ctx.font = '9px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillText('$0', pad.left - 18, pad.top + ch + 3);
         return;
       }
 
-      const visible = curve.slice(0, visibleCount);
-      const maxV = Math.max(...visible) * 1.08;
-      const minV = Math.min(0, ...visible);
-      const range = maxV - minV || 1;
+      // Animate reveal: sweep from left to right over ~6s at 60fps
+      revealRef.current = Math.min(totalPoints, revealRef.current + Math.max(1, totalPoints / 360));
+      const visibleCount = Math.min(totalPoints, Math.floor(revealRef.current));
+      const revealed = visibleCount >= totalPoints;
 
-      const toX = (i) => pad.left + (i / (curve.length - 1)) * cw;
-      const toY = (v) => pad.top + ch - ((v - minV) / range) * ch;
+      const visible = equity.slice(0, visibleCount);
 
-      // Grid lines + Y-axis labels
+      // Scale to full data range (not just visible) so chart doesn't rescale during reveal
+      const fullMax = Math.max(0, ...equity) * 1.08;
+      const fullMin = Math.min(0, ...equity);
+      const range = (fullMax - fullMin) || 100;
+
+      const toX = (i) => pad.left + (i / Math.max(1, totalPoints - 1)) * cw;
+      const toY = (v) => pad.top + ch - ((v - fullMin) / range) * ch;
+
+      // Grid + Y labels
       ctx.font = '9px monospace';
-      const ySteps = [0];
-      const step = maxV > 4000 ? 1000 : maxV > 2000 ? 500 : maxV > 400 ? 100 : 50;
-      for (let v = step; v < maxV; v += step) ySteps.push(v);
-
-      for (const val of ySteps) {
+      const step = fullMax > 4000 ? 1000 : fullMax > 2000 ? 500 : fullMax > 400 ? 100 : 50;
+      for (let val = 0; val <= fullMax; val += step) {
         const y = toY(val);
-        if (y < pad.top || y > H - pad.bottom) continue;
+        if (y < pad.top - 5 || y > H - pad.bottom + 5) continue;
         ctx.strokeStyle = 'rgba(255,255,255,0.04)';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -725,26 +702,19 @@ const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
         ctx.fillText(label, 2, y + 3);
       }
 
-      // X-axis day markers
-      const DAYS = 30;
-      const ptsPerDay = curve.length / DAYS;
-      ctx.font = '9px monospace';
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      for (let d = 0; d < DAYS; d += 5) {
-        const idx = Math.floor(d * ptsPerDay);
-        if (idx >= visibleCount) break;
-        const x = toX(idx);
-        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x, pad.top);
-        ctx.lineTo(x, H - pad.bottom);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.15)';
-        ctx.fillText(`DAY ${d + 1}`, x - 6, H - 8);
-      }
+      // $0 dashed baseline
+      const zeroY = toY(0);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, zeroY);
+      ctx.lineTo(W - pad.right, zeroY);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
       // Amber gradient fill under curve
+      const tipX = toX(visibleCount - 1);
       const gradFill = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
       gradFill.addColorStop(0, 'rgba(255, 170, 0, 0.22)');
       gradFill.addColorStop(0.4, 'rgba(255, 170, 0, 0.10)');
@@ -752,11 +722,11 @@ const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
       gradFill.addColorStop(1, 'rgba(255, 170, 0, 0)');
 
       ctx.beginPath();
-      ctx.moveTo(toX(0), toY(0));
+      ctx.moveTo(toX(0), zeroY);
       for (let i = 0; i < visible.length; i++) {
         ctx.lineTo(toX(i), toY(visible[i]));
       }
-      ctx.lineTo(toX(visible.length - 1), toY(0));
+      ctx.lineTo(tipX, zeroY);
       ctx.closePath();
       ctx.fillStyle = gradFill;
       ctx.fill();
@@ -767,90 +737,69 @@ const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
         const x = toX(i), y = toY(visible[i]);
         i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
-      const lineGrad = ctx.createLinearGradient(pad.left, 0, W - pad.right, 0);
+      const lineGrad = ctx.createLinearGradient(pad.left, 0, tipX, 0);
       lineGrad.addColorStop(0, 'rgba(255, 170, 0, 0.4)');
-      lineGrad.addColorStop(0.5, 'rgba(255, 170, 0, 0.85)');
+      lineGrad.addColorStop(0.6, 'rgba(255, 170, 0, 0.85)');
       lineGrad.addColorStop(1, '#ffaa00');
       ctx.strokeStyle = lineGrad;
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Milestone markers
-      const milestones = [];
-      for (let m = step; m < visible[visible.length - 1]; m += step * 2) milestones.push(m);
-      ctx.font = '8px monospace';
-      for (const mil of milestones.slice(0, 6)) {
-        let closest = -1;
-        for (let i = 0; i < visible.length; i++) {
-          if (visible[i] >= mil) { closest = i; break; }
-        }
-        if (closest > 5 && closest < visible.length - 10) {
-          const mx = toX(closest), my = toY(visible[closest]);
-          ctx.beginPath();
-          ctx.arc(mx, my, 2, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.fill();
-          const mLabel = mil >= 1e3 ? `$${(mil / 1e3).toFixed(1)}K` : `$${mil.toFixed(0)}`;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-          ctx.fillText(mLabel, mx + 4, my - 5);
-        }
-      }
+      // Tip dot + glow + value label
+      const lastVal = visible[visible.length - 1];
+      const lastX = toX(visible.length - 1);
+      const lastY = toY(lastVal);
 
-      // Current value dot + glow at tip
-      if (visible.length > 1) {
-        const lastX = toX(visible.length - 1);
-        const lastY = toY(visible[visible.length - 1]);
-        const lastVal = visible[visible.length - 1];
+      const dotGrad = ctx.createRadialGradient(lastX, lastY, 0, lastX, lastY, 22);
+      dotGrad.addColorStop(0, 'rgba(255, 170, 0, 0.5)');
+      dotGrad.addColorStop(1, 'rgba(255, 170, 0, 0)');
+      ctx.fillStyle = dotGrad;
+      ctx.fillRect(lastX - 22, lastY - 22, 44, 44);
 
-        const dotGrad = ctx.createRadialGradient(lastX, lastY, 0, lastX, lastY, 22);
-        dotGrad.addColorStop(0, 'rgba(255, 170, 0, 0.5)');
-        dotGrad.addColorStop(1, 'rgba(255, 170, 0, 0)');
-        ctx.fillStyle = dotGrad;
-        ctx.fillRect(lastX - 22, lastY - 22, 44, 44);
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffaa00';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 5.5, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
-        ctx.beginPath();
-        ctx.arc(lastX, lastY, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffaa00';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(lastX, lastY, 5.5, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#ffaa00';
+      const valLabel = Math.abs(lastVal) >= 1e6 ? `$${(lastVal / 1e6).toFixed(2)}M`
+        : Math.abs(lastVal) >= 1e3 ? `$${(lastVal / 1e3).toFixed(1)}K`
+        : `$${lastVal.toFixed(0)}`;
+      ctx.fillText(valLabel, lastX + 8, lastY - 6);
 
-        ctx.font = '11px monospace';
-        ctx.fillStyle = '#ffaa00';
-        const valLabel = lastVal >= 1e6 ? `$${(lastVal / 1e6).toFixed(2)}M`
-          : lastVal >= 1e3 ? `$${(lastVal / 1e3).toFixed(1)}K`
-          : `$${lastVal.toFixed(0)}`;
-        ctx.fillText(valLabel, lastX + 8, lastY - 6);
-      }
-
-      // Watermark
-      ctx.fillStyle = 'rgba(255,255,255,0.02)';
-      ctx.font = '10px monospace';
-      ctx.fillText('// RECENT EXECUTIONS', pad.left, H - 6);
-      if (data.length > 0) {
-        ctx.fillText(`${data.length} TOTAL`, W - pad.right - 60, H - 6);
-      }
-
-      // Continue animation during reveal, then throttle
+      // Keep animating until fully revealed, then stop
       if (!revealed) {
-        rafRef.current = requestAnimationFrame(render);
+        rafRef.current = requestAnimationFrame(draw);
       } else {
-        // After full reveal, redraw every 2s for live updates
-        timerRef.current = setTimeout(() => {
-          rafRef.current = requestAnimationFrame(render);
-        }, 2000);
+        drawnRef.current = true;
       }
     };
 
-    rafRef.current = requestAnimationFrame(render);
-    return () => { cancelAnimationFrame(rafRef.current); clearTimeout(timerRef.current); };
-  }, [data, deposit, generateCurve]);
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [data, deposit]);
 
+  // Redraw on resize
   useEffect(() => {
-    const h = () => { revealRef.current = 0; };
+    const h = () => {
+      revealRef.current = 0;
+      drawnRef.current = false;
+      // Re-trigger by forcing a raf
+      cancelAnimationFrame(rafRef.current);
+      const c = canvasRef.current;
+      if (c) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = c.getBoundingClientRect();
+        c.width = rect.width * dpr;
+        c.height = rect.height * dpr;
+      }
+    };
     window.addEventListener('resize', h);
     return () => window.removeEventListener('resize', h);
   }, []);
