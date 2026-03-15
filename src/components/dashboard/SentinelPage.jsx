@@ -47,6 +47,7 @@ function SentinelPageInner() {
   const [userSettings, setUserSettings] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [expandedSession, setExpandedSession] = useState(null);
+  const [brainModalSession, setBrainModalSession] = useState(null);
   const [showYoloConfirm, setShowYoloConfirm] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const lastFetchRef = useRef(null);
@@ -232,6 +233,17 @@ function SentinelPageInner() {
   const isSubscribed = userSettings?.subscription_status === 'active' || userSettings?.subscription_status === 'trialing';
   const yoloActive = userSettings?.yolo_active || false;
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Group closed trades by session_date for Session History expansion
+  const tradesBySession = useMemo(() => {
+    const map = {};
+    for (const trade of recentClosedTrades) {
+      const date = trade.session_date || (trade.closed_at ? trade.closed_at.slice(0, 10) : 'unknown');
+      if (!map[date]) map[date] = [];
+      map[date].push(trade);
+    }
+    return map;
+  }, [recentClosedTrades]);
 
   if (loading) {
     return (
@@ -547,42 +559,76 @@ function SentinelPageInner() {
                 {recentSessions.length === 0 && (
                   <p className="text-xs text-gray-600 font-mono py-2">No sessions yet</p>
                 )}
-                {recentSessions.map((session, i) => (
-                  <motion.div key={session.id}>
-                    <motion.div
-                      whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                      onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}
-                      className="flex items-center justify-between py-2 px-3 rounded-xl cursor-pointer text-xs font-mono transition-all duration-300"
-                    >
-                      <span className="text-gray-400 w-24">{session.session_date}</span>
-                      <span className="text-white">{session.trades_fired || 0} trades</span>
-                      <span className="text-emerald-400">{session.wins || 0}W</span>
-                      <span className="text-red-400">{session.losses || 0}L</span>
-                      <span className={`w-24 text-right ${(session.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {(session.gross_pnl || 0) >= 0 ? '+' : ''}${(session.gross_pnl || 0).toFixed(0)}
-                      </span>
+                {recentSessions.map((session) => {
+                  const sessionTrades = tradesBySession[session.session_date] || [];
+                  const isExpanded = expandedSession === session.id;
+                  return (
+                    <motion.div key={session.id}>
+                      <motion.div
+                        whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                        onClick={() => setExpandedSession(isExpanded ? null : session.id)}
+                        className="flex items-center justify-between py-2 px-3 rounded-xl cursor-pointer text-xs font-mono transition-all duration-300"
+                      >
+                        <span className="text-gray-400 w-24">{session.session_date}</span>
+                        <span className="text-white">{session.trades_fired || 0} trades</span>
+                        <span className="text-emerald-400">{session.wins || 0}W</span>
+                        <span className="text-red-400">{session.losses || 0}L</span>
+                        <span className={`w-24 text-right ${(session.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {(session.gross_pnl || 0) >= 0 ? '+' : ''}${(session.gross_pnl || 0).toFixed(0)}
+                        </span>
+                        <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                      </motion.div>
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-3 pb-3 pt-1 space-y-1.5">
+                              {sessionTrades.length === 0 && (
+                                <p className="text-[10px] text-gray-600 font-mono py-1">No closed trades this session</p>
+                              )}
+                              {sessionTrades.map((trade) => (
+                                <div key={trade.id} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white/[0.02] text-[11px] font-mono">
+                                  <div className="flex items-center gap-2">
+                                    <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
+                                      {trade.direction === 'LONG' ? '↑' : '↓'}
+                                    </span>
+                                    <span className="text-white font-semibold">{trade.symbol}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 text-gray-500">
+                                    <span title="Opened">
+                                      {trade.opened_at ? new Date(trade.opened_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                    </span>
+                                    <span className="text-gray-600">→</span>
+                                    <span title="Closed">
+                                      {trade.closed_at ? new Date(trade.closed_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-gray-500">${trade.entry} → ${trade.exit_price}</span>
+                                    <span className={`font-semibold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                      {trade.pnl >= 0 ? '+' : ''}${(trade.pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
-                    <AnimatePresence>
-                      {expandedSession === session.id && session.claude_analysis && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden px-3 pb-2"
-                        >
-                          <p className="text-xs text-gray-500 leading-relaxed mt-1 whitespace-pre-wrap">{session.claude_analysis}</p>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                ))}
+                  );
+                })}
               </div>
             </motion.div>
           </div>
 
           {/* RIGHT COLUMN */}
           <div className="space-y-6 min-w-0">
-            {/* BRAIN EVOLUTION */}
+            {/* SENTINEL BRAIN — clickable date list */}
             <motion.div
               initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
@@ -593,30 +639,39 @@ function SentinelPageInner() {
                 <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SENTINEL BRAIN</span>
                 <span className="text-xs text-gray-500 font-mono">Session {memory.sessions_processed || 0}</span>
               </div>
-              <p className="text-sm text-gray-300 leading-relaxed">
-                {memory.brain_summary || 'Sentinel is building its first sessions. Check back after market close today.'}
-              </p>
-              {todaySession?.adjustments_made && (
-                <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">Today's Update</span>
-                  <div className="mt-2 space-y-1">
-                    {Object.entries(todaySession.adjustments_made.setup_weights || {}).map(([key, val]) => (
-                      <div key={key} className="text-xs font-mono text-gray-400">
-                        {val > 0 ? '↑' : '↓'} {key} {val > 0 ? '+' : ''}{val} confidence
-                      </div>
-                    ))}
-                    {(todaySession.adjustments_made.suspended_conditions || []).map((c, i) => (
-                      <div key={i} className="text-xs font-mono text-red-400">✕ Suspended: {c}</div>
-                    ))}
-                  </div>
-                </div>
+              {memory.brain_summary && (
+                <p className="text-sm text-gray-400 leading-relaxed mb-4">{memory.brain_summary}</p>
               )}
-              {todaySession?.weekly_summary && (
-                <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">WEEKLY SUMMARY</span>
-                  <p className="text-sm text-gray-300 leading-relaxed mt-2">{todaySession.weekly_summary}</p>
-                </div>
+              {!memory.brain_summary && (
+                <p className="text-sm text-gray-500 leading-relaxed mb-4">Sentinel is in early learning mode. Analyzing first sessions.</p>
               )}
+              <div className="space-y-1 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                {recentSessions.filter((s) => s.claude_analysis).length === 0 && (
+                  <p className="text-[10px] text-gray-600 font-mono">No analysis sessions yet</p>
+                )}
+                {recentSessions.map((session) => (
+                  <motion.button
+                    key={session.id}
+                    onClick={() => setBrainModalSession(session)}
+                    whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                    className="flex items-center justify-between w-full py-2 px-3 rounded-xl text-xs font-mono transition-all duration-300 text-left"
+                  >
+                    <span className="text-gray-300">
+                      {new Date(session.session_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`${(session.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {(session.gross_pnl || 0) >= 0 ? '+' : ''}${(session.gross_pnl || 0).toFixed(0)}
+                      </span>
+                      {session.claude_analysis ? (
+                        <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" /></svg>
+                      ) : (
+                        <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                      )}
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
             </motion.div>
 
             {/* NOTIFICATIONS PANEL */}
@@ -860,6 +915,94 @@ function SentinelPageInner() {
                   Activate
                 </motion.button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* BRAIN ANALYSIS MODAL */}
+      <AnimatePresence>
+        {brainModalSession && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+            onClick={() => setBrainModalSession(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -12, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.96 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-[0_24px_64px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.4)] p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-white font-mono font-bold text-lg">
+                    {new Date(brainModalSession.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  </h3>
+                  <div className="flex items-center gap-3 mt-1 text-xs font-mono">
+                    <span className="text-white">{brainModalSession.trades_fired || 0} trades</span>
+                    <span className="text-emerald-400">{brainModalSession.wins || 0}W</span>
+                    <span className="text-red-400">{brainModalSession.losses || 0}L</span>
+                    <span className={`font-semibold ${(brainModalSession.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      P&L: {(brainModalSession.gross_pnl || 0) >= 0 ? '+' : ''}${(brainModalSession.gross_pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => setBrainModalSession(null)} className="text-gray-500 hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {brainModalSession.claude_analysis ? (
+                <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap font-mono">
+                  {brainModalSession.claude_analysis}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 font-mono">Analysis pending — Sentinel reviews at market close.</p>
+              )}
+
+              {brainModalSession.adjustments_made && (
+                <div className="mt-4 pt-3 border-t border-white/[0.06]">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Adjustments Made</span>
+                  <div className="mt-2 space-y-1">
+                    {Object.entries(brainModalSession.adjustments_made.setup_weights || {}).map(([key, val]) => (
+                      <div key={key} className="text-xs font-mono text-gray-400">
+                        {val > 0 ? '↑' : '↓'} {key} {val > 0 ? '+' : ''}{val} confidence
+                      </div>
+                    ))}
+                    {(brainModalSession.adjustments_made.suspended_conditions || []).map((c, i) => (
+                      <div key={i} className="text-xs font-mono text-red-400">✕ Suspended: {c}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trades from this session */}
+              {(tradesBySession[brainModalSession.session_date] || []).length > 0 && (
+                <div className="mt-4 pt-3 border-t border-white/[0.06]">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Trades</span>
+                  <div className="mt-2 space-y-1.5">
+                    {(tradesBySession[brainModalSession.session_date] || []).map((trade) => (
+                      <div key={trade.id} className="flex items-center justify-between text-[11px] font-mono py-1">
+                        <div className="flex items-center gap-2">
+                          <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
+                            {trade.direction === 'LONG' ? '↑' : '↓'}
+                          </span>
+                          <span className="text-white font-semibold">{trade.symbol}</span>
+                          <span className="text-gray-500">${trade.entry} → ${trade.exit_price}</span>
+                        </div>
+                        <span className={`font-semibold ${(trade.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

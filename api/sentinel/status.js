@@ -60,7 +60,7 @@ export default async function handler(req, res) {
               supabase.from('sentinel_sessions').select('*').eq('session_date', today).maybeSingle(),
               supabase.from('sentinel_sessions').select('*').order('session_date', { ascending: false }).limit(10),
               supabase.from('sentinel_trades').select('*').eq('status', 'open').order('opened_at', { ascending: false }),
-              supabase.from('sentinel_trades').select('*').eq('status', 'closed').order('closed_at', { ascending: false }).limit(20),
+              supabase.from('sentinel_trades').select('*').eq('status', 'closed').order('closed_at', { ascending: false }).limit(100),
               supabase.from('sentinel_memory').select('brain_summary, sessions_processed, suspended_conditions').eq('id', 1).single(),
             ]);
 
