@@ -447,7 +447,7 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
     return { paths, endings, ox, oy, STEPS };
   }, []);
 
-  // Animate: reveal once over ~6s, then hold with gentle shimmer
+  // Animate: reveal once over ~6s, then hold with very slow shimmer
   const render = useCallback(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -477,11 +477,14 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
     const visibleSteps = Math.floor(reveal * STEPS);
     const revealed = reveal >= 1;
 
-    // After reveal, slow the animation loop to ~15fps to save CPU
-    if (revealed && frame % 4 !== 0) {
+    // After reveal, drop to ~4fps — just enough for a gentle breathe
+    if (revealed && frame % 15 !== 0) {
       rafRef.current = requestAnimationFrame(render);
       return;
     }
+
+    // Use wall-clock time for post-reveal shimmer so frame-skip doesn't cause jitter
+    const now = Date.now() / 1000;
 
     // Draw paths
     for (let i = 0; i < paths.length; i++) {
@@ -495,14 +498,19 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
         ctx.lineTo(pts[s].x, pts[s].y);
       }
 
-      // Gentle shimmer — slow breathing after reveal
-      const speed = revealed ? 0.005 : 0.02;
-      const shimmer = 0.03 + Math.sin((frame + i * 7) * speed) * 0.012;
+      // During reveal: use frame counter. After: use wall-clock for smooth, slow breathe
+      let alpha;
+      if (revealed) {
+        // Very slow breathe — 8 second cycle, barely perceptible
+        alpha = 0.03 + Math.sin(now * 0.8 + i * 0.3) * 0.008;
+      } else {
+        alpha = 0.03 + Math.sin((frame + i * 7) * 0.02) * 0.012;
+      }
 
       if (profit) {
-        ctx.strokeStyle = `rgba(16, 185, 129, ${shimmer})`;
+        ctx.strokeStyle = `rgba(16, 185, 129, ${alpha})`;
       } else {
-        ctx.strokeStyle = `rgba(255, 68, 68, ${shimmer * 0.7})`;
+        ctx.strokeStyle = `rgba(255, 68, 68, ${alpha * 0.7})`;
       }
       ctx.lineWidth = 0.4;
       ctx.stroke();
@@ -545,16 +553,15 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
     ctx.fillStyle = grad;
     ctx.fillRect(ox - 35, oy - 35, 70, 70);
 
-    // Origin dot with slow pulse
-    const pulseSpeed = revealed ? 0.015 : 0.05;
-    const pulseR = 5 + Math.sin(frame * pulseSpeed) * 1.5;
+    // Origin dot with slow pulse (wall-clock based for smoothness)
+    const pulseR = 5 + Math.sin(now * 0.8) * 1.5;
     ctx.beginPath();
     ctx.arc(ox, oy, pulseR, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
     ctx.beginPath();
     ctx.arc(ox, oy, pulseR + 4, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255,255,255,${0.15 + Math.sin(frame * 0.01) * 0.08})`;
+    ctx.strokeStyle = `rgba(255,255,255,${0.15 + Math.sin(now * 0.5) * 0.08})`;
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -644,34 +651,50 @@ const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
       const cw = W - pad.left - pad.right;
       const ch = H - pad.top - pad.bottom;
 
-      // Convert pnl data to equity values
-      const dep = deposit || 2000000;
-      const equity = data.length > 0
-        ? data.map(d => dep + d.v)
-        : [dep];
+      // P&L values starting from $0 — shows profit growth in real-time
+      const pnlValues = data.length > 0
+        ? [0, ...data.map(d => d.v)]
+        : [0];
 
-      // Progressive reveal: animate new points in
-      if (data.length > lastLenRef.current) {
-        // new data arrived, don't reset reveal — let it grow
-        lastLenRef.current = data.length;
+      // Progressive reveal: smoothly draw new points as they arrive
+      if (data.length + 1 > lastLenRef.current) {
+        lastLenRef.current = data.length + 1;
       }
-      revealRef.current = Math.min(equity.length, revealRef.current + 0.8);
+      revealRef.current = Math.min(pnlValues.length, revealRef.current + 0.5);
       const visibleCount = Math.floor(revealRef.current);
       if (visibleCount < 2) { rafRef.current = requestAnimationFrame(render); return; }
 
-      const visible = equity.slice(0, visibleCount);
-      const minV = Math.min(...visible) * 0.995;
-      const maxV = Math.max(...visible) * 1.005;
-      const range = maxV - minV || 1;
+      const visible = pnlValues.slice(0, visibleCount);
+      // Always include $0 in the range so the baseline is visible
+      const dataMin = Math.min(0, ...visible);
+      const dataMax = Math.max(0, ...visible);
+      const padding = Math.max(1, (dataMax - dataMin) * 0.08) || 100;
+      const minV = dataMin - padding;
+      const maxV = dataMax + padding;
+      const range = maxV - minV;
 
-      const toX = (i) => pad.left + (i / (visible.length - 1)) * cw;
+      const toX = (i) => pad.left + (i / Math.max(1, visible.length - 1)) * cw;
       const toY = (v) => pad.top + ch - ((v - minV) / range) * ch;
+
+      // $0 baseline
+      const zeroY = toY(0);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, zeroY);
+      ctx.lineTo(W - pad.right, zeroY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '9px monospace';
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillText('$0', pad.left - 18, zeroY + 3);
 
       // Grid lines + Y-axis labels
       const gridSteps = 5;
-      ctx.font = '9px monospace';
       for (let g = 0; g <= gridSteps; g++) {
         const val = minV + (g / gridSteps) * range;
+        if (Math.abs(val) < 0.5) continue; // skip if near $0 baseline
         const y = toY(val);
         ctx.strokeStyle = 'rgba(255,255,255,0.04)';
         ctx.lineWidth = 0.5;
@@ -679,57 +702,49 @@ const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
         ctx.moveTo(pad.left, y);
         ctx.lineTo(W - pad.right, y);
         ctx.stroke();
-        // Label
-        ctx.fillStyle = 'rgba(255,255,255,0.2)';
-        const label = val >= 1e6 ? `$${(val / 1e6).toFixed(1)}M`
-          : val >= 1e3 ? `$${(val / 1e3).toFixed(0)}K`
-          : `$${val.toFixed(0)}`;
-        ctx.fillText(label, 4, y + 3);
+        ctx.fillStyle = val >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(255,68,68,0.3)';
+        const prefix = val >= 0 ? '+' : '';
+        const label = Math.abs(val) >= 1e6 ? `${prefix}$${(val / 1e6).toFixed(1)}M`
+          : Math.abs(val) >= 1e3 ? `${prefix}$${(val / 1e3).toFixed(0)}K`
+          : `${prefix}$${val.toFixed(0)}`;
+        ctx.fillText(label, 2, y + 3);
       }
 
-      // X-axis day markers
-      if (visible.length > 10) {
-        const dayInterval = Math.max(1, Math.floor(visible.length / 6));
-        for (let i = 0; i < visible.length; i += dayInterval) {
-          const x = toX(i);
-          ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-          ctx.lineWidth = 0.5;
-          ctx.beginPath();
-          ctx.moveTo(x, pad.top);
-          ctx.lineTo(x, H - pad.bottom);
-          ctx.stroke();
-          ctx.fillStyle = 'rgba(255,255,255,0.15)';
-          ctx.fillText(`DAY ${Math.floor(i * 30 / visible.length) + 1}`, x - 10, H - 10);
-        }
+      // Gradient fill under curve (from $0 baseline)
+      const lastPnl = visible[visible.length - 1];
+      const isProfit = lastPnl >= 0;
+      const gradFill = ctx.createLinearGradient(0, isProfit ? pad.top : zeroY, 0, isProfit ? zeroY : H - pad.bottom);
+      if (isProfit) {
+        gradFill.addColorStop(0, 'rgba(16, 185, 129, 0.18)');
+        gradFill.addColorStop(0.5, 'rgba(16, 185, 129, 0.06)');
+        gradFill.addColorStop(1, 'rgba(16, 185, 129, 0)');
+      } else {
+        gradFill.addColorStop(0, 'rgba(255, 68, 68, 0)');
+        gradFill.addColorStop(0.5, 'rgba(255, 68, 68, 0.06)');
+        gradFill.addColorStop(1, 'rgba(255, 68, 68, 0.18)');
       }
-
-      // Gradient fill under curve
-      const gradFill = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
-      gradFill.addColorStop(0, 'rgba(255, 170, 0, 0.15)');
-      gradFill.addColorStop(0.5, 'rgba(255, 170, 0, 0.05)');
-      gradFill.addColorStop(1, 'rgba(255, 170, 0, 0)');
 
       ctx.beginPath();
-      ctx.moveTo(toX(0), toY(dep));
+      ctx.moveTo(toX(0), zeroY);
       for (let i = 0; i < visible.length; i++) {
         ctx.lineTo(toX(i), toY(visible[i]));
       }
-      ctx.lineTo(toX(visible.length - 1), H - pad.bottom);
-      ctx.lineTo(toX(0), H - pad.bottom);
+      ctx.lineTo(toX(visible.length - 1), zeroY);
       ctx.closePath();
       ctx.fillStyle = gradFill;
       ctx.fill();
 
       // Main curve line
+      const curveColor = isProfit ? COLORS.green : COLORS.red;
       ctx.beginPath();
       for (let i = 0; i < visible.length; i++) {
         const x = toX(i), y = toY(visible[i]);
         i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
       const lineGrad = ctx.createLinearGradient(pad.left, 0, W - pad.right, 0);
-      lineGrad.addColorStop(0, 'rgba(255, 170, 0, 0.5)');
-      lineGrad.addColorStop(0.7, 'rgba(255, 170, 0, 0.9)');
-      lineGrad.addColorStop(1, '#ffaa00');
+      lineGrad.addColorStop(0, isProfit ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 68, 68, 0.4)');
+      lineGrad.addColorStop(0.7, isProfit ? 'rgba(16, 185, 129, 0.9)' : 'rgba(255, 68, 68, 0.9)');
+      lineGrad.addColorStop(1, curveColor);
       ctx.strokeStyle = lineGrad;
       ctx.lineWidth = 1.8;
       ctx.stroke();
@@ -737,62 +752,34 @@ const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
       // Current value dot + glow at end
       if (visible.length > 1) {
         const lastX = toX(visible.length - 1);
-        const lastY = toY(visible[visible.length - 1]);
-        const lastVal = visible[visible.length - 1];
+        const lastY = toY(lastPnl);
 
         // Glow
         const dotGrad = ctx.createRadialGradient(lastX, lastY, 0, lastX, lastY, 20);
-        dotGrad.addColorStop(0, 'rgba(255, 170, 0, 0.4)');
-        dotGrad.addColorStop(1, 'rgba(255, 170, 0, 0)');
+        dotGrad.addColorStop(0, isProfit ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 68, 68, 0.4)');
+        dotGrad.addColorStop(1, isProfit ? 'rgba(16, 185, 129, 0)' : 'rgba(255, 68, 68, 0)');
         ctx.fillStyle = dotGrad;
         ctx.fillRect(lastX - 20, lastY - 20, 40, 40);
 
         // Dot
         ctx.beginPath();
         ctx.arc(lastX, lastY, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffaa00';
+        ctx.fillStyle = curveColor;
         ctx.fill();
         ctx.beginPath();
         ctx.arc(lastX, lastY, 5.5, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';
+        ctx.strokeStyle = isProfit ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 68, 68, 0.4)';
         ctx.lineWidth = 1;
         ctx.stroke();
 
         // Value label
         ctx.font = '11px monospace';
-        ctx.fillStyle = '#ffaa00';
-        const valLabel = lastVal >= 1e6 ? `$${(lastVal / 1e6).toFixed(2)}M`
-          : lastVal >= 1e3 ? `$${(lastVal / 1e3).toFixed(0)}K`
-          : `$${lastVal.toFixed(0)}`;
+        ctx.fillStyle = curveColor;
+        const prefix = lastPnl >= 0 ? '+' : '';
+        const valLabel = Math.abs(lastPnl) >= 1e6 ? `${prefix}$${(lastPnl / 1e6).toFixed(2)}M`
+          : Math.abs(lastPnl) >= 1e3 ? `${prefix}$${(lastPnl / 1e3).toFixed(1)}K`
+          : `${prefix}$${lastPnl.toFixed(0)}`;
         ctx.fillText(valLabel, lastX + 8, lastY - 6);
-
-        // Milestone markers along curve
-        const milestones = [];
-        let nextMil = dep;
-        const step = range > dep * 0.1 ? dep * 0.05 : dep * 0.01;
-        while (nextMil < maxV) {
-          nextMil += step;
-          milestones.push(nextMil);
-        }
-        ctx.font = '8px monospace';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-        for (const mil of milestones.slice(0, 5)) {
-          // Find closest data point to this milestone
-          let closest = -1;
-          for (let i = 0; i < visible.length; i++) {
-            if (visible[i] >= mil) { closest = i; break; }
-          }
-          if (closest > 0 && closest < visible.length - 5) {
-            const mx = toX(closest), my = toY(visible[closest]);
-            ctx.beginPath();
-            ctx.arc(mx, my, 2, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.fill();
-            const mLabel = mil >= 1e6 ? `$${(mil / 1e6).toFixed(1)}M` : `$${(mil / 1e3).toFixed(0)}K`;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-            ctx.fillText(mLabel, mx + 4, my - 4);
-          }
-        }
       }
 
       rafRef.current = requestAnimationFrame(render);
