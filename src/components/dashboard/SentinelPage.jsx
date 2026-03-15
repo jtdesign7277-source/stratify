@@ -468,8 +468,8 @@ function SentinelPageInner() {
                           return (
                             <>
                               {currentPrice && (
-                                <span className="text-white">
-                                  {trade.symbol.includes('/') ? '' : '$'}{trade.symbol} <span className="text-gray-400">${Number(currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span className="text-white text-sm font-semibold">
+                                  {trade.symbol.includes('/') ? '' : '$'}{trade.symbol} <span className="text-gray-300">${Number(currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </span>
                               )}
                               <span className="text-gray-500">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
@@ -529,8 +529,8 @@ function SentinelPageInner() {
               return (
                 <>
                   {currentPrice && trade.status === 'open' && (
-                    <span className="text-white">
-                      {trade.symbol.includes('/') ? '' : '$'}{trade.symbol} <span className="text-gray-400">${Number(currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-white text-sm font-semibold">
+                      {trade.symbol.includes('/') ? '' : '$'}{trade.symbol} <span className="text-gray-300">${Number(currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </span>
                   )}
                   {pnl != null && (
