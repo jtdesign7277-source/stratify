@@ -271,6 +271,13 @@ function SentinelPageInner() {
     return map;
   }, [recentClosedTrades]);
 
+  // Derive today's closed trade stats from actual trade data
+  const today = new Date().toISOString().split('T')[0];
+  const todayClosedTrades = tradesBySession[today] || [];
+  const todayRealizedPnl = todayClosedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  const todayWins = todayClosedTrades.filter(t => t.win).length;
+  const todayLosses = todayClosedTrades.filter(t => !t.win).length;
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#0a0a0f]">
@@ -448,20 +455,20 @@ function SentinelPageInner() {
               <div className="flex gap-6 mb-4">
                 <div>
                   <span className="text-[10px] text-gray-500 uppercase">Trades</span>
-                  <div className="text-white font-mono">{openTrades.length + (todaySession.trades_closed || 0)}</div>
+                  <div className="text-white font-mono">{openTrades.length + todayClosedTrades.length}</div>
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 uppercase">Wins</span>
-                  <div className="text-emerald-400 font-mono">{todaySession.wins || 0}</div>
+                  <div className="text-emerald-400 font-mono">{todayWins}</div>
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 uppercase">Losses</span>
-                  <div className="text-red-400 font-mono">{todaySession.losses || 0}</div>
+                  <div className="text-red-400 font-mono">{todayLosses}</div>
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 uppercase">P&L</span>
-                  <div className={`font-mono ${((liveUnrealizedPnl) + (todaySession.gross_pnl || 0)) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {((liveUnrealizedPnl) + (todaySession.gross_pnl || 0)) >= 0 ? '+' : ''}${((liveUnrealizedPnl) + (todaySession.gross_pnl || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className={`font-mono ${(liveUnrealizedPnl + todayRealizedPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {(liveUnrealizedPnl + todayRealizedPnl) >= 0 ? '+' : ''}${(liveUnrealizedPnl + todayRealizedPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
@@ -591,6 +598,14 @@ function SentinelPageInner() {
                 )}
                 {recentSessions.map((session) => {
                   const sessionTrades = tradesBySession[session.session_date] || [];
+                  // Derive stats from actual trade data (more reliable than session row)
+                  const derivedWins = sessionTrades.filter(t => t.win).length;
+                  const derivedLosses = sessionTrades.filter(t => !t.win).length;
+                  const derivedPnl = sessionTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+                  const tradeCount = sessionTrades.length || (session.trades_closed || 0);
+                  const displayWins = derivedWins || (session.wins || 0);
+                  const displayLosses = derivedLosses || (session.losses || 0);
+                  const displayPnl = sessionTrades.length > 0 ? derivedPnl : (session.gross_pnl || 0);
                   const isExpanded = expandedSession === session.id;
                   return (
                     <motion.div key={session.id}>
@@ -600,11 +615,11 @@ function SentinelPageInner() {
                         className="flex items-center justify-between py-2 px-3 rounded-xl cursor-pointer text-xs font-mono transition-all duration-300"
                       >
                         <span className="text-gray-400 w-24">{session.session_date}</span>
-                        <span className="text-white">{session.trades_fired || 0} trades</span>
-                        <span className="text-emerald-400">{session.wins || 0}W</span>
-                        <span className="text-red-400">{session.losses || 0}L</span>
-                        <span className={`w-24 text-right ${(session.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {(session.gross_pnl || 0) >= 0 ? '+' : ''}${(session.gross_pnl || 0).toFixed(0)}
+                        <span className="text-white">{tradeCount} trades</span>
+                        <span className="text-emerald-400">{displayWins}W</span>
+                        <span className="text-red-400">{displayLosses}L</span>
+                        <span className={`w-24 text-right ${displayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {displayPnl >= 0 ? '+' : ''}${displayPnl.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </span>
                         <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                       </motion.div>
