@@ -411,16 +411,16 @@ function SentinelPageInner() {
                         <span className="font-mono font-semibold text-white">{trade.symbol.includes('/') ? '' : '$'}{trade.symbol}</span>
                       </div>
                       <div className="flex items-center gap-4 text-xs font-mono">
+                        <span className="text-gray-400">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
                         <span className="text-gray-500">Entry ${trade.entry}</span>
                         {trade.current_price && <span className="text-gray-400">Now ${trade.current_price}</span>}
                         <span className="text-gray-500">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
-                        <span className="text-gray-500">Size ${(trade.dollar_size || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                         {trade.unrealized_pnl != null && (
                           <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                             {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         )}
-                        <span className="text-gray-400">{trade.confidence}%</span>
+                        <span className="text-gray-500">Size ${(trade.dollar_size || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                       </div>
                     </motion.div>
                   ))}
@@ -455,11 +455,362 @@ function SentinelPageInner() {
                     <span className={`w-12 font-semibold ${trade.direction === 'LONG' ? 'text-emerald-400' : trade.direction === 'SHORT' ? 'text-red-400' : 'text-gray-600'}`}>
                       {trade.direction === 'LONG' ? '↑' : trade.direction === 'SHORT' ? '↓' : '—'} {trade.direction}
                     </span>
-                    <span className="text-white font-semibold w-20">{trade.symbol.includes('/') ? '' : '$'}{trade.symbol}</span>
-                    <span className="text-gray-500">{trade.timeframe || '1h'}</span>
-                    <span className="text-gray-400">{trade.confidence}%</span>
+                    <span className="text-white font-semibold w-20">{trade.symbol.includes('/') ? '' : ' ${trade.entry}</span>
+            {trade.unrealized_pnl != null && (
+              <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            )}
+            <span className="text-gray-500">Size ${(trade.dollar_size || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+            <span className={`w-2 h-2 rounded-full ${trade.status === 'open' ? 'bg-emerald-400' : trade.win ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* SESSION HISTORY */}
+            <motion.div
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.25, ...SPRING }}
+              className={`${GLASS} p-5 transition-all duration-300`}
+            >
+              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SESSION HISTORY</span>
+              <div className="mt-3 space-y-1">
+                {recentSessions.length === 0 && (
+                  <p className="text-xs text-gray-600 font-mono py-2">No sessions yet</p>
+                )}
+                {recentSessions.map((session, i) => (
+                  <motion.div key={session.id}>
+                    <motion.div
+                      whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                      onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}
+                      className="flex items-center justify-between py-2 px-3 rounded-xl cursor-pointer text-xs font-mono transition-all duration-300"
+                    >
+                      <span className="text-gray-400 w-24">{session.session_date}</span>
+                      <span className="text-white">{session.trades_fired || 0} trades</span>
+                      <span className="text-emerald-400">{session.wins || 0}W</span>
+                      <span className="text-red-400">{session.losses || 0}L</span>
+                      <span className={`w-24 text-right ${(session.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {(session.gross_pnl || 0) >= 0 ? '+' : ''}${(session.gross_pnl || 0).toFixed(0)}
+                      </span>
+                    </motion.div>
+                    <AnimatePresence>
+                      {expandedSession === session.id && session.claude_analysis && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden px-3 pb-2"
+                        >
+                          <p className="text-xs text-gray-500 leading-relaxed mt-1 whitespace-pre-wrap">{session.claude_analysis}</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div className="space-y-6 min-w-0">
+            {/* BRAIN EVOLUTION */}
+            <motion.div
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15, ...SPRING }}
+              className={`${GLASS} p-5 transition-all duration-300`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SENTINEL BRAIN</span>
+                <span className="text-xs text-gray-500 font-mono">Session {memory.sessions_processed || 0}</span>
+              </div>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                {memory.brain_summary || 'Sentinel is building its first sessions. Check back after market close today.'}
+              </p>
+              {todaySession?.adjustments_made && (
+                <div className="mt-4 pt-3 border-t border-white/[0.06]">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">Today's Update</span>
+                  <div className="mt-2 space-y-1">
+                    {Object.entries(todaySession.adjustments_made.setup_weights || {}).map(([key, val]) => (
+                      <div key={key} className="text-xs font-mono text-gray-400">
+                        {val > 0 ? '↑' : '↓'} {key} {val > 0 ? '+' : ''}{val} confidence
+                      </div>
+                    ))}
+                    {(todaySession.adjustments_made.suspended_conditions || []).map((c, i) => (
+                      <div key={i} className="text-xs font-mono text-red-400">✕ Suspended: {c}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {todaySession?.weekly_summary && (
+                <div className="mt-4 pt-3 border-t border-white/[0.06]">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">WEEKLY SUMMARY</span>
+                  <p className="text-sm text-gray-300 leading-relaxed mt-2">{todaySession.weekly_summary}</p>
+                </div>
+              )}
+            </motion.div>
+
+            {/* NOTIFICATIONS PANEL */}
+            <motion.div
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, ...SPRING }}
+              className={`${GLASS} p-5 transition-all duration-300`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">NOTIFICATIONS</span>
+                {unreadCount > 0 && <span className="text-xs text-gray-500 font-mono">{unreadCount} unread</span>}
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
+                {notifications.length === 0 && (
+                  <p className="text-xs text-gray-600 font-mono py-2">No notifications yet</p>
+                )}
+                {notifications.map((notif) => (
+                  <div key={notif.id} className={`text-xs py-1.5 ${notif.read ? 'text-gray-600' : 'text-gray-300'}`}>
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {notif.type === 'trade_opened' && '⚡'}
+                        {notif.type === 'trade_closed' && '✓'}
+                        {notif.type === 'brain_update' && '🧠'}
+                        {notif.type === 'yolo_unlocked' && '🔓'}
+                        {notif.type === 'session_summary' && '📊'}
+                      </span>
+                      <span className="font-mono font-semibold">{notif.title}</span>
+                      <span className="text-gray-600 ml-auto">{timeAgo(notif.created_at)}</span>
+                    </div>
+                    <p className="text-gray-500 mt-0.5 ml-6">{notif.body}</p>
+                  </div>
+                ))}
+              </div>
+              {unreadCount > 0 && (
+                <button onClick={handleMarkAllRead} className="text-gray-500 hover:text-white text-xs mt-2 transition-colors duration-200">
+                  Mark all read
+                </button>
+              )}
+            </motion.div>
+
+            {/* RISK/REWARD CARD — only when subscribed */}
+            {isSubscribed && (
+              <motion.div
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.25, ...SPRING }}
+                className={`${GLASS} p-5 transition-all duration-300`}
+              >
+                <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">COPY SETTINGS</span>
+
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="text-xs text-gray-400 block mb-1">Capital to Allocate to Sentinel</label>
+                    <input
+                      type="number"
+                      value={allocatedCapital}
+                      onChange={(e) => setAllocatedCapital(+e.target.value)}
+                      className={INSET + ' w-full'}
+                    />
+                    <span className="text-xs text-gray-500 mt-1 block">Sentinel's signals will be scaled to this amount</span>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-400 block mb-2">Risk Preset</label>
+                    <div className="flex gap-2">
+                      {[
+                        { label: 'Safe', color: 'emerald' },
+                        { label: 'Moderate', color: 'yellow' },
+                        { label: 'Aggressive', color: 'orange' },
+                        { label: 'YOLO', color: 'red' },
+                      ].map(({ label, color }) => (
+                        <motion.button
+                          key={label}
+                          onClick={() => {
+                            setRiskPreset(label);
+                            if (label === 'Safe') { setRiskPerTrade(1); setMaxDailyDD(3); }
+                            if (label === 'Moderate') { setRiskPerTrade(2); setMaxDailyDD(5); }
+                            if (label === 'Aggressive') { setRiskPerTrade(3); setMaxDailyDD(8); }
+                            if (label === 'YOLO') { setRiskPerTrade(5); setMaxDailyDD(15); }
+                          }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.96 }}
+                          className={`flex-1 py-2 rounded-xl text-xs font-mono border transition-all duration-300 ${
+                            riskPreset === label
+                              ? `text-${color}-400 border-${color}-500/30`
+                              : 'text-gray-600 border-white/[0.06]'
+                          }`}
+                        >
+                          {label}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase">Risk/Trade %</label>
+                      <input type="number" value={riskPerTrade} onChange={(e) => setRiskPerTrade(+e.target.value)} className={INSET + ' w-full text-sm'} step={0.5} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase">Max Daily DD %</label>
+                      <input type="number" value={maxDailyDD} onChange={(e) => setMaxDailyDD(+e.target.value)} className={INSET + ' w-full text-sm'} step={0.5} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase">Stop ATR×</label>
+                      <input type="number" value={stopATR} onChange={(e) => setStopATR(+e.target.value)} className={INSET + ' w-full text-sm'} step={0.1} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase">Take Profit R:R</label>
+                      <input type="number" value={takeProfitRR} onChange={(e) => setTakeProfitRR(+e.target.value)} className={INSET + ' w-full text-sm'} step={0.5} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase">Max Positions</label>
+                      <input type="number" value={maxPositions} onChange={(e) => setMaxPositions(+e.target.value)} className={INSET + ' w-full text-sm'} min={1} max={10} />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={savingSettings}
+                    className="text-emerald-400 text-sm font-mono hover:text-white transition-colors duration-200"
+                  >
+                    {savingSettings ? 'Saving...' : 'Save Settings'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* YOLO ACTIVATION */}
+            {isSubscribed && (
+              <motion.div
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3, ...SPRING }}
+                className={`${yoloActive ? RED_GLOW : GLASS} p-5 transition-all duration-300`}
+              >
+                {!disclaimerAccepted ? (
+                  <div>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={disclaimerAccepted}
+                        onChange={() => handleAcceptDisclaimer()}
+                        className="mt-1 accent-emerald-500"
+                      />
+                      <span className="text-xs text-gray-400 leading-relaxed">
+                        I understand Sentinel is a paper trading simulation. Past performance does not guarantee future results.
+                        This is not financial advice. I am responsible for all trading decisions.
+                      </span>
+                    </label>
+                  </div>
+                ) : (
+                  <div>
+                    <motion.button
+                      onClick={() => {
+                        if (yoloActive) {
+                          handleToggleYolo(false);
+                        } else {
+                          setShowYoloConfirm(true);
+                        }
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.96 }}
+                      className={`w-full py-4 rounded-xl font-mono font-semibold text-sm border transition-all duration-300 ${
+                        yoloActive
+                          ? 'border-red-500/40 text-red-400 bg-red-500/5 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
+                          : 'border-white/[0.08] text-gray-400'
+                      }`}
+                    >
+                      {yoloActive ? '⚡ YOLO ON — Sentinel copying to your portfolio' : 'YOLO OFF — Click to activate'}
+                    </motion.button>
+                    {yoloActive && (
+                      <button
+                        onClick={() => handleToggleYolo(false)}
+                        className="text-gray-600 hover:text-red-400 text-xs mt-2 transition-colors duration-200 block mx-auto"
+                      >
+                        Kill switch
+                      </button>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* BOTTOM BAR */}
+      <div className="h-8 flex items-center justify-between px-6 border-t border-white/[0.06] flex-shrink-0 font-mono text-xs text-gray-600">
+        <div className="flex gap-4">
+          <span>Brain v{memory.sessions_processed || 0}</span>
+          <span>Sessions: {recentSessions.length}</span>
+          <span>Suspended: {(memory.suspended_conditions || []).length} conditions</span>
+        </div>
+        <div>
+          {isSubscribed ? (
+            yoloActive ? <span className="text-red-400">YOLO ACTIVE</span> : <span className="text-gray-600">YOLO OFF</span>
+          ) : (
+            <span className="text-gray-500">Subscribe to unlock YOLO →</span>
+          )}
+        </div>
+      </div>
+
+      {/* YOLO CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {showYoloConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+            onClick={() => setShowYoloConfirm(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white/[0.05] backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-[0_24px_64px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.4)] p-6 max-w-md w-full mx-4"
+            >
+              <h3 className="text-white font-mono font-bold text-lg mb-3">Activate YOLO?</h3>
+              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                Sentinel will copy its next new signal into your paper portfolio. Open positions will only close when Sentinel closes them.
+              </p>
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={() => setShowYoloConfirm(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  className="flex-1 py-2.5 rounded-xl text-gray-400 border border-white/[0.08] bg-white/[0.03] font-mono hover:bg-white/[0.06] hover:text-white hover:border-white/[0.14] transition-all duration-300"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  onClick={() => handleToggleYolo(true)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  className="flex-1 py-2.5 rounded-xl text-red-400 border border-red-500/30 bg-gradient-to-br from-red-500/[0.10] to-red-500/[0.03] font-mono font-semibold shadow-[0_4px_12px_rgba(239,68,68,0.15)] hover:from-red-500/[0.16] hover:border-red-500/50 transition-all duration-300"
+                >
+                  Activate
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+export default function SentinelPage() {
+  return (
+    <AppErrorBoundary>
+      <SentinelPageInner />
+    </AppErrorBoundary>
+  );
+}
+}{trade.symbol}</span>
+                    <span className="text-gray-400">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' units' : ''}</span>
                     <span className="text-gray-500">Entry ${trade.entry}</span>
-                    <span className="text-gray-500">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' units' : ''}</span>
             {trade.unrealized_pnl != null && (
               <span className={trade.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                 {trade.unrealized_pnl >= 0 ? '+' : ''}${trade.unrealized_pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
