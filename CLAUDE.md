@@ -146,6 +146,11 @@ All new pages must match the existing dark theme — do not introduce light back
 
 ---
 
+## COMMIT AND PUSH
+When I say "push" — that means: git add the changed files, git commit with a descriptive message, AND git push origin main. All three steps. Never leave changes uncommitted. Never make me ask twice.
+
+---
+
 ## Critical Rules (Non-Negotiable)
 
 ### 1. Never Poll for Market Data
