@@ -8,7 +8,7 @@ import {
   LineSeries,
   BaselineSeries,
 } from 'lightweight-charts';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../lib/supabaseClient';
 import { createLiveDetector } from '../../utils/radarEngine';
 import { createSmartMoneyDetector } from '../../utils/smartMoneyEngine';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,11 +29,7 @@ import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
 import { normalizeSymbol as normalizeTicker } from '../../lib/twelvedata';
 import CreateAlertModal from './CreateAlertModal';
 
-// ── Supabase Client ──────────────────────────────────────────────────────────
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+// Supabase client imported from shared singleton (src/lib/supabaseClient.js)
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1H', '2H', '4H', '1D', '1Mo'];
