@@ -1001,7 +1001,7 @@ export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sen
             <div className="flex-1 overflow-y-auto sentinel-scroll py-0">
               <div className="px-3 pt-0.5 pb-0">
                 <div className="text-[9px]" style={{ color: COLORS.dim }}>Balance</div>
-                <div className="text-[13px] font-bold tabular-nums" style={{ color: COLORS.green }}>${metrics.balance.toLocaleString()}</div>
+                <div className="text-[13px] font-bold tabular-nums" style={{ color: COLORS.green }}>${(sentinelAccount?.current_balance || metrics.balance).toLocaleString()}</div>
               </div>
               <Row label="ROI" value={`${metrics.roi}%`} color={+metrics.roi >= 0 ? COLORS.green : COLORS.red} />
               <Row label="Win Rate" value={`${sharedWinRate}%`} color={totalPnl >= 0 ? COLORS.green : COLORS.red} />

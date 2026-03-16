@@ -593,7 +593,7 @@ function SentinelPageInner() {
             </div>
             <div className="flex gap-8">
               <MetricTooltip label="Win Rate" tip="Percentage of trades that were profitable. Higher is better — 50%+ with good R means a strong edge.">
-                <div className="mt-1"><WinRateColor value={account.win_rate || 0} netPnl={accountTotalPnl} /></div>
+                <div className={`mt-1 ${accountTotalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(account.win_rate || 0).toFixed(1)}%</div>
               </MetricTooltip>
               <MetricTooltip label="Avg R" tip="Average risk-reward per trade. 1R = the amount risked. If Sentinel risks $100 and averages $200 profit, that's 2.00R. Negative means average losses exceed the planned risk.">
                 <div className={`mt-1 font-mono ${(account.avg_r || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(account.avg_r || 0).toFixed(2)}R</div>
@@ -966,7 +966,7 @@ function SentinelPageInner() {
                         />
                       </div>
                       {/* Pair */}
-                      <span className="text-white font-medium">{trade.symbol}</span>
+                      <span className="text-white font-medium">{trade.symbol?.includes('/') ? '' : '$'}{trade.symbol}</span>
                       {/* Time range + duration */}
                       <span className="text-white/30 text-[12px]">
                         {timeFmt(openTime)} → {timeFmt(closeTime)}{durationStr && <span className="ml-1.5 text-white/20">{durationStr}</span>}
@@ -1470,7 +1470,7 @@ function SentinelPageInner() {
                           <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
                             {trade.direction === 'LONG' ? '↑' : '↓'}
                           </span>
-                          <span className="text-white font-semibold">{trade.symbol}</span>
+                          <span className="text-white font-semibold">{trade.symbol?.includes('/') ? '' : '$'}{trade.symbol}</span>
                           <span className="text-gray-500">${trade.entry} → ${trade.exit_price}</span>
                         </div>
                         <span className={`font-semibold ${(trade.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
