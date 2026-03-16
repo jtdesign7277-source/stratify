@@ -397,20 +397,7 @@ function useBotStream() {
     };
     st = setTimeout(emit, 500);
 
-    // Simulate live P&L drift — small random moves every 500ms so the number ticks
-    const pnlIv = setInterval(() => {
-      // Random walk with slight upward bias (winning bot)
-      const move = (Math.random() - 0.42) * 50; // slight positive bias
-      refs.current.bal += move;
-      refs.current.peak = Math.max(refs.current.peak, refs.current.bal);
-      // Update metrics so totalPnl reacts
-      setMetrics(prev => ({
-        ...prev,
-        balance: Math.round(refs.current.bal),
-      }));
-    }, 500);
-
-    return () => { clearTimeout(st); clearInterval(pnlIv); };
+    return () => { clearTimeout(st); };
   }, [pushEvent]);
 
   // Update connection status from WS
@@ -844,9 +831,10 @@ const PnlCanvas = memo(function PnlCanvas({ data }) {
 });
 
 // ─── Main Component ────────────────────────────────────────────────────────
-export default function SentinelEngine() {
+export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl }) {
   const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected, dataSource, btcPrice } = useBotStream();
-  const totalPnl = metrics.balance - metrics.deposit;
+  const totalPnl = sentinelTotalPnl != null ? sentinelTotalPnl : (metrics.balance - metrics.deposit);
+  const dailyPnl = sentinelDailyPnl != null ? sentinelDailyPnl : 0;
   const [vizMode, setVizMode] = useState('mc'); // 'mc' | 'equity'
 
   const marquee = `BAYESIAN + EDGE + SPREAD + STOIKOV + KELLY + MONTE CARLO  ·  $${metrics.balance.toLocaleString()} → $${(metrics.deposit * 2).toLocaleString()}  ·  5-MIN BTC  ·  LIMIT ORDERS  ·  ${metrics.tradesHr}/hr TRADING  ·  ${metrics.winRate}% WIN  ·  ${metrics.edge || '—'}% EDGE`;
@@ -1062,16 +1050,19 @@ export default function SentinelEngine() {
             </div>
           </div>
 
-          {/* P&L CURVE — compact below visualization */}
-          <div className="flex flex-col overflow-hidden" style={{ ...panelStyle, height: 70 }}>
-            <div className="flex items-center justify-between px-3" style={{ height: 20, borderBottom: `1px solid ${COLORS.border}` }}>
-              <span className="text-[10px] tracking-widest font-bold" style={{ color: COLORS.dim }}>P&L</span>
+          {/* P&L — compact below visualization */}
+          <div className="flex items-center justify-between px-3" style={{ ...panelStyle, height: 36 }}>
+            <div className="flex items-center gap-4">
+              <span className="text-[10px] tracking-widest font-bold" style={{ color: COLORS.dim }}>TOTAL P&L</span>
               <span className="text-[13px] font-bold tabular-nums" style={{ color: totalPnl >= 0 ? COLORS.green : COLORS.red }}>
-                ${Math.abs(totalPnl) < 1 ? totalPnl.toFixed(2) : totalPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {totalPnl >= 0 ? '+' : ''}${Math.abs(totalPnl) < 1 ? totalPnl.toFixed(2) : totalPnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="flex-1 min-h-0 px-1">
-              <PnlCanvas data={pnl} />
+            <div className="flex items-center gap-4">
+              <span className="text-[10px] tracking-widest font-bold" style={{ color: COLORS.dim }}>DAILY P&L</span>
+              <span className="text-[13px] font-bold tabular-nums" style={{ color: dailyPnl >= 0 ? COLORS.green : COLORS.red }}>
+                {dailyPnl >= 0 ? '+' : ''}${Math.abs(dailyPnl) < 1 ? dailyPnl.toFixed(2) : dailyPnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
         </div>

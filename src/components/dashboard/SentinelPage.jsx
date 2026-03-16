@@ -353,7 +353,13 @@ function SentinelPageInner() {
       {subTab === 'engine' ? (
         <div className="flex-1 min-h-0 overflow-hidden">
           <AppErrorBoundary>
-            <SentinelEngine />
+            <SentinelEngine
+              sentinelTotalPnl={(() => {
+                const realizedBase = account.current_balance || 2000000;
+                return (realizedBase + liveUnrealizedPnl) - 2000000;
+              })()}
+              sentinelDailyPnl={liveUnrealizedPnl + todayRealizedPnl}
+            />
           </AppErrorBoundary>
         </div>
       ) : (<>
