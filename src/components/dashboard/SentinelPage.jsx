@@ -587,60 +587,79 @@ function SentinelPageInner() {
             </motion.div>
 
             {/* POLYMARKET BETS */}
-            {(polyOpenTrades.length > 0 || polyResolved.length > 0) && (
-              <motion.div
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.22, ...SPRING }}
-                className={`${GLASS} p-3 transition-all duration-300`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">POLYMARKET</span>
-                  <span className="text-[10px] font-mono px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">BTC PREDICTIONS</span>
-                </div>
-                {polyOpenTrades.length > 0 && (
-                  <div className="space-y-1 mb-2">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Bets</span>
-                    {polyOpenTrades.map((trade) => {
-                      const potentialPayout = trade.shares * 1.0;
-                      const potentialProfit = potentialPayout - trade.dollar_cost;
-                      return (
-                        <div key={trade.id} className="flex items-start gap-2 py-1.5 px-2 rounded bg-white/[0.02] border border-white/[0.04]">
-                          <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${trade.side === 'YES' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                            {trade.side}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-white font-medium truncate">{trade.question}</p>
-                            <div className="flex gap-3 mt-0.5 text-[10px] font-mono text-gray-500">
-                              <span>${trade.entry_price?.toFixed(3)}</span>
-                              <span>{trade.shares?.toLocaleString()} sh</span>
-                              <span>${trade.dollar_cost?.toFixed(2)}</span>
-                              <span className="text-emerald-400">+${potentialProfit.toFixed(2)}</span>
-                            </div>
+            <motion.div
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.22, ...SPRING }}
+              className={`${GLASS} p-4 transition-all duration-300`}
+            >
+              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">POLYMARKET</span>
+              {(() => {
+                const allBets = [
+                  ...polyOpenTrades.map(t => ({ ...t, _type: 'open' })),
+                  ...polyResolved.map(t => ({ ...t, _type: 'resolved' })),
+                ];
+                const SLOTS = 9;
+                const polyUrl = (trade) => {
+                  if (trade.condition_id) return `https://polymarket.com/event/${trade.condition_id}`;
+                  if (trade.market_id) return `https://polymarket.com/event/${trade.market_id}`;
+                  return null;
+                };
+                return (
+                  <div className="grid grid-cols-3 gap-3 mt-3">
+                    {Array.from({ length: SLOTS }).map((_, i) => {
+                      const bet = allBets[i];
+                      if (!bet) {
+                        return (
+                          <div key={`empty-${i}`} className="bg-white/[0.02] rounded-xl border border-dashed border-white/[0.03] p-3 flex flex-col items-center justify-center text-center min-h-[72px]">
+                            <span className="text-white/20 text-[12px]">Awaiting signal</span>
+                            <span className="text-white/10 text-[11px] mt-0.5">Sentinel will surface high-conviction bets here</span>
                           </div>
-                          <span className="text-[10px] font-mono text-gray-600">{trade.confidence}%</span>
-                        </div>
+                        );
+                      }
+                      const url = polyUrl(bet);
+                      const isOpen = bet._type === 'open';
+                      const potentialProfit = isOpen ? (bet.shares * 1.0) - bet.dollar_cost : null;
+                      const Tag = url ? 'a' : 'div';
+                      const linkProps = url ? { href: url, target: '_blank', rel: 'noopener noreferrer' } : {};
+                      return (
+                        <Tag
+                          key={bet.id}
+                          {...linkProps}
+                          className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-xl border border-white/[0.06] p-3 transition-colors duration-200 hover:from-white/[0.06] hover:border-white/[0.1] block"
+                        >
+                          <div className="flex items-start gap-1.5">
+                            <span className={`text-[10px] font-bold px-1 py-0.5 rounded flex-shrink-0 ${bet.side === 'YES' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                              {bet.side}
+                            </span>
+                            <p className="text-[13px] text-white font-medium leading-tight line-clamp-2">{bet.question}</p>
+                          </div>
+                          <div className="flex items-center justify-between mt-2 text-[11px] font-mono">
+                            <div className="flex items-center gap-2 text-white/40">
+                              {isOpen ? (
+                                <>
+                                  <span>${bet.entry_price?.toFixed(3)}</span>
+                                  <span>{bet.shares?.toLocaleString()} sh</span>
+                                  <span className="text-emerald-400">+${potentialProfit?.toFixed(2)}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className={bet.win ? 'text-emerald-400' : 'text-red-400'}>{bet.win ? '✓ Won' : '✗ Lost'}</span>
+                                  <span className={bet.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                    {bet.pnl >= 0 ? '+' : ''}${bet.pnl?.toFixed(2)}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            <span className="text-white/30">{bet.confidence}%</span>
+                          </div>
+                        </Tag>
                       );
                     })}
                   </div>
-                )}
-                {polyResolved.length > 0 && (
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">Resolved</span>
-                    {polyResolved.map((trade) => (
-                      <div key={trade.id} className="flex items-center gap-1.5 py-1 text-xs font-mono">
-                        <span className={`w-3 text-center ${trade.win ? 'text-emerald-400' : 'text-red-400'}`}>{trade.win ? '✓' : '✗'}</span>
-                        <span className={`text-[10px] font-bold px-1 rounded ${trade.side === 'YES' ? 'bg-emerald-500/10 text-emerald-400/70' : 'bg-red-500/10 text-red-400/70'}`}>{trade.side}</span>
-                        <span className="text-gray-400 truncate flex-1">{trade.question}</span>
-                        <span className={`${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {trade.pnl >= 0 ? '+' : ''}${trade.pnl?.toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
+                );
+              })()}
+            </motion.div>
 
             {/* SESSION HISTORY */}
             <motion.div
