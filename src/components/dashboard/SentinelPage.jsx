@@ -577,6 +577,66 @@ function SentinelPageInner() {
           <div className="space-y-6 min-w-0">
             {/* CRYPTO / EQUITIES TWO-COLUMN SPLIT */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Shared position row renderer with live prices */}
+              {(() => {
+                const computePnl = (trade) => {
+                  const lp = livePrices[trade.symbol.toUpperCase()]?.price;
+                  const cp = lp || trade.current_price;
+                  const pnl = cp && trade.entry && trade.size
+                    ? (cp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
+                    : trade.unrealized_pnl;
+                  return { livePrice: cp, pnl: pnl ?? 0 };
+                };
+                const sumOpenPnl = (trades) => trades.reduce((s, t) => s + computePnl(t).pnl, 0);
+                const cryptoOpenPnl = sumOpenPnl(cryptoOpenTrades);
+                const equityOpenPnl = sumOpenPnl(equityOpenTrades);
+                const fmtDollar = (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const fmtPrice = (v) => v != null ? `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+
+                const PositionRow = ({ trade, i, showDollar = false }) => {
+                  const { livePrice, pnl } = computePnl(trade);
+                  return (
+                    <motion.div
+                      key={trade.id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04, ...SPRING }}
+                      whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                      className="py-2 px-2 rounded-xl transition-all duration-300 text-xs font-mono"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
+                            {trade.direction === 'LONG' ? '↑' : '↓'}
+                          </span>
+                          <span className="text-white font-semibold">{showDollar ? '$' : ''}{trade.symbol}</span>
+                        </div>
+                        <motion.span
+                          key={pnl.toFixed(2)}
+                          initial={{ color: pnl >= 0 ? '#10b981' : '#ef4444' }}
+                          animate={{ color: '#ffffff' }}
+                          transition={{ duration: 1.5 }}
+                          className="font-medium"
+                        >
+                          {fmtDollar(pnl)}
+                        </motion.span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-0.5 text-[10px] text-white/30">
+                        <span>Entry {fmtPrice(trade.entry)}</span>
+                        <motion.span
+                          key={livePrice ? livePrice.toFixed(2) : 'na'}
+                          initial={{ color: pnl >= 0 ? '#10b981' : '#ef4444' }}
+                          animate={{ color: 'rgba(255,255,255,0.5)' }}
+                          transition={{ duration: 1.2 }}
+                        >
+                          Live {fmtPrice(livePrice)}
+                        </motion.span>
+                      </div>
+                    </motion.div>
+                  );
+                };
+
+                return (<>
               {/* LEFT — CRYPTO (24/7) */}
               <motion.div
                 initial={{ opacity: 0, x: -8 }}
@@ -589,39 +649,21 @@ function SentinelPageInner() {
                   <span className="text-[10px] text-emerald-400 font-mono">LIVE 24/7</span>
                 </div>
                 {cryptoOpenTrades.length > 0 ? (
-                  <div className="space-y-2">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
-                    {cryptoOpenTrades.map((trade, i) => (
-                      <motion.div
-                        key={trade.id}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.04, ...SPRING }}
-                        whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                        className="flex items-center justify-between py-2 px-2 rounded-xl transition-all duration-300 text-xs font-mono"
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
+                      <motion.span
+                        key={cryptoOpenPnl.toFixed(2)}
+                        initial={{ color: cryptoOpenPnl >= 0 ? '#10b981' : '#ef4444' }}
+                        animate={{ color: '#ffffff' }}
+                        transition={{ duration: 1.5 }}
+                        className="text-[11px] font-mono font-medium"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
-                            {trade.direction === 'LONG' ? '↑' : '↓'}
-                          </span>
-                          <span className="text-white font-semibold">{trade.symbol}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500">Entry ${trade.entry}</span>
-                          {(() => {
-                            const lp = livePrices[trade.symbol.toUpperCase()]?.price;
-                            const cp = lp || trade.current_price;
-                            const pnl = cp && trade.entry && trade.size
-                              ? (cp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
-                              : trade.unrealized_pnl;
-                            return pnl != null ? (
-                              <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                                {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            ) : null;
-                          })()}
-                        </div>
-                      </motion.div>
+                        Open P&L: {fmtDollar(cryptoOpenPnl)}
+                      </motion.span>
+                    </div>
+                    {cryptoOpenTrades.map((trade, i) => (
+                      <PositionRow key={trade.id} trade={trade} i={i} />
                     ))}
                   </div>
                 ) : (
@@ -630,7 +672,7 @@ function SentinelPageInner() {
                 <div className="mt-4 pt-3 border-t border-white/[0.06] text-xs font-mono">
                   <span className="text-white/40">Today's Crypto P&L: </span>
                   <span className={todayCryptoPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {todayCryptoPnl >= 0 ? '+' : ''}${todayCryptoPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {fmtDollar(todayCryptoPnl)}
                   </span>
                 </div>
               </motion.div>
@@ -653,39 +695,21 @@ function SentinelPageInner() {
                 <MarketClock />
                 {marketOpen ? (
                   equityOpenTrades.length > 0 ? (
-                    <div className="space-y-2">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
-                      {equityOpenTrades.map((trade, i) => (
-                        <motion.div
-                          key={trade.id}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.04, ...SPRING }}
-                          whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                          className="flex items-center justify-between py-2 px-2 rounded-xl transition-all duration-300 text-xs font-mono"
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
+                        <motion.span
+                          key={equityOpenPnl.toFixed(2)}
+                          initial={{ color: equityOpenPnl >= 0 ? '#10b981' : '#ef4444' }}
+                          animate={{ color: '#ffffff' }}
+                          transition={{ duration: 1.5 }}
+                          className="text-[11px] font-mono font-medium"
                         >
-                          <div className="flex items-center gap-2">
-                            <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
-                              {trade.direction === 'LONG' ? '↑' : '↓'}
-                            </span>
-                            <span className="text-white font-semibold">${trade.symbol}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500">Entry ${trade.entry}</span>
-                            {(() => {
-                              const lp = livePrices[trade.symbol.toUpperCase()]?.price;
-                              const cp = lp || trade.current_price;
-                              const pnl = cp && trade.entry && trade.size
-                                ? (cp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
-                                : trade.unrealized_pnl;
-                              return pnl != null ? (
-                                <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                                  {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                              ) : null;
-                            })()}
-                          </div>
-                        </motion.div>
+                          Open P&L: {fmtDollar(equityOpenPnl)}
+                        </motion.span>
+                      </div>
+                      {equityOpenTrades.map((trade, i) => (
+                        <PositionRow key={trade.id} trade={trade} i={i} showDollar />
                       ))}
                     </div>
                   ) : (
@@ -697,10 +721,12 @@ function SentinelPageInner() {
                 <div className="mt-4 pt-3 border-t border-white/[0.06] text-xs font-mono">
                   <span className="text-white/40">Today's Equity P&L: </span>
                   <span className={todayEquityPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {todayEquityPnl >= 0 ? '+' : ''}${todayEquityPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {fmtDollar(todayEquityPnl)}
                   </span>
                 </div>
               </motion.div>
+                </>);
+              })()}
             </div>
 
             {/* POLYMARKET BETS */}
