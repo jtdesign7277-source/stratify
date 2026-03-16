@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { isCreatorOverrideUser, isProStatus, normalizeSubscriptionStatus } from '../lib/subscriptionAccess';
 import { clearAlpacaCache } from '../services/alpacaService';
+import { errorToString } from '../lib/safeSupabaseCall';
 
 const STORAGE_KEY = 'stratify-trading-mode';
 const MODE_EVENT = 'stratify:trading-mode-changed';
@@ -99,7 +100,7 @@ export default function useTradingMode() {
           .maybeSingle();
 
         if (fallback.error) {
-          setError(fallback.error);
+          setError(errorToString(fallback.error, 'Failed to load subscription status'));
           setLoading(false);
           return;
         }
@@ -110,7 +111,7 @@ export default function useTradingMode() {
         return;
       }
 
-      setError(primary.error);
+      setError(errorToString(primary.error, 'Failed to load trading mode'));
       setLoading(false);
       return;
     }
@@ -282,7 +283,7 @@ export default function useTradingMode() {
     }
 
     if (update.error) {
-      setError(update.error);
+      setError(errorToString(update.error, 'Failed to save trading mode'));
       applyMode(previousMode, { persist: true, broadcast: true });
       setSwitching(false);
       return { ok: false, changed: false, mode: previousMode, reason: 'persist_failed', error: update.error };

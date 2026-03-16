@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { clearAlpacaCache, fetchAccount, fetchOrders, fetchPositions } from '../services/alpacaService';
+import { errorToString } from '../lib/safeSupabaseCall';
 
 const POLL_INTERVAL_MS = 30000;
 const MODE_SWITCH_EVENT = 'stratify:trading-mode-switched';
@@ -185,7 +186,7 @@ export function usePortfolio({ tradingMode = PAPER_MODE, pollIntervalMs = POLL_I
     const firstError = [accountResult, positionsResult, ordersResult]
       .find((result) => result.status === 'rejected');
 
-    setError(firstError?.reason || null);
+    setError(firstError ? errorToString(firstError.reason, 'Failed to load portfolio data') : null);
     setLoading(false);
   }, [normalizedMode]);
 
