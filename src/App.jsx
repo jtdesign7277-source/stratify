@@ -1490,8 +1490,10 @@ function StratifyAppContent() {
     }
   }, [isProUser, user?.id]);
 
-  // Block rendering until Supabase session check resolves — prevents landing page flash
-  if (loading) {
+  // While auth is loading on a protected route, show a blank screen instead of flashing the landing page.
+  // Public pages (landing, auth, whitepaper, tokens, reset-password, sports) render immediately.
+  const isPublicPage = ['landing', 'auth', 'whitepaper', 'tokens', 'reset-password', 'sports'].includes(currentPage);
+  if (loading && !isPublicPage) {
     return <div className="min-h-screen bg-[#0a0a0f]" />;
   }
 
