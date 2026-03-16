@@ -1181,22 +1181,43 @@ function SentinelPageInner() {
                 {notifications.length === 0 && (
                   <p className="text-xs text-gray-600 font-mono py-2">No notifications yet</p>
                 )}
-                {notifications.map((notif) => (
-                  <div key={notif.id} className={`text-xs py-1.5 ${notif.read ? 'text-gray-600' : 'text-gray-300'}`}>
-                    <div className="flex items-center gap-2">
-                      <span>
-                        {notif.type === 'trade_opened' && '⚡'}
-                        {notif.type === 'trade_closed' && '✓'}
-                        {notif.type === 'brain_update' && '🧠'}
-                        {notif.type === 'yolo_unlocked' && '🔓'}
-                        {notif.type === 'session_summary' && '📊'}
-                      </span>
-                      <span className="font-mono font-semibold">{notif.title}</span>
-                      <span className="text-gray-600 ml-auto">{timeAgo(notif.created_at)}</span>
-                    </div>
-                    <p className="text-gray-500 mt-0.5 ml-6">{notif.body}</p>
-                  </div>
-                ))}
+                {notifications.map((notif) => {
+                  const isReport = notif.type === 'daily_report' && notif.metadata?.report;
+                  const reportDate = notif.metadata?.session_date;
+                  const sessionForReport = isReport ? recentSessions.find(s => s.session_date === reportDate) : null;
+                  return (
+                    <motion.div
+                      key={notif.id}
+                      whileHover={isReport ? { x: 2, backgroundColor: 'rgba(255,255,255,0.04)' } : {}}
+                      onClick={isReport ? (e) => { e.stopPropagation(); setBrainModalSession(sessionForReport || { session_date: reportDate, claude_analysis: JSON.stringify(notif.metadata?.report, null, 2), gross_pnl: notif.metadata?.pnl, adjustments_made: notif.metadata }); } : undefined}
+                      className={`text-xs py-1.5 rounded-xl px-2 transition-all duration-200 ${notif.read ? 'text-gray-600' : 'text-gray-300'} ${isReport ? 'cursor-pointer' : ''}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {notif.type === 'trade_opened' && '⚡'}
+                          {notif.type === 'trade_closed' && '✓'}
+                          {notif.type === 'brain_update' && '🧠'}
+                          {notif.type === 'daily_report' && '📊'}
+                          {notif.type === 'yolo_unlocked' && '🔓'}
+                          {notif.type === 'session_summary' && '📊'}
+                        </span>
+                        <span className="font-mono font-semibold flex-1 min-w-0 truncate">{notif.title}</span>
+                        <span className="text-gray-600 flex-shrink-0">{timeAgo(notif.created_at)}</span>
+                      </div>
+                      {isReport && notif.metadata ? (
+                        <div className="mt-1 ml-6 space-y-0.5">
+                          <span className={`font-mono font-semibold ${(notif.metadata.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {(notif.metadata.pnl || 0) >= 0 ? '+' : ''}${(notif.metadata.pnl || 0).toFixed(2)} · {notif.metadata.win_rate}% WR · {notif.metadata.trades} trades
+                          </span>
+                          <p className="text-gray-500 leading-relaxed line-clamp-2">{notif.metadata.report?.headline}</p>
+                          <span className="text-emerald-500/60 text-[10px]">tap to read full report →</span>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 mt-0.5 ml-6">{notif.body}</p>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
               {unreadCount > 0 && (
                 <button onClick={handleMarkAllRead} className="text-gray-500 hover:text-white text-xs mt-2 transition-colors duration-200">
@@ -1450,13 +1471,80 @@ function SentinelPageInner() {
                 </button>
               </div>
 
-              {brainModalSession.claude_analysis ? (
-                <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap font-mono">
-                  {brainModalSession.claude_analysis}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 font-mono">Analysis pending — Sentinel reviews at market close.</p>
-              )}
+              {(() => {
+                // Try to parse daily_report from adjustments_made or claude_analysis
+                let report = brainModalSession.adjustments_made?.daily_report || brainModalSession.adjustments_made?.report || null;
+                if (!report && brainModalSession.claude_analysis) {
+                  try {
+                    const parsed = JSON.parse(brainModalSession.claude_analysis.match(/\{[\s\S]*\}/)?.[0] || '{}');
+                    report = parsed.daily_report || null;
+                  } catch {}
+                }
+
+                if (report) {
+                  return (
+                    <div className="space-y-4">
+                      {report.headline && (
+                        <p className="text-base font-mono font-bold text-white leading-snug">{report.headline}</p>
+                      )}
+                      {report.what_worked?.length > 0 && (
+                        <div>
+                          <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-semibold">What Worked</span>
+                          <ul className="mt-1.5 space-y-1">
+                            {report.what_worked.map((item, i) => (
+                              <li key={i} className="text-sm text-gray-300 font-mono flex gap-2"><span className="text-emerald-400 flex-shrink-0">+</span>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {report.what_failed?.length > 0 && (
+                        <div>
+                          <span className="text-[10px] text-red-400 uppercase tracking-widest font-semibold">What Failed</span>
+                          <ul className="mt-1.5 space-y-1">
+                            {report.what_failed.map((item, i) => (
+                              <li key={i} className="text-sm text-gray-300 font-mono flex gap-2"><span className="text-red-400 flex-shrink-0">−</span>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {report.biggest_mistake && (
+                        <div className="bg-red-500/[0.06] border border-red-500/20 rounded-xl p-3">
+                          <span className="text-[10px] text-red-400 uppercase tracking-widest font-semibold">Biggest Mistake</span>
+                          <p className="mt-1.5 text-sm text-gray-300 font-mono leading-relaxed">{report.biggest_mistake}</p>
+                        </div>
+                      )}
+                      {report.adjustment && (
+                        <div className="bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl p-3">
+                          <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-semibold">Rule Change for Tomorrow</span>
+                          <p className="mt-1.5 text-sm text-gray-300 font-mono leading-relaxed">{report.adjustment}</p>
+                        </div>
+                      )}
+                      {report.tomorrow_focus && (
+                        <div>
+                          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Tomorrow's Focus</span>
+                          <p className="mt-1.5 text-sm text-gray-300 font-mono leading-relaxed">{report.tomorrow_focus}</p>
+                        </div>
+                      )}
+                      {report.path_to_greatness && (
+                        <div className="border-t border-white/[0.06] pt-3">
+                          <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Path to Greatness</span>
+                          <p className="mt-1.5 text-sm text-gray-400 font-mono leading-relaxed italic">{report.path_to_greatness}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (brainModalSession.claude_analysis) {
+                  return (
+                    <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap font-mono">
+                      {brainModalSession.claude_analysis}
+                    </div>
+                  );
+                }
+
+                return <p className="text-sm text-gray-500 font-mono">Analysis pending — Sentinel reviews daily at 11pm ET.</p>;
+              })()}
 
               {brainModalSession.adjustments_made && (
                 <div className="mt-4 pt-3 border-t border-white/[0.06]">
