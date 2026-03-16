@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
 
 window.onerror = function(msg, src, line, col, error) {
+  if (error?.name === 'AbortError' || msg?.includes?.('AbortError')) return true;
   document.body.innerHTML = '<pre style="color:red;padding:40px;background:#0a0a0f;font-size:14px;white-space:pre-wrap">' +
     msg + '\n\nStack:\n' + (error?.stack || 'no stack') + '</pre>';
 };
 
 window.addEventListener('unhandledrejection', function(e) {
+  if (e.reason?.name === 'AbortError' || String(e.reason).includes('AbortError')) return;
   document.body.innerHTML = '<pre style="color:orange;padding:40px;background:#0a0a0f;font-size:14px;white-space:pre-wrap">Unhandled Promise:\n' +
     (e.reason?.stack || e.reason?.message || String(e.reason)) + '</pre>';
 });
@@ -1229,7 +1231,9 @@ function StratifyAppContent() {
     try {
       await signOut?.();
     } catch (error) {
-      console.error('[Auth] Sign out failed while exiting:', error);
+      if (error?.name !== 'AbortError') {
+        console.error('[Auth] Sign out failed while exiting:', error);
+      }
     }
 
     navigateToPage('landing');
@@ -1289,6 +1293,7 @@ function StratifyAppContent() {
 
       throw new Error('Stripe checkout URL missing.');
     } catch (error) {
+      if (error?.name === 'AbortError') return;
       setCheckoutError(error?.message || 'Unable to redirect to Stripe checkout.');
       setIsCheckoutRedirecting(false);
     }
@@ -1410,6 +1415,7 @@ function StratifyAppContent() {
           setCheckoutError('Payment received. We are still confirming your subscription, please wait a moment and retry.');
         }
       } catch (error) {
+        if (error?.name === 'AbortError') return;
         if (!cancelled) {
           console.error('[Checkout] Failed to confirm Stripe checkout session:', error);
           setCheckoutError('Payment is processing. Please wait a few seconds and open Dashboard again.');
@@ -1476,12 +1482,9 @@ function StratifyAppContent() {
           await refetchSubscription();
         }
       } catch (error) {
+        if (error?.name === 'AbortError') return;
         if (!cancelled) {
-          if (error?.name === 'AbortError') {
-            setCheckoutError('Subscription check timed out. Please refresh and try again.');
-          } else {
-            setCheckoutError('Unable to verify subscription right now. Please refresh in a few seconds.');
-          }
+          setCheckoutError('Unable to verify subscription right now. Please refresh in a few seconds.');
         }
       } finally {
         window.clearTimeout(timeoutId);
