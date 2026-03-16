@@ -83,6 +83,7 @@ function SentinelPageInner() {
   const [notifications, setNotifications] = useState([]);
   const [expandedSession, setExpandedSession] = useState(null);
   const [statusFilter, setStatusFilter] = useState('All');
+  const [todayOnly, setTodayOnly] = useState(false);
   const [tickerFilter, setTickerFilter] = useState(null);
   const [sortLargest, setSortLargest] = useState(false);
   const [brainModalSession, setBrainModalSession] = useState(null);
@@ -672,7 +673,9 @@ function SentinelPageInner() {
 
               {/* FILTERED TRADES — shared across stat cards, rows, and footer */}
               {(() => {
+                const todayDate = new Date().toISOString().split('T')[0];
                 let filteredTrades = [...recentClosedTrades];
+                if (todayOnly) filteredTrades = filteredTrades.filter(t => (t.session_date || (t.closed_at ? t.closed_at.slice(0, 10) : '')) === todayDate);
                 if (statusFilter === 'Wins') filteredTrades = filteredTrades.filter(t => t.win);
                 else if (statusFilter === 'Losses') filteredTrades = filteredTrades.filter(t => !t.win);
                 if (tickerFilter) filteredTrades = filteredTrades.filter(t => t.symbol?.includes(tickerFilter));
@@ -703,8 +706,28 @@ function SentinelPageInner() {
 
               {/* FILTER PILLS */}
               <div className="flex flex-wrap items-center gap-2 mt-4">
-                {/* Group 1 — Status */}
-                {['All', 'Wins', 'Losses'].map((pill) => (
+                {/* Group 1 — Date + Status */}
+                <button
+                  onClick={() => { setTodayOnly(true); setStatusFilter('All'); }}
+                  className={`rounded-full px-3.5 py-1.5 text-xs transition-all duration-200 ${
+                    todayOnly && statusFilter === 'All'
+                      ? 'bg-white text-[#0a0a0f] font-medium'
+                      : 'border border-white/10 text-white/50 hover:text-white/70 hover:border-white/20'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => { setTodayOnly(false); setStatusFilter('All'); }}
+                  className={`rounded-full px-3.5 py-1.5 text-xs transition-all duration-200 ${
+                    !todayOnly && statusFilter === 'All'
+                      ? 'bg-white text-[#0a0a0f] font-medium'
+                      : 'border border-white/10 text-white/50 hover:text-white/70 hover:border-white/20'
+                  }`}
+                >
+                  All
+                </button>
+                {['Wins', 'Losses'].map((pill) => (
                   <button
                     key={pill}
                     onClick={() => setStatusFilter(prev => prev === pill ? 'All' : pill)}
