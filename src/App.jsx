@@ -1,4 +1,19 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
+
+class DebugErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null, info: null }; }
+  componentDidCatch(error, info) { this.setState({ error, info }); console.error('ERROR BOUNDARY CAUGHT:', error, info); }
+  render() {
+    if (this.state.error) return (
+      <div style={{ background: '#0a0a0f', color: '#ef4444', padding: 40, fontFamily: 'monospace', whiteSpace: 'pre-wrap', minHeight: '100vh' }}>
+        <h1 style={{ fontSize: 24, marginBottom: 16 }}>CAUGHT ERROR</h1>
+        <p style={{ marginBottom: 16 }}>{this.state.error.toString()}</p>
+        <p style={{ color: '#888', fontSize: 12 }}>{this.state.info?.componentStack}</p>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 import Editor from '@monaco-editor/react';
 import Lenis from 'lenis';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -1600,22 +1615,24 @@ function StratifyAppContent() {
         </div>
       </div>
     ) : (
-      <Dashboard
-        initialTab={currentPage === 'radar' ? 'radar' : currentPage === 'sports' ? 'sports' : undefined}
-        setCurrentPage={navigateToPage}
-        openProModal={() => setShowProModal(true)}
-        isSocialFeedOpen={isSocialFeedOpen}
-        onToggleSocialFeed={() => setIsSocialFeedOpen((prev) => !prev)}
-        socialFeedUnread={hasSocialFeedUnread}
-        isLiveScoresOpen={isLiveScoresOpen}
-        onToggleLiveScores={() => setIsLiveScoresOpen((prev) => !prev)}
-        liveScoresUnread={hasLiveScoresUnread}
-        alpacaData={{
-          positions: derivedPositions,
-          account,
-        }}
-        refreshAlpacaData={alpaca.refresh}
-      />
+      <DebugErrorBoundary>
+        <Dashboard
+          initialTab={currentPage === 'radar' ? 'radar' : currentPage === 'sports' ? 'sports' : undefined}
+          setCurrentPage={navigateToPage}
+          openProModal={() => setShowProModal(true)}
+          isSocialFeedOpen={isSocialFeedOpen}
+          onToggleSocialFeed={() => setIsSocialFeedOpen((prev) => !prev)}
+          socialFeedUnread={hasSocialFeedUnread}
+          isLiveScoresOpen={isLiveScoresOpen}
+          onToggleLiveScores={() => setIsLiveScoresOpen((prev) => !prev)}
+          liveScoresUnread={hasLiveScoresUnread}
+          alpacaData={{
+            positions: derivedPositions,
+            account,
+          }}
+          refreshAlpacaData={alpaca.refresh}
+        />
+      </DebugErrorBoundary>
     );
 
   useEffect(() => {
