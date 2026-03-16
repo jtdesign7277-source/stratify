@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "🔨 Running build check before push..."
+npx vite build --logLevel error
+if [ $? -ne 0 ]; then
+  echo "❌ BUILD FAILED — push blocked. Fix build errors before pushing."
+  exit 1
+fi
+echo "✅ Build passed. Pushing..."
