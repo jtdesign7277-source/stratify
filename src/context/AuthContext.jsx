@@ -64,8 +64,14 @@ export const AuthProvider = ({ children }) => {
 
     loadSession();
 
+    // Safety net: never let loading stay true for more than 5 seconds
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 5000);
+
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimeout);
       data?.subscription?.unsubscribe();
     };
   }, []);

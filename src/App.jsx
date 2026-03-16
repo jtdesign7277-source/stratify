@@ -1490,11 +1490,11 @@ function StratifyAppContent() {
     }
   }, [isProUser, user?.id]);
 
-  // While auth is loading on a protected route, show a blank screen instead of flashing the landing page.
-  // Public pages (landing, auth, whitepaper, tokens, reset-password, sports) render immediately.
+  // While auth is loading on a protected route, show a dark screen instead of flashing the landing page.
+  // Public pages render immediately — NEVER gate them behind auth loading.
   const isPublicPage = ['landing', 'auth', 'whitepaper', 'tokens', 'reset-password', 'sports'].includes(currentPage);
   if (loading && !isPublicPage) {
-    return <div className="min-h-screen bg-[#0a0a0f]" />;
+    return <div style={{ minHeight: '100vh', background: '#0a0a0f' }} />;
   }
 
   const mainContent =
