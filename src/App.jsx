@@ -1506,6 +1506,26 @@ function StratifyAppContent() {
     }
   }, [isProUser, user?.id]);
 
+  // popstate handler must be declared BEFORE any early returns — React hook ordering rules.
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase();
+
+      if (path === '/whitepaper') { setCurrentPage('whitepaper'); return; }
+      if (path === '/auth') { setCurrentPage('auth'); return; }
+      if (path === '/tokens') { setCurrentPage('tokens'); return; }
+      if (path === '/dashboard' || path === '/dashboard/') { setCurrentPage('dashboard'); return; }
+      if (path === '/radar' || path === '/radar/') { setCurrentPage('radar'); return; }
+      if (path === '/sports' || path === '/sports/') { setCurrentPage('sports'); return; }
+      if (path === '/reset-password' || path === '/reset-password/') { setCurrentPage('reset-password'); return; }
+      if (isLegacyXrayPath(window.location.pathname)) { setCurrentPage('dashboard'); return; }
+      setCurrentPage('landing');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAuthenticated]);
+
   // While auth is loading on a protected route, show a dark screen instead of flashing the landing page.
   // Public pages render immediately — NEVER gate them behind auth loading.
   const isPublicPage = ['landing', 'auth', 'whitepaper', 'tokens', 'reset-password', 'sports'].includes(currentPage);
@@ -1635,57 +1655,6 @@ function StratifyAppContent() {
         />
       </DebugErrorBoundary>
     );
-
-  useEffect(() => {
-    const handlePopState = () => {
-      const path = window.location.pathname.toLowerCase();
-
-      if (path === '/whitepaper') {
-        setCurrentPage('whitepaper');
-        return;
-      }
-
-      if (path === '/auth') {
-        setCurrentPage('auth');
-        return;
-      }
-
-      if (path === '/tokens') {
-        setCurrentPage('tokens');
-        return;
-      }
-
-      if (path === '/dashboard' || path === '/dashboard/') {
-        setCurrentPage('dashboard');
-        return;
-      }
-
-      if (path === '/radar' || path === '/radar/') {
-        setCurrentPage('radar');
-        return;
-      }
-
-      if (path === '/sports' || path === '/sports/') {
-        setCurrentPage('sports');
-        return;
-      }
-
-      if (path === '/reset-password' || path === '/reset-password/') {
-        setCurrentPage('reset-password');
-        return;
-      }
-
-      if (isLegacyXrayPath(window.location.pathname)) {
-        setCurrentPage('dashboard');
-        return;
-      }
-
-      setCurrentPage('landing');
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAuthenticated]);
 
   // Auth redirect is handled by the render conditions:
   // !isAuthenticated && !loading → LandingPage (with sign-in options).
