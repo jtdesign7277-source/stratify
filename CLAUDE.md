@@ -166,6 +166,10 @@ All new pages must match the existing dark theme — do not introduce light back
 ### 4. Always Push to `main`
 - Vercel auto-deploys from `main`. All work goes to `main` — there are no staging branches.
 
+### 5. MANDATORY BUILD CHECK
+- Before every `git push`, run `npm run build` (or `npx vite build`). If the build fails, **DO NOT push**. Fix all build errors first.
+- A failed build = black screen for all users in production. No exceptions. Never push without a passing build.
+
 ---
 
 ## Sophia AI — Prompt Caching (Cost Critical)
@@ -274,6 +278,7 @@ Added connect locks: `stockConnectPromise` and `cryptoConnectPromise` — guaran
 - Do not remove or bypass `paperTotalGainLoss` flow (Dashboard → TradePage → TraderPage; Dashboard → CryptoPage).
 - Do not make Trader and Crypto order entry layouts or wording diverge.
 - Do not add a “LATEST” label or left-side badge/gradient on the ticker strip.
+- Public routes (landing, auth, whitepaper, tokens, reset-password, sports) must NEVER be gated behind auth loading state. Only protected routes (dashboard, sentinel, etc.) should wait for auth. Breaking this rule causes a permanent black screen.
 
 ---
 
