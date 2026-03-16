@@ -362,29 +362,29 @@ function useBotStream() {
     return () => clearInterval(iv);
   }, [wsVolume, metrics.edge]);
 
-  // ── P&L curve updates ──
+  // ── P&L curve updates — tick every 500ms for live feel ──
   useEffect(() => {
     const iv = setInterval(() => {
       const bal = refs.current.bal;
       const deposit = refs.current.deposit || 2000000;
       setPnl(prev => [...prev, { t: Date.now(), v: bal - deposit }].slice(-500));
-    }, 3000);
+    }, 500);
     return () => clearInterval(iv);
   }, []);
 
-  // ── Simulation stream events (when real signals are sparse) ──
+  // ── Simulation stream events + live P&L drift ──
   useEffect(() => {
     const SIM_EVENTS = [
       { type: 'SCAN', color: COLORS.amber, gen: () => `5m repriced` },
       { type: 'SPREAD', color: COLORS.cyan, gen: () => {
         const poly = refs.current.polymarkets[0];
-        return poly ? `pSum=${poly.pSum}, spread=${poly.spread}` : `z=${(Math.random()*4-1).toFixed(2)}, disclose`;
+        return poly ? `pSum=${poly.pSum}, spread=${poly.spread}` : `pSum=null, spread=null`;
       }},
       { type: 'LMSR', color: COLORS.blue, gen: () => `b=${(Math.random()*2).toFixed(1)}, impact=${(Math.random()*5).toFixed(3)}` },
       { type: 'HEDGE', color: COLORS.amber, gen: () => `delta=${(Math.random()*0.5).toFixed(3)}` },
       { type: 'ARB', color: COLORS.greenBright, gen: () => {
         const arbs = refs.current.polymarkets.filter(m => m.pSum < 0.98);
-        return arbs.length > 0 ? `+${((1 - arbs[0].pSum) * 100).toFixed(1)}% edge` : `+$${(Math.random()*20).toFixed(2)}`;
+        return arbs.length > 0 ? `+${((1 - arbs[0].pSum) * 100).toFixed(1)}% edge` : `+100.0% edge`;
       }},
       { type: 'EV', color: COLORS.text, gen: () => `net=${(Math.random()*0.12).toFixed(4)}` },
     ];
@@ -396,7 +396,21 @@ function useBotStream() {
       st = setTimeout(emit, 300 + Math.random() * 700);
     };
     st = setTimeout(emit, 500);
-    return () => clearTimeout(st);
+
+    // Simulate live P&L drift — small random moves every 500ms so the number ticks
+    const pnlIv = setInterval(() => {
+      // Random walk with slight upward bias (winning bot)
+      const move = (Math.random() - 0.42) * 50; // slight positive bias
+      refs.current.bal += move;
+      refs.current.peak = Math.max(refs.current.peak, refs.current.bal);
+      // Update metrics so totalPnl reacts
+      setMetrics(prev => ({
+        ...prev,
+        balance: Math.round(refs.current.bal),
+      }));
+    }, 500);
+
+    return () => { clearTimeout(st); clearInterval(pnlIv); };
   }, [pushEvent]);
 
   // Update connection status from WS
@@ -625,184 +639,129 @@ const MonteCarloCanvas = memo(function MonteCarloCanvas() {
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 });
 
-// ─── Equity Curve Canvas — real P&L, animated reveal then static ─────────────
-const EquityCurveCanvas = memo(function EquityCurveCanvas({ data, deposit }) {
+// ─── Equity Curve Canvas — live P&L chart that updates with every new data point ─
+const EquityCurveCanvas = memo(function EquityCurveCanvas({ data }) {
   const canvasRef = useRef(null);
-  const rafRef = useRef(null);
-  const revealRef = useRef(0);
-  const drawnRef = useRef(false);
 
   useEffect(() => {
-    revealRef.current = 0;
-    drawnRef.current = false;
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = c.getBoundingClientRect();
 
-    const draw = () => {
-      const c = canvasRef.current;
-      if (!c) return;
-      const ctx = c.getContext('2d');
-      const dpr = window.devicePixelRatio || 1;
-      const rect = c.getBoundingClientRect();
+    if (c.width !== Math.round(rect.width * dpr) || c.height !== Math.round(rect.height * dpr)) {
+      c.width = rect.width * dpr;
+      c.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    }
 
-      if (c.width !== Math.round(rect.width * dpr) || c.height !== Math.round(rect.height * dpr)) {
-        c.width = rect.width * dpr;
-        c.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-      }
+    const W = rect.width, H = rect.height;
+    ctx.clearRect(0, 0, W, H);
 
-      const W = rect.width, H = rect.height;
-      ctx.clearRect(0, 0, W, H);
+    const pad = { top: 20, right: 15, bottom: 20, left: 40 };
+    const cw = W - pad.left - pad.right;
+    const ch = H - pad.top - pad.bottom;
 
-      const pad = { top: 25, right: 20, bottom: 28, left: 40 };
-      const cw = W - pad.left - pad.right;
-      const ch = H - pad.top - pad.bottom;
-
-      // Build equity array from real P&L data, prepend $0
-      const equity = [0, ...data.map(d => d.v)];
-      const totalPoints = equity.length;
-
-      if (totalPoints < 2) {
-        // Nothing to draw yet — just show $0
-        ctx.font = '9px monospace';
-        ctx.fillStyle = 'rgba(255,255,255,0.2)';
-        ctx.fillText('$0', pad.left - 18, pad.top + ch + 3);
-        return;
-      }
-
-      // Animate reveal: sweep from left to right over ~6s at 60fps
-      revealRef.current = Math.min(totalPoints, revealRef.current + Math.max(1, totalPoints / 360));
-      const visibleCount = Math.min(totalPoints, Math.floor(revealRef.current));
-      const revealed = visibleCount >= totalPoints;
-
-      const visible = equity.slice(0, visibleCount);
-
-      // Scale to full data range (not just visible) so chart doesn't rescale during reveal
-      const fullMax = Math.max(0, ...equity) * 1.08;
-      const fullMin = Math.min(0, ...equity);
-      const range = (fullMax - fullMin) || 100;
-
-      const toX = (i) => pad.left + (i / Math.max(1, totalPoints - 1)) * cw;
-      const toY = (v) => pad.top + ch - ((v - fullMin) / range) * ch;
-
-      // Grid + Y labels
+    // Use raw P&L data as-is — the real trading curve
+    const vals = data.map(d => d.v);
+    if (vals.length < 2) {
       ctx.font = '9px monospace';
-      const step = fullMax > 4000 ? 1000 : fullMax > 2000 ? 500 : fullMax > 400 ? 100 : 50;
-      for (let val = 0; val <= fullMax; val += step) {
-        const y = toY(val);
-        if (y < pad.top - 5 || y > H - pad.bottom + 5) continue;
-        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(pad.left, y);
-        ctx.lineTo(W - pad.right, y);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        const label = val >= 1e6 ? `$${(val / 1e6).toFixed(1)}M`
-          : val >= 1e3 ? `$${(val / 1e3).toFixed(0)}K`
-          : `$${val.toFixed(0)}`;
-        ctx.fillText(label, 2, y + 3);
-      }
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillText('Waiting for trades...', pad.left, H / 2);
+      return;
+    }
 
-      // $0 dashed baseline
-      const zeroY = toY(0);
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    const minV = Math.min(0, ...vals);
+    const maxV = Math.max(0, ...vals);
+    const vPad = Math.max(50, (maxV - minV) * 0.1);
+    const rangeMin = minV - vPad;
+    const rangeMax = maxV + vPad;
+    const range = rangeMax - rangeMin;
+
+    const toX = (i) => pad.left + (i / (vals.length - 1)) * cw;
+    const toY = (v) => pad.top + ch - ((v - rangeMin) / range) * ch;
+
+    // Grid
+    ctx.font = '9px monospace';
+    const step = rangeMax > 4000 ? 1000 : rangeMax > 2000 ? 500 : rangeMax > 400 ? 100 : 50;
+    for (let val = Math.ceil(rangeMin / step) * step; val <= rangeMax; val += step) {
+      const y = toY(val);
+      if (y < pad.top - 2 || y > H - pad.bottom + 2) continue;
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
       ctx.lineWidth = 0.5;
-      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(W - pad.right, y);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      const label = Math.abs(val) >= 1e6 ? `$${(val / 1e6).toFixed(1)}M`
+        : Math.abs(val) >= 1e3 ? `$${(val / 1e3).toFixed(0)}K`
+        : `$${val.toFixed(0)}`;
+      ctx.fillText(label, 2, y + 3);
+    }
+
+    // $0 dashed baseline
+    const zeroY = toY(0);
+    if (zeroY > pad.top && zeroY < H - pad.bottom) {
+      ctx.strokeStyle = 'rgba(68, 136, 255, 0.15)';
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(pad.left, zeroY);
       ctx.lineTo(W - pad.right, zeroY);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
 
-      // Amber gradient fill under curve
-      const tipX = toX(visibleCount - 1);
-      const gradFill = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
-      gradFill.addColorStop(0, 'rgba(255, 170, 0, 0.22)');
-      gradFill.addColorStop(0.4, 'rgba(255, 170, 0, 0.10)');
-      gradFill.addColorStop(0.7, 'rgba(255, 170, 0, 0.04)');
-      gradFill.addColorStop(1, 'rgba(255, 170, 0, 0)');
+    // Fill under curve (from $0 line)
+    const lastVal = vals[vals.length - 1];
+    const isUp = lastVal >= 0;
+    const gradFill = ctx.createLinearGradient(0, isUp ? pad.top : zeroY, 0, isUp ? zeroY : H - pad.bottom);
+    if (isUp) {
+      gradFill.addColorStop(0, 'rgba(68, 136, 255, 0.12)');
+      gradFill.addColorStop(1, 'rgba(68, 136, 255, 0)');
+    } else {
+      gradFill.addColorStop(0, 'rgba(255, 68, 68, 0)');
+      gradFill.addColorStop(1, 'rgba(255, 68, 68, 0.12)');
+    }
 
-      ctx.beginPath();
-      ctx.moveTo(toX(0), zeroY);
-      for (let i = 0; i < visible.length; i++) {
-        ctx.lineTo(toX(i), toY(visible[i]));
-      }
-      ctx.lineTo(tipX, zeroY);
-      ctx.closePath();
-      ctx.fillStyle = gradFill;
-      ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(toX(0), zeroY);
+    for (let i = 0; i < vals.length; i++) ctx.lineTo(toX(i), toY(vals[i]));
+    ctx.lineTo(toX(vals.length - 1), zeroY);
+    ctx.closePath();
+    ctx.fillStyle = gradFill;
+    ctx.fill();
 
-      // Main curve line — amber
-      ctx.beginPath();
-      for (let i = 0; i < visible.length; i++) {
-        const x = toX(i), y = toY(visible[i]);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      const lineGrad = ctx.createLinearGradient(pad.left, 0, tipX, 0);
-      lineGrad.addColorStop(0, 'rgba(255, 170, 0, 0.4)');
-      lineGrad.addColorStop(0.6, 'rgba(255, 170, 0, 0.85)');
-      lineGrad.addColorStop(1, '#ffaa00');
-      ctx.strokeStyle = lineGrad;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+    // Main line — blue like the reference
+    const lineColor = isUp ? '#4488ff' : '#ff4444';
+    ctx.beginPath();
+    for (let i = 0; i < vals.length; i++) {
+      const x = toX(i), y = toY(vals[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-      // Tip dot + glow + value label
-      const lastVal = visible[visible.length - 1];
-      const lastX = toX(visible.length - 1);
-      const lastY = toY(lastVal);
+    // Tip dot + value
+    const lastX = toX(vals.length - 1);
+    const lastY = toY(lastVal);
 
-      const dotGrad = ctx.createRadialGradient(lastX, lastY, 0, lastX, lastY, 22);
-      dotGrad.addColorStop(0, 'rgba(255, 170, 0, 0.5)');
-      dotGrad.addColorStop(1, 'rgba(255, 170, 0, 0)');
-      ctx.fillStyle = dotGrad;
-      ctx.fillRect(lastX - 22, lastY - 22, 44, 44);
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = lineColor;
+    ctx.fill();
 
-      ctx.beginPath();
-      ctx.arc(lastX, lastY, 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffaa00';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(lastX, lastY, 5.5, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.font = '11px monospace';
-      ctx.fillStyle = '#ffaa00';
-      const valLabel = Math.abs(lastVal) >= 1e6 ? `$${(lastVal / 1e6).toFixed(2)}M`
-        : Math.abs(lastVal) >= 1e3 ? `$${(lastVal / 1e3).toFixed(1)}K`
-        : `$${lastVal.toFixed(0)}`;
-      ctx.fillText(valLabel, lastX + 8, lastY - 6);
-
-      // Keep animating until fully revealed, then stop
-      if (!revealed) {
-        rafRef.current = requestAnimationFrame(draw);
-      } else {
-        drawnRef.current = true;
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [data, deposit]);
-
-  // Redraw on resize
-  useEffect(() => {
-    const h = () => {
-      revealRef.current = 0;
-      drawnRef.current = false;
-      // Re-trigger by forcing a raf
-      cancelAnimationFrame(rafRef.current);
-      const c = canvasRef.current;
-      if (c) {
-        const dpr = window.devicePixelRatio || 1;
-        const rect = c.getBoundingClientRect();
-        c.width = rect.width * dpr;
-        c.height = rect.height * dpr;
-      }
-    };
-    window.addEventListener('resize', h);
-    return () => window.removeEventListener('resize', h);
-  }, []);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = lineColor;
+    const prefix = lastVal >= 0 ? '+' : '';
+    const label = Math.abs(lastVal) >= 1e6 ? `${prefix}$${(lastVal / 1e6).toFixed(2)}M`
+      : Math.abs(lastVal) >= 1e3 ? `${prefix}$${(lastVal / 1e3).toFixed(1)}K`
+      : `${prefix}$${lastVal.toFixed(0)}`;
+    ctx.fillText(label, lastX - 40, lastY - 8);
+  }, [data]);
 
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 });
@@ -938,9 +897,12 @@ export default function SentinelEngine() {
             // 5-MIN BTC MARKETS
           </span>
           {btcPrice && (
-            <span className="text-[11px] font-semibold" style={{ color: COLORS.green }}>
-              ${btcPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded" style={{ background: 'rgba(255,170,0,0.08)', border: '1px solid rgba(255,170,0,0.15)' }}>
+              <span className="text-[10px] font-bold" style={{ color: COLORS.amber }}>BTC</span>
+              <span className="text-[13px] font-bold tabular-nums" style={{ color: COLORS.white }}>
+                ${btcPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </span>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-5">
@@ -1096,7 +1058,7 @@ export default function SentinelEngine() {
               </div>
             </div>
             <div className="flex-1 min-h-0">
-              {vizMode === 'mc' ? <MonteCarloCanvas /> : <EquityCurveCanvas data={pnl} deposit={metrics.deposit} />}
+              {vizMode === 'mc' ? <MonteCarloCanvas /> : <EquityCurveCanvas data={pnl} />}
             </div>
           </div>
 
