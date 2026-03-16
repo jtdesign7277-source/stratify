@@ -683,7 +683,11 @@ function SentinelPageInner() {
                 if (statusFilter === 'Wins') filteredTrades = filteredTrades.filter(t => t.win);
                 else if (statusFilter === 'Losses') filteredTrades = filteredTrades.filter(t => !t.win);
                 if (tickerFilter) filteredTrades = filteredTrades.filter(t => t.symbol?.includes(tickerFilter));
-                const sortedTrades = sortLargest ? [...filteredTrades].sort((a, b) => Math.abs(b.pnl || 0) - Math.abs(a.pnl || 0)) : filteredTrades;
+                // Default: newest first (descending by opened_at). "Largest First" overrides with P&L sort.
+                const sortedTrades = [...filteredTrades].sort((a, b) => {
+                  if (sortLargest) return Math.abs(b.pnl || 0) - Math.abs(a.pnl || 0);
+                  return new Date(b.opened_at || b.closed_at || 0).getTime() - new Date(a.opened_at || a.closed_at || 0).getTime();
+                });
 
                 const totalTrades = filteredTrades.length;
                 const totalWins = filteredTrades.filter(t => t.win).length;
