@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
         const { data, error } = result;
 
         if (error) {
-          throw error;
+          throw new Error(error?.message || 'Session check failed');
         }
 
         if (!isMounted) return;
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }) => {
         const { data: profile, error } = result;
 
         if (error && error.code !== 'PGRST116') {
-          throw error;
+          throw new Error(error?.message || 'Profile check failed');
         }
 
         if (profile?.initialized !== true) {

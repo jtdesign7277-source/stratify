@@ -105,7 +105,7 @@ export default function useClickHistory() {
       .limit(MAX_HISTORY_ITEMS);
 
     if (error) {
-      throw error;
+      throw new Error(error?.message || "Failed to load click history");
     }
 
     setHistoryAndCache(Array.isArray(data) ? data : []);
