@@ -83,6 +83,7 @@ function SentinelPageInner() {
   const [userSettings, setUserSettings] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [expandedSession, setExpandedSession] = useState(null);
+  const [sessionFilter, setSessionFilter] = useState('All');
   const [brainModalSession, setBrainModalSession] = useState(null);
   const [brainExpanded, setBrainExpanded] = useState(false);
   const [skillsExpanded, setSkillsExpanded] = useState(false);
@@ -646,90 +647,122 @@ function SentinelPageInner() {
               className={`${GLASS} p-5 transition-all duration-300`}
             >
               <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SESSION HISTORY</span>
-              <div className="mt-3 space-y-1">
-                {recentSessions.length === 0 && (
-                  <p className="text-xs text-gray-600 font-mono py-2">No sessions yet</p>
-                )}
-                {recentSessions.map((session) => {
-                  const sessionTrades = tradesBySession[session.session_date] || [];
-                  // Derive stats from actual trade data (more reliable than session row)
-                  const derivedWins = sessionTrades.filter(t => t.win).length;
-                  const derivedLosses = sessionTrades.filter(t => !t.win).length;
-                  const derivedPnl = sessionTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-                  const tradeCount = sessionTrades.length || (session.trades_closed || 0);
-                  const displayWins = derivedWins || (session.wins || 0);
-                  const displayLosses = derivedLosses || (session.losses || 0);
-                  const displayPnl = sessionTrades.length > 0 ? derivedPnl : (session.gross_pnl || 0);
-                  const isExpanded = expandedSession === session.id;
-                  return (
-                    <motion.div key={session.id}>
-                      <motion.div
-                        whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                        onClick={() => setExpandedSession(isExpanded ? null : session.id)}
-                        className="flex items-center justify-between py-2 px-3 rounded-xl cursor-pointer text-xs font-mono transition-all duration-300"
-                      >
-                        <span className="text-gray-400 w-24">{session.session_date}</span>
-                        <span className="text-white">{tradeCount} trades</span>
-                        <span className="text-emerald-400">{displayWins}W</span>
-                        <span className="text-red-400">{displayLosses}L</span>
-                        <span className={`w-24 text-right ${displayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {displayPnl >= 0 ? '+' : ''}${displayPnl.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </span>
-                        <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                      </motion.div>
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-3 pb-3 pt-1 space-y-1.5">
-                              {sessionTrades.length === 0 && (
-                                <p className="text-[10px] text-gray-600 font-mono py-1">No closed trades this session</p>
-                              )}
-                              {sessionTrades.map((trade) => (
-                                <div key={trade.id} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white/[0.02] text-[11px] font-mono">
-                                  <div className="flex items-center gap-2">
-                                    <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
-                                      {trade.direction === 'LONG' ? '↑' : '↓'}
-                                    </span>
-                                    <span className="text-white font-semibold">{trade.symbol}</span>
-                                  </div>
-                                  <div className="flex items-center gap-3 text-gray-500">
-                                    <span title="Opened">
-                                      {trade.opened_at ? new Date(trade.opened_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-                                    </span>
-                                    <span className="text-gray-600">→</span>
-                                    <span title="Closed">
-                                      {trade.closed_at ? new Date(trade.closed_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-white text-xs">${trade.entry} → ${trade.exit_price}</span>
-                                    <span className={`font-semibold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                      {trade.pnl >= 0 ? '+' : ''}${(trade.pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  );
-                })}
-                {recentClosedTrades.length > 0 && (
-                  <div className="flex items-center justify-between pt-3 mt-2 border-t border-white/[0.06] px-3 text-xs font-mono">
-                    <span className="text-gray-400">Total P&L</span>
-                    <span className={`font-semibold ${recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? '+' : ''}${recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+
+              {/* STAT CARDS */}
+              {(() => {
+                const allTrades = recentClosedTrades;
+                const totalTrades = allTrades.length;
+                const totalWins = allTrades.filter(t => t.win).length;
+                const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
+                const winTrades = allTrades.filter(t => t.win && t.pnl > 0);
+                const avgWin = winTrades.length > 0 ? winTrades.reduce((s, t) => s + (t.pnl || 0), 0) / winTrades.length : 0;
+                const netPnl = allTrades.reduce((s, t) => s + (t.pnl || 0), 0);
+                return (
+                  <div className="grid grid-cols-4 gap-3 mt-4">
+                    {[
+                      { label: 'Trades', value: totalTrades, fmt: (v) => v.toString(), color: 'text-white' },
+                      { label: 'Win Rate', value: winRate, fmt: (v) => `${v.toFixed(1)}%`, color: winRate >= 50 ? 'text-emerald-400' : 'text-red-400' },
+                      { label: 'Avg Win', value: avgWin, fmt: (v) => `$${v.toFixed(2)}`, color: 'text-emerald-400' },
+                      { label: 'Net P&L', value: netPnl, fmt: (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                    ].map((stat) => (
+                      <div key={stat.label} className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] p-3">
+                        <div className="text-[11px] uppercase tracking-[0.4px] text-white/30">{stat.label}</div>
+                        <div className={`text-lg font-mono font-bold mt-1 ${stat.color}`}>{stat.fmt(stat.value)}</div>
+                      </div>
+                    ))}
                   </div>
-                )}
+                );
+              })()}
+
+              {/* FILTER PILLS */}
+              <div className="flex flex-wrap gap-2 mt-4">
+                {['All', 'Wins', 'Losses', 'BTC', 'ETH', 'SOL', 'Largest First'].map((pill) => (
+                  <button
+                    key={pill}
+                    onClick={() => setSessionFilter(prev => prev === pill ? 'All' : pill)}
+                    className={`rounded-full px-3.5 py-1.5 text-xs transition-all duration-200 ${
+                      sessionFilter === pill
+                        ? 'bg-white text-[#0a0a0f] font-medium'
+                        : 'border border-white/10 text-white/50 hover:text-white/70 hover:border-white/20'
+                    }`}
+                  >
+                    {pill}
+                  </button>
+                ))}
               </div>
+
+              {/* GRID HEADER */}
+              <div className="grid mt-4 mb-1 px-1 text-[11px] uppercase tracking-[0.4px] text-white/30" style={{ gridTemplateColumns: '28px 90px 1fr 110px 110px 100px' }}>
+                <span></span>
+                <span>Pair</span>
+                <span>Time</span>
+                <span>Entry</span>
+                <span>Exit</span>
+                <span className="text-right">P&L</span>
+              </div>
+
+              {/* TRADE ROWS */}
+              <div className="mt-1">
+                {recentClosedTrades.length === 0 && (
+                  <p className="text-xs text-gray-600 font-mono py-2">No trades yet</p>
+                )}
+                {(() => {
+                  let filtered = [...recentClosedTrades];
+                  if (sessionFilter === 'Wins') filtered = filtered.filter(t => t.win);
+                  else if (sessionFilter === 'Losses') filtered = filtered.filter(t => !t.win);
+                  else if (sessionFilter === 'BTC') filtered = filtered.filter(t => t.symbol?.includes('BTC'));
+                  else if (sessionFilter === 'ETH') filtered = filtered.filter(t => t.symbol?.includes('ETH'));
+                  else if (sessionFilter === 'SOL') filtered = filtered.filter(t => t.symbol?.includes('SOL'));
+                  if (sessionFilter === 'Largest First') filtered.sort((a, b) => Math.abs(b.pnl || 0) - Math.abs(a.pnl || 0));
+                  return filtered.map((trade) => {
+                    const isWin = trade.win || (trade.pnl || 0) >= 0;
+                    const openTime = trade.opened_at ? new Date(trade.opened_at) : null;
+                    const closeTime = trade.closed_at ? new Date(trade.closed_at) : null;
+                    const timeFmt = (d) => d ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
+                    const durationMins = openTime && closeTime ? Math.round((closeTime - openTime) / 60000) : null;
+                    const durationStr = durationMins != null ? (durationMins >= 60 ? `${Math.floor(durationMins / 60)}h${durationMins % 60}m` : `${durationMins}m`) : '';
+                    return (
+                      <div
+                        key={trade.id}
+                        className="grid items-center py-2.5 px-1 border-b border-white/[0.06] transition-colors duration-200 hover:bg-white/[0.03] text-xs font-mono"
+                        style={{ gridTemplateColumns: '28px 90px 1fr 110px 110px 100px' }}
+                      >
+                        {/* Win/loss indicator bar */}
+                        <div className="flex justify-center">
+                          <div
+                            className="w-[3px] h-6 rounded-full"
+                            style={{ backgroundColor: isWin ? 'rgba(52,211,153,0.7)' : 'rgba(248,113,113,0.5)' }}
+                          />
+                        </div>
+                        {/* Pair */}
+                        <span className="text-white font-medium">{trade.symbol}</span>
+                        {/* Time range + duration */}
+                        <span className="text-white/30 text-[12px]">
+                          {timeFmt(openTime)} → {timeFmt(closeTime)}{durationStr && <span className="ml-1.5 text-white/20">{durationStr}</span>}
+                        </span>
+                        {/* Entry price */}
+                        <span className="text-white/50 text-[12px]">${trade.entry != null ? Number(trade.entry).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</span>
+                        {/* Exit price */}
+                        <span className="text-white/50 text-[12px]">${trade.exit_price != null ? Number(trade.exit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</span>
+                        {/* P&L */}
+                        <span className={`text-right font-medium ${isWin ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* TOTAL P&L FOOTER */}
+              {recentClosedTrades.length > 0 && (
+                <div className="flex items-center justify-between pt-3 mt-2 border-t border-white/[0.06] px-1 text-xs font-mono">
+                  <span className="text-white/30">Total P&L</span>
+                  <span className={`font-medium ${recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? '+' : ''}${recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
             </motion.div>
           </div>
 
