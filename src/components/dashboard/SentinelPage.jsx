@@ -257,33 +257,43 @@ function SentinelPageInner() {
 
   const fetchUserSettings = useCallback(async () => {
     if (!user?.id) return;
-    const { data: settings } = await supabase
-      .from('sentinel_user_settings')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (settings) {
-      setUserSettings(settings);
-      setAllocatedCapital(settings.allocated_capital || 5000);
-      setRiskPreset(settings.risk_preset || 'Moderate');
-      setRiskPerTrade(settings.risk_per_trade_pct || 2);
-      setMaxDailyDD(settings.max_daily_dd_pct || 5);
-      setStopATR(settings.stop_loss_atr_mult || 1.5);
-      setTakeProfitRR(settings.take_profit_rr || 2);
-      setMaxPositions(settings.max_positions || 3);
-      setDisclaimerAccepted(settings.legal_disclaimer_accepted || false);
+    try {
+      const { data: settings } = await supabase
+        .from('sentinel_user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (settings) {
+        setUserSettings(settings);
+        setAllocatedCapital(settings.allocated_capital || 5000);
+        setRiskPreset(settings.risk_preset || 'Moderate');
+        setRiskPerTrade(settings.risk_per_trade_pct || 2);
+        setMaxDailyDD(settings.max_daily_dd_pct || 5);
+        setStopATR(settings.stop_loss_atr_mult || 1.5);
+        setTakeProfitRR(settings.take_profit_rr || 2);
+        setMaxPositions(settings.max_positions || 3);
+        setDisclaimerAccepted(settings.legal_disclaimer_accepted || false);
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      console.warn('[SentinelPage] fetchUserSettings error:', err?.message || err);
     }
   }, [user?.id]);
 
   const fetchNotifications = useCallback(async () => {
     if (!user?.id) return;
-    const { data: notifs } = await supabase
-      .from('sentinel_notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    setNotifications(notifs || []);
+    try {
+      const { data: notifs } = await supabase
+        .from('sentinel_notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      setNotifications(notifs || []);
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      console.warn('[SentinelPage] fetchNotifications error:', err?.message || err);
+    }
   }, [user?.id]);
 
   useEffect(() => {

@@ -47,6 +47,9 @@ export default function TradePage({
           setIsSubscribed(data.subscription_status === 'active' || data.subscription_status === 'trialing');
           setDisclaimerAccepted(data.legal_disclaimer_accepted || false);
         }
+      })
+      .catch((err) => {
+        if (err?.name !== 'AbortError') console.warn('[TradePage] settings load error:', err?.message || err);
       });
   }, [user?.id]);
 
