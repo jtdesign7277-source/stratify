@@ -602,9 +602,8 @@ function SentinelPageInner() {
                 ];
                 const SLOTS = 9;
                 const polyUrl = (trade) => {
-                  if (trade.condition_id) return `https://polymarket.com/event/${trade.condition_id}`;
-                  if (trade.market_id) return `https://polymarket.com/event/${trade.market_id}`;
-                  return null;
+                  if (trade.question) return `https://polymarket.com/search?query=${encodeURIComponent(trade.question)}`;
+                  return 'https://polymarket.com/markets';
                 };
                 return (
                   <div className="grid grid-cols-3 gap-3 mt-3">
