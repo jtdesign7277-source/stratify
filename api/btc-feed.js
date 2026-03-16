@@ -22,18 +22,21 @@ export default async function handler(req, res) {
       const ccData = await ccResp.json();
       const t = ccData?.result?.data?.[0];
       if (t) {
+        // Crypto.com uses abbreviated field names: b=bid, k=ask, a=last, h=high, l=low, v=vol, vv=volUsd, c=change
+        const bid = parseFloat(t.b ?? t.best_bid ?? 0);
+        const ask = parseFloat(t.k ?? t.best_ask ?? 0);
         return res.status(200).json({
-          price: parseFloat(t.best_bid || t.last_trade_price),
-          bid: parseFloat(t.best_bid),
-          ask: parseFloat(t.best_ask),
-          high: parseFloat(t.high),
-          low: parseFloat(t.low),
-          volume: parseFloat(t.total_quantity_traded || t.volume || 0),
-          volumeUsd: parseFloat(t.volume_value || 0),
-          change24h: parseFloat(t.change || 0) * 100,
-          spread: parseFloat(t.best_ask) - parseFloat(t.best_bid),
+          price: parseFloat(t.a ?? t.last_trade_price ?? bid),
+          bid,
+          ask,
+          high: parseFloat(t.h ?? t.high ?? 0),
+          low: parseFloat(t.l ?? t.low ?? 0),
+          volume: parseFloat(t.v ?? t.total_quantity_traded ?? t.volume ?? 0),
+          volumeUsd: parseFloat(t.vv ?? t.volume_value ?? 0),
+          change24h: parseFloat(t.c ?? t.change ?? 0) * 100,
+          spread: ask - bid,
           source: 'crypto.com',
-          ts: t.timestamp || new Date().toISOString(),
+          ts: t.t || t.timestamp || new Date().toISOString(),
         });
       }
     }

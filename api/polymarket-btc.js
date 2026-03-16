@@ -34,8 +34,15 @@ export default async function handler(req, res) {
 
       for (const market of (event.markets || [])) {
         const question = market.question || market.groupItemTitle || '';
-        const yesPrice = parseFloat(market.outcomePrices?.[0] || market.bestBid || 0);
-        const noPrice = parseFloat(market.outcomePrices?.[1] || (1 - yesPrice));
+        // outcomePrices can be a JSON string like '["0.115","0.885"]' — parse it
+        let outcomes = market.outcomePrices;
+        if (typeof outcomes === 'string') {
+          try { outcomes = JSON.parse(outcomes); } catch { outcomes = null; }
+        }
+        const yesRaw = outcomes?.[0];
+        const noRaw = outcomes?.[1];
+        const yesPrice = yesRaw != null ? parseFloat(yesRaw) : parseFloat(market.bestBid || 0);
+        const noPrice = noRaw != null ? parseFloat(noRaw) : (1 - yesPrice);
         const pSum = yesPrice + noPrice;
 
         // Extract strike price from question
