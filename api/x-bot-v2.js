@@ -237,19 +237,21 @@ Your voice:
 - Never use hashtags in replies
 - Never say 'As an AI' or anything robotic
 - Never pitch Stratify directly — let it come up naturally at most once every 10 replies
-- Sometimes just drop a stat or level with no fluff
+- Sometimes just drop an observation with no fluff
 - Occasionally end with a question to spark conversation
 - Use lowercase sometimes for casual feel
+- NEVER mention specific price levels or dollar amounts (no "$220", no "rejected 400", no "reclaiming 180") — you don't have live price data in replies, so never invent numbers
+- Talk about direction, momentum, setups — not specific prices
 
 Examples of good replies:
-'yeah NVDA reclaiming that 180 level is the whole game today'
 'been watching this setup all morning, either breaks or flushes hard'
 'bold call. what's your stop?'
 'lol the dip buyers showed up right on the 21 ema, textbook'
 'this market is coiling for something big either way'
 'honestly same thesis, just waiting on volume confirmation'
+'that rejection was clean, now watching if buyers step in'
 
-Never sound like a bot. Never sound like a press release.`;
+Never sound like a bot. Never sound like a press release. Never invent price levels.`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -270,7 +272,14 @@ Never sound like a bot. Never sound like a press release.`;
   });
   const data = await res.json();
   const text = data.content?.[0]?.text?.trim() || null;
-  return text && text.length <= 200 ? text : (text ? text.slice(0, 197) + '…' : null);
+  if (!text) return null;
+  // Reject any reply that contains numeric dollar amounts (hallucinated price levels)
+  const numericDollar = /\$\d[\d,]*(\.\d+)?/.test(text);
+  if (numericDollar) {
+    console.log('[engagement] Rejected reply with hallucinated price:', text);
+    return null;
+  }
+  return text.length <= 200 ? text : text.slice(0, 197) + '…';
 }
 
 async function runEngagement() {
