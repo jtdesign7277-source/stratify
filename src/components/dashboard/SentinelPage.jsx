@@ -83,7 +83,9 @@ function SentinelPageInner() {
   const [userSettings, setUserSettings] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [expandedSession, setExpandedSession] = useState(null);
-  const [sessionFilter, setSessionFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [tickerFilter, setTickerFilter] = useState(null);
+  const [sortLargest, setSortLargest] = useState(false);
   const [brainModalSession, setBrainModalSession] = useState(null);
   const [brainExpanded, setBrainExpanded] = useState(false);
   const [skillsExpanded, setSkillsExpanded] = useState(false);
@@ -675,13 +677,14 @@ function SentinelPageInner() {
               })()}
 
               {/* FILTER PILLS */}
-              <div className="flex flex-wrap gap-2 mt-4">
-                {['All', 'Wins', 'Losses', 'BTC', 'ETH', 'SOL', 'Largest First'].map((pill) => (
+              <div className="flex flex-wrap items-center gap-2 mt-4">
+                {/* Group 1 — Status */}
+                {['All', 'Wins', 'Losses'].map((pill) => (
                   <button
                     key={pill}
-                    onClick={() => setSessionFilter(prev => prev === pill ? 'All' : pill)}
+                    onClick={() => setStatusFilter(prev => prev === pill ? 'All' : pill)}
                     className={`rounded-full px-3.5 py-1.5 text-xs transition-all duration-200 ${
-                      sessionFilter === pill
+                      statusFilter === pill
                         ? 'bg-white text-[#0a0a0f] font-medium'
                         : 'border border-white/10 text-white/50 hover:text-white/70 hover:border-white/20'
                     }`}
@@ -689,6 +692,35 @@ function SentinelPageInner() {
                     {pill}
                   </button>
                 ))}
+                {/* Gap between groups */}
+                <div className="w-4" />
+                {/* Group 2 — Ticker */}
+                {['BTC', 'ETH', 'SOL'].map((pill) => (
+                  <button
+                    key={pill}
+                    onClick={() => setTickerFilter(prev => prev === pill ? null : pill)}
+                    className={`rounded-full px-3.5 py-1.5 text-xs transition-all duration-200 ${
+                      tickerFilter === pill
+                        ? 'bg-white text-[#0a0a0f] font-medium'
+                        : 'border border-white/10 text-white/50 hover:text-white/70 hover:border-white/20'
+                    }`}
+                  >
+                    {pill}
+                  </button>
+                ))}
+                {/* Gap before sort */}
+                <div className="w-4" />
+                {/* Sort toggle */}
+                <button
+                  onClick={() => setSortLargest(prev => !prev)}
+                  className={`rounded-full px-3.5 py-1.5 text-xs transition-all duration-200 ${
+                    sortLargest
+                      ? 'bg-white text-[#0a0a0f] font-medium'
+                      : 'border border-white/10 text-white/50 hover:text-white/70 hover:border-white/20'
+                  }`}
+                >
+                  Largest First
+                </button>
               </div>
 
               {/* GRID HEADER */}
@@ -708,12 +740,10 @@ function SentinelPageInner() {
                 )}
                 {(() => {
                   let filtered = [...recentClosedTrades];
-                  if (sessionFilter === 'Wins') filtered = filtered.filter(t => t.win);
-                  else if (sessionFilter === 'Losses') filtered = filtered.filter(t => !t.win);
-                  else if (sessionFilter === 'BTC') filtered = filtered.filter(t => t.symbol?.includes('BTC'));
-                  else if (sessionFilter === 'ETH') filtered = filtered.filter(t => t.symbol?.includes('ETH'));
-                  else if (sessionFilter === 'SOL') filtered = filtered.filter(t => t.symbol?.includes('SOL'));
-                  if (sessionFilter === 'Largest First') filtered.sort((a, b) => Math.abs(b.pnl || 0) - Math.abs(a.pnl || 0));
+                  if (statusFilter === 'Wins') filtered = filtered.filter(t => t.win);
+                  else if (statusFilter === 'Losses') filtered = filtered.filter(t => !t.win);
+                  if (tickerFilter) filtered = filtered.filter(t => t.symbol?.includes(tickerFilter));
+                  if (sortLargest) filtered.sort((a, b) => Math.abs(b.pnl || 0) - Math.abs(a.pnl || 0));
                   return filtered.map((trade) => {
                     const isWin = trade.win || (trade.pnl || 0) >= 0;
                     const openTime = trade.opened_at ? new Date(trade.opened_at) : null;
