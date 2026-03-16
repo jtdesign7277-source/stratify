@@ -35,10 +35,9 @@ function timeAgo(dateStr) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function WinRateColor({ value }) {
-  if (value >= 65) return <span className="text-emerald-400">{value?.toFixed(1) || 0}%</span>;
-  if (value >= 50) return <span className="text-yellow-400">{value?.toFixed(1) || 0}%</span>;
-  return <span className="text-red-400">{value?.toFixed(1) || 0}%</span>;
+function WinRateColor({ value, netPnl = 0 }) {
+  const color = netPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+  return <span className={color}>{value?.toFixed(1) || 0}%</span>;
 }
 
 function MetricTooltip({ label, tip, children }) {
@@ -272,6 +271,13 @@ function SentinelPageInner() {
     }
     return hasLive ? total : (data?.totalUnrealizedPnl || 0);
   }, [openTrades, livePrices, data?.totalUnrealizedPnl]);
+
+  // Single source of truth: account-level total P&L (realized + live unrealized)
+  const accountTotalPnl = useMemo(() => {
+    const realizedBase = (data?.account?.current_balance || 2000000);
+    return (realizedBase + liveUnrealizedPnl) - 2000000;
+  }, [data?.account?.current_balance, liveUnrealizedPnl]);
+
   const recentSessions = data?.recentSessions || [];
   const recentClosedTrades = data?.recentClosedTrades || [];
   const memory = data?.memory || {};
@@ -357,11 +363,9 @@ function SentinelPageInner() {
         <div className="flex-1 min-h-0 overflow-hidden">
           <AppErrorBoundary>
             <SentinelEngine
-              sentinelTotalPnl={(() => {
-                const realizedBase = account.current_balance || 2000000;
-                return (realizedBase + liveUnrealizedPnl) - 2000000;
-              })()}
+              sentinelTotalPnl={accountTotalPnl}
               sentinelDailyPnl={liveUnrealizedPnl + todayRealizedPnl}
+              sentinelAccount={account}
             />
           </AppErrorBoundary>
         </div>
@@ -379,13 +383,10 @@ function SentinelPageInner() {
                 </span>
               </div>
               {(() => {
-                // Total P&L = realized (baked into current_balance) + live unrealized from WS
-                const realizedBase = (account.current_balance || 2000000);
-                const totalPnl = (realizedBase + liveUnrealizedPnl) - 2000000;
-                const pctChange = (totalPnl / 2000000) * 100;
+                const pctChange = (accountTotalPnl / 2000000) * 100;
                 return (
-                  <span className={`text-sm font-mono ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    Total P&L: {totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className={`text-sm font-mono ${accountTotalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    Total P&L: {accountTotalPnl >= 0 ? '+' : ''}${accountTotalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     {' '}({pctChange.toFixed(2)}%)
                   </span>
                 );
@@ -393,7 +394,7 @@ function SentinelPageInner() {
             </div>
             <div className="flex gap-8">
               <MetricTooltip label="Win Rate" tip="Percentage of trades that were profitable. Higher is better — 50%+ with good R means a strong edge.">
-                <div className="mt-1"><WinRateColor value={account.win_rate || 0} /></div>
+                <div className="mt-1"><WinRateColor value={account.win_rate || 0} netPnl={accountTotalPnl} /></div>
               </MetricTooltip>
               <MetricTooltip label="Avg R" tip="Average risk-reward per trade. 1R = the amount risked. If Sentinel risks $100 and averages $200 profit, that's 2.00R. Negative means average losses exceed the planned risk.">
                 <div className={`mt-1 font-mono ${(account.avg_r || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(account.avg_r || 0).toFixed(2)}R</div>
@@ -670,7 +671,7 @@ function SentinelPageInner() {
               <div className="grid grid-cols-4 gap-3 mt-4">
                 {[
                   { label: 'Trades', value: totalTrades, fmt: (v) => v.toString(), color: 'text-white' },
-                  { label: 'Win Rate', value: winRate, fmt: (v) => `${v.toFixed(1)}%`, color: winRate >= 50 ? 'text-emerald-400' : 'text-red-400' },
+                  { label: 'Win Rate', value: winRate, fmt: (v) => `${v.toFixed(1)}%`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
                   { label: 'Avg Win', value: avgWin, fmt: (v) => `$${v.toFixed(2)}`, color: 'text-emerald-400' },
                   { label: 'Net P&L', value: netPnl, fmt: (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
                 ].map((stat) => (
