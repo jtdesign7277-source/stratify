@@ -1490,6 +1490,11 @@ function StratifyAppContent() {
     }
   }, [isProUser, user?.id]);
 
+  // Block rendering until Supabase session check resolves — prevents landing page flash
+  if (loading) {
+    return <div className="min-h-screen bg-[#0a0a0f]" />;
+  }
+
   const mainContent =
     currentPage === 'reset-password' ? (
       <ResetPasswordPage />

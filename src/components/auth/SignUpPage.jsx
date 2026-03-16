@@ -48,7 +48,9 @@ function NasdaqLogoIcon() {
 
 export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToLanding }) {
   const [mode, setMode] = useState(initialMode);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    try { return localStorage.getItem('stratify_email') || ''; } catch { return ''; }
+  });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -223,6 +225,7 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
 
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
+      try { localStorage.setItem('stratify_email', email); } catch {}
       onSuccess();
     } catch (submitError) {
       const msg = String(submitError?.message || 'Unable to process your request.');
