@@ -10,6 +10,8 @@ import {
   Landmark,
   Calendar,
   Zap,
+  Radar,
+  Trophy,
   MoreHorizontal,
   ChevronsLeft,
   ChevronsRight,
@@ -29,12 +31,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { UserAvatar } from './community/CommunityShared';
 import { readCurrentUserAvatar } from './community/communityHelpers';
 
-// Lightning bolt icon for Sentinel (distinct from Zap used by Sports)
-const SentinelIcon = ({ className, strokeWidth = 1.5 }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={strokeWidth}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-  </svg>
-);
+// Sentinel uses Radar (market scanning), Sports uses Trophy
 
 const Sidebar = ({
   activeTab = 'war-room',
@@ -101,8 +98,8 @@ const Sidebar = ({
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
-    { id: 'sentinel', label: 'Sentinel', icon: SentinelIcon, sentinelDot: true },
-    { id: 'sports', label: 'Sports', icon: Zap },
+    { id: 'sentinel', label: 'Sentinel', icon: Radar, sentinelDot: true },
+    { id: 'sports', label: 'Sports', icon: Trophy },
   ];
 
   const handleTabClick = (id) => {
