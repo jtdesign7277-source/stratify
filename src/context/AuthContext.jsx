@@ -37,9 +37,10 @@ export const AuthProvider = ({ children }) => {
         setSession(data?.session ?? null);
         setUser(data?.session?.user ?? null);
       } catch (error) {
+        if (error?.name === 'AbortError') return;
         // Do not force-sign-out on transient failures or timeouts.
         // onAuthStateChange and subsequent checks can still recover the existing session.
-        console.error('[Auth] Session check failed. Preserving current auth state:', error);
+        console.error('[Auth] Session check failed. Preserving current auth state:', error?.message || error);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -98,8 +99,9 @@ export const AuthProvider = ({ children }) => {
           await initNewUser(user.id);
         }
       } catch (error) {
+        if (error?.name === 'AbortError') return;
         initializedUsersRef.current.delete(user.id);
-        console.error('[Auth] Failed to initialize user profile:', error);
+        console.error('[Auth] Failed to initialize user profile:', error?.message || error);
       }
     };
 

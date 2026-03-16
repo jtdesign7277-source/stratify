@@ -68,8 +68,9 @@ export default function useSubscription(userOverride) {
       setSubscriptionStatus(normalizedStatus);
       writeCachedSubscriptionStatus(userId, normalizedStatus);
     } catch (fetchError) {
+      if (fetchError?.name === 'AbortError') return;
       console.error('[Subscription] Failed to fetch subscription status:', fetchError);
-      setError(fetchError);
+      setError(fetchError?.message || 'Subscription check failed');
       const cachedStatus = readCachedSubscriptionStatus(userId);
       setSubscriptionStatus(cachedStatus);
     } finally {
@@ -98,8 +99,9 @@ export default function useSubscription(userOverride) {
       setUser(nextUser);
       return nextUser;
     } catch (userError) {
+      if (userError?.name === 'AbortError') return null;
       console.error('[Subscription] Failed to load user during subscription check:', userError);
-      setError(userError);
+      setError(userError?.message || 'User lookup failed');
 
       try {
         const { data: sessionData, error: sessionError } = await withSubscriptionTimeout(
@@ -115,7 +117,8 @@ export default function useSubscription(userOverride) {
         setUser(fallbackUser);
         return fallbackUser;
       } catch (sessionFallbackError) {
-        console.error('[Subscription] Session fallback lookup failed:', sessionFallbackError);
+        if (sessionFallbackError?.name === 'AbortError') return null;
+        console.error('[Subscription] Session fallback lookup failed:', sessionFallbackError?.message || sessionFallbackError);
         setUser(null);
         return null;
       }

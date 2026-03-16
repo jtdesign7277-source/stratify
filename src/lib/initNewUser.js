@@ -22,7 +22,7 @@ export async function initNewUser(userId) {
     .maybeSingle();
 
   if (profileError && profileError.code !== 'PGRST116') {
-    throw profileError;
+    throw new Error(profileError.message || 'Failed to check user profile');
   }
 
   if (profile?.initialized === true) {
@@ -44,7 +44,7 @@ export async function initNewUser(userId) {
     .upsert(defaults, { onConflict: 'id' });
 
   if (upsertError) {
-    throw upsertError;
+    throw new Error(upsertError.message || 'Failed to initialize user profile');
   }
 
   // Initialize sportsbook bankroll for new users
