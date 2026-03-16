@@ -35,6 +35,86 @@ function timeAgo(dateStr) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function MarketClock() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const etStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
+  }).format(now);
+  const etParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', weekday: 'short',
+  }).formatToParts(now);
+  const etHour = parseInt(etParts.find(p => p.type === 'hour')?.value || '0', 10);
+  const etMinute = parseInt(etParts.find(p => p.type === 'minute')?.value || '0', 10);
+  const etDayPeriod = etParts.find(p => p.type === 'dayPeriod')?.value || '';
+  const etDay = etParts.find(p => p.type === 'weekday')?.value || '';
+  const isWeekend = etDay === 'Sat' || etDay === 'Sun';
+  const etMins = (etDayPeriod.toLowerCase().includes('p') && etHour !== 12 ? etHour + 12 : etDayPeriod.toLowerCase().includes('a') && etHour === 12 ? 0 : etHour) * 60 + etMinute;
+  const openMin = 9 * 60 + 30;  // 9:30 AM
+  const closeMin = 16 * 60;     // 4:00 PM
+  const preMarketMin = 8 * 60 + 30; // 8:30 AM
+  const closingWarnMin = 15 * 60;   // 3:00 PM
+
+  const timeOnly = etStr.replace(/:\d{2}\s/, ' ').replace(/:\d{2}$/, '');
+
+  if (isWeekend) {
+    return (
+      <div className="text-center mb-3">
+        <div className="text-lg font-mono text-white/30">{timeOnly}</div>
+        <div className="text-[10px] text-white/20 mt-0.5">Markets reopen Monday 9:30 AM ET</div>
+      </div>
+    );
+  }
+
+  // Pre-market countdown (8:30–9:30 AM ET)
+  if (etMins >= preMarketMin && etMins < openMin) {
+    const secsLeft = (openMin - etMins) * 60 - new Date(now).getSeconds();
+    const m = Math.floor(Math.max(0, secsLeft) / 60);
+    const s = Math.max(0, secsLeft) % 60;
+    return (
+      <div className="text-center mb-3">
+        <motion.div animate={{ opacity: [0.7, 1, 0.7] }} transition={{ duration: 2, repeat: Infinity }} className="text-lg font-mono text-emerald-400">
+          Opens in {m}:{s.toString().padStart(2, '0')}
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Market open, closing soon (3:00–4:00 PM ET)
+  if (etMins >= closingWarnMin && etMins < closeMin) {
+    const secsLeft = (closeMin - etMins) * 60 - new Date(now).getSeconds();
+    const m = Math.floor(Math.max(0, secsLeft) / 60);
+    const s = Math.max(0, secsLeft) % 60;
+    return (
+      <div className="text-center mb-3">
+        <motion.div animate={{ opacity: [0.7, 1, 0.7] }} transition={{ duration: 2, repeat: Infinity }} className="text-lg font-mono text-red-400">
+          Closes in {m}:{s.toString().padStart(2, '0')}
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Market open (9:30 AM – 3:00 PM ET)
+  if (etMins >= openMin && etMins < closeMin) {
+    return (
+      <div className="text-center mb-3">
+        <div className="text-lg font-mono text-emerald-400">{timeOnly}</div>
+      </div>
+    );
+  }
+
+  // Market closed (normal hours)
+  return (
+    <div className="text-center mb-3">
+      <div className="text-lg font-mono text-white/30">{timeOnly}</div>
+    </div>
+  );
+}
+
 function WinRateColor({ value, netPnl = 0 }) {
   const color = netPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
   return <span className={color}>{value?.toFixed(1) || 0}%</span>;
@@ -570,6 +650,7 @@ function SentinelPageInner() {
                     <span className="text-[10px] text-white/20 font-mono">MARKET CLOSED · Opens 9:30 AM ET</span>
                   )}
                 </div>
+                <MarketClock />
                 {marketOpen ? (
                   equityOpenTrades.length > 0 ? (
                     <div className="space-y-2">
