@@ -647,12 +647,7 @@ function SentinelPageInner() {
                 </div>
                 {cryptoOpenTrades.length > 0 ? (
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
-                      <span className={`text-[11px] font-mono font-medium ${cryptoOpenPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        Open P&L: {fmtDollar(cryptoOpenPnl)}
-                      </span>
-                    </div>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
                     {cryptoOpenTrades.map((trade, i) => (
                       <PositionRow key={trade.id} trade={trade} i={i} livePrices={livePrices} />
                     ))}
@@ -660,12 +655,26 @@ function SentinelPageInner() {
                 ) : (
                   <p className="text-xs text-gray-600 font-mono">No open crypto positions</p>
                 )}
-                <div className="mt-4 pt-3 border-t border-white/[0.06] text-xs font-mono">
-                  <span className="text-white/40">Today's Crypto P&L: </span>
-                  <span className={todayCryptoPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {fmtDollar(todayCryptoPnl)}
-                  </span>
-                </div>
+                {(() => {
+                  const todayCryptoTotal = cryptoOpenPnl + todayCryptoPnl;
+                  return (
+                    <div className="mt-4 pt-3 border-t border-white/[0.06] font-mono space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/30">Open P&L</span>
+                        <span className={cryptoOpenPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmtDollar(cryptoOpenPnl)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/30">Realized P&L</span>
+                        <span className={todayCryptoPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmtDollar(todayCryptoPnl)}</span>
+                      </div>
+                      <div className="border-t border-white/[0.06]" />
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/50 font-medium">Today Total</span>
+                        <span className={`font-medium ${todayCryptoTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtDollar(todayCryptoTotal)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </motion.div>
 
               {/* RIGHT — EQUITIES (Market Hours) */}
@@ -687,12 +696,7 @@ function SentinelPageInner() {
                 {marketOpen ? (
                   equityOpenTrades.length > 0 ? (
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
-                        <span className={`text-[11px] font-mono font-medium ${equityOpenPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          Open P&L: {fmtDollar(equityOpenPnl)}
-                        </span>
-                      </div>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
                       {equityOpenTrades.map((trade, i) => (
                         <PositionRow key={trade.id} trade={trade} i={i} showDollar livePrices={livePrices} />
                       ))}
@@ -703,12 +707,26 @@ function SentinelPageInner() {
                 ) : (
                   <p className="text-xs text-white/20 font-mono py-4">Equity trades will appear here during market hours</p>
                 )}
-                <div className="mt-4 pt-3 border-t border-white/[0.06] text-xs font-mono">
-                  <span className="text-white/40">Today's Equity P&L: </span>
-                  <span className={todayEquityPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {fmtDollar(todayEquityPnl)}
-                  </span>
-                </div>
+                {(() => {
+                  const todayEquityTotal = equityOpenPnl + todayEquityPnl;
+                  return (
+                    <div className="mt-4 pt-3 border-t border-white/[0.06] font-mono space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/30">Open P&L</span>
+                        <span className={equityOpenPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmtDollar(equityOpenPnl)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/30">Realized P&L</span>
+                        <span className={todayEquityPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmtDollar(todayEquityPnl)}</span>
+                      </div>
+                      <div className="border-t border-white/[0.06]" />
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/50 font-medium">Today Total</span>
+                        <span className={`font-medium ${todayEquityTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtDollar(todayEquityTotal)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </motion.div>
             </div>
 
