@@ -52,7 +52,7 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
   const [email, setEmail] = useState(savedEmail || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(Boolean(savedEmail) || true);
+  const [rememberMe, setRememberMe] = useState(Boolean(savedEmail));
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -61,7 +61,21 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
   const [oauthLoading, setOauthLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const leftPanelCanvasRef = useRef(null);
+
+  // Auto-redirect to dashboard if user already has a valid session
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data?.session) {
+        onSuccess();
+      } else if (!cancelled) {
+        setSessionChecked(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [onSuccess]);
 
   useEffect(() => {
     const canvas = leftPanelCanvasRef.current;
@@ -294,6 +308,11 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
     fontWeight: 500,
   };
 
+  // Don't flash the login form while checking for an existing session
+  if (!sessionChecked) {
+    return <div className="min-h-screen bg-black" />;
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto grid min-h-screen w-full lg:grid-cols-[1.08fr_0.92fr]">
@@ -501,10 +520,15 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
                   <input
                     type="checkbox"
                     checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
+                    onChange={(e) => {
+                      setRememberMe(e.target.checked);
+                      if (!e.target.checked) {
+                        localStorage.removeItem('stratify_remembered_email');
+                      }
+                    }}
                     className="h-4 w-4 rounded border border-white/40 bg-white/5 accent-[#609968]"
                   />
-                  Remember my username &amp; password
+                  Remember email
                 </label>
               )}
 
