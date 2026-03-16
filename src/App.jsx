@@ -1,17 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
 
-window.onerror = function(msg, src, line, col, error) {
-  if (error?.name === 'AbortError' || msg?.includes?.('AbortError')) return true;
-  document.body.innerHTML = '<pre style="color:red;padding:40px;background:#0a0a0f;font-size:14px;white-space:pre-wrap">' +
-    msg + '\n\nStack:\n' + (error?.stack || 'no stack') + '</pre>';
-};
-
-window.addEventListener('unhandledrejection', function(e) {
-  if (e.reason?.name === 'AbortError' || String(e.reason).includes('AbortError')) return;
-  document.body.innerHTML = '<pre style="color:orange;padding:40px;background:#0a0a0f;font-size:14px;white-space:pre-wrap">Unhandled Promise:\n' +
-    (e.reason?.stack || e.reason?.message || String(e.reason)) + '</pre>';
-});
-
 class DebugErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null, info: null }; }
   componentDidCatch(error, info) { this.setState({ error, info }); console.error('ERROR BOUNDARY CAUGHT:', error, info); }

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { supabase } from '../lib/supabaseClient';
 import { initNewUser } from '../lib/initNewUser';
 import { withTimeout } from '../lib/withTimeout';
+import { safeSupabaseCall, errorToString } from '../lib/safeSupabaseCall';
 
 const AuthContext = createContext(null);
 const SESSION_CHECK_TIMEOUT_MS = 12000;
@@ -24,10 +25,14 @@ export const AuthProvider = ({ children }) => {
 
     const loadSession = async () => {
       try {
-        const { data, error } = await withSessionTimeout(
+        const result = await safeSupabaseCall(() => withSessionTimeout(
           supabase.auth.getSession(),
           'Session check'
-        );
+        ));
+
+        if (!result) return; // aborted
+
+        const { data, error } = result;
 
         if (error) {
           throw error;
@@ -37,10 +42,7 @@ export const AuthProvider = ({ children }) => {
         setSession(data?.session ?? null);
         setUser(data?.session?.user ?? null);
       } catch (error) {
-        if (error?.name === 'AbortError') return;
-        // Do not force-sign-out on transient failures or timeouts.
-        // onAuthStateChange and subsequent checks can still recover the existing session.
-        console.error('[Auth] Session check failed. Preserving current auth state:', error?.message || error);
+        console.error('[Auth] Session check failed. Preserving current auth state:', errorToString(error));
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -85,11 +87,16 @@ export const AuthProvider = ({ children }) => {
 
     const ensureUserInitialized = async () => {
       try {
-        const { data: profile, error } = await supabase
+        const result = await safeSupabaseCall(() => supabase
           .from('profiles')
           .select('initialized')
           .eq('id', user.id)
-          .maybeSingle();
+          .maybeSingle()
+        );
+
+        if (!result) return; // aborted
+
+        const { data: profile, error } = result;
 
         if (error && error.code !== 'PGRST116') {
           throw error;
@@ -99,9 +106,8 @@ export const AuthProvider = ({ children }) => {
           await initNewUser(user.id);
         }
       } catch (error) {
-        if (error?.name === 'AbortError') return;
         initializedUsersRef.current.delete(user.id);
-        console.error('[Auth] Failed to initialize user profile:', error?.message || error);
+        console.error('[Auth] Failed to initialize user profile:', errorToString(error));
       }
     };
 

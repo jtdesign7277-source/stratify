@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { isCreatorOverrideUser, isProStatus, normalizeSubscriptionStatus } from '../lib/subscriptionAccess';
 import { withTimeout } from '../lib/withTimeout';
+import { safeSupabaseCall, errorToString } from '../lib/safeSupabaseCall';
 
 const SUBSCRIPTION_CHECK_TIMEOUT_MS = 5000;
 const SUBSCRIPTION_STATUS_CACHE_PREFIX = 'stratify-subscription-status:';
@@ -51,14 +52,18 @@ export default function useSubscription(userOverride) {
     setError(null);
 
     try {
-      const { data, error: fetchError } = await withSubscriptionTimeout(
+      const result = await safeSupabaseCall(() => withSubscriptionTimeout(
         supabase
           .from('profiles')
           .select('subscription_status')
           .eq('id', userId)
           .single(),
         'Subscription status lookup'
-      );
+      ));
+
+      if (!result) return; // aborted
+
+      const { data, error: fetchError } = result;
 
       if (fetchError) {
         throw fetchError;
@@ -68,9 +73,8 @@ export default function useSubscription(userOverride) {
       setSubscriptionStatus(normalizedStatus);
       writeCachedSubscriptionStatus(userId, normalizedStatus);
     } catch (fetchError) {
-      if (fetchError?.name === 'AbortError') return;
-      console.error('[Subscription] Failed to fetch subscription status:', fetchError);
-      setError(fetchError?.message || 'Subscription check failed');
+      console.error('[Subscription] Failed to fetch subscription status:', errorToString(fetchError));
+      setError(errorToString(fetchError, 'Subscription check failed'));
       const cachedStatus = readCachedSubscriptionStatus(userId);
       setSubscriptionStatus(cachedStatus);
     } finally {
@@ -86,10 +90,14 @@ export default function useSubscription(userOverride) {
     }
 
     try {
-      const { data, error: userError } = await withSubscriptionTimeout(
+      const result = await safeSupabaseCall(() => withSubscriptionTimeout(
         supabase.auth.getUser(),
         'Current user lookup'
-      );
+      ));
+
+      if (!result) return null; // aborted
+
+      const { data, error: userError } = result;
 
       if (userError) {
         throw userError;
@@ -99,15 +107,18 @@ export default function useSubscription(userOverride) {
       setUser(nextUser);
       return nextUser;
     } catch (userError) {
-      if (userError?.name === 'AbortError') return null;
-      console.error('[Subscription] Failed to load user during subscription check:', userError);
-      setError(userError?.message || 'User lookup failed');
+      console.error('[Subscription] Failed to load user during subscription check:', errorToString(userError));
+      setError(errorToString(userError, 'User lookup failed'));
 
       try {
-        const { data: sessionData, error: sessionError } = await withSubscriptionTimeout(
+        const fallbackResult = await safeSupabaseCall(() => withSubscriptionTimeout(
           supabase.auth.getSession(),
           'Session fallback lookup'
-        );
+        ));
+
+        if (!fallbackResult) return null; // aborted
+
+        const { data: sessionData, error: sessionError } = fallbackResult;
 
         if (sessionError) {
           throw sessionError;
@@ -117,8 +128,7 @@ export default function useSubscription(userOverride) {
         setUser(fallbackUser);
         return fallbackUser;
       } catch (sessionFallbackError) {
-        if (sessionFallbackError?.name === 'AbortError') return null;
-        console.error('[Subscription] Session fallback lookup failed:', sessionFallbackError?.message || sessionFallbackError);
+        console.error('[Subscription] Session fallback lookup failed:', errorToString(sessionFallbackError));
         setUser(null);
         return null;
       }
