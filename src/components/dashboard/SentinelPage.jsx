@@ -86,6 +86,8 @@ function SentinelPageInner() {
   const [todayOnly, setTodayOnly] = useState(false);
   const [tickerFilter, setTickerFilter] = useState(null);
   const [sortLargest, setSortLargest] = useState(false);
+  const [showCryptoPnl, setShowCryptoPnl] = useState(false);
+  const [showEquityPnl, setShowEquityPnl] = useState(false);
   const [brainModalSession, setBrainModalSession] = useState(null);
   const [brainExpanded, setBrainExpanded] = useState(false);
   const [skillsExpanded, setSkillsExpanded] = useState(false);
@@ -309,6 +311,16 @@ function SentinelPageInner() {
   const todayWins = todayClosedTrades.filter(t => t.win).length;
   const todayLosses = todayClosedTrades.filter(t => !t.win).length;
 
+  // Classify trade as crypto or equity
+  const isCryptoTrade = useCallback((trade) => {
+    const s = (trade.symbol || '').toUpperCase();
+    return s.includes('BTC') || s.includes('ETH') || s.includes('SOL') || s.includes('DOGE') || s.includes('AVAX') || s.includes('XRP') || s.includes('/USD') || s.includes('CRYPTO');
+  }, []);
+
+  // Split open trades
+  const cryptoOpenTrades = useMemo(() => openTrades.filter(t => isCryptoTrade(t)), [openTrades, isCryptoTrade]);
+  const equityOpenTrades = useMemo(() => openTrades.filter(t => !isCryptoTrade(t)), [openTrades, isCryptoTrade]);
+
   // Today's P&L using local midnight (matches session history "Today" filter)
   const todayLocalPnl = useMemo(() => {
     const midnight = new Date();
@@ -318,6 +330,28 @@ function SentinelPageInner() {
       .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms; })
       .reduce((sum, t) => sum + (t.pnl || 0), 0);
   }, [recentClosedTrades]);
+
+  // Today's P&L split by crypto vs equity
+  const todayCryptoPnl = useMemo(() => {
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const ms = midnight.getTime();
+    return recentClosedTrades
+      .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms && isCryptoTrade(t); })
+      .reduce((sum, t) => sum + (t.pnl || 0), 0);
+  }, [recentClosedTrades, isCryptoTrade]);
+  const todayEquityPnl = useMemo(() => {
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const ms = midnight.getTime();
+    return recentClosedTrades
+      .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms && !isCryptoTrade(t); })
+      .reduce((sum, t) => sum + (t.pnl || 0), 0);
+  }, [recentClosedTrades, isCryptoTrade]);
+
+  // All-time P&L split
+  const allTimeCryptoPnl = useMemo(() => recentClosedTrades.filter(t => isCryptoTrade(t)).reduce((s, t) => s + (t.pnl || 0), 0), [recentClosedTrades, isCryptoTrade]);
+  const allTimeEquityPnl = useMemo(() => recentClosedTrades.filter(t => !isCryptoTrade(t)).reduce((s, t) => s + (t.pnl || 0), 0), [recentClosedTrades, isCryptoTrade]);
 
   if (loading) {
     return (
@@ -461,157 +495,132 @@ function SentinelPageInner() {
         <div className="grid grid-cols-[1fr_320px] gap-6 min-h-0">
           {/* LEFT COLUMN */}
           <div className="space-y-6 min-w-0">
-            {/* TODAY'S SESSION */}
-            <motion.div
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.15, ...SPRING }}
-              className={`${GLASS} p-5 transition-all duration-300`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">
-                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+            {/* CRYPTO / EQUITIES TWO-COLUMN SPLIT */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* LEFT — CRYPTO (24/7) */}
+              <motion.div
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15, ...SPRING }}
+                className={`${GLASS} p-5 transition-all duration-300`}
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">CRYPTO</span>
+                  <span className="text-[10px] text-emerald-400 font-mono">LIVE 24/7</span>
+                </div>
+                {cryptoOpenTrades.length > 0 ? (
+                  <div className="space-y-2">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
+                    {cryptoOpenTrades.map((trade, i) => (
+                      <motion.div
+                        key={trade.id}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.04, ...SPRING }}
+                        whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                        className="flex items-center justify-between py-2 px-2 rounded-xl transition-all duration-300 text-xs font-mono"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
+                            {trade.direction === 'LONG' ? '↑' : '↓'}
+                          </span>
+                          <span className="text-white font-semibold">{trade.symbol}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">Entry ${trade.entry}</span>
+                          {(() => {
+                            const lp = livePrices[trade.symbol.toUpperCase()]?.price;
+                            const cp = lp || trade.current_price;
+                            const pnl = cp && trade.entry && trade.size
+                              ? (cp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
+                              : trade.unrealized_pnl;
+                            return pnl != null ? (
+                              <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-600 font-mono">No open crypto positions</p>
+                )}
+                <div className="mt-4 pt-3 border-t border-white/[0.06] text-xs font-mono">
+                  <span className="text-white/40">Today's Crypto P&L: </span>
+                  <span className={todayCryptoPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {todayCryptoPnl >= 0 ? '+' : ''}${todayCryptoPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
-                  {(marketOpen || openTrades.length > 0) && (
-                    <span className="flex items-center gap-1">
-                      <motion.span animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span className="text-[10px] text-emerald-400 font-mono">LIVE</span>
-                    </span>
+                </div>
+              </motion.div>
+
+              {/* RIGHT — EQUITIES (Market Hours) */}
+              <motion.div
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15, ...SPRING }}
+                className={`${GLASS} p-5 transition-all duration-300`}
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">EQUITIES</span>
+                  {marketOpen ? (
+                    <span className="text-[10px] text-emerald-400 font-mono">MARKET OPEN</span>
+                  ) : (
+                    <span className="text-[10px] text-white/20 font-mono">MARKET CLOSED · Opens 9:30 AM ET</span>
                   )}
                 </div>
-              </div>
-              <div className="flex gap-6 mb-4">
-                <div>
-                  <span className="text-[10px] text-gray-500 uppercase">Trades</span>
-                  <div className="text-white font-mono">{openTrades.length + todayClosedTrades.length}</div>
-                </div>
-                <div>
-                  <span className="text-[10px] text-gray-500 uppercase">Wins</span>
-                  <div className="text-emerald-400 font-mono">{todayWins}</div>
-                </div>
-                <div>
-                  <span className="text-[10px] text-gray-500 uppercase">Losses</span>
-                  <div className="text-red-400 font-mono">{todayLosses}</div>
-                </div>
-                <div>
-                  <span className="text-[10px] text-gray-500 uppercase">P&L</span>
-                  <div className={`font-mono ${(liveUnrealizedPnl + todayRealizedPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {(liveUnrealizedPnl + todayRealizedPnl) >= 0 ? '+' : ''}${(liveUnrealizedPnl + todayRealizedPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-              </div>
-              {/* Open trades */}
-              {openTrades.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
-                  {openTrades.map((trade, i) => (
-                    <motion.div
-                      key={trade.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.04, ...SPRING }}
-                      whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                      className="flex items-center justify-between py-2 px-3 rounded-xl transition-all duration-300"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`text-xs font-mono font-semibold ${trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {trade.direction === 'LONG' ? '↑' : '↓'} {trade.direction}
-                        </span>
-                        <span className="font-mono font-semibold text-white">{trade.symbol.includes('/') ? '' : '$'}{trade.symbol}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs font-mono">
-                        <span className="text-gray-400">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
-                        <span className="text-gray-500">Entry ${trade.entry}</span>
-                        {(() => {
-                          const livePrice = livePrices[trade.symbol.toUpperCase()]?.price;
-                          const currentPrice = livePrice || trade.current_price;
-                          const pnl = currentPrice && trade.entry && trade.size
-                            ? (currentPrice - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
-                            : trade.unrealized_pnl;
-                          const dollarSize = currentPrice && trade.size ? currentPrice * trade.size : trade.dollar_size || 0;
-                          return (
-                            <>
-                              {currentPrice && (
-                                <span className="text-white text-sm font-semibold">
-                                  {trade.symbol.includes('/') ? '' : '$'}{trade.symbol} <span className="text-gray-300">${Number(currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                </span>
-                              )}
-                              <span className="text-gray-500">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'} units</span>
-                              {pnl != null && (
+                {marketOpen ? (
+                  equityOpenTrades.length > 0 ? (
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
+                      {equityOpenTrades.map((trade, i) => (
+                        <motion.div
+                          key={trade.id}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.04, ...SPRING }}
+                          whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                          className="flex items-center justify-between py-2 px-2 rounded-xl transition-all duration-300 text-xs font-mono"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
+                              {trade.direction === 'LONG' ? '↑' : '↓'}
+                            </span>
+                            <span className="text-white font-semibold">${trade.symbol}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">Entry ${trade.entry}</span>
+                            {(() => {
+                              const lp = livePrices[trade.symbol.toUpperCase()]?.price;
+                              const cp = lp || trade.current_price;
+                              const pnl = cp && trade.entry && trade.size
+                                ? (cp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
+                                : trade.unrealized_pnl;
+                              return pnl != null ? (
                                 <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                                   {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
-                              )}
-                              <span className="text-gray-500">Size ${dollarSize.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-              {openTrades.length === 0 && (
-                <p className="text-xs text-gray-600 font-mono">No open positions</p>
-              )}
-            </motion.div>
-
-            {/* LIVE SIGNAL FEED */}
-            <motion.div
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2, ...SPRING }}
-              className={`${GLASS} p-5 transition-all duration-300`}
-            >
-              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">LIVE FEED</span>
-              <div className="mt-3 max-h-64 overflow-y-auto space-y-1" style={{ scrollbarWidth: 'none' }}>
-                {openTrades.length === 0 && (
-                  <p className="text-xs text-gray-600 font-mono py-4">No open positions</p>
+                              ) : null;
+                            })()}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-600 font-mono">No open equity positions</p>
+                  )
+                ) : (
+                  <p className="text-xs text-white/20 font-mono py-4">Equity trades will appear here during market hours</p>
                 )}
-                {openTrades.map((trade, i) => (
-                  <motion.div
-                    key={trade.id}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.04, ...SPRING }}
-                    className="flex items-center gap-3 py-1.5 text-xs font-mono"
-                  >
-                    <span className="text-gray-600 w-16">{new Date(trade.opened_at || trade.closed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className={`w-12 font-semibold ${trade.direction === 'LONG' ? 'text-emerald-400' : trade.direction === 'SHORT' ? 'text-red-400' : 'text-gray-600'}`}>
-                      {trade.direction === 'LONG' ? '↑' : trade.direction === 'SHORT' ? '↓' : '—'} {trade.direction}
-                    </span>
-                    <span className="text-white font-semibold w-20">{trade.symbol.includes('/') ? '' : '$'}{trade.symbol}</span>
-                    <span className="text-gray-400">{trade.size ? trade.size.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' units' : ''}</span>
-                    <span className="text-gray-500">Entry ${trade.entry}</span>
-            {(() => {
-              const lp = livePrices[trade.symbol.toUpperCase()]?.price;
-              const currentPrice = (trade.status === 'open' && lp) ? lp : trade.current_price;
-              const pnl = (currentPrice && trade.entry && trade.size && trade.status === 'open')
-                ? (currentPrice - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
-                : trade.unrealized_pnl;
-              const ds = (currentPrice && trade.size && trade.status === 'open') ? currentPrice * trade.size : (trade.dollar_size || 0);
-              return (
-                <>
-                  {currentPrice && trade.status === 'open' && (
-                    <span className="text-white text-sm font-semibold">
-                      {trade.symbol.includes('/') ? '' : '$'}{trade.symbol} <span className="text-gray-300">${Number(currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </span>
-                  )}
-                  {pnl != null && (
-                    <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                      {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  )}
-                  <span className="text-gray-500">Size ${ds.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
-                </>
-              );
-            })()}
-            <span className={`w-2 h-2 rounded-full ${trade.status === 'open' ? 'bg-emerald-400' : trade.win ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
+                <div className="mt-4 pt-3 border-t border-white/[0.06] text-xs font-mono">
+                  <span className="text-white/40">Today's Equity P&L: </span>
+                  <span className={todayEquityPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {todayEquityPnl >= 0 ? '+' : ''}${todayEquityPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </motion.div>
+            </div>
 
             {/* POLYMARKET BETS */}
             <motion.div
@@ -784,7 +793,7 @@ function SentinelPageInner() {
                 {/* Gap between groups */}
                 <div className="w-4" />
                 {/* Group 2 — Ticker */}
-                {['BTC', 'ETH', 'SOL'].map((pill) => (
+                {['BTC', 'ETH', 'SOL', 'SPY', 'AAPL', 'TSLA', 'NVDA', 'MSFT'].map((pill) => (
                   <button
                     key={pill}
                     onClick={() => setTickerFilter(prev => prev === pill ? null : pill)}
@@ -875,6 +884,26 @@ function SentinelPageInner() {
                   </span>
                 </div>
               )}
+
+              {/* ALL-TIME CRYPTO / EQUITY P&L TOGGLES */}
+              <div className="flex gap-6 mt-3 px-1 text-xs font-mono">
+                <button onClick={() => setShowCryptoPnl(v => !v)} className="text-white/30 hover:text-white/50 transition-colors text-left">
+                  All-Time Crypto P&L
+                  {showCryptoPnl && (
+                    <span className={`ml-2 ${allTimeCryptoPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {allTimeCryptoPnl >= 0 ? '+' : ''}${allTimeCryptoPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  )}
+                </button>
+                <button onClick={() => setShowEquityPnl(v => !v)} className="text-white/30 hover:text-white/50 transition-colors text-left">
+                  All-Time Equity P&L
+                  {showEquityPnl && (
+                    <span className={`ml-2 ${allTimeEquityPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {allTimeEquityPnl >= 0 ? '+' : ''}${allTimeEquityPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  )}
+                </button>
+              </div>
               </>);
               })()}
             </motion.div>
