@@ -550,7 +550,7 @@ function SentinelPageInner() {
           <AppErrorBoundary>
             <SentinelEngine
               sentinelTotalPnl={accountTotalPnl}
-              sentinelDailyPnl={liveUnrealizedPnl + todayRealizedPnl}
+              sentinelDailyPnl={todayCryptoPnl + todayEquityPnl + cryptoOpenPnl + equityOpenPnl}
               sentinelAccount={account}
               sentinelTotalTrades={unifiedTotalTrades}
               sentinelOpenCount={openTradeCount}
@@ -571,7 +571,8 @@ function SentinelPageInner() {
               </div>
               {(() => {
                 const pctChange = (accountTotalPnl / STARTING_BALANCE) * 100;
-                const todayPct = (todayLocalPnl / STARTING_BALANCE) * 100;
+                const todayTotal = todayCryptoPnl + todayEquityPnl + cryptoOpenPnl + equityOpenPnl;
+                const todayPct = (todayTotal / STARTING_BALANCE) * 100;
                 return (
                   <>
                     <span className={`text-sm font-mono ${accountTotalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -581,8 +582,8 @@ function SentinelPageInner() {
                     <br />
                     <span className="text-[12px] font-mono">
                       <span className="text-white/50">Today: </span>
-                      <span className={todayLocalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                        {todayLocalPnl >= 0 ? '+' : ''}${todayLocalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <span className={todayTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                        {todayTotal >= 0 ? '+' : ''}${todayTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         {' '}({todayPct.toFixed(2)}%)
                       </span>
                     </span>
