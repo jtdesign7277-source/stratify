@@ -59,21 +59,7 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
   const [oauthLoading, setOauthLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
-  const [sessionChecked, setSessionChecked] = useState(false);
   const leftPanelCanvasRef = useRef(null);
-
-  // Auto-redirect to dashboard if user already has a valid session
-  useEffect(() => {
-    let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data?.session) {
-        onSuccess();
-      } else if (!cancelled) {
-        setSessionChecked(true);
-      }
-    });
-    return () => { cancelled = true; };
-  }, [onSuccess]);
 
   useEffect(() => {
     const canvas = leftPanelCanvasRef.current;
@@ -300,11 +286,6 @@ export default function SignUpPage({ initialMode = 'login', onSuccess, onBackToL
     cursor: 'pointer',
     fontWeight: 500,
   };
-
-  // Don't flash the login form while checking for an existing session
-  if (!sessionChecked) {
-    return <div className="min-h-screen bg-black" />;
-  }
 
   return (
     <div className="min-h-screen bg-black text-white">
