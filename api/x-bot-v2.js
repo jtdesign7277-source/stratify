@@ -848,7 +848,7 @@ async function generateTrumpWatch() {
       max_tokens: 400,
       messages: [{
         role: 'user',
-        content: `You monitor Trump tweets for Stratify, a trading platform. Pick the single most market-relevant tweet. Score 1-10. If score < 7, return null.\n\nTweets:\n${tweetList}\n\nReturn ONLY valid JSON, no markdown:\n{"tweetId": "...", "score": 8, "hook": "JUST IN: 8-10 word teaser", "body": "Full post under 280 chars. Start with his exact quote in quotes, then 1-2 lines on market angle. End with $SPY or relevant ticker."}\n\nIf no tweet scores 7+, return: {"tweetId": null, "score": 0}`,
+        content: `You monitor Trump tweets for Stratify, a trading platform. Pick the single most market-relevant tweet. Score 1-10. If score < 7, return null.\n\nTweets:\n${tweetList}\n\nReturn ONLY valid JSON, no markdown:\n{"tweetId": "...", "score": 8, "hook": "JUST IN: 8-10 word teaser", "body": "Full post under 280 chars. Start with his exact quote in quotes, then 1 line on market angle — NO PRICES, NO PRICE LEVELS, NO NUMBERS. Only mention direction and ticker. End with $SPY or relevant ticker.", "tickers": ["SPY"]}\n\nCRITICAL: Do NOT include any stock prices, price levels, or numeric targets in body. Never write things like 'TSLA at $220' or 'rejected $400'. Price data is forbidden — direction only.\n\nIf no tweet scores 7+, return: {"tweetId": null, "score": 0}`,
       }],
     }),
   });
@@ -869,6 +869,23 @@ async function generateTrumpWatch() {
 
   const tweet = parsed.body?.trim();
   if (!tweet || tweet.length > 280) return null;
+
+  // Hard block: if tweet contains a dollar amount that looks like a price (e.g. $220, $1,234)
+  // these are hallucinated prices — reject the tweet entirely
+  const hallucPriceRegex = /\$\d[\d,]*(\.\d+)?(?!\s*(?:B|M|T|billion|million|trillion))/g;
+  const priceMatches = tweet.match(hallucPriceRegex) || [];
+  // Allow ticker cashtags like $SPY, $TSLA — reject numeric dollar amounts
+  const numericPrices = priceMatches.filter(m => /\$\d/.test(m));
+  if (numericPrices.length > 0) {
+    console.log('Trump watch: rejected tweet with hallucinated prices:', numericPrices, tweet);
+    return null;
+  }
+
+  const verification = verifyTweet(tweet, {});
+  if (!verification.approved) {
+    console.log('Trump watch: tweet failed verification:', verification.errors);
+    return null;
+  }
 
   if (redis) {
     try {
