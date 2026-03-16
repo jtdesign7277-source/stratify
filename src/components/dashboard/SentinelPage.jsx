@@ -8,12 +8,62 @@ import AppErrorBoundary from '../shared/AppErrorBoundary';
 import { useTwelveDataWS } from '../xray/hooks/useTwelveDataWS';
 import SentinelEngine from './SentinelEngine';
 
+const STARTING_BALANCE = 2000000;
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
 const GLASS = 'bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)]';
 const GLASS_HOVER = 'hover:from-white/[0.06] hover:to-white/[0.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.3)] hover:border-white/[0.1]';
 const EMERALD_GLOW = 'bg-gradient-to-br from-emerald-500/[0.08] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-emerald-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgba(16,185,129,0.1)]';
 const RED_GLOW = 'bg-gradient-to-br from-red-500/[0.08] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-red-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgba(239,68,68,0.15)]';
 const INSET = 'bg-black/40 rounded-xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5),inset_-2px_-2px_6px_rgba(255,255,255,0.02)] border border-white/[0.04] px-4 py-3 font-mono font-bold text-white focus:border-emerald-500/30 focus:outline-none transition-all duration-300';
+const RISK_PRESET_CLASSES = {
+  emerald: { active: 'text-emerald-400 border-emerald-500/30', inactive: 'text-gray-600 border-white/[0.06]' },
+  yellow:  { active: 'text-yellow-400 border-yellow-500/30', inactive: 'text-gray-600 border-white/[0.06]' },
+  orange:  { active: 'text-orange-400 border-orange-500/30', inactive: 'text-gray-600 border-white/[0.06]' },
+  red:     { active: 'text-red-400 border-red-500/30', inactive: 'text-gray-600 border-white/[0.06]' },
+};
+
+const fmtDollar = (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtPrice = (v) => v != null ? `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+
+function computePnl(trade, livePrices) {
+  const lp = livePrices[trade.symbol.toUpperCase()]?.price;
+  const cp = lp || trade.current_price;
+  const pnl = cp && trade.entry && trade.size
+    ? (cp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
+    : trade.unrealized_pnl;
+  return { livePrice: cp, pnl: pnl ?? 0 };
+}
+
+function PositionRow({ trade, i, showDollar = false, livePrices }) {
+  const { livePrice, pnl } = computePnl(trade, livePrices);
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: i * 0.04, ...SPRING }}
+      whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+      className="py-2 px-2 rounded-xl transition-all duration-300 text-xs font-mono"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
+            {trade.direction === 'LONG' ? '↑' : '↓'}
+          </span>
+          <span className="text-white font-semibold">{showDollar ? '$' : ''}{trade.symbol}</span>
+        </div>
+        <span className={`font-medium ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          {fmtDollar(pnl)}
+        </span>
+      </div>
+      <div className="flex items-center gap-3 mt-0.5 text-[10px] text-white/30">
+        <span>Entry {fmtPrice(trade.entry)}</span>
+        <span className={pnl >= 0 ? 'text-emerald-400/50' : 'text-red-400/50'}>
+          Live {fmtPrice(livePrice)}
+        </span>
+      </div>
+    </motion.div>
+  );
+}
 
 function isMarketOpen() {
   const now = new Date();
@@ -161,7 +211,6 @@ function SentinelPageInner() {
   const [loading, setLoading] = useState(true);
   const [userSettings, setUserSettings] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  const [expandedSession, setExpandedSession] = useState(null);
   const [statusFilter, setStatusFilter] = useState('All');
   const [todayOnly, setTodayOnly] = useState(false);
   const [tickerFilter, setTickerFilter] = useState(null);
@@ -175,7 +224,8 @@ function SentinelPageInner() {
   const [showYoloConfirm, setShowYoloConfirm] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [subTab, setSubTab] = useState('overview');
-  const lastFetchRef = useRef(null);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
+  const prevBalanceRef = useRef(0);
 
   // Live prices via Twelve Data WebSocket
   const { prices: livePrices, subscribe: wsSubscribe, unsubscribe: wsUnsubscribe } = useTwelveDataWS();
@@ -197,7 +247,7 @@ function SentinelPageInner() {
       const resp = await fetch('/api/sentinel/status');
       const result = await resp.json();
       setData(result);
-      lastFetchRef.current = new Date().toISOString();
+      setLastFetchTime(new Date().toISOString());
     } catch (err) {
       console.error('[SentinelPage] fetch error:', err);
     } finally {
@@ -357,8 +407,8 @@ function SentinelPageInner() {
 
   // Single source of truth: account-level total P&L (realized + live unrealized)
   const accountTotalPnl = useMemo(() => {
-    const realizedBase = (data?.account?.current_balance || 2000000);
-    return (realizedBase + liveUnrealizedPnl) - 2000000;
+    const realizedBase = (data?.account?.current_balance || STARTING_BALANCE);
+    return (realizedBase + liveUnrealizedPnl) - STARTING_BALANCE;
   }, [data?.account?.current_balance, liveUnrealizedPnl]);
 
   const recentSessions = data?.recentSessions || [];
@@ -384,12 +434,15 @@ function SentinelPageInner() {
     return map;
   }, [recentClosedTrades]);
 
-  // Derive today's closed trade stats from actual trade data
-  const today = new Date().toISOString().split('T')[0];
-  const todayClosedTrades = tradesBySession[today] || [];
-  const todayRealizedPnl = todayClosedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-  const todayWins = todayClosedTrades.filter(t => t.win).length;
-  const todayLosses = todayClosedTrades.filter(t => !t.win).length;
+  // Derive today's realized P&L using local midnight (consistent with todayLocalPnl)
+  const todayRealizedPnl = useMemo(() => {
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const ms = midnight.getTime();
+    return recentClosedTrades
+      .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms; })
+      .reduce((sum, t) => sum + (t.pnl || 0), 0);
+  }, [recentClosedTrades]);
 
   // Classify trade as crypto or equity
   const isCryptoTrade = useCallback((trade) => {
@@ -400,6 +453,10 @@ function SentinelPageInner() {
   // Split open trades
   const cryptoOpenTrades = useMemo(() => openTrades.filter(t => isCryptoTrade(t)), [openTrades, isCryptoTrade]);
   const equityOpenTrades = useMemo(() => openTrades.filter(t => !isCryptoTrade(t)), [openTrades, isCryptoTrade]);
+
+  // Open position P&L summaries
+  const cryptoOpenPnl = useMemo(() => cryptoOpenTrades.reduce((s, t) => s + computePnl(t, livePrices).pnl, 0), [cryptoOpenTrades, livePrices]);
+  const equityOpenPnl = useMemo(() => equityOpenTrades.reduce((s, t) => s + computePnl(t, livePrices).pnl, 0), [equityOpenTrades, livePrices]);
 
   // Today's P&L using local midnight (matches session history "Today" filter)
   const todayLocalPnl = useMemo(() => {
@@ -484,7 +541,7 @@ function SentinelPageInner() {
               </button>
             ))}
           </div>
-          <span className="text-xs text-gray-600 font-mono">Last updated: {timeAgo(lastFetchRef.current)}</span>
+          <span className="text-xs text-gray-600 font-mono">Last updated: {timeAgo(lastFetchTime)}</span>
         </div>
       </div>
 
@@ -509,12 +566,12 @@ function SentinelPageInner() {
             <div>
               <div>
                 <span className="font-mono text-3xl font-bold text-white">
-                  $<CountUp end={data?.liveBalance || account.current_balance || 500000} duration={1.2} decimals={2} separator="," preserveValue />
+                  $<CountUp start={prevBalanceRef.current} end={data?.liveBalance || account.current_balance || STARTING_BALANCE} duration={1.2} decimals={2} separator="," preserveValue onEnd={() => { prevBalanceRef.current = data?.liveBalance || account.current_balance || STARTING_BALANCE; }} />
                 </span>
               </div>
               {(() => {
-                const pctChange = (accountTotalPnl / 2000000) * 100;
-                const todayPct = (todayLocalPnl / 2000000) * 100;
+                const pctChange = (accountTotalPnl / STARTING_BALANCE) * 100;
+                const todayPct = (todayLocalPnl / STARTING_BALANCE) * 100;
                 return (
                   <>
                     <span className={`text-sm font-mono ${accountTotalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -577,66 +634,6 @@ function SentinelPageInner() {
           <div className="space-y-6 min-w-0">
             {/* CRYPTO / EQUITIES TWO-COLUMN SPLIT */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Shared position row renderer with live prices */}
-              {(() => {
-                const computePnl = (trade) => {
-                  const lp = livePrices[trade.symbol.toUpperCase()]?.price;
-                  const cp = lp || trade.current_price;
-                  const pnl = cp && trade.entry && trade.size
-                    ? (cp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
-                    : trade.unrealized_pnl;
-                  return { livePrice: cp, pnl: pnl ?? 0 };
-                };
-                const sumOpenPnl = (trades) => trades.reduce((s, t) => s + computePnl(t).pnl, 0);
-                const cryptoOpenPnl = sumOpenPnl(cryptoOpenTrades);
-                const equityOpenPnl = sumOpenPnl(equityOpenTrades);
-                const fmtDollar = (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                const fmtPrice = (v) => v != null ? `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-
-                const PositionRow = ({ trade, i, showDollar = false }) => {
-                  const { livePrice, pnl } = computePnl(trade);
-                  return (
-                    <motion.div
-                      key={trade.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.04, ...SPRING }}
-                      whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                      className="py-2 px-2 rounded-xl transition-all duration-300 text-xs font-mono"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
-                            {trade.direction === 'LONG' ? '↑' : '↓'}
-                          </span>
-                          <span className="text-white font-semibold">{showDollar ? '$' : ''}{trade.symbol}</span>
-                        </div>
-                        <motion.span
-                          key={pnl.toFixed(2)}
-                          initial={{ color: pnl >= 0 ? '#10b981' : '#ef4444' }}
-                          animate={{ color: '#ffffff' }}
-                          transition={{ duration: 1.5 }}
-                          className="font-medium"
-                        >
-                          {fmtDollar(pnl)}
-                        </motion.span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5 text-[10px] text-white/30">
-                        <span>Entry {fmtPrice(trade.entry)}</span>
-                        <motion.span
-                          key={livePrice ? livePrice.toFixed(2) : 'na'}
-                          initial={{ color: pnl >= 0 ? '#10b981' : '#ef4444' }}
-                          animate={{ color: 'rgba(255,255,255,0.5)' }}
-                          transition={{ duration: 1.2 }}
-                        >
-                          Live {fmtPrice(livePrice)}
-                        </motion.span>
-                      </div>
-                    </motion.div>
-                  );
-                };
-
-                return (<>
               {/* LEFT — CRYPTO (24/7) */}
               <motion.div
                 initial={{ opacity: 0, x: -8 }}
@@ -652,18 +649,12 @@ function SentinelPageInner() {
                   <div className="space-y-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
-                      <motion.span
-                        key={cryptoOpenPnl.toFixed(2)}
-                        initial={{ color: cryptoOpenPnl >= 0 ? '#10b981' : '#ef4444' }}
-                        animate={{ color: '#ffffff' }}
-                        transition={{ duration: 1.5 }}
-                        className="text-[11px] font-mono font-medium"
-                      >
+                      <span className={`text-[11px] font-mono font-medium ${cryptoOpenPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         Open P&L: {fmtDollar(cryptoOpenPnl)}
-                      </motion.span>
+                      </span>
                     </div>
                     {cryptoOpenTrades.map((trade, i) => (
-                      <PositionRow key={trade.id} trade={trade} i={i} />
+                      <PositionRow key={trade.id} trade={trade} i={i} livePrices={livePrices} />
                     ))}
                   </div>
                 ) : (
@@ -698,18 +689,12 @@ function SentinelPageInner() {
                     <div className="space-y-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
-                        <motion.span
-                          key={equityOpenPnl.toFixed(2)}
-                          initial={{ color: equityOpenPnl >= 0 ? '#10b981' : '#ef4444' }}
-                          animate={{ color: '#ffffff' }}
-                          transition={{ duration: 1.5 }}
-                          className="text-[11px] font-mono font-medium"
-                        >
+                        <span className={`text-[11px] font-mono font-medium ${equityOpenPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           Open P&L: {fmtDollar(equityOpenPnl)}
-                        </motion.span>
+                        </span>
                       </div>
                       {equityOpenTrades.map((trade, i) => (
-                        <PositionRow key={trade.id} trade={trade} i={i} showDollar />
+                        <PositionRow key={trade.id} trade={trade} i={i} showDollar livePrices={livePrices} />
                       ))}
                     </div>
                   ) : (
@@ -725,8 +710,6 @@ function SentinelPageInner() {
                   </span>
                 </div>
               </motion.div>
-                </>);
-              })()}
             </div>
 
             {/* POLYMARKET BETS */}
@@ -940,8 +923,8 @@ function SentinelPageInner() {
 
               {/* TRADE ROWS */}
               <div className="mt-1">
-                {recentClosedTrades.length === 0 && (
-                  <p className="text-xs text-gray-600 font-mono py-2">No trades yet</p>
+                {sortedTrades.length === 0 && (
+                  <p className="text-xs text-gray-600 font-mono py-2">{recentClosedTrades.length === 0 ? 'No trades yet' : 'No trades match filters'}</p>
                 )}
                 {sortedTrades.map((trade) => {
                   const isWin = trade.win || (trade.pnl || 0) >= 0;
@@ -1232,8 +1215,8 @@ function SentinelPageInner() {
                           whileTap={{ scale: 0.96 }}
                           className={`flex-1 py-2 rounded-xl text-xs font-mono border transition-all duration-300 ${
                             riskPreset === label
-                              ? `text-${color}-400 border-${color}-500/30`
-                              : 'text-gray-600 border-white/[0.06]'
+                              ? RISK_PRESET_CLASSES[color].active
+                              : RISK_PRESET_CLASSES[color].inactive
                           }`}
                         >
                           {label}
