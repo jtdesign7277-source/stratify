@@ -650,31 +650,36 @@ function SentinelPageInner() {
             >
               <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SESSION HISTORY</span>
 
-              {/* STAT CARDS */}
+              {/* FILTERED TRADES — shared across stat cards, rows, and footer */}
               {(() => {
-                const allTrades = recentClosedTrades;
-                const totalTrades = allTrades.length;
-                const totalWins = allTrades.filter(t => t.win).length;
+                let filteredTrades = [...recentClosedTrades];
+                if (statusFilter === 'Wins') filteredTrades = filteredTrades.filter(t => t.win);
+                else if (statusFilter === 'Losses') filteredTrades = filteredTrades.filter(t => !t.win);
+                if (tickerFilter) filteredTrades = filteredTrades.filter(t => t.symbol?.includes(tickerFilter));
+                const sortedTrades = sortLargest ? [...filteredTrades].sort((a, b) => Math.abs(b.pnl || 0) - Math.abs(a.pnl || 0)) : filteredTrades;
+
+                const totalTrades = filteredTrades.length;
+                const totalWins = filteredTrades.filter(t => t.win).length;
                 const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
-                const winTrades = allTrades.filter(t => t.win && t.pnl > 0);
+                const winTrades = filteredTrades.filter(t => t.win && t.pnl > 0);
                 const avgWin = winTrades.length > 0 ? winTrades.reduce((s, t) => s + (t.pnl || 0), 0) / winTrades.length : 0;
-                const netPnl = allTrades.reduce((s, t) => s + (t.pnl || 0), 0);
-                return (
-                  <div className="grid grid-cols-4 gap-3 mt-4">
-                    {[
-                      { label: 'Trades', value: totalTrades, fmt: (v) => v.toString(), color: 'text-white' },
-                      { label: 'Win Rate', value: winRate, fmt: (v) => `${v.toFixed(1)}%`, color: winRate >= 50 ? 'text-emerald-400' : 'text-red-400' },
-                      { label: 'Avg Win', value: avgWin, fmt: (v) => `$${v.toFixed(2)}`, color: 'text-emerald-400' },
-                      { label: 'Net P&L', value: netPnl, fmt: (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
-                    ].map((stat) => (
-                      <div key={stat.label} className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] p-3">
-                        <div className="text-[11px] uppercase tracking-[0.4px] text-white/30">{stat.label}</div>
-                        <div className={`text-lg font-mono font-bold mt-1 ${stat.color}`}>{stat.fmt(stat.value)}</div>
-                      </div>
-                    ))}
+                const netPnl = filteredTrades.reduce((s, t) => s + (t.pnl || 0), 0);
+
+                return (<>
+              {/* STAT CARDS */}
+              <div className="grid grid-cols-4 gap-3 mt-4">
+                {[
+                  { label: 'Trades', value: totalTrades, fmt: (v) => v.toString(), color: 'text-white' },
+                  { label: 'Win Rate', value: winRate, fmt: (v) => `${v.toFixed(1)}%`, color: winRate >= 50 ? 'text-emerald-400' : 'text-red-400' },
+                  { label: 'Avg Win', value: avgWin, fmt: (v) => `$${v.toFixed(2)}`, color: 'text-emerald-400' },
+                  { label: 'Net P&L', value: netPnl, fmt: (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] p-3">
+                    <div className="text-[11px] uppercase tracking-[0.4px] text-white/30">{stat.label}</div>
+                    <div className={`text-lg font-mono font-bold mt-1 ${stat.color}`}>{stat.fmt(stat.value)}</div>
                   </div>
-                );
-              })()}
+                ))}
+              </div>
 
               {/* FILTER PILLS */}
               <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -738,61 +743,56 @@ function SentinelPageInner() {
                 {recentClosedTrades.length === 0 && (
                   <p className="text-xs text-gray-600 font-mono py-2">No trades yet</p>
                 )}
-                {(() => {
-                  let filtered = [...recentClosedTrades];
-                  if (statusFilter === 'Wins') filtered = filtered.filter(t => t.win);
-                  else if (statusFilter === 'Losses') filtered = filtered.filter(t => !t.win);
-                  if (tickerFilter) filtered = filtered.filter(t => t.symbol?.includes(tickerFilter));
-                  if (sortLargest) filtered.sort((a, b) => Math.abs(b.pnl || 0) - Math.abs(a.pnl || 0));
-                  return filtered.map((trade) => {
-                    const isWin = trade.win || (trade.pnl || 0) >= 0;
-                    const openTime = trade.opened_at ? new Date(trade.opened_at) : null;
-                    const closeTime = trade.closed_at ? new Date(trade.closed_at) : null;
-                    const timeFmt = (d) => d ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
-                    const durationMins = openTime && closeTime ? Math.round((closeTime - openTime) / 60000) : null;
-                    const durationStr = durationMins != null ? (durationMins >= 60 ? `${Math.floor(durationMins / 60)}h${durationMins % 60}m` : `${durationMins}m`) : '';
-                    return (
-                      <div
-                        key={trade.id}
-                        className="grid items-center py-2.5 px-1 border-b border-white/[0.06] transition-colors duration-200 hover:bg-white/[0.03] text-xs font-mono"
-                        style={{ gridTemplateColumns: '28px 90px 1fr 110px 110px 100px' }}
-                      >
-                        {/* Win/loss indicator bar */}
-                        <div className="flex justify-center">
-                          <div
-                            className="w-[3px] h-6 rounded-full"
-                            style={{ backgroundColor: isWin ? 'rgba(52,211,153,0.7)' : 'rgba(248,113,113,0.5)' }}
-                          />
-                        </div>
-                        {/* Pair */}
-                        <span className="text-white font-medium">{trade.symbol}</span>
-                        {/* Time range + duration */}
-                        <span className="text-white/30 text-[12px]">
-                          {timeFmt(openTime)} → {timeFmt(closeTime)}{durationStr && <span className="ml-1.5 text-white/20">{durationStr}</span>}
-                        </span>
-                        {/* Entry price */}
-                        <span className="text-white/50 text-[12px]">${trade.entry != null ? Number(trade.entry).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</span>
-                        {/* Exit price */}
-                        <span className="text-white/50 text-[12px]">${trade.exit_price != null ? Number(trade.exit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</span>
-                        {/* P&L */}
-                        <span className={`text-right font-medium ${isWin ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                {sortedTrades.map((trade) => {
+                  const isWin = trade.win || (trade.pnl || 0) >= 0;
+                  const openTime = trade.opened_at ? new Date(trade.opened_at) : null;
+                  const closeTime = trade.closed_at ? new Date(trade.closed_at) : null;
+                  const timeFmt = (d) => d ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
+                  const durationMins = openTime && closeTime ? Math.round((closeTime - openTime) / 60000) : null;
+                  const durationStr = durationMins != null ? (durationMins >= 60 ? `${Math.floor(durationMins / 60)}h${durationMins % 60}m` : `${durationMins}m`) : '';
+                  return (
+                    <div
+                      key={trade.id}
+                      className="grid items-center py-2.5 px-1 border-b border-white/[0.06] transition-colors duration-200 hover:bg-white/[0.03] text-xs font-mono"
+                      style={{ gridTemplateColumns: '28px 90px 1fr 110px 110px 100px' }}
+                    >
+                      {/* Win/loss indicator bar */}
+                      <div className="flex justify-center">
+                        <div
+                          className="w-[3px] h-6 rounded-full"
+                          style={{ backgroundColor: isWin ? 'rgba(52,211,153,0.7)' : 'rgba(248,113,113,0.5)' }}
+                        />
                       </div>
-                    );
-                  });
-                })()}
+                      {/* Pair */}
+                      <span className="text-white font-medium">{trade.symbol}</span>
+                      {/* Time range + duration */}
+                      <span className="text-white/30 text-[12px]">
+                        {timeFmt(openTime)} → {timeFmt(closeTime)}{durationStr && <span className="ml-1.5 text-white/20">{durationStr}</span>}
+                      </span>
+                      {/* Entry price */}
+                      <span className="text-white/50 text-[12px]">${trade.entry != null ? Number(trade.entry).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</span>
+                      {/* Exit price */}
+                      <span className="text-white/50 text-[12px]">${trade.exit_price != null ? Number(trade.exit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</span>
+                      {/* P&L */}
+                      <span className={`text-right font-medium ${isWin ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {(trade.pnl || 0) >= 0 ? '+' : ''}${(trade.pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* TOTAL P&L FOOTER */}
-              {recentClosedTrades.length > 0 && (
+              {filteredTrades.length > 0 && (
                 <div className="flex items-center justify-between pt-3 mt-2 border-t border-white/[0.06] px-1 text-xs font-mono">
                   <span className="text-white/30">Total P&L</span>
-                  <span className={`font-medium ${recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? '+' : ''}${recentClosedTrades.reduce((s, t) => s + (t.pnl || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className={`font-medium ${netPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {netPnl >= 0 ? '+' : ''}${netPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               )}
+              </>);
+              })()}
             </motion.div>
           </div>
 
