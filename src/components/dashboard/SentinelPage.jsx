@@ -305,6 +305,16 @@ function SentinelPageInner() {
   const todayWins = todayClosedTrades.filter(t => t.win).length;
   const todayLosses = todayClosedTrades.filter(t => !t.win).length;
 
+  // Today's P&L using local midnight (matches session history "Today" filter)
+  const todayLocalPnl = useMemo(() => {
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const ms = midnight.getTime();
+    return recentClosedTrades
+      .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms; })
+      .reduce((sum, t) => sum + (t.pnl || 0), 0);
+  }, [recentClosedTrades]);
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#0a0a0f]">
@@ -377,19 +387,29 @@ function SentinelPageInner() {
         <motion.div className={`${GLASS} ${GLASS_HOVER} p-6 transition-all duration-300`} whileHover={{ y: -2 }}>
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-gray-500 text-sm">Starting $2,000,000</span>
-              <div className="mt-1">
+              <div>
                 <span className="font-mono text-3xl font-bold text-white">
                   $<CountUp end={data?.liveBalance || account.current_balance || 500000} duration={1.2} decimals={2} separator="," preserveValue />
                 </span>
               </div>
               {(() => {
                 const pctChange = (accountTotalPnl / 2000000) * 100;
+                const todayPct = (todayLocalPnl / 2000000) * 100;
                 return (
-                  <span className={`text-sm font-mono ${accountTotalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    Total P&L: {accountTotalPnl >= 0 ? '+' : ''}${accountTotalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    {' '}({pctChange.toFixed(2)}%)
-                  </span>
+                  <>
+                    <span className={`text-sm font-mono ${accountTotalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      Total P&L: {accountTotalPnl >= 0 ? '+' : ''}${accountTotalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {' '}({pctChange.toFixed(2)}%)
+                    </span>
+                    <br />
+                    <span className="text-[12px] font-mono">
+                      <span className="text-white/50">Today: </span>
+                      <span className={todayLocalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                        {todayLocalPnl >= 0 ? '+' : ''}${todayLocalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {' '}({todayPct.toFixed(2)}%)
+                      </span>
+                    </span>
+                  </>
                 );
               })()}
             </div>
