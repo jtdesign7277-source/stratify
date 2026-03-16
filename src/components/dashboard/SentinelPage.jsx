@@ -281,6 +281,10 @@ function SentinelPageInner() {
 
   const recentSessions = data?.recentSessions || [];
   const recentClosedTrades = data?.recentClosedTrades || [];
+  // Single source of truth: total trades = closed + open
+  const openTradeCount = openTrades.length;
+  const closedTradeCount = recentClosedTrades.length;
+  const unifiedTotalTrades = closedTradeCount + openTradeCount;
   const memory = data?.memory || {};
   const unlock = data?.unlockStatus || {};
   const isSubscribed = userSettings?.subscription_status === 'active' || userSettings?.subscription_status === 'trialing';
@@ -377,6 +381,8 @@ function SentinelPageInner() {
               sentinelTotalPnl={accountTotalPnl}
               sentinelDailyPnl={liveUnrealizedPnl + todayRealizedPnl}
               sentinelAccount={account}
+              sentinelTotalTrades={unifiedTotalTrades}
+              sentinelOpenCount={openTradeCount}
             />
           </AppErrorBoundary>
         </div>
@@ -421,7 +427,7 @@ function SentinelPageInner() {
                 <div className={`mt-1 font-mono ${(account.avg_r || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(account.avg_r || 0).toFixed(2)}R</div>
               </MetricTooltip>
               <MetricTooltip label="Total Trades" tip="Total number of trades Sentinel has executed since launch. More trades = more data for the brain to learn from.">
-                <div className="mt-1 text-white font-mono">{(account.total_trades || 0) || (openTrades.length + recentClosedTrades.length)}</div>
+                <div className="mt-1 text-white font-mono">{unifiedTotalTrades}{openTradeCount > 0 && <span className="text-white/40"> ({openTradeCount} open)</span>}</div>
               </MetricTooltip>
               <MetricTooltip label="Expectancy" tip="Expected profit per trade in R units. Combines win rate and average win/loss size: (win% × avg win) − (loss% × avg loss). Positive = profitable system over time.">
                 <div className={`mt-1 font-mono ${(account.expectancy || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(account.expectancy || 0) >= 0 ? '+' : ''}{(account.expectancy || 0).toFixed(1)}R</div>
@@ -890,7 +896,7 @@ function SentinelPageInner() {
               >
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SENTINEL BRAIN</span>
-                  <span className="text-[10px] text-gray-600 font-mono">{recentSessions.length} sessions</span>
+                  <span className="text-[10px] text-gray-600 font-mono">{unifiedTotalTrades} trades{openTradeCount > 0 ? ` (${openTradeCount} open)` : ''} · {recentSessions.length} sessions</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 font-mono">Session {memory.sessions_processed || 0}</span>

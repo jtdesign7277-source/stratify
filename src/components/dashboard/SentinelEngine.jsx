@@ -831,13 +831,14 @@ const PnlCanvas = memo(function PnlCanvas({ data }) {
 });
 
 // ─── Main Component ────────────────────────────────────────────────────────
-export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sentinelAccount }) {
+export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sentinelAccount, sentinelTotalTrades, sentinelOpenCount }) {
   const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected, dataSource, btcPrice } = useBotStream();
   const totalPnl = sentinelTotalPnl != null ? sentinelTotalPnl : (metrics.balance - metrics.deposit);
   const dailyPnl = sentinelDailyPnl != null ? sentinelDailyPnl : 0;
   // Use shared account stats when available (single source of truth with Overview)
   const sharedWinRate = sentinelAccount?.win_rate != null ? sentinelAccount.win_rate : metrics.winRate;
-  const sharedTotalTrades = sentinelAccount?.total_trades != null ? sentinelAccount.total_trades : metrics.total;
+  const sharedTotalTrades = sentinelTotalTrades != null ? sentinelTotalTrades : metrics.total;
+  const sharedOpenCount = sentinelOpenCount || 0;
   const [vizMode, setVizMode] = useState('mc'); // 'mc' | 'equity'
 
   const marquee = `BAYESIAN + EDGE + SPREAD + STOIKOV + KELLY + MONTE CARLO  ·  $${metrics.balance.toLocaleString()} → $${(metrics.deposit * 2).toLocaleString()}  ·  5-MIN BTC  ·  LIMIT ORDERS  ·  ${metrics.tradesHr}/hr TRADING  ·  ${sharedWinRate}% WIN  ·  ${metrics.edge || '—'}% EDGE`;
@@ -1006,7 +1007,7 @@ export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sen
               <Row label="Win Rate" value={`${sharedWinRate}%`} color={totalPnl >= 0 ? COLORS.green : COLORS.red} />
               <Row label="Sharpe" value={metrics.sharpe} color={+metrics.sharpe > 1.5 ? COLORS.green : COLORS.text} />
               <Row label="Max DD" value={`${metrics.maxDd}%`} color={COLORS.red} />
-              <Row label="Trades" value={sharedTotalTrades.toLocaleString()} />
+              <Row label="Trades" value={`${sharedTotalTrades.toLocaleString()}${sharedOpenCount > 0 ? ` (${sharedOpenCount} open)` : ''}`} />
               <Row label="Trades/Hr" value={metrics.tradesHr} />
               {Object.entries(metrics.status).map(([k, v]) => (
                 <Row key={k} label={k} value={typeof v === 'number' ? `${v}%` : v}
