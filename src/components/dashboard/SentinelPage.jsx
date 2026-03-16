@@ -985,14 +985,19 @@ function SentinelPageInner() {
               </div>
 
               {/* TOTAL P&L FOOTER */}
-              {filteredTrades.length > 0 && (
-                <div className="flex items-center justify-between pt-3 mt-2 border-t border-white/[0.06] px-1 text-xs font-mono">
-                  <span className="text-white/30">Total P&L</span>
-                  <span className={`font-medium ${netPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {netPnl >= 0 ? '+' : ''}${netPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
+              {filteredTrades.length > 0 && (() => {
+                const isFiltered = todayOnly || statusFilter !== 'All' || !!tickerFilter;
+                const footerValue = isFiltered ? netPnl : accountTotalPnl;
+                const footerLabel = isFiltered ? 'Filtered P&L' : 'Total P&L';
+                return (
+                  <div className="flex items-center justify-between pt-3 mt-2 border-t border-white/[0.06] px-1 text-xs font-mono">
+                    <span className="text-white/30">{footerLabel}</span>
+                    <span className={`font-medium ${footerValue >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {footerValue >= 0 ? '+' : ''}${footerValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* ALL-TIME CRYPTO / EQUITY P&L TOGGLES */}
               <div className="flex gap-6 mt-3 px-1 text-xs font-mono">

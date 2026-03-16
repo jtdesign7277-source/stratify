@@ -841,7 +841,8 @@ export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sen
   const sharedOpenCount = sentinelOpenCount || 0;
   const [vizMode, setVizMode] = useState('mc'); // 'mc' | 'equity'
 
-  const marquee = `BAYESIAN + EDGE + SPREAD + STOIKOV + KELLY + MONTE CARLO  ·  $${metrics.balance.toLocaleString()} → $${(metrics.deposit * 2).toLocaleString()}  ·  5-MIN BTC  ·  LIMIT ORDERS  ·  ${metrics.tradesHr}/hr TRADING  ·  ${sharedWinRate}% WIN  ·  ${metrics.edge || '—'}% EDGE`;
+  const sharedBalance = sentinelAccount?.current_balance || metrics.balance;
+  const marquee = `BAYESIAN + EDGE + SPREAD + STOIKOV + KELLY + MONTE CARLO  ·  $${sharedBalance.toLocaleString()} → $${(metrics.deposit * 2).toLocaleString()}  ·  5-MIN BTC  ·  LIMIT ORDERS  ·  ${metrics.tradesHr}/hr TRADING  ·  ${sharedWinRate}% WIN  ·  ${metrics.edge || '—'}% EDGE`;
 
   const panelStyle = {
     background: COLORS.panel,
