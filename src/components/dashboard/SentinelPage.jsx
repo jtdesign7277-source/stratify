@@ -601,8 +601,15 @@ function SentinelPageInner() {
                   ...polyResolved.map(t => ({ ...t, _type: 'resolved' })),
                 ];
                 const SLOTS = 9;
+                // Verified Polymarket URLs — hardcoded slugs, never guessed
+                const POLY_URLS = {
+                  'Will Bitcoin hit $150k by December 31, 2026?': 'https://polymarket.com/event/what-price-will-bitcoin-hit-before-2027/will-bitcoin-reach-150000-by-december-31-2026-557',
+                  'Will Bitcoin hit $150k by June 30, 2026?': 'https://polymarket.com/event/when-will-bitcoin-hit-150k/will-bitcoin-hit-150k-by-december-31-2026',
+                  'Will El Salvador hold $1b+ of BTC by December 31, 2026?': 'https://polymarket.com/event/will-el-salvador-hold-1b-of-btc-by-by',
+                };
                 const polyUrl = (trade) => {
-                  if (trade.question) return `https://polymarket.com/search?query=${encodeURIComponent(trade.question)}`;
+                  if (trade.polymarket_url) return trade.polymarket_url;
+                  if (trade.question && POLY_URLS[trade.question]) return POLY_URLS[trade.question];
                   return 'https://polymarket.com/markets';
                 };
                 return (
