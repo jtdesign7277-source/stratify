@@ -672,9 +672,14 @@ function SentinelPageInner() {
 
               {/* FILTERED TRADES — shared across stat cards, rows, and footer */}
               {(() => {
-                const todayDate = new Date().toISOString().split('T')[0];
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+                const todayStartMs = todayStart.getTime();
                 let filteredTrades = [...recentClosedTrades];
-                if (todayOnly) filteredTrades = filteredTrades.filter(t => (t.session_date || (t.closed_at ? t.closed_at.slice(0, 10) : '')) === todayDate);
+                if (todayOnly) filteredTrades = filteredTrades.filter(t => {
+                  const ts = t.opened_at || t.closed_at;
+                  return ts && new Date(ts).getTime() >= todayStartMs;
+                });
                 if (statusFilter === 'Wins') filteredTrades = filteredTrades.filter(t => t.win);
                 else if (statusFilter === 'Losses') filteredTrades = filteredTrades.filter(t => !t.win);
                 if (tickerFilter) filteredTrades = filteredTrades.filter(t => t.symbol?.includes(tickerFilter));
@@ -789,7 +794,7 @@ function SentinelPageInner() {
                   const isWin = trade.win || (trade.pnl || 0) >= 0;
                   const openTime = trade.opened_at ? new Date(trade.opened_at) : null;
                   const closeTime = trade.closed_at ? new Date(trade.closed_at) : null;
-                  const timeFmt = (d) => d ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
+                  const timeFmt = (d) => d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—';
                   const durationMins = openTime && closeTime ? Math.round((closeTime - openTime) / 60000) : null;
                   const durationStr = durationMins != null ? (durationMins >= 60 ? `${Math.floor(durationMins / 60)}h${durationMins % 60}m` : `${durationMins}m`) : '';
                   return (
