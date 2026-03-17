@@ -55,12 +55,13 @@ export default async function handler(req, res) {
 
       const today = new Date().toISOString().slice(0, 10);
 
-      const [accountRes, sessionRes, recentSessionsRes, openTradesRes, closedTradesRes, memoryRes, polyOpenRes, polyClosedRes] = await Promise.all([
+      const [accountRes, sessionRes, recentSessionsRes, openTradesRes, closedTradesRes, allClosedPnlRes, memoryRes, polyOpenRes, polyClosedRes] = await Promise.all([
               supabase.from('sentinel_account').select('*').eq('id', '00000000-0000-0000-0000-000000000001').single(),
               supabase.from('sentinel_sessions').select('*').eq('session_date', today).maybeSingle(),
               supabase.from('sentinel_sessions').select('*').order('session_date', { ascending: false }).limit(10),
               supabase.from('sentinel_trades').select('*').eq('status', 'open').order('opened_at', { ascending: false }),
               supabase.from('sentinel_trades').select('*').eq('status', 'closed').order('closed_at', { ascending: false }).limit(100),
+              supabase.from('sentinel_trades').select('pnl, win').eq('status', 'closed'),
               supabase.from('sentinel_memory').select('brain_summary, sessions_processed, suspended_conditions, latest_report, latest_report_date').eq('id', 1).single(),
               supabase.from('sentinel_polymarket_trades').select('*').eq('status', 'open').order('opened_at', { ascending: false }),
               supabase.from('sentinel_polymarket_trades').select('*').eq('status', 'resolved').order('resolved_at', { ascending: false }).limit(50),
@@ -91,6 +92,37 @@ export default async function handler(req, res) {
                           unrealized_pnl: unrealizedPnl,
                 };
         });
+
+      // Auto-reconcile account from actual trades (single source of truth)
+      const allClosedTrades = allClosedPnlRes.data || [];
+      const actualRealizedPnl = allClosedTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+      const actualClosedCount = allClosedTrades.length;
+      const actualWins = allClosedTrades.filter(t => t.win).length;
+      const actualLosses = actualClosedCount - actualWins;
+      const actualWinRate = actualClosedCount > 0 ? Math.round((actualWins / actualClosedCount) * 10000) / 100 : 0;
+      const expectedBalance = 2000000 + actualRealizedPnl;
+
+      // If account is out of sync, fix it
+      if (Math.abs((account.current_balance || 0) - expectedBalance) > 0.5 ||
+          Math.abs((account.total_pnl || 0) - actualRealizedPnl) > 0.5) {
+        await supabase.from('sentinel_account').update({
+          total_pnl: Math.round(actualRealizedPnl * 100) / 100,
+          current_balance: Math.round(expectedBalance * 100) / 100,
+          closed_trades: actualClosedCount,
+          wins: actualWins,
+          losses: actualLosses,
+          win_rate: actualWinRate,
+          total_trades: actualClosedCount + openTrades.length,
+          updated_at: new Date().toISOString(),
+        }).eq('id', '00000000-0000-0000-0000-000000000001');
+        account.total_pnl = Math.round(actualRealizedPnl * 100) / 100;
+        account.current_balance = Math.round(expectedBalance * 100) / 100;
+        account.closed_trades = actualClosedCount;
+        account.wins = actualWins;
+        account.losses = actualLosses;
+        account.win_rate = actualWinRate;
+        account.total_trades = actualClosedCount + openTrades.length;
+      }
 
       const closedTrades = account.closed_trades || 0;
         const winRate = account.win_rate || 0;
