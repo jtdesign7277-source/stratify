@@ -608,20 +608,7 @@ const SophiaPanel = ({
           <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
         </div>
         <div className="flex items-center gap-2">
-          {/* YOLO toggle */}
-          <button
-            onClick={toggleYolo}
-            disabled={yoloLoading || !user?.id}
-            title={yoloActive ? 'YOLO ON — copying Sentinel trades to your account' : 'YOLO OFF — enable to copy Sentinel trades'}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-all duration-200 border ${
-              yoloActive
-                ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
-                : 'bg-white/[0.04] text-zinc-500 border-white/[0.08] hover:text-zinc-300'
-            }`}
-          >
-            {yoloLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Zap className="w-2.5 h-2.5" />}
-            YOLO
-          </button>
+
           {/* Trading Mode toggle */}
           <button
             onClick={() => { setTradingMode(v => !v); if (!tradingMode) setActiveTab('trade'); else setActiveTab('sophia'); }}
@@ -634,6 +621,20 @@ const SophiaPanel = ({
           >
             ⚡ Trade
           </button>
+          {/* Sentinel context toggle — only visible in Trade mode */}
+          {tradingMode && (
+            <button
+              onClick={() => setSentinelMode(v => !v)}
+              title={sentinelMode ? 'Sentinel context ON' : 'Add Sentinel context'}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-all duration-200 border ${
+                sentinelMode
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                  : 'bg-white/[0.04] text-zinc-500 border-white/[0.08] hover:text-zinc-300'
+              }`}
+            >
+              🤖 Sentinel
+            </button>
+          )}
           <button onClick={clearChat} className="p-1 text-gray-500 hover:text-white transition-colors" title="Clear chat">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -694,24 +695,7 @@ const SophiaPanel = ({
       {/* ⚡ TRADING MODE PANEL */}
       {activeTab === 'trade' && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Status bar — YOLO + Sentinel toggle */}
-          <div className="px-4 py-2 flex items-center justify-between border-b border-[#1f1f1f]">
-            <div className={`text-[10px] font-mono flex items-center gap-1.5 ${yoloActive ? 'text-red-400' : 'text-zinc-600'}`}>
-              <Zap className="w-3 h-3" />
-              {yoloActive ? 'YOLO ON — copying trades' : 'YOLO OFF'}
-            </div>
-            <button
-              onClick={() => setSentinelMode(v => !v)}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-all duration-200 border ${
-                sentinelMode
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                  : 'bg-white/[0.03] text-zinc-600 border-white/[0.08] hover:text-zinc-400'
-              }`}
-              title={sentinelMode ? 'Sentinel context ON — Sophia knows bot status' : 'Enable to ask about Sentinel bot'}
-            >
-              🤖 Sentinel
-            </button>
-          </div>
+
 
           {/* Trade conversation */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
