@@ -17,6 +17,115 @@ import { tokenizeTickerText } from '../../lib/tickerStyling';
 import { saveWarRoomIntel } from '../../lib/warRoomIntel';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useTwelveDataWS } from '../xray/hooks/useTwelveDataWS';
+
+// Live portfolio card — renders positions with real-time WS prices
+function PortfolioCard({ data }) {
+  const { prices: livePrices, subscribe, unsubscribe } = useTwelveDataWS();
+
+  React.useEffect(() => {
+    if (!data?.positions) return;
+    data.positions.forEach(p => subscribe(p.symbol));
+    return () => data.positions.forEach(p => unsubscribe(p.symbol));
+  }, [data?.positions?.map(p => p.symbol).join(',')]);
+
+  if (!data) return null;
+  const { cash, totalValue, totalPnl, totalPnlPct, positions } = data;
+
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-white/[0.01] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
+        <span className="text-[10px] font-mono font-bold tracking-widest text-gray-400 uppercase">Portfolio</span>
+        <div className="flex items-center gap-3 text-[11px] font-mono">
+          <span className="text-gray-500">${totalValue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className={totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+            {totalPnl >= 0 ? '+' : ''}${Math.abs(totalPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className="text-[10px] ml-1 opacity-70">({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct?.toFixed(2)}%)</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Positions */}
+      {positions?.length > 0 ? positions.map(pos => {
+        const livePrice = livePrices[pos.symbol.toUpperCase()]?.price || pos.current_price;
+        const liveValue = pos.qty * livePrice;
+        const livePnl = liveValue - (pos.qty * pos.avg_cost);
+        const livePnlPct = pos.avg_cost > 0 ? (livePnl / (pos.qty * pos.avg_cost)) * 100 : 0;
+        const isWin = livePnl >= 0;
+        const ticker = pos.symbol.replace('/USD', '').replace('USD', '');
+        return (
+          <div key={pos.symbol} className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.05] last:border-0">
+            <div className="flex flex-col">
+              <span className="text-white font-mono font-semibold text-sm">${ticker}</span>
+              <span className="text-gray-500 text-[10px] font-mono">{pos.qty} {pos.qty < 1 ? 'units' : 'shares'} · avg ${pos.avg_cost?.toFixed(2)}</span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-white font-mono font-semibold text-sm">${liveValue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className={`text-[11px] font-mono ${isWin ? 'text-emerald-400' : 'text-red-400'}`}>
+                {livePnl >= 0 ? '+' : ''}${Math.abs(livePnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({livePnlPct >= 0 ? '+' : ''}{livePnlPct?.toFixed(2)}%)
+              </span>
+            </div>
+          </div>
+        );
+      }) : (
+        <div className="px-3 py-3 text-[11px] text-gray-600 font-mono">No open positions</div>
+      )}
+
+      {/* Cash row */}
+      <div className="flex items-center justify-between px-3 py-2 bg-white/[0.02] border-t border-white/[0.06]">
+        <span className="text-gray-500 text-[11px] font-mono">Cash</span>
+        <span className="text-gray-300 font-mono text-[11px]">${cash?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+      </div>
+    </div>
+  );
+}
+
+function SentinelCard({ data }) {
+  if (!data) return null;
+  const { balance, totalPnl, winRate, totalTrades, openTrades, todaySession } = data;
+  return (
+    <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.06] to-white/[0.01] overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-emerald-500/10">
+        <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-500 uppercase">Sentinel Bot</span>
+        <span className={`text-[11px] font-mono ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          {totalPnl >= 0 ? '+' : ''}${totalPnl?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} all-time
+        </span>
+      </div>
+      <div className="grid grid-cols-3 divide-x divide-white/[0.06]">
+        {[
+          { label: 'Balance', value: `$${(balance/1000000).toFixed(2)}M` },
+          { label: 'Win Rate', value: `${winRate?.toFixed(1)}%` },
+          { label: 'Trades', value: totalTrades },
+        ].map(s => (
+          <div key={s.label} className="px-3 py-2 text-center">
+            <div className="text-[10px] text-gray-500 uppercase tracking-wide">{s.label}</div>
+            <div className="text-white font-mono text-sm font-semibold mt-0.5">{s.value}</div>
+          </div>
+        ))}
+      </div>
+      {openTrades?.length > 0 && (
+        <div className="px-3 py-2 border-t border-white/[0.06]">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-1.5">Open Now</div>
+          {openTrades.slice(0, 3).map(t => (
+            <div key={t.id} className="flex items-center justify-between py-1">
+              <span className="text-white font-mono text-[11px]">{t.direction} ${t.symbol?.replace('/USD','')}</span>
+              <span className="text-gray-400 font-mono text-[11px]">@ ${t.entry?.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {todaySession && (
+        <div className="px-3 py-2 border-t border-white/[0.06] flex items-center justify-between">
+          <span className="text-[10px] text-gray-500 font-mono">Today</span>
+          <span className={`text-[11px] font-mono ${todaySession.gross_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {todaySession.gross_pnl >= 0 ? '+' : ''}${todaySession.gross_pnl?.toFixed(2)} · {todaySession.trades_fired} trades
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STRATEGY_PRESETS = [
   {
@@ -243,8 +352,15 @@ const SophiaPanel = ({
       }
 
       const data = await resp.json();
-      const reply = data.reply || data.error || 'Done.';
-      setTradeMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+
+      if (data.action === 'portfolio') {
+        setTradeMessages(prev => [...prev, { role: 'assistant', type: 'portfolio', data: data.portfolio, content: '' }]);
+      } else if (data.action === 'sentinel') {
+        setTradeMessages(prev => [...prev, { role: 'assistant', type: 'sentinel', data: data.sentinel, content: '' }]);
+      } else {
+        const reply = data.reply || data.error || 'Done.';
+        setTradeMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+      }
       if (data.order) setTradeResult(data.order);
     } catch (err) {
       setTradeMessages(prev => [...prev, { role: 'assistant', content: `❌ Error: ${err.message}` }]);
@@ -601,13 +717,19 @@ const SophiaPanel = ({
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {tradeMessages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-amber-500/20 text-amber-100 border border-amber-500/20'
-                    : 'bg-white/[0.05] text-zinc-200 border border-white/[0.06]'
-                }`}>
-                  {msg.content}
-                </div>
+                {msg.role === 'user' ? (
+                  <div className="max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed bg-amber-500/20 text-amber-100 border border-amber-500/20">
+                    {msg.content}
+                  </div>
+                ) : msg.type === 'portfolio' ? (
+                  <div className="w-full"><PortfolioCard data={msg.data} /></div>
+                ) : msg.type === 'sentinel' ? (
+                  <div className="w-full"><SentinelCard data={msg.data} /></div>
+                ) : msg.content ? (
+                  <div className="max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed bg-white/[0.05] text-zinc-200 border border-white/[0.06]">
+                    {msg.content}
+                  </div>
+                ) : null}
               </div>
             ))}
             {tradeLoading && (

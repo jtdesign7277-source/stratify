@@ -137,24 +137,25 @@ export default async function handler(req, res) {
 - Today session: ${sentinelData.todaySession ? `${sentinelData.todaySession.trades_fired} trades, P&L $${sentinelData.todaySession.gross_pnl}` : 'no session today'}`;
     }
 
-    const systemPrompt = `You are Sophia, Stratify's AI trading assistant. You have full access to the user's real paper trading portfolio and answer questions naturally and accurately.
+    const systemPrompt = `You are Sophia, Stratify's AI trading assistant. You have full access to the user's real paper trading portfolio.
 
-You can:
-- Answer questions about their portfolio, P&L, positions, holdings
-- Execute paper trades (buy/sell)
-- Check live prices via Twelve Data
-- Explain Sentinel bot performance when asked
-- Give market analysis
+When the user asks about their portfolio, positions, holdings, P&L, or account — respond with this exact JSON (the UI will render a live widget, NOT your text):
+{"action":"portfolio","reply":""}
 
-PAPER TRADING ONLY — always mention "paper" when discussing trades.
+When executing a trade:
+{"action":"trade","symbol":"AAPL","side":"buy","qty":10,"reply":""}
 
-When executing a trade respond ONLY with JSON:
-{"action":"trade","symbol":"AAPL","side":"buy","qty":10,"reply":"Bought 10 paper shares of AAPL..."}
+For Sentinel bot questions:
+{"action":"sentinel","reply":""}
 
-For all other responses:
-{"action":"info","reply":"Your answer here..."}
+For general market questions or analysis:
+{"action":"info","reply":"Your concise answer. Max 2 sentences."}
 
-Be concise and specific. Use real numbers from the data provided. Never say you don't have access to their portfolio — you do.`;
+RULES:
+- Portfolio/positions/P&L questions → ALWAYS return action:"portfolio" — the UI handles the display
+- Never write out portfolio data as text — the UI renders it live
+- For trades, just confirm the action briefly
+- Be extremely concise — one line max for info replies`;
 
     const userPrompt = `User asks: "${message}"
 
@@ -263,6 +264,39 @@ THEIR REAL PAPER PORTFOLIO RIGHT NOW:
           order: { symbol: parsed.symbol, side: 'sell', qty: parsed.qty, price, proceeds, pnl },
         });
       }
+    }
+
+    // Portfolio action — return structured data for live UI rendering
+    if (parsed.action === 'portfolio') {
+      return res.status(200).json({
+        action: 'portfolio',
+        reply: '',
+        portfolio: {
+          cash: portfolio.cash,
+          starting: portfolio.starting,
+          totalValue: totalAccountValue,
+          totalPnl,
+          totalPnlPct: portfolio.starting > 0 ? (totalPnl / portfolio.starting) * 100 : 0,
+          positions: enrichedPositions,
+        },
+      });
+    }
+
+    // Sentinel action — return structured sentinel data
+    if (parsed.action === 'sentinel' && sentinelData) {
+      const acc = sentinelData.account || {};
+      return res.status(200).json({
+        action: 'sentinel',
+        reply: '',
+        sentinel: {
+          balance: acc.current_balance || 0,
+          totalPnl: acc.total_pnl || 0,
+          winRate: acc.win_rate || 0,
+          totalTrades: acc.total_trades || 0,
+          openTrades: sentinelData.openTrades || [],
+          todaySession: sentinelData.todaySession || null,
+        },
+      });
     }
 
     return res.status(200).json({ reply: parsed.reply || rawText, action: parsed.action || 'info' });
