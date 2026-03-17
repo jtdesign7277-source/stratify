@@ -107,6 +107,12 @@ Sentinel account context: ${JSON.stringify(portfolio || {})}`;
       ? `\nLive prices from Twelve Data: ${Object.entries(livePrices).map(([s, p]) => `${s}: $${p}`).join(', ')}`
       : '';
 
+    if (!ANTHROPIC_KEY) {
+      console.error('[sophia-trade] No Anthropic API key found');
+      return res.status(500).json({ reply: '❌ AI service not configured. Contact support.', action: 'error' });
+    }
+
+    console.log('[sophia-trade] Calling Claude with key:', ANTHROPIC_KEY.slice(0,8) + '...');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 14000);
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -118,7 +124,7 @@ Sentinel account context: ${JSON.stringify(portfolio || {})}`;
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 300,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt + priceContext }],
@@ -127,6 +133,10 @@ Sentinel account context: ${JSON.stringify(portfolio || {})}`;
     clearTimeout(timeout);
 
     const aiData = await anthropicRes.json();
+    console.log('[sophia-trade] Claude response status:', anthropicRes.status, aiData.type || aiData.error?.type);
+    if (!anthropicRes.ok || aiData.error) {
+      return res.status(200).json({ reply: `❌ AI error: ${aiData.error?.message || anthropicRes.status}`, action: 'error' });
+    }
     const rawText = aiData.content?.[0]?.text?.trim() || '{}';
 
     let parsed;
