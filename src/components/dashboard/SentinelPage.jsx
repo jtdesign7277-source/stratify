@@ -1238,69 +1238,70 @@ function SentinelPageInner() {
               </AnimatePresence>
             </motion.div>
 
-            {/* SKILLS — collapsible */}
+            {/* SENTINEL BRAIN LOG — Daily learning reports */}
             <motion.div
               initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.18, ...SPRING }}
               className={`${GLASS} p-5 transition-all duration-300`}
             >
-              <motion.div
-                onClick={() => setSkillsExpanded((v) => !v)}
-                className="flex items-center justify-between cursor-pointer"
-                whileHover={{ opacity: 0.8 }}
-              >
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SKILLS</span>
-                  <span className="text-[10px] text-gray-600 font-mono">1 active</span>
+                  <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">BRAIN LOG</span>
+                  <span className="text-[10px] text-gray-600 font-mono">{recentSessions.filter(s => s.claude_analysis).length} reports</span>
                 </div>
-                <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${skillsExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-              </motion.div>
-              <AnimatePresence>
-                {skillsExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-3 space-y-1.5">
-                      {[
-                        {
-                          id: 'volatility-check',
-                          name: 'Volatility Check',
-                          status: 'active',
-                          icon: '⚡',
-                          description: 'Detects rapid price moves (1%+ drops or spikes in under 15 minutes) on open positions. When triggered, Sentinel analyzes the last 4-6 hours of 5-minute price action — volume spikes, support breaks, ATR context — then decides whether to de-risk (reduce position), close entirely, hold, or open a short. Every event is tracked with what actually happened afterward (bounce, continued dump, sideways), so Sentinel learns from each decision. Over time it recognizes patterns like "high-volume BTC dumps that break support tend to continue" vs "low-volume SOL dips that hold EMA21 usually bounce." The goal: always-improving risk management that protects capital in real time.',
-                        },
-                      ].map((skill) => (
-                        <motion.button
-                          key={skill.id}
-                          onClick={(e) => { e.stopPropagation(); setActiveSkillModal(skill); }}
-                          whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                          className="flex items-center justify-between w-full py-2.5 px-3 rounded-xl text-xs font-mono transition-all duration-300 text-left"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span>{skill.icon}</span>
-                            <span className="text-gray-200 font-semibold">{skill.name}</span>
-                          </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                            skill.status === 'active'
-                              ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-                              : 'text-gray-500 border-white/[0.06]'
-                          }`}>
-                            {skill.status}
-                          </span>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </motion.div>
+                <span className="text-[10px] text-gray-600 font-mono">Win Rate: {(account.win_rate || 0).toFixed(1)}% → 70%</span>
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-1" style={{ scrollbarWidth: 'none' }}>
+                {recentSessions.length === 0 && (
+                  <p className="text-xs text-gray-600 font-mono py-2">First brain report fires at 8pm ET</p>
                 )}
-              </AnimatePresence>
+                {recentSessions.map((session) => {
+                  const hasReport = !!session.claude_analysis;
+                  const pnl = session.gross_pnl || 0;
+                  const isToday = session.session_date === new Date().toISOString().slice(0, 10);
+                  const displayPnl = isToday ? pnl + liveUnrealizedPnl : pnl;
+                  return (
+                    <motion.button
+                      key={session.id}
+                      onClick={(e) => { e.stopPropagation(); setBrainModalSession(session); }}
+                      whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                      className="flex items-center justify-between w-full py-2.5 px-3 rounded-xl text-xs font-mono transition-all duration-300 text-left"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span>{hasReport ? '📊' : isToday ? '⏳' : '⚠️'}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-gray-200">
+                            {new Date(session.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </span>
+                          <span className="text-gray-600 ml-2">
+                            {session.trades_closed || 0}T · {session.wins || 0}W · {session.losses || 0}L
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`font-semibold ${displayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {displayPnl >= 0 ? '+' : ''}${displayPnl.toFixed(0)}
+                        </span>
+                        {hasReport ? (
+                          <span className="text-emerald-500/60 text-[9px]">read →</span>
+                        ) : (
+                          <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                        )}
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+              {memory.brain_summary && (
+                <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                  <span className="text-[9px] text-gray-600 uppercase tracking-widest">Latest Brain Summary</span>
+                  <p className="text-[11px] text-gray-400 mt-1 font-mono leading-relaxed line-clamp-3">{typeof memory.brain_summary === 'string' && memory.brain_summary.startsWith('{') ? (() => { try { return JSON.parse(memory.brain_summary).text; } catch { return memory.brain_summary; } })() : memory.brain_summary}</p>
+                </div>
+              )}
             </motion.div>
 
-            {/* NOTIFICATIONS PANEL */}
+            {/* NOTIFICATIONS — trade alerts + system events */}
             <motion.div
               initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1311,27 +1312,9 @@ function SentinelPageInner() {
                 <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">NOTIFICATIONS</span>
                 {unreadCount > 0 && <span className="text-xs text-gray-500 font-mono">{unreadCount} unread</span>}
               </div>
-              <div className="max-h-64 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
-                {/* Always show latest daily report from brain even if no per-user notification */}
-                {notifications.length === 0 && memory.latest_report && memory.latest_report_date && (
-                  <motion.div
-                    whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                    onClick={() => {
-                      const sess = recentSessions.find(s => s.session_date === memory.latest_report_date);
-                      setBrainModalSession(sess || { session_date: memory.latest_report_date, gross_pnl: 0, adjustments_made: { daily_report: memory.latest_report } });
-                    }}
-                    className="text-xs py-1.5 rounded-xl px-2 cursor-pointer transition-all duration-200 text-gray-300"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>📊</span>
-                      <span className="font-mono font-semibold flex-1 truncate">{memory.latest_report_date} — Daily Report</span>
-                    </div>
-                    <p className="text-gray-400 mt-1 ml-6 leading-relaxed text-[11px]">{memory.brain_summary}</p>
-                    <span className="text-emerald-500/60 text-[10px] ml-6">tap to read full report →</span>
-                  </motion.div>
-                )}
-                {notifications.length === 0 && !memory.latest_report && (
-                  <p className="text-xs text-gray-600 font-mono py-2">First report fires at 8pm ET</p>
+              <div className="max-h-48 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
+                {notifications.length === 0 && (
+                  <p className="text-xs text-gray-600 font-mono py-2">Trade alerts will appear here</p>
                 )}
                 {notifications.map((notif) => {
                   const isReport = notif.type === 'daily_report' && notif.metadata?.report;
