@@ -145,7 +145,7 @@ Rules:
       },
       body: JSON.stringify({
         model: 'claude-opus-4-6',
-        max_tokens: 1500,
+        max_tokens: 2500,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       }),
@@ -156,11 +156,28 @@ Rules:
 
     let parsed;
     try {
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
+      // Strip markdown code fences, then extract the outermost JSON object
+      const stripped = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : stripped;
+      parsed = JSON.parse(jsonStr);
     } catch {
-      console.error('[learn] Failed to parse Claude response:', rawText);
-      return res.status(500).json({ error: 'Failed to parse Claude response', raw: rawText });
+      // Fallback: try to extract just the valid JSON prefix
+      try {
+        const stripped = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        // Find last complete key before truncation
+        const lastBrace = stripped.lastIndexOf('}');
+        if (lastBrace > 0) {
+          // Close any open structures
+          const partial = stripped.slice(0, lastBrace + 1);
+          parsed = JSON.parse(partial);
+        } else {
+          throw new Error('no JSON found');
+        }
+      } catch {
+        console.error('[learn] Failed to parse Claude response:', rawText.slice(0, 500));
+        return res.status(500).json({ error: 'Failed to parse Claude response', raw: rawText.slice(0, 500) });
+      }
     }
 
     const report = parsed.daily_report || {};
