@@ -839,7 +839,109 @@ export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sen
   const sharedWinRate = sentinelAccount?.win_rate != null ? sentinelAccount.win_rate : metrics.winRate;
   const sharedTotalTrades = sentinelTotalTrades != null ? sentinelTotalTrades : metrics.total;
   const sharedOpenCount = sentinelOpenCount || 0;
-  const [vizMode, setVizMode] = useState('mc'); // 'mc' | 'equity'
+  const [vizMode, setVizMode] = useState('mc'); // 'mc' | 'equity' | 'models'
+  const [modelModal, setModelModal] = useState(null);
+
+  const MODEL_DOCS = {
+    bayesian: {
+      title: 'Bayesian Model',
+      subtitle: 'P(H|D) = P(D|H) × P(H) / P(D)',
+      color: '#00d4ff',
+      description: `The Bayesian Model is the brain of Sentinel's belief system. It continuously updates the probability that a trade setup will win, given all observed data.
+
+How it works:
+• Prior (0.5 default): Sentinel's base assumption that any given setup has a 50% chance of winning before seeing any evidence.
+• Posterior: Updated probability after observing market conditions, volume, regime, and recent trade outcomes. If BTC has been winning 70% of long trades in trending conditions, the posterior shifts above 0.5.
+• EV (Expected Value): The dollar-weighted expected outcome of the trade. Positive EV = take the trade.
+• Epoch: How many 5-minute candles of data the model has processed in this session.
+• Loss: Cross-entropy loss measuring how wrong the model's predictions are. Lower = more accurate.
+• Conf: Model's confidence percentage in its current prediction.
+
+Why it matters: Sentinel only takes trades where the posterior exceeds a threshold (typically >0.6). This prevents trading on gut feel — every entry requires statistical evidence.`,
+    },
+    edge: {
+      title: 'Edge Filter',
+      subtitle: 'EV_net = q − p − c',
+      color: '#00ff88',
+      description: `The Edge Filter is the gatekeeper. Before any trade executes, it calculates whether there's a real mathematical edge after all costs.
+
+Formula breakdown:
+• q = probability of winning × average win size
+• p = probability of losing × average loss size  
+• c = estimated transaction cost (spread + slippage)
+• EV_net = q − p − c (must be positive to trade)
+
+The PASS/FAIL indicator:
+• PASS (green): Net expected value is positive — the trade has a genuine mathematical edge after costs.
+• FAIL (red): Costs eat the edge or the win probability is too low — Sentinel skips the trade.
+
+Z-score: Measures how far the current spread deviates from normal. High z-scores indicate unusual market conditions where the edge calculation may be less reliable.
+
+Why it matters: Most retail traders lose because they trade without edge. Every Sentinel trade must mathematically prove it's worth taking before execution.`,
+    },
+    spread: {
+      title: 'Spread / LMSR',
+      subtitle: 'z = (s − μₛ) / σₛ',
+      color: '#ffaa00',
+      description: `The Spread model monitors bid-ask spreads and uses LMSR (Logarithmic Market Scoring Rule) to detect when market makers are extracting unusual profit — a signal that informed traders may be moving.
+
+Components:
+• z-score: How abnormal the current spread is (in standard deviations). Above +2 = spreads are wide, market is uncertain. Below -1 = tight spreads, healthy liquidity.
+• p_sum: Sum of implied probabilities across the order book. Should be close to 1.0. Above 1.0 means the book is overpriced (market makers padding). Below indicates arbitrage opportunity.
+
+LMSR (pSum, impact, cost):
+• Borrowed from prediction market theory — treats the order book as a probability market
+• Detects when large orders will move price vs when they'll be absorbed
+• Impact: estimated price slippage of Sentinel's order
+• Cost: total transaction cost including spread impact
+
+Why it matters: Trading in wide-spread conditions destroys edge. The spread model ensures Sentinel only trades in liquid conditions where transaction costs don't exceed the modeled edge.`,
+    },
+    stoikov: {
+      title: 'Stoikov Model',
+      subtitle: 'r = s − q·γ·σ²·T',
+      color: '#cc88ff',
+      description: `The Stoikov model is a market-making framework adapted for directional crypto trading. Originally designed by Sasha Stoikov to optimize limit order placement, Sentinel uses it to determine optimal entry price and position sizing.
+
+Formula: r = s − q·γ·σ²·T
+• s = mid price (current market price)
+• q = current inventory (net position in base currency)
+• γ = risk aversion parameter (how much Sentinel penalizes holding risk)
+• σ² = estimated price variance (volatility squared)
+• T = time horizon of the trade
+• r = reservation price — the fair value Sentinel is willing to trade at
+
+What it calculates:
+• If r > current price: Sentinel believes price is below fair value → bullish signal
+• If r < current price: price is above fair value → bearish signal
+• The spread around r determines limit order placement
+
+Why it matters: Instead of chasing market orders, Sentinel targets the reservation price, improving average entry by 0.05-0.15% per trade. On 110+ trades, this compounds significantly.`,
+    },
+    monte_carlo: {
+      title: 'Monte Carlo',
+      subtitle: 'Kelly + Path Simulation',
+      color: '#ff6644',
+      description: `Monte Carlo simulation runs thousands of randomized future trading paths to determine the optimal bet size and understand the distribution of possible outcomes.
+
+How it works:
+• Sentinel runs 1,000+ simulated trading sessions using current win rate, average win, and average loss
+• Each simulation randomly sequences wins and losses to produce a possible equity curve
+• The spread of outcomes shows best case, worst case, and most likely trajectories
+
+Key outputs:
+• f* (Kelly fraction): The mathematically optimal percentage of capital to risk per trade. Derived from the Kelly Criterion: f* = (p·b − q) / b, where p = win rate, b = win/loss ratio, q = 1 − p
+• f (actual fraction): The fraction Sentinel actually uses — typically half-Kelly (f*/2) to reduce variance
+• DD (max drawdown): The worst simulated drawdown across all paths at 95th percentile
+
+The visualization:
+• Green cone: The range of likely equity paths (25th to 75th percentile)
+• Orange bars at bottom: Downside tail risk scenarios
+• Center line: Median expected path
+
+Why it matters: Most traders blow up because they size too large. Monte Carlo proves what size keeps Sentinel alive across thousands of simulated scenarios, not just lucky streaks.`,
+    },
+  };
 
   const sharedBalance = sentinelAccount?.current_balance || metrics.balance;
   const marquee = `BAYESIAN + EDGE + SPREAD + STOIKOV + KELLY + MONTE CARLO  ·  $${sharedBalance.toLocaleString()} → $${(metrics.deposit * 2).toLocaleString()}  ·  5-MIN BTC  ·  LIMIT ORDERS  ·  ${metrics.tradesHr}/hr TRADING  ·  ${sharedWinRate}% WIN  ·  ${metrics.edge || '—'}% EDGE`;
@@ -1033,7 +1135,7 @@ export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sen
                 )}
               </div>
               <div className="flex items-center gap-1" style={{ background: COLORS.bg, borderRadius: 4, padding: 2 }}>
-                {[{ id: 'mc', label: 'MC' }, { id: 'equity', label: 'EQUITY' }].map(tab => (
+                {[{ id: 'mc', label: 'MC' }, { id: 'equity', label: 'EQUITY' }, { id: 'models', label: 'MODELS' }].map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setVizMode(tab.id)}
@@ -1050,8 +1152,34 @@ export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sen
                 ))}
               </div>
             </div>
-            <div className="flex-1 min-h-0">
-              {vizMode === 'mc' ? <MonteCarloCanvas /> : <EquityCurveCanvas data={pnl} />}
+            <div className="flex-1 min-h-0 overflow-y-auto sentinel-scroll">
+              {vizMode === 'mc' ? <MonteCarloCanvas /> : vizMode === 'equity' ? <EquityCurveCanvas data={pnl} /> : (
+                <div className="p-3 grid grid-cols-1 gap-2">
+                  {Object.entries(MODEL_DOCS).map(([key, model]) => (
+                    <button
+                      key={key}
+                      onClick={() => setModelModal(key)}
+                      className="text-left transition-all duration-150 rounded"
+                      style={{
+                        background: 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${COLORS.border}`,
+                        padding: '10px 12px',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-bold tracking-wider" style={{ color: model.color }}>{model.title.toUpperCase()}</span>
+                        <span className="text-[9px] font-mono" style={{ color: COLORS.dimmer }}>tap to learn →</span>
+                      </div>
+                      <div className="mt-1 text-[10px] font-mono" style={{ color: COLORS.dim }}>{model.subtitle}</div>
+                      <div className="mt-1.5 text-[10px] leading-relaxed" style={{ color: COLORS.dimmer }}>
+                        {model.description.split('\n')[0]}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1105,6 +1233,90 @@ export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sen
           </motion.div>
         </div>
       </div>
+
+      {/* MODEL DETAIL MODAL */}
+      {modelModal && MODEL_DOCS[modelModal] && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setModelModal(null)}
+        >
+          <div
+            className="relative flex flex-col overflow-hidden"
+            style={{
+              width: '90%', maxWidth: 560, maxHeight: '80%',
+              background: '#0e0e14',
+              border: `1px solid ${MODEL_DOCS[modelModal].color}40`,
+              borderRadius: 12,
+              boxShadow: `0 24px 80px rgba(0,0,0,0.7), 0 0 40px ${MODEL_DOCS[modelModal].color}15`,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+              <div>
+                <div className="text-[14px] font-bold tracking-widest" style={{ color: MODEL_DOCS[modelModal].color }}>
+                  {MODEL_DOCS[modelModal].title.toUpperCase()}
+                </div>
+                <div className="text-[11px] font-mono mt-0.5" style={{ color: COLORS.dim }}>
+                  {MODEL_DOCS[modelModal].subtitle}
+                </div>
+              </div>
+              <button
+                onClick={() => setModelModal(null)}
+                style={{ color: COLORS.dim, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+            {/* Modal body */}
+            <div className="overflow-y-auto sentinel-scroll px-5 py-4 flex-1">
+              {MODEL_DOCS[modelModal].description.split('\n').map((line, i) => {
+                if (line.trim() === '') return <div key={i} className="h-2" />;
+                if (line.startsWith('•')) return (
+                  <div key={i} className="flex gap-2 mb-1">
+                    <span style={{ color: MODEL_DOCS[modelModal].color, flexShrink: 0 }}>•</span>
+                    <span className="text-[12px] font-mono leading-relaxed" style={{ color: COLORS.text }}>{line.slice(1).trim()}</span>
+                  </div>
+                );
+                // Section headers (lines ending with colon)
+                if (line.endsWith(':') && !line.startsWith(' ')) return (
+                  <div key={i} className="text-[11px] font-bold tracking-widest mt-3 mb-1.5" style={{ color: COLORS.dim }}>{line.toUpperCase()}</div>
+                );
+                return <p key={i} className="text-[12px] font-mono leading-relaxed mb-1" style={{ color: COLORS.text }}>{line}</p>;
+              })}
+            </div>
+            {/* Nav between models */}
+            <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderTop: `1px solid ${COLORS.border}` }}>
+              {(() => {
+                const keys = Object.keys(MODEL_DOCS);
+                const idx = keys.indexOf(modelModal);
+                const prev = keys[idx - 1];
+                const next = keys[idx + 1];
+                return (
+                  <>
+                    <button
+                      onClick={() => prev && setModelModal(prev)}
+                      style={{ color: prev ? COLORS.dim : COLORS.dimmer, background: 'none', border: 'none', cursor: prev ? 'pointer' : 'default', fontSize: 11, fontFamily: 'monospace' }}
+                    >
+                      {prev ? `← ${MODEL_DOCS[prev].title}` : ''}
+                    </button>
+                    <span className="text-[10px] font-mono" style={{ color: COLORS.dimmer }}>
+                      {Object.keys(MODEL_DOCS).indexOf(modelModal) + 1} / {Object.keys(MODEL_DOCS).length}
+                    </span>
+                    <button
+                      onClick={() => next && setModelModal(next)}
+                      style={{ color: next ? COLORS.dim : COLORS.dimmer, background: 'none', border: 'none', cursor: next ? 'pointer' : 'default', fontSize: 11, fontFamily: 'monospace' }}
+                    >
+                      {next ? `${MODEL_DOCS[next].title} →` : ''}
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
