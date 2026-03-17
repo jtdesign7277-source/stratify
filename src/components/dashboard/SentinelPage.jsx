@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 import AppErrorBoundary from '../shared/AppErrorBoundary';
 import { useTwelveDataWS } from '../xray/hooks/useTwelveDataWS';
 import SentinelEngine from './SentinelEngine';
+import BrokerConnectModal from './BrokerConnectModal';
 
 const STARTING_BALANCE = 2000000;
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
@@ -217,6 +218,10 @@ function SentinelPageInner() {
   const [sortLargest, setSortLargest] = useState(false);
   const [showCryptoPnl, setShowCryptoPnl] = useState(false);
   const [showEquityPnl, setShowEquityPnl] = useState(false);
+  const [alpacaExpanded, setAlpacaExpanded] = useState(false);
+  const [ibkrExpanded, setIbkrExpanded] = useState(false);
+  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
+  const [connectedBrokers, setConnectedBrokers] = useState([]);
   const [brainModalSession, setBrainModalSession] = useState(null);
   const [brainExpanded, setBrainExpanded] = useState(false);
   const [skillsExpanded, setSkillsExpanded] = useState(false);
@@ -1243,6 +1248,143 @@ function SentinelPageInner() {
                 </button>
               )}
             </motion.div>
+
+            {/* BROKER CONNECT — Alpaca */}
+            <motion.div
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.22, ...SPRING }}
+              className={`${GLASS} overflow-hidden transition-all duration-300`}
+            >
+              <motion.div
+                onClick={() => setAlpacaExpanded(v => !v)}
+                className="flex items-center justify-between px-5 py-3.5 cursor-pointer"
+                whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)' }}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Alpaca logo — black circle + alpaca silhouette */}
+                  <div className="w-7 h-7 rounded-full bg-black flex items-center justify-center flex-shrink-0">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="white">
+                      <path d="M12 3c-1.2 0-2.1.6-2.6 1.4-.3-.1-.6-.2-1-.2-1.4 0-2.4 1-2.4 2.3 0 .4.1.8.3 1.1C5.5 8 5 8.8 5 9.8c0 1.5 1.1 2.7 2.5 2.9V14H6v2h1v4h2v-4h6v4h2v-4h1v-2h-1.5v-1.3c1.4-.2 2.5-1.4 2.5-2.9 0-1-.5-1.8-1.3-2.2.2-.3.3-.7.3-1.1 0-1.3-1-2.3-2.4-2.3-.4 0-.7.1-1 .2C14.1 3.6 13.2 3 12 3zm0 1.5c.6 0 1 .4 1 .9l.1.8.7-.4c.2-.1.4-.2.6-.2.5 0 .9.4.9.8 0 .2-.1.4-.2.6l-.5.6.7.3c.5.2.8.7.8 1.2 0 .8-.6 1.4-1.4 1.4H9.3c-.8 0-1.4-.6-1.4-1.4 0-.5.3-1 .8-1.2l.7-.3-.5-.6c-.1-.2-.2-.4-.2-.6 0-.4.4-.8.9-.8.2 0 .4.1.6.2l.7.4.1-.8c0-.5.4-.9 1-.9z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-white tracking-tight">Alpaca</span>
+                    <div className="text-[10px] text-gray-500 font-mono">
+                      {connectedBrokers.some(b => b.id === 'alpaca') ? '● Connected' : '○ Not connected'}
+                    </div>
+                  </div>
+                </div>
+                <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${alpacaExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </motion.div>
+              <AnimatePresence>
+                {alpacaExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden border-t border-white/[0.06]"
+                  >
+                    <div className="px-5 py-4 space-y-3">
+                      <p className="text-xs text-gray-400 leading-relaxed">Connect your Alpaca account to copy Sentinel's trades directly to your paper or live brokerage account.</p>
+                      <a
+                        href="https://app.alpaca.markets/brokerage/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-xs text-emerald-400 hover:text-emerald-300 font-mono transition-colors"
+                      >
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                        Get your API keys from Alpaca →
+                      </a>
+                      <button
+                        onClick={() => { setBrokerModalOpen(true); }}
+                        className="w-full py-2 rounded-xl text-xs font-mono font-semibold tracking-wider transition-all duration-200 border"
+                        style={{ background: 'rgba(255,220,0,0.08)', borderColor: 'rgba(255,220,0,0.2)', color: '#ffd700' }}
+                      >
+                        {connectedBrokers.some(b => b.id === 'alpaca') ? '✓ Manage Connection' : 'Connect Alpaca'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
+            {/* BROKER CONNECT — Interactive Brokers */}
+            <motion.div
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.24, ...SPRING }}
+              className={`${GLASS} overflow-hidden transition-all duration-300`}
+            >
+              <motion.div
+                onClick={() => setIbkrExpanded(v => !v)}
+                className="flex items-center justify-between px-5 py-3.5 cursor-pointer"
+                whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)' }}
+              >
+                <div className="flex items-center gap-3">
+                  {/* IBKR logo — red mark */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <svg viewBox="0 0 28 28" className="w-7 h-7" fill="none">
+                      <circle cx="8" cy="14" r="7" fill="#c0392b"/>
+                      <circle cx="8" cy="14" r="4" fill="white"/>
+                      <circle cx="8" cy="14" r="2" fill="#c0392b"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-white tracking-tight">Interactive Brokers</span>
+                    <div className="text-[10px] text-gray-500 font-mono">
+                      {connectedBrokers.some(b => b.id === 'ibkr') ? '● Connected' : '○ Not connected'}
+                    </div>
+                  </div>
+                </div>
+                <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${ibkrExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </motion.div>
+              <AnimatePresence>
+                {ibkrExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden border-t border-white/[0.06]"
+                  >
+                    <div className="px-5 py-4 space-y-3">
+                      <p className="text-xs text-gray-400 leading-relaxed">Connect your IBKR account to execute Sentinel's signals through Interactive Brokers' professional infrastructure.</p>
+                      <a
+                        href="https://www.interactivebrokers.com/en/trading/ib-api.php"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 font-mono transition-colors"
+                      >
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                        Get your API credentials from IBKR →
+                      </a>
+                      <button
+                        onClick={() => { setBrokerModalOpen(true); }}
+                        className="w-full py-2 rounded-xl text-xs font-mono font-semibold tracking-wider transition-all duration-200 border"
+                        style={{ background: 'rgba(192,57,43,0.08)', borderColor: 'rgba(192,57,43,0.3)', color: '#e74c3c' }}
+                      >
+                        {connectedBrokers.some(b => b.id === 'ibkr') ? '✓ Manage Connection' : 'Connect IBKR'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
+            {/* Broker connect modal */}
+            {brokerModalOpen && (
+              <BrokerConnectModal
+                isOpen={brokerModalOpen}
+                onClose={() => setBrokerModalOpen(false)}
+                onConnect={(broker) => {
+                  setConnectedBrokers(prev => [...prev.filter(b => b.id !== broker.id), broker]);
+                  setBrokerModalOpen(false);
+                }}
+                connectedBrokers={connectedBrokers}
+              />
+            )}
 
             {/* RISK/REWARD CARD — only when subscribed */}
             {isSubscribed && (
