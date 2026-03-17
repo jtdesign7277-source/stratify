@@ -614,7 +614,7 @@ const SophiaPanel = ({
         <div className="flex-1" />
 
         {/* Controls — all left-aligned in a row with even spacing */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => { setTradingMode(v => !v); if (!tradingMode) setActiveTab('trade'); else setActiveTab('sophia'); }}
             title={tradingMode ? 'Trading Mode ON' : 'Enable Trading Mode'}
