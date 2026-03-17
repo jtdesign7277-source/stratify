@@ -12,6 +12,38 @@ const supabase = createClient(
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY_SOPHIA || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY_XPOST;
 const TWELVE_DATA_KEY = process.env.TWELVE_DATA_API_KEY || process.env.VITE_TWELVE_DATA_WS_KEY;
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+async function redisGet(key) {
+  if (!REDIS_URL) return null;
+  try {
+    const r = await fetch(`${REDIS_URL}/get/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${REDIS_TOKEN}` } });
+    const j = await r.json();
+    return j.result ? JSON.parse(j.result) : null;
+  } catch { return null; }
+}
+
+async function redisSet(key, value, ttl = 60) {
+  if (!REDIS_URL) return;
+  try {
+    await fetch(`${REDIS_URL}/set/${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: JSON.stringify(value), ex: ttl }),
+    });
+  } catch {}
+}
+
+// Quick commands that bypass Claude entirely
+const QUICK_COMMANDS = {
+  "what's my daily p&l?": 'daily_pnl',
+  "what's my p&l?": 'daily_pnl',
+  'show my positions': 'portfolio',
+  'what am i holding?': 'portfolio',
+  'sentinel p&l': 'sentinel',
+  'sentinel open trades': 'sentinel',
+};
 
 async function getUserFromToken(req) {
   const auth = req.headers.authorization;
@@ -81,8 +113,70 @@ export default async function handler(req, res) {
   const user = await getUserFromToken(req);
   if (!user) return res.status(401).json({ reply: '⚠️ Please sign in to use Trading Mode.', action: 'error' });
 
-  const { message, includeSentinel } = req.body;
+  const { message, includeSentinel, quickCommand } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
+
+  // ── FAST PATH: Known quick commands bypass Claude entirely ──────────────
+  const cmdKey = message.trim().toLowerCase();
+  const quickType = QUICK_COMMANDS[cmdKey];
+
+  if (quickType === 'daily_pnl') {
+    // Try cache first (60s TTL per user)
+    const cacheKey = `sophia:daily_pnl:${user.id}`;
+    const cached = await redisGet(cacheKey);
+    if (cached) return res.status(200).json(cached);
+
+    const portfolio = await getRealPortfolio(user.id);
+    const enriched = await Promise.all((portfolio.positions || []).map(async p => {
+      const price = await getLivePrice(p.symbol); const qty = parseFloat(p.quantity); const avg = parseFloat(p.avg_cost_basis); const cur = price || avg;
+      return { ...p, current_price: cur, market_value: qty * cur, pnl: qty * cur - qty * avg };
+    }));
+    const totalAccountValue = portfolio.cash + enriched.reduce((s,p)=>s+p.market_value,0);
+    const totalPnl = totalAccountValue - portfolio.starting;
+    const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+    const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+    const todayTrades = portfolio.recentTrades.filter(t => new Date(t.created_at) >= todayMidnight);
+    const todayPnl = todayTrades.reduce((s,t) => t.side==='sell' ? s+(t.price*t.quantity - t.total_cost) : s, 0);
+    const unrealized = enriched.reduce((s,p)=>s+p.pnl,0);
+    const dayTotal = todayPnl + unrealized;
+    const reply = `${etDate} · ${etTime} ET\nRealized today: ${todayPnl>=0?'+':''}$${todayPnl.toFixed(2)} · Unrealized: ${unrealized>=0?'+':''}$${unrealized.toFixed(2)}\nTotal P&L today: ${dayTotal>=0?'+':''}$${dayTotal.toFixed(2)}`;
+    const result = { action: 'info', reply };
+    await redisSet(cacheKey, result, 60);
+    return res.status(200).json(result);
+  }
+
+  if (quickType === 'portfolio') {
+    const cacheKey = `sophia:portfolio:${user.id}`;
+    const cached = await redisGet(cacheKey);
+    if (cached) return res.status(200).json(cached);
+
+    const portfolio = await getRealPortfolio(user.id);
+    const enrichedPositions = await Promise.all((portfolio.positions || []).map(async p => {
+      const price = await getLivePrice(p.symbol); const qty = parseFloat(p.quantity); const avg = parseFloat(p.avg_cost_basis); const cur = price || avg;
+      return { symbol: p.symbol, qty, avg_cost: avg, current_price: cur, market_value: qty*cur, pnl: qty*cur - qty*avg, pnl_pct: avg>0 ? ((qty*cur - qty*avg)/(qty*avg))*100 : 0 };
+    }));
+    const totalMarketValue = enrichedPositions.reduce((s,p)=>s+p.market_value,0);
+    const totalAccountValue = portfolio.cash + totalMarketValue;
+    const totalPnl = totalAccountValue - portfolio.starting;
+    const result = { action: 'portfolio', reply: '', portfolio: { cash: portfolio.cash, starting: portfolio.starting, totalValue: totalAccountValue, totalPnl, totalPnlPct: portfolio.starting > 0 ? (totalPnl/portfolio.starting)*100 : 0, positions: enrichedPositions } };
+    await redisSet(cacheKey, result, 60);
+    return res.status(200).json(result);
+  }
+
+  if (quickType === 'sentinel') {
+    const cacheKey = `sophia:sentinel`;
+    const cached = await redisGet(cacheKey);
+    if (cached) return res.status(200).json(cached);
+
+    const sentinelData = await getSentinelStatus();
+    if (!sentinelData) return res.status(200).json({ action: 'info', reply: 'Sentinel data unavailable right now.' });
+    const acc = sentinelData.account || {};
+    const result = { action: 'sentinel', reply: '', sentinel: { balance: acc.current_balance||0, totalPnl: acc.total_pnl||0, winRate: acc.win_rate||0, totalTrades: acc.total_trades||0, openTrades: sentinelData.openTrades||[], todaySession: sentinelData.todaySession||null } };
+    await redisSet(cacheKey, result, 60);
+    return res.status(200).json(result);
+  }
+  // ── END FAST PATH ────────────────────────────────────────────────────────
 
   try {
     // Load real portfolio + optionally Sentinel data in parallel
