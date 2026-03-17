@@ -116,7 +116,7 @@ function useBotStream() {
   const [connected, setConnected] = useState(false);
   const [dataSource, setDataSource] = useState('connecting'); // 'live' | 'sim' | 'connecting'
 
-  const refs = useRef({ block: 0, bal: 2000000, trades: 0, wins: 0, peak: 2000000, btcPrice: null, polymarkets: [] });
+  const refs = useRef({ block: 0, bal: 2000000, trades: 0, wins: 0, peak: 2000000, btcPrice: null, polymarkets: [], pnlViewRef: 'total' });
   const { price: wsPrice, bid: wsBid, ask: wsAsk, volume: wsVolume, wsConnected } = useCryptoComWS();
 
   // Helper: push event to stream
@@ -200,7 +200,10 @@ function useBotStream() {
           // Seed equity curve from real trade history
           if (data.equityCurve && data.equityCurve.length > 0) {
             setPnlFull(data.equityCurve);
-            setPnl(data.equityCurve);
+            // Only overwrite pnl if user is viewing total (don't clobber daily view)
+            if (refs.current.pnlViewRef !== 'daily') {
+              setPnl(data.equityCurve);
+            }
             refs.current.equitySeeded = true;
 
             // Build daily curve: only trades from today (ET)
@@ -208,12 +211,15 @@ function useBotStream() {
             const todayStart = new Date(todayET + 'T00:00:00-05:00').getTime();
             const todayTrades = data.equityCurve.filter(p => p.t >= todayStart);
             if (todayTrades.length > 0) {
-              // Rebase daily to start from 0
-              const baseVal = todayTrades[0].v - (data.equityCurve.find(p => p.t < todayStart && data.equityCurve.indexOf(p) === data.equityCurve.length - todayTrades.length - 1)?.v || todayTrades[0].v);
               const prevClose = data.equityCurve.length > todayTrades.length
                 ? data.equityCurve[data.equityCurve.length - todayTrades.length - 1].v
                 : 0;
-              setPnlDaily(todayTrades.map(p => ({ t: p.t, v: Math.round((p.v - prevClose) * 100) / 100 })));
+              const dailyData = todayTrades.map(p => ({ t: p.t, v: Math.round((p.v - prevClose) * 100) / 100 }));
+              setPnlDaily(dailyData);
+              // If user is viewing daily, update with fresh daily data
+              if (refs.current.pnlViewRef === 'daily') {
+                setPnl(dailyData);
+              }
             }
           }
 
@@ -503,6 +509,11 @@ function useBotStream() {
       if (dataSource === 'connecting') setDataSource('live');
     }
   }, [wsConnected, dataSource]);
+
+  // Keep pnlView ref in sync so the fetch callback respects the user's view choice
+  useEffect(() => {
+    refs.current.pnlViewRef = pnlView;
+  }, [pnlView]);
 
   return { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, setPnl, pnlFull, pnlDaily, pnlView, setPnlView, stream, connected, dataSource, btcPrice: wsPrice || refs.current.btcPrice };
 }
