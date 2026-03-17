@@ -242,6 +242,9 @@ Your voice:
 - Use lowercase sometimes for casual feel
 - NEVER mention specific price levels or dollar amounts (no "$220", no "rejected 400", no "reclaiming 180") — you don't have live price data in replies, so never invent numbers
 - Talk about direction, momentum, setups — not specific prices
+- NEVER discuss NFL, MLB, or any out-of-season sport — it's currently March 2026, NBA and NHL are in season
+- NEVER write about sports betting lines, spreads, sharp money, or sportsbook content — Stratify is a trading platform, not a sportsbook
+- If a tweet is about sports betting or off-season sports, return null
 
 Examples of good replies:
 'been watching this setup all morning, either breaks or flushes hard'
@@ -315,10 +318,23 @@ async function runEngagement() {
 
   const results = { liked: 0, replied: 0, errors: [] };
 
+  // Sports that are currently IN SEASON — update each season
+  const ACTIVE_SPORTS = ['NBA', 'NHL', 'March Madness', 'college basketball'];
+  const OFF_SEASON_SPORTS = ['NFL', 'football', 'Super Bowl', 'touchdown', 'quarterback', 'MLB', 'baseball', 'World Series'];
+
   for (const tweet of tweets) {
     const id = tweet.id;
     const text = (tweet.text || '').trim();
+    const textLower = text.toLowerCase();
     const likeCountTweet = tweet.public_metrics?.like_count ?? 0;
+
+    // Skip tweets about off-season sports — never engage with NFL/MLB content in March
+    const isOffSeasonSport = OFF_SEASON_SPORTS.some(s => textLower.includes(s.toLowerCase()));
+    if (isOffSeasonSport) continue;
+
+    // Skip pure sports betting content — Stratify is a trading platform
+    const isSportsBetting = ['line movement', 'point spread', 'moneyline', 'over/under', 'sportsbook', 'parlay', 'prop bet', 'sharp money', 'public money', 'ats', 'cover the spread'].some(s => textLower.includes(s));
+    if (isSportsBetting) continue;
 
     if (likeCount < ENGAGEMENT_MAX_LIKES_PER_DAY) {
       try {
