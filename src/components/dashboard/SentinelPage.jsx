@@ -37,29 +37,37 @@ function computePnl(trade, livePrices) {
 
 function PositionRow({ trade, i, showDollar = false, livePrices }) {
   const { livePrice, pnl } = computePnl(trade, livePrices);
+  const shares = trade.size || 0;
+  const liveValue = livePrice && shares ? livePrice * shares : (trade.dollar_size || 0);
   return (
     <motion.div
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: i * 0.04, ...SPRING }}
       whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-      className="py-2 px-2 rounded-xl transition-all duration-300 text-xs font-mono"
+      className="py-2.5 px-3 rounded-xl transition-all duration-300 text-xs font-mono"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}>
+          <span className={`text-sm ${trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
             {trade.direction === 'LONG' ? '↑' : '↓'}
           </span>
-          <span className="text-white font-semibold">{showDollar ? '$' : ''}{trade.symbol}</span>
+          <span className="text-white font-bold text-[13px]">${trade.symbol.replace('/USD', '')}</span>
+          <span className="text-white/25 text-[10px]">{shares > 1 ? Math.round(shares).toLocaleString() : shares.toFixed(4)} shares</span>
         </div>
-        <span className={`font-medium ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+        <span className={`font-bold text-[13px] ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
           {fmtDollar(pnl)}
         </span>
       </div>
-      <div className="flex items-center gap-3 mt-0.5 text-[10px] text-white/30">
-        <span>Entry {fmtPrice(trade.entry)}</span>
-        <span className={pnl >= 0 ? 'text-emerald-400/50' : 'text-red-400/50'}>
-          Live {fmtPrice(livePrice)}
+      <div className="flex items-center justify-between mt-1 text-[10px]">
+        <div className="flex items-center gap-3">
+          <span className="text-white/30">Entry {fmtPrice(trade.entry)}</span>
+          <span className={pnl >= 0 ? 'text-emerald-400/50' : 'text-red-400/50'}>
+            Live {fmtPrice(livePrice)}
+          </span>
+        </div>
+        <span className="text-white/20">
+          ${liveValue >= 1000 ? (liveValue / 1000).toFixed(1) + 'K' : liveValue.toFixed(2)}
         </span>
       </div>
     </motion.div>
@@ -807,17 +815,17 @@ function SentinelPageInner() {
                   <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${riskExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                 </motion.div>
 
-                {/* Compact view — always visible */}
+                {/* Compact view — always visible, IB-style */}
                 <div className="mt-3 grid grid-cols-4 gap-3">
                   {[
-                    { label: 'Kelly', value: `${((riskData.kelly?.recommended || 0) * 100).toFixed(1)}%`, color: 'text-cyan-400' },
-                    { label: 'Drawdown', value: `${riskData.drawdown?.currentDrawdownPct || 0}%`, color: (riskData.drawdown?.currentDrawdownPct || 0) > 10 ? 'text-red-400' : 'text-emerald-400' },
-                    { label: 'VaR 95%', value: `$${(riskData.var?.var95 || 0).toLocaleString()}`, color: 'text-amber-400' },
-                    { label: 'Leverage', value: `${riskData.exposure?.leverageRatio || 0}x`, color: (riskData.exposure?.leverageRatio || 0) > 1.5 ? 'text-red-400' : 'text-emerald-400' },
+                    { label: 'KELLY', value: `${((riskData.kelly?.recommended || 0) * 100).toFixed(1)}%`, color: 'text-cyan-400' },
+                    { label: 'DRAWDOWN', value: `${riskData.drawdown?.currentDrawdownPct || 0}%`, color: (riskData.drawdown?.currentDrawdownPct || 0) > 10 ? 'text-red-400' : 'text-emerald-400' },
+                    { label: 'VAR 95%', value: `$${(riskData.var?.var95 || 0).toLocaleString()}`, color: 'text-amber-400' },
+                    { label: 'LEVERAGE', value: `${riskData.exposure?.leverageRatio || 0}x`, color: (riskData.exposure?.leverageRatio || 0) > 1.5 ? 'text-red-400' : 'text-emerald-400' },
                   ].map(m => (
                     <div key={m.label} className="text-center">
-                      <div className={`text-[13px] font-mono font-bold ${m.color}`}>{m.value}</div>
-                      <div className="text-[9px] text-gray-500 uppercase tracking-widest">{m.label}</div>
+                      <div className={`text-[15px] font-mono font-bold ${m.color}`}>{m.value}</div>
+                      <div className="text-[10px] text-white/40 uppercase tracking-widest font-semibold mt-0.5">{m.label}</div>
                     </div>
                   ))}
                 </div>
@@ -833,17 +841,17 @@ function SentinelPageInner() {
                     >
                       {/* Pre-Market Checklist */}
                       <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Pre-Market Checklist</span>
-                        <div className="mt-2 space-y-1.5">
+                        <span className="text-[11px] text-white font-bold uppercase tracking-widest">Pre-Market Checklist</span>
+                        <div className="mt-2.5 space-y-2">
                           {(riskData.preMarketChecklist || []).map((item, i) => (
-                            <div key={i} className="flex items-center justify-between text-xs font-mono">
-                              <div className="flex items-center gap-2">
-                                <span className={item.status === 'PASS' ? 'text-emerald-400' : item.status === 'WARNING' ? 'text-yellow-400' : 'text-red-400'}>
+                            <div key={i} className="flex items-center justify-between text-[13px] font-mono">
+                              <div className="flex items-center gap-2.5">
+                                <span className={`text-sm ${item.status === 'PASS' ? 'text-emerald-400' : item.status === 'WARNING' ? 'text-yellow-400' : 'text-red-400'}`}>
                                   {item.status === 'PASS' ? '✓' : item.status === 'WARNING' ? '⚠' : '✗'}
                                 </span>
-                                <span className="text-gray-300">{item.check}</span>
+                                <span className="text-white/90">{item.check}</span>
                               </div>
-                              <span className="text-gray-500">{item.value}</span>
+                              <span className="text-white/40">{item.value}</span>
                             </div>
                           ))}
                         </div>
@@ -851,23 +859,23 @@ function SentinelPageInner() {
 
                       {/* Exposure Breakdown */}
                       <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Exposure</span>
-                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-mono">
-                          <div><span className="text-gray-500">Gross:</span> <span className="text-white">${(riskData.exposure?.grossExposure || 0).toLocaleString()}</span> <span className="text-gray-600">({riskData.exposure?.grossPct}%)</span></div>
-                          <div><span className="text-gray-500">Net:</span> <span className={`${(riskData.exposure?.netExposure || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>${(riskData.exposure?.netExposure || 0).toLocaleString()}</span></div>
-                          <div><span className="text-emerald-400">Long:</span> <span className="text-white">${(riskData.exposure?.longExposure || 0).toLocaleString()}</span></div>
-                          <div><span className="text-red-400">Short:</span> <span className="text-white">${(riskData.exposure?.shortExposure || 0).toLocaleString()}</span></div>
+                        <span className="text-[11px] text-white font-bold uppercase tracking-widest">Exposure</span>
+                        <div className="mt-2.5 grid grid-cols-2 gap-3 text-[13px] font-mono">
+                          <div><span className="text-white/50">Gross:</span> <span className="text-white/90 font-semibold">${(riskData.exposure?.grossExposure || 0).toLocaleString()}</span> <span className="text-white/25">({riskData.exposure?.grossPct}%)</span></div>
+                          <div><span className="text-white/50">Net:</span> <span className={`font-semibold ${(riskData.exposure?.netExposure || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>${(riskData.exposure?.netExposure || 0).toLocaleString()}</span></div>
+                          <div><span className="text-emerald-400/70">Long:</span> <span className="text-white/90 font-semibold">${(riskData.exposure?.longExposure || 0).toLocaleString()}</span></div>
+                          <div><span className="text-red-400/70">Short:</span> <span className="text-white/90 font-semibold">${(riskData.exposure?.shortExposure || 0).toLocaleString()}</span></div>
                         </div>
                       </div>
 
                       {/* Stress Tests */}
                       <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Stress Tests</span>
-                        <div className="mt-2 space-y-1">
+                        <span className="text-[11px] text-white font-bold uppercase tracking-widest">Stress Tests</span>
+                        <div className="mt-2.5 space-y-2">
                           {(riskData.stressTests || []).map((test, i) => (
-                            <div key={i} className="flex items-center justify-between text-xs font-mono">
-                              <span className="text-gray-300 truncate flex-1">{test.scenario}</span>
-                              <span className={`flex-shrink-0 ml-2 ${test.survivable ? 'text-emerald-400' : 'text-red-400'}`}>
+                            <div key={i} className="flex items-center justify-between text-[13px] font-mono">
+                              <span className="text-white/80 truncate flex-1">{test.scenario}</span>
+                              <span className={`flex-shrink-0 ml-2 font-bold ${test.survivable ? 'text-emerald-400' : 'text-red-400'}`}>
                                 {test.portfolioImpactPct}%
                               </span>
                             </div>
@@ -877,22 +885,22 @@ function SentinelPageInner() {
 
                       {/* Kelly Position Sizing */}
                       <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Kelly Criterion</span>
-                        <div className="mt-2 grid grid-cols-3 gap-2 text-xs font-mono text-center">
-                          <div><div className="text-cyan-400 font-bold">{((riskData.kelly?.full || 0) * 100).toFixed(1)}%</div><div className="text-[9px] text-gray-500">Full Kelly</div></div>
-                          <div><div className="text-emerald-400 font-bold">{((riskData.kelly?.half || 0) * 100).toFixed(1)}%</div><div className="text-[9px] text-gray-500">Half (Used)</div></div>
-                          <div><div className="text-gray-400 font-bold">{((riskData.kelly?.maxPositionPct || 0) * 100).toFixed(1)}%</div><div className="text-[9px] text-gray-500">Max Position</div></div>
+                        <span className="text-[11px] text-white font-bold uppercase tracking-widest">Kelly Criterion</span>
+                        <div className="mt-2.5 grid grid-cols-3 gap-2 font-mono text-center">
+                          <div><div className="text-cyan-400 font-bold text-[15px]">{((riskData.kelly?.full || 0) * 100).toFixed(1)}%</div><div className="text-[10px] text-white/40 mt-0.5">Full Kelly</div></div>
+                          <div><div className="text-emerald-400 font-bold text-[15px]">{((riskData.kelly?.half || 0) * 100).toFixed(1)}%</div><div className="text-[10px] text-white/40 mt-0.5">Half (Used)</div></div>
+                          <div><div className="text-white/60 font-bold text-[15px]">{((riskData.kelly?.maxPositionPct || 0) * 100).toFixed(1)}%</div><div className="text-[10px] text-white/40 mt-0.5">Max Position</div></div>
                         </div>
                       </div>
 
                       {/* VaR Details */}
                       <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Value at Risk</span>
-                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-mono">
-                          <div><span className="text-gray-500">VaR 95%:</span> <span className="text-amber-400">${(riskData.var?.var95 || 0).toLocaleString()}</span></div>
-                          <div><span className="text-gray-500">VaR 99%:</span> <span className="text-red-400">${(riskData.var?.var99 || 0).toLocaleString()}</span></div>
-                          <div><span className="text-gray-500">CVaR 95%:</span> <span className="text-red-400">${(riskData.var?.cvar95 || 0).toLocaleString()}</span></div>
-                          <div><span className="text-gray-500">Daily Vol:</span> <span className="text-white">{riskData.var?.dailyVolatility || 0}%</span></div>
+                        <span className="text-[11px] text-white font-bold uppercase tracking-widest">Value at Risk</span>
+                        <div className="mt-2.5 grid grid-cols-2 gap-3 text-[13px] font-mono">
+                          <div><span className="text-white/50">VaR 95%:</span> <span className="text-amber-400 font-semibold">${(riskData.var?.var95 || 0).toLocaleString()}</span></div>
+                          <div><span className="text-white/50">VaR 99%:</span> <span className="text-red-400 font-semibold">${(riskData.var?.var99 || 0).toLocaleString()}</span></div>
+                          <div><span className="text-white/50">CVaR 95%:</span> <span className="text-red-400 font-semibold">${(riskData.var?.cvar95 || 0).toLocaleString()}</span></div>
+                          <div><span className="text-white/50">Daily Vol:</span> <span className="text-white/80 font-semibold">{riskData.var?.dailyVolatility || 0}%</span></div>
                         </div>
                       </div>
 
