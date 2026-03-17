@@ -735,8 +735,7 @@ function SentinelPageInner() {
                   )}
                 </div>
                 <MarketClock />
-                {marketOpen ? (
-                  equityOpenTrades.length > 0 ? (
+                {equityOpenTrades.length > 0 ? (
                     <div className="space-y-1">
                       <span className="text-[10px] text-gray-500 uppercase tracking-widest">Open Positions</span>
                       {equityOpenTrades.map((trade, i) => (
@@ -745,10 +744,7 @@ function SentinelPageInner() {
                     </div>
                   ) : (
                     <p className="text-xs text-gray-600 font-mono">No open equity positions</p>
-                  )
-                ) : (
-                  <p className="text-xs text-white/20 font-mono py-4">Equity trades will appear here during market hours</p>
-                )}
+                  )}
                 {(() => {
                   const todayEquityTotal = equityOpenPnl + todayEquityPnl;
                   return (
@@ -1217,9 +1213,16 @@ function SentinelPageInner() {
                               {new Date(session.session_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
                             <div className="flex items-center gap-2">
-                              <span className={`${(session.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {(session.gross_pnl || 0) >= 0 ? '+' : ''}${(session.gross_pnl || 0).toFixed(0)}
-                              </span>
+                              {(() => {
+                                const today = new Date().toISOString().slice(0, 10);
+                                const isToday = session.session_date === today;
+                                const displayPnl = isToday ? (session.gross_pnl || 0) + liveUnrealizedPnl : (session.gross_pnl || 0);
+                                return (
+                                  <span className={`${displayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {displayPnl >= 0 ? '+' : ''}${displayPnl.toFixed(0)}
+                                  </span>
+                                );
+                              })()}
                               {session.claude_analysis ? (
                                 <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" /></svg>
                               ) : (
