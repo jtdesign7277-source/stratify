@@ -479,13 +479,13 @@ export default async function handler(req, res) {
 
         if (signal.direction === 'WAIT') {
           // Log SCAN evaluation even when no signal
-          await supabase.from('sentinel_signals').insert({
+          try { await supabase.from('sentinel_signals').insert({
             symbol: job.symbol, timeframe: job.timeframe,
             signal_type: 'SCAN', direction: null,
             price_at_signal: signal.entry || 0,
             regime: signal.regime ? `${signal.regime.trend}/${signal.regime.type}` : null,
             composite_score: 0, trade_fired: false,
-          }).catch(() => {});
+          }); } catch {}
           continue;
         }
 
@@ -506,13 +506,13 @@ export default async function handler(req, res) {
         // Require posterior > 0.45 to proceed (Bayesian gate)
         if (bayes.posterior < 0.45) {
           log.push(`[BAYES] Rejected — posterior ${bayes.posterior} below threshold`);
-          await supabase.from('sentinel_signals').insert({
+          try { await supabase.from('sentinel_signals').insert({
             symbol: job.symbol, timeframe: job.timeframe, signal_type: 'BAYES_REJECT',
             direction: signal.direction, bayesian_prior: bayes.prior, bayesian_posterior: bayes.posterior,
             bayesian_ev: bayes.ev, composite_score: Math.round(bayes.posterior * 100),
             price_at_signal: signal.entry, regime: `${signal.regime.trend}/${signal.regime.type}`,
             trade_fired: false,
-          }).catch(() => {});
+          }); } catch {}
           continue;
         }
 
@@ -522,13 +522,13 @@ export default async function handler(req, res) {
 
         if (!edge.pass) {
           log.push(`[EDGE] Rejected — no mathematical edge (EV=${edge.ev})`);
-          await supabase.from('sentinel_signals').insert({
+          try { await supabase.from('sentinel_signals').insert({
             symbol: job.symbol, timeframe: job.timeframe, signal_type: 'EDGE_REJECT',
             direction: signal.direction, bayesian_prior: bayes.prior, bayesian_posterior: bayes.posterior,
             bayesian_ev: bayes.ev, edge_ev_net: edge.ev, edge_cost: edge.cost, edge_z_score: edge.zScore,
             price_at_signal: signal.entry, regime: `${signal.regime.trend}/${signal.regime.type}`,
             composite_score: Math.round(bayes.posterior * 50), trade_fired: false,
-          }).catch(() => {});
+          }); } catch {}
           continue;
         }
 
@@ -669,7 +669,7 @@ export default async function handler(req, res) {
           trade_id: newTrade?.id || null,
           price_at_signal: entryPrice,
           regime: `${signal.regime.trend}/${signal.regime.type}`,
-        }).catch(e => log.push(`Signal store error: ${e.message}`));
+        }).then(r => { if (r.error) log.push(`Signal store error: ${r.error.message}`); });
 
         await sleep(200);
       } catch (err) { log.push(`Error scanning ${job.symbol} ${job.timeframe}: ${err.message}`); }
@@ -686,7 +686,7 @@ export default async function handler(req, res) {
       const { data: sess } = await supabase.from('sentinel_sessions').select('session_ended_at').eq('session_date', today).single();
       if (!sess?.session_ended_at) {
         await supabase.from('sentinel_sessions').upsert({ session_date: today, session_ended_at: new Date().toISOString() }, { onConflict: 'session_date' });
-        fetch('https://stratifymarket.com/api/sentinel/learn').catch(() => {});
+        fetch('https://stratifymarket.com/api/sentinel/learn');
         log.push('Daily learn triggered');
       }
     }

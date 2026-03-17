@@ -441,6 +441,47 @@ function useBotStream() {
         if (!resp.ok) return;
         const data = await resp.json();
         if (data.signals?.length > 0) {
+          // Update model panels from latest signal with real model values
+          const latestWithModels = data.signals.find(s => s.bayesian || s.edge || s.stoikov || s.mc);
+          if (latestWithModels) {
+            if (latestWithModels.bayesian) {
+              setBayesian(prev => ({
+                prior: latestWithModels.bayesian.prior || prev.prior,
+                post: latestWithModels.bayesian.posterior || prev.post,
+                ev: latestWithModels.bayesian.ev || prev.ev,
+                epoch: prev.epoch + 1,
+                loss: prev.loss,
+                conf: latestWithModels.bayesian.confidence || prev.conf,
+              }));
+            }
+            if (latestWithModels.edge) {
+              setEdge({
+                ev: latestWithModels.edge.ev || 0,
+                cost: latestWithModels.edge.cost || 0,
+                net: (latestWithModels.edge.ev || 0) - (latestWithModels.edge.cost || 0),
+                pass: latestWithModels.edge.pass ?? true,
+              });
+              setSpread({
+                z: latestWithModels.edge.zScore || 0,
+                pSum: latestWithModels.edge.pSum || 0.96,
+              });
+            }
+            if (latestWithModels.stoikov) {
+              setStoikov({
+                r: latestWithModels.stoikov.reservation || 0,
+                q: latestWithModels.stoikov.q || 0,
+                gamma: latestWithModels.stoikov.gamma || 0,
+                s2: latestWithModels.stoikov.sigma2 || 0,
+              });
+            }
+            if (latestWithModels.mc) {
+              setMc({
+                dd: latestWithModels.mc.maxDd || 0,
+                fStar: (latestWithModels.mc.kelly || 0) * 2, // full kelly = 2x half kelly
+                f: latestWithModels.mc.kelly || 0,
+              });
+            }
+          }
           if (data.latestModels) refs.current.latestModels = data.latestModels;
           for (const sig of data.signals.reverse()) {
             for (const ev of expandToEvents(sig)) pushEvent(ev.type, ev.color, ev.text);
