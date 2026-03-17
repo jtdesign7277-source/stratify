@@ -735,7 +735,7 @@ const SophiaPanel = ({
           {/* Quick commands */}
           <div className="px-3 pb-1 flex gap-1 flex-wrap">
             {[
-              'What\'s my P&L?',
+              'What\'s my daily P&L?',
               'Show my positions',
               'What am I holding?',
               ...(sentinelMode ? ['Sentinel P&L', 'Sentinel open trades'] : [])
