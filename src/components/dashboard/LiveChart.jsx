@@ -342,6 +342,9 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
       borderUpColor: UP_COLOR,
       borderDownColor: DOWN_COLOR,
       priceLineVisible: true,
+      priceLineColor: '#76b900',
+      priceLineWidth: 1,
+      priceLineStyle: 0, // 0 = Solid
     });
 
     const volumeSeries = chart.addSeries(VolumeSeries, {
