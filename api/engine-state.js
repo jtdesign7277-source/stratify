@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     const [accountRes, openTradesRes, closedTradesRes, polyOpenRes, recentSignalsRes] = await Promise.all([
       supabase.from('sentinel_account').select('*').eq('id', SENTINEL_ACCOUNT_ID).single(),
       supabase.from('sentinel_trades').select('*').eq('status', 'open').order('opened_at', { ascending: false }),
-      supabase.from('sentinel_trades').select('*').eq('status', 'closed').order('closed_at', { ascending: false }).limit(50),
+      supabase.from('sentinel_trades').select('*').eq('status', 'closed').order('closed_at', { ascending: false }).limit(500),
       supabase.from('sentinel_polymarket_trades').select('*').eq('status', 'open').order('created_at', { ascending: false }),
       supabase.from('sentinel_trades').select('symbol, direction, setup, confidence, opened_at, status, pnl, win').order('opened_at', { ascending: false }).limit(100),
     ]);
@@ -65,6 +65,14 @@ export default async function handler(req, res) {
     const oneDayAgo = new Date(Date.now() - 86400000).toISOString();
     const recentCount = recentSignals.filter(s => s.opened_at > oneDayAgo).length;
     const tradesPerHr = +(recentCount / 24).toFixed(1);
+
+    // Build equity curve from closed trades (chronological cumulative P&L)
+    const chronologicalTrades = closedTrades.slice().reverse(); // oldest first
+    let cumPnl = 0;
+    const equityCurve = chronologicalTrades.map(t => {
+      cumPnl += (t.pnl || 0);
+      return { t: new Date(t.closed_at).getTime(), v: Math.round(cumPnl * 100) / 100 };
+    });
 
     // Recent EXEC signals (filled trades from last hour)
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
@@ -119,6 +127,7 @@ export default async function handler(req, res) {
         confidence: t.confidence,
       })),
       execSignals,
+      equityCurve,
       status: {
         polymarket: polyOpen.length >= 0 ? 'ONLINE' : 'OFFLINE',
         scanner: openTrades.length > 0 ? 'ACTIVE' : 'SCAN',

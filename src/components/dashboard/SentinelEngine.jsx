@@ -194,6 +194,12 @@ function useBotStream() {
           refs.current.trades = m.totalTrades || refs.current.trades;
           refs.current.peak = Math.max(refs.current.peak, m.balance || 0);
 
+          // Seed equity curve from real trade history
+          if (data.equityCurve && data.equityCurve.length > 0) {
+            setPnl(data.equityCurve);
+            refs.current.equitySeeded = true;
+          }
+
           // Push EXEC events from recent signals
           for (const sig of (data.execSignals || []).slice(0, 3)) {
             pushEvent('EXEC', COLORS.greenBright, `${sig.direction} ${sig.symbol}, ${sig.setup}, ${sig.confidence}%`);
@@ -362,13 +368,20 @@ function useBotStream() {
     return () => clearInterval(iv);
   }, [wsVolume, metrics.edge]);
 
-  // ── P&L curve updates — tick every 500ms for live feel ──
+  // ── P&L curve updates — append live unrealized ticks after equity curve is seeded ──
   useEffect(() => {
     const iv = setInterval(() => {
+      if (!refs.current.equitySeeded) return; // Wait for real data before appending
       const bal = refs.current.bal;
       const deposit = refs.current.deposit || 2000000;
-      setPnl(prev => [...prev, { t: Date.now(), v: bal - deposit }].slice(-500));
-    }, 500);
+      const liveVal = bal - deposit;
+      setPnl(prev => {
+        const last = prev[prev.length - 1];
+        // Only append if value changed meaningfully (avoid flat line spam)
+        if (last && Math.abs(last.v - liveVal) < 0.5) return prev;
+        return [...prev, { t: Date.now(), v: liveVal }].slice(-500);
+      });
+    }, 2000);
     return () => clearInterval(iv);
   }, []);
 
