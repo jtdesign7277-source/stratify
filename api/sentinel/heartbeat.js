@@ -464,22 +464,34 @@ export default async function handler(req, res) {
       .eq('session_date', today)
       .maybeSingle();
 
+    // Always recompute session stats from actual closed trades to prevent drift
+    const { data: todayClosedTrades } = await supabase
+      .from('sentinel_trades')
+      .select('pnl, win')
+      .eq('session_date', today)
+      .eq('status', 'closed');
+
+    const trueTotalPnl = parseFloat((todayClosedTrades || []).reduce((s, t) => s + (t.pnl || 0), 0).toFixed(2));
+    const trueWins = (todayClosedTrades || []).filter(t => t.win).length;
+    const trueLosses = (todayClosedTrades || []).length - trueWins;
+    const trueClosed = (todayClosedTrades || []).length;
+
     if (existingSession) {
       await supabase.from('sentinel_sessions').update({
         trades_fired: (existingSession.trades_fired || 0) + newSignals,
-        trades_closed: (existingSession.trades_closed || 0) + tradesClosed,
-        wins: (existingSession.wins || 0) + sessionWins,
-        losses: (existingSession.losses || 0) + sessionLosses,
-        gross_pnl: parseFloat(((existingSession.gross_pnl || 0) + sessionGrossPnl).toFixed(2)),
+        trades_closed: trueClosed,
+        wins: trueWins,
+        losses: trueLosses,
+        gross_pnl: trueTotalPnl,
       }).eq('id', existingSession.id);
     } else {
       await supabase.from('sentinel_sessions').insert({
         session_date: today,
         trades_fired: newSignals,
-        trades_closed: tradesClosed,
-        wins: sessionWins,
-        losses: sessionLosses,
-        gross_pnl: parseFloat(sessionGrossPnl.toFixed(2)),
+        trades_closed: trueClosed,
+        wins: trueWins,
+        losses: trueLosses,
+        gross_pnl: trueTotalPnl,
         session_started_at: new Date().toISOString(),
       });
     }
