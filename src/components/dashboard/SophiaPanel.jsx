@@ -182,11 +182,12 @@ const SophiaPanel = ({
   const [tradingMode, setTradingMode] = useState(false);
   const [yoloActive, setYoloActive] = useState(false);
   const [yoloLoading, setYoloLoading] = useState(false);
+  const [sentinelMode, setSentinelMode] = useState(false);
   const [tradeInput, setTradeInput] = useState('');
   const [tradeLoading, setTradeLoading] = useState(false);
   const [tradeResult, setTradeResult] = useState(null);
   const [tradeMessages, setTradeMessages] = useState([
-    { role: 'assistant', content: '⚡ Trading Mode active. I can read your portfolio, check live prices, and execute paper trades. Try: "buy 10 shares of AAPL" or "what\'s my P&L today?" or "close my TSLA position".' }
+    { role: 'assistant', content: '⚡ Trading Mode active. I can see your real portfolio, P&L, and positions. Enable Sentinel toggle to also ask about the trading bot.' }
   ]);
 
   // Load YOLO state from Supabase on mount
@@ -231,7 +232,7 @@ const SophiaPanel = ({
       const resp = await fetch('/api/sophia-trade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: text.trim(), portfolio: {} }),
+        body: JSON.stringify({ message: text.trim(), includeSentinel: sentinelMode }),
       });
 
       if (!resp.ok) {
@@ -249,7 +250,7 @@ const SophiaPanel = ({
       setTradeMessages(prev => [...prev, { role: 'assistant', content: `❌ Error: ${err.message}` }]);
     }
     setTradeLoading(false);
-  }, [tradeLoading, session]);
+  }, [tradeLoading, session, sentinelMode]);
 
   const messagesEndRef = useRef(null);
   const tradeMessagesEndRef = useRef(null);
@@ -577,12 +578,23 @@ const SophiaPanel = ({
       {/* ⚡ TRADING MODE PANEL */}
       {activeTab === 'trade' && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* YOLO status banner */}
-          <div className={`px-4 py-2 text-[10px] font-mono flex items-center gap-2 border-b border-[#1f1f1f] ${yoloActive ? 'text-red-400' : 'text-zinc-500'}`}>
-            <Zap className="w-3 h-3" />
-            {yoloActive
-              ? 'YOLO ON — Sentinel trades copying to your account automatically'
-              : 'YOLO OFF — toggle YOLO above to auto-copy Sentinel trades'}
+          {/* Status bar — YOLO + Sentinel toggle */}
+          <div className="px-4 py-2 flex items-center justify-between border-b border-[#1f1f1f]">
+            <div className={`text-[10px] font-mono flex items-center gap-1.5 ${yoloActive ? 'text-red-400' : 'text-zinc-600'}`}>
+              <Zap className="w-3 h-3" />
+              {yoloActive ? 'YOLO ON — copying trades' : 'YOLO OFF'}
+            </div>
+            <button
+              onClick={() => setSentinelMode(v => !v)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-all duration-200 border ${
+                sentinelMode
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                  : 'bg-white/[0.03] text-zinc-600 border-white/[0.08] hover:text-zinc-400'
+              }`}
+              title={sentinelMode ? 'Sentinel context ON — Sophia knows bot status' : 'Enable to ask about Sentinel bot'}
+            >
+              🤖 Sentinel
+            </button>
           </div>
 
           {/* Trade conversation */}
@@ -616,7 +628,12 @@ const SophiaPanel = ({
 
           {/* Quick commands */}
           <div className="px-3 pb-1 flex gap-1 flex-wrap">
-            {['Check portfolio', 'Today\'s P&L', 'Open positions'].map(cmd => (
+            {[
+              'What\'s my P&L?',
+              'Show my positions',
+              'What am I holding?',
+              ...(sentinelMode ? ['Sentinel P&L', 'Sentinel open trades'] : [])
+            ].map(cmd => (
               <button key={cmd} onClick={() => sendTradeMessage(cmd)}
                 className="px-2 py-0.5 rounded-full text-[10px] text-zinc-500 border border-white/[0.06] hover:text-amber-400 hover:border-amber-500/30 transition-all">
                 {cmd}

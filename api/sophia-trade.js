@@ -1,7 +1,6 @@
 // api/sophia-trade.js — Sophia Trading Mode
-// Parses natural language trade commands, fetches live prices via Twelve Data,
-// and executes paper trades via existing paper trading system.
-// Does NOT use Alpaca — uses Twelve Data for prices, Supabase for paper portfolio.
+// Reads REAL portfolio data + Sentinel status, answers natural language questions,
+// executes paper trades via paper-portfolio tables.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -32,15 +31,44 @@ async function getLivePrice(symbol) {
   } catch { return null; }
 }
 
-async function getPaperPortfolio(userId) {
+async function getRealPortfolio(userId) {
   try {
-    const { data } = await supabase
-      .from('profiles')
-      .select('paper_trading_balance, positions, trade_history')
-      .eq('id', userId)
+    // Get portfolio from paper_portfolios
+    const { data: portfolio } = await supabase
+      .from('paper_portfolios')
+      .select('*')
+      .eq('user_id', userId)
       .single();
-    return data || {};
-  } catch { return {}; }
+
+    // Get positions from paper_positions
+    const { data: positions } = await supabase
+      .from('paper_positions')
+      .select('*')
+      .eq('user_id', userId);
+
+    // Get recent trades
+    const { data: trades } = await supabase
+      .from('paper_trades')
+      .select('symbol, side, quantity, price, total_cost, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    return {
+      cash: portfolio?.cash_balance || 100000,
+      starting: portfolio?.starting_balance || 100000,
+      positions: positions || [],
+      recentTrades: trades || [],
+    };
+  } catch { return { cash: 100000, starting: 100000, positions: [], recentTrades: [] }; }
+}
+
+async function getSentinelStatus() {
+  try {
+    const res = await fetch('https://stratifymarket.com/api/sentinel/status');
+    const data = await res.json();
+    return data;
+  } catch { return null; }
 }
 
 export default async function handler(req, res) {
@@ -51,92 +79,128 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   const user = await getUserFromToken(req);
-  if (!user) return res.status(401).json({ error: 'Sign in to use Trading Mode' });
+  if (!user) return res.status(401).json({ reply: '⚠️ Please sign in to use Trading Mode.', action: 'error' });
 
-  const { message, portfolio } = req.body;
+  const { message, includeSentinel } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
 
   try {
-    // Load user's paper portfolio
-    const paperPortfolio = await getPaperPortfolio(user.id);
-    const balance = paperPortfolio.paper_trading_balance || 100000;
-    const positions = paperPortfolio.positions || [];
+    // Load real portfolio + optionally Sentinel data in parallel
+    const [portfolio, sentinelData] = await Promise.all([
+      getRealPortfolio(user.id),
+      includeSentinel ? getSentinelStatus() : Promise.resolve(null),
+    ]);
 
-    // Build context for Claude
-    const systemPrompt = `You are Sophia, Stratify's AI trading assistant. You help users manage their paper trading portfolio using natural language.
+    // Enrich positions with live prices
+    const enrichedPositions = await Promise.all(
+      (portfolio.positions || []).map(async (pos) => {
+        const price = await getLivePrice(pos.symbol);
+        const qty = parseFloat(pos.quantity);
+        const avg = parseFloat(pos.avg_cost_basis);
+        const current = price || avg;
+        const marketValue = qty * current;
+        const pnl = marketValue - (qty * avg);
+        return {
+          symbol: pos.symbol,
+          qty,
+          avg_cost: avg,
+          current_price: current,
+          market_value: marketValue,
+          pnl,
+          pnl_pct: avg > 0 ? (pnl / (qty * avg)) * 100 : 0,
+        };
+      })
+    );
+
+    const totalMarketValue = enrichedPositions.reduce((s, p) => s + p.market_value, 0);
+    const totalAccountValue = portfolio.cash + totalMarketValue;
+    const totalPnl = totalAccountValue - portfolio.starting;
+    const positionsSummary = enrichedPositions.map(p =>
+      `${p.symbol}: ${p.qty} shares @ avg $${p.avg_cost.toFixed(2)}, now $${p.current_price.toFixed(2)}, value $${p.market_value.toFixed(2)}, P&L ${p.pnl >= 0 ? '+' : ''}$${p.pnl.toFixed(2)} (${p.pnl_pct >= 0 ? '+' : ''}${p.pnl_pct.toFixed(2)}%)`
+    ).join('\n');
+
+    const recentTradesSummary = portfolio.recentTrades.slice(0, 5).map(t =>
+      `${t.side?.toUpperCase()} ${t.quantity} ${t.symbol} @ $${t.price} on ${new Date(t.created_at).toLocaleDateString()}`
+    ).join('\n');
+
+    // Build Sentinel context if requested
+    let sentinelContext = '';
+    if (sentinelData) {
+      const acc = sentinelData.account || {};
+      const openTrades = sentinelData.openTrades || [];
+      sentinelContext = `\n\nSENTINEL BOT STATUS:
+- Account balance: $${(acc.current_balance || 0).toLocaleString()}
+- All-time P&L: ${acc.total_pnl >= 0 ? '+' : ''}$${(acc.total_pnl || 0).toFixed(2)}
+- Win rate: ${(acc.win_rate || 0).toFixed(1)}%
+- Total trades: ${acc.total_trades || 0} (${acc.closed_trades || 0} closed)
+- Open positions right now: ${openTrades.length > 0 ? openTrades.map(t => `${t.direction} ${t.symbol} entry $${t.entry} conf ${t.confidence}%`).join(', ') : 'none'}
+- Today session: ${sentinelData.todaySession ? `${sentinelData.todaySession.trades_fired} trades, P&L $${sentinelData.todaySession.gross_pnl}` : 'no session today'}`;
+    }
+
+    const systemPrompt = `You are Sophia, Stratify's AI trading assistant. You have full access to the user's real paper trading portfolio and answer questions naturally and accurately.
 
 You can:
-- Execute paper trades (buy/sell stocks and crypto)
-- Show portfolio P&L
-- Check live prices
-- Analyze positions
-- Answer market questions
+- Answer questions about their portfolio, P&L, positions, holdings
+- Execute paper trades (buy/sell)
+- Check live prices via Twelve Data
+- Explain Sentinel bot performance when asked
+- Give market analysis
 
-When executing a trade, respond with valid JSON in this exact format (nothing else if it's a trade):
-{"action":"trade","symbol":"AAPL","side":"buy","qty":10,"order_type":"market","reply":"Bought 10 shares of AAPL at $195.20 — added to your paper portfolio."}
+PAPER TRADING ONLY — always mention "paper" when discussing trades.
 
-For non-trade responses (portfolio questions, analysis, prices):
-{"action":"info","reply":"Your paper portfolio is worth $102,450 with 3 open positions..."}
+When executing a trade respond ONLY with JSON:
+{"action":"trade","symbol":"AAPL","side":"buy","qty":10,"reply":"Bought 10 paper shares of AAPL..."}
 
-Rules:
-- PAPER TRADING ONLY — always mention "paper" so user knows it's not real money
-- Use Twelve Data prices (provided in context) for any price references
-- Be concise and direct
-- Never invent prices — only use prices from context`;
+For all other responses:
+{"action":"info","reply":"Your answer here..."}
 
-    const userPrompt = `User message: "${message}"
+Be concise and specific. Use real numbers from the data provided. Never say you don't have access to their portfolio — you do.`;
 
-Current paper portfolio:
-- Cash balance: $${balance.toLocaleString()}
-- Open positions: ${positions.length > 0 ? JSON.stringify(positions.map(p => `${p.symbol}: ${p.shares} shares @ $${p.avg_price}`)) : 'none'}
+    const userPrompt = `User asks: "${message}"
 
-Sentinel account context: ${JSON.stringify(portfolio || {})}`;
-
-    // If message mentions a ticker, fetch live price first
-    const tickerMatch = message.match(/\b([A-Z]{1,5})\b/g);
-    const livePrices = {};
-    if (tickerMatch) {
-      for (const ticker of tickerMatch.slice(0, 3)) {
-        if (['BUY', 'SELL', 'AT', 'THE', 'MY', 'FOR', 'AND', 'OR', 'IN', 'OF', 'TO', 'A'].includes(ticker)) continue;
-        const price = await getLivePrice(ticker);
-        if (price) livePrices[ticker] = price;
-      }
-    }
-
-    const priceContext = Object.keys(livePrices).length > 0
-      ? `\nLive prices from Twelve Data: ${Object.entries(livePrices).map(([s, p]) => `${s}: $${p}`).join(', ')}`
-      : '';
+THEIR REAL PAPER PORTFOLIO RIGHT NOW:
+- Cash balance: $${portfolio.cash.toLocaleString()}
+- Starting balance: $${portfolio.starting.toLocaleString()}
+- Total account value: $${totalAccountValue.toFixed(2)}
+- Total P&L: ${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)} (${totalPnl >= 0 ? '+' : ''}${portfolio.starting > 0 ? ((totalPnl / portfolio.starting) * 100).toFixed(2) : 0}%)
+- Open positions: ${enrichedPositions.length > 0 ? `\n${positionsSummary}` : 'None'}
+- Recent trades: ${portfolio.recentTrades.length > 0 ? `\n${recentTradesSummary}` : 'None'}${sentinelContext}`;
 
     if (!ANTHROPIC_KEY) {
-      console.error('[sophia-trade] No Anthropic API key found');
-      return res.status(500).json({ reply: '❌ AI service not configured. Contact support.', action: 'error' });
+      return res.status(500).json({ reply: '❌ AI service not configured.', action: 'error' });
     }
 
-    console.log('[sophia-trade] Calling Claude with key:', ANTHROPIC_KEY.slice(0,8) + '...');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 14000);
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt + priceContext }],
-      }),
-    });
-    clearTimeout(timeout);
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    let anthropicRes;
+    try {
+      anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 400,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!anthropicRes.ok) {
+      const errText = await anthropicRes.text();
+      console.error('[sophia-trade] Claude error:', anthropicRes.status, errText.slice(0, 200));
+      return res.status(200).json({ reply: `❌ AI error ${anthropicRes.status}. Try again.`, action: 'error' });
+    }
 
     const aiData = await anthropicRes.json();
-    console.log('[sophia-trade] Claude response status:', anthropicRes.status, aiData.type || aiData.error?.type);
-    if (!anthropicRes.ok || aiData.error) {
-      return res.status(200).json({ reply: `❌ AI error: ${aiData.error?.message || anthropicRes.status}`, action: 'error' });
-    }
     const rawText = aiData.content?.[0]?.text?.trim() || '{}';
 
     let parsed;
@@ -147,55 +211,54 @@ Sentinel account context: ${JSON.stringify(portfolio || {})}`;
       return res.status(200).json({ reply: rawText, action: 'info' });
     }
 
-    // If it's a trade, execute it in the paper portfolio
+    // Execute paper trade if requested
     if (parsed.action === 'trade' && parsed.symbol && parsed.side && parsed.qty) {
-      const price = livePrices[parsed.symbol] || Object.values(livePrices)[0] || 0;
+      const price = await getLivePrice(parsed.symbol) || 0;
+      if (!price) return res.status(200).json({ reply: `❌ Couldn't get live price for ${parsed.symbol}`, action: 'error' });
+
       const cost = price * parsed.qty;
 
-      if (parsed.side === 'buy' && cost > 0 && cost <= balance) {
-        // Deduct from cash, add position
-        const newBalance = balance - cost;
-        const existingPos = positions.find(p => p.symbol === parsed.symbol);
-        let newPositions;
-        if (existingPos) {
-          newPositions = positions.map(p => p.symbol === parsed.symbol
-            ? { ...p, shares: p.shares + parsed.qty, avg_price: ((p.avg_price * p.shares) + cost) / (p.shares + parsed.qty) }
-            : p
-          );
+      if (parsed.side === 'buy') {
+        if (cost > portfolio.cash) return res.status(200).json({ reply: `❌ Not enough cash. Need $${cost.toFixed(2)}, have $${portfolio.cash.toFixed(2)}`, action: 'error' });
+
+        // Update cash
+        await supabase.from('paper_portfolios').upsert({ user_id: user.id, cash_balance: portfolio.cash - cost }, { onConflict: 'user_id' });
+
+        // Upsert position
+        const existing = portfolio.positions.find(p => p.symbol === parsed.symbol.toUpperCase());
+        if (existing) {
+          const newQty = parseFloat(existing.quantity) + parsed.qty;
+          const newAvg = ((parseFloat(existing.avg_cost_basis) * parseFloat(existing.quantity)) + cost) / newQty;
+          await supabase.from('paper_positions').update({ quantity: newQty, avg_cost_basis: newAvg }).eq('user_id', user.id).eq('symbol', parsed.symbol.toUpperCase());
         } else {
-          newPositions = [...positions, { symbol: parsed.symbol, shares: parsed.qty, avg_price: price, cost_basis: cost }];
+          await supabase.from('paper_positions').insert({ user_id: user.id, symbol: parsed.symbol.toUpperCase(), quantity: parsed.qty, avg_cost_basis: price });
         }
 
-        await supabase.from('profiles').update({
-          paper_trading_balance: parseFloat(newBalance.toFixed(2)),
-          positions: newPositions,
-        }).eq('id', user.id);
+        // Log trade
+        await supabase.from('paper_trades').insert({ user_id: user.id, symbol: parsed.symbol.toUpperCase(), side: 'buy', quantity: parsed.qty, price, total_cost: cost });
 
         return res.status(200).json({
-          reply: parsed.reply || `✓ Paper bought ${parsed.qty} ${parsed.symbol} @ $${price?.toFixed(2)} | Cost: $${cost.toFixed(2)} | Remaining cash: $${newBalance.toFixed(2)}`,
+          reply: parsed.reply || `✓ Paper bought ${parsed.qty} ${parsed.symbol} @ $${price.toFixed(2)} | Cost: $${cost.toFixed(2)} | Remaining cash: $${(portfolio.cash - cost).toFixed(2)}`,
           action: 'trade',
           order: { symbol: parsed.symbol, side: 'buy', qty: parsed.qty, price, cost },
         });
+      }
 
-      } else if (parsed.side === 'sell') {
-        const pos = positions.find(p => p.symbol === parsed.symbol);
-        if (!pos || pos.shares < parsed.qty) {
-          return res.status(200).json({ reply: `❌ You don't have ${parsed.qty} shares of ${parsed.symbol} to sell.`, action: 'error' });
-        }
+      if (parsed.side === 'sell') {
+        const pos = portfolio.positions.find(p => p.symbol === parsed.symbol.toUpperCase());
+        if (!pos || parseFloat(pos.quantity) < parsed.qty) return res.status(200).json({ reply: `❌ You don't have ${parsed.qty} shares of ${parsed.symbol}.`, action: 'error' });
         const proceeds = price * parsed.qty;
-        const newBalance = balance + proceeds;
-        const newPositions = pos.shares === parsed.qty
-          ? positions.filter(p => p.symbol !== parsed.symbol)
-          : positions.map(p => p.symbol === parsed.symbol ? { ...p, shares: p.shares - parsed.qty } : p);
-
-        await supabase.from('profiles').update({
-          paper_trading_balance: parseFloat(newBalance.toFixed(2)),
-          positions: newPositions,
-        }).eq('id', user.id);
-
-        const pnl = (price - pos.avg_price) * parsed.qty;
+        const pnl = (price - parseFloat(pos.avg_cost_basis)) * parsed.qty;
+        const newQty = parseFloat(pos.quantity) - parsed.qty;
+        if (newQty <= 0) {
+          await supabase.from('paper_positions').delete().eq('user_id', user.id).eq('symbol', parsed.symbol.toUpperCase());
+        } else {
+          await supabase.from('paper_positions').update({ quantity: newQty }).eq('user_id', user.id).eq('symbol', parsed.symbol.toUpperCase());
+        }
+        await supabase.from('paper_portfolios').upsert({ user_id: user.id, cash_balance: portfolio.cash + proceeds }, { onConflict: 'user_id' });
+        await supabase.from('paper_trades').insert({ user_id: user.id, symbol: parsed.symbol.toUpperCase(), side: 'sell', quantity: parsed.qty, price, total_cost: proceeds });
         return res.status(200).json({
-          reply: parsed.reply || `✓ Paper sold ${parsed.qty} ${parsed.symbol} @ $${price?.toFixed(2)} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | New cash: $${newBalance.toFixed(2)}`,
+          reply: parsed.reply || `✓ Paper sold ${parsed.qty} ${parsed.symbol} @ $${price.toFixed(2)} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | Cash: $${(portfolio.cash + proceeds).toFixed(2)}`,
           action: 'trade',
           order: { symbol: parsed.symbol, side: 'sell', qty: parsed.qty, price, proceeds, pnl },
         });
@@ -205,7 +268,7 @@ Sentinel account context: ${JSON.stringify(portfolio || {})}`;
     return res.status(200).json({ reply: parsed.reply || rawText, action: parsed.action || 'info' });
 
   } catch (err) {
-    console.error('[sophia-trade] Error:', err);
-    return res.status(500).json({ error: err.message, reply: `❌ Error: ${err.message}` });
+    console.error('[sophia-trade] Error:', err.message);
+    return res.status(200).json({ reply: `❌ Error: ${err.message}`, action: 'error' });
   }
 }
