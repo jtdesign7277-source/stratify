@@ -296,8 +296,10 @@ export default function LiveOddsPanel({ selectedGames = [], isArticleOpen = fals
     if (placing) return;
     setPlacing(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
+      const { data: { user } } = await Promise.race([
+        supabase.auth.getUser(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 5000)),
+      ]);
       if (!user?.id) return;
       let { data: bankroll } = await supabase
         .from('paper_sports_bankroll')

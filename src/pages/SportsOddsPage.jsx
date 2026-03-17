@@ -1361,9 +1361,16 @@ export default function SportsOddsPage() {
     if (placing) return;
     setPlacing(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user?.id) return;
+      // Use getUser() with timeout instead of getSession() which can hang
+      const { data: { user } } = await Promise.race([
+        supabase.auth.getUser(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 5000)),
+      ]);
+      if (!user?.id) {
+        setToast('Please sign in to place bets');
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
       let { data: bankroll } = await supabase
         .from('paper_sports_bankroll')
         .select('balance, total_wagered')
@@ -1401,8 +1408,8 @@ export default function SportsOddsPage() {
       }));
       const { error: insertError } = await supabase.from('paper_sports_bets').insert(betsToInsert);
       if (insertError) {
-        setToast('Failed to place bet');
-        setTimeout(() => setToast(null), 3000);
+        setToast(`Failed: ${insertError.message}`);
+        setTimeout(() => setToast(null), 4000);
         return;
       }
       await supabase
@@ -1414,8 +1421,8 @@ export default function SportsOddsPage() {
         .eq('user_id', user.id);
       setSlip([]);
       refreshHistory();
-      setToast('Bets placed! Good luck');
-      setTimeout(() => setToast(null), 3000);
+      setToast(`✓ ${betsToInsert.length} bet${betsToInsert.length > 1 ? 's' : ''} placed — $${totalStake.toFixed(2)} wagered`);
+      setTimeout(() => setToast(null), 4000);
     } finally {
       setPlacing(false);
     }
