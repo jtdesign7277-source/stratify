@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   const secret = req.headers['x-secret'];
-  if (secret !== process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 20)) {
+  if (secret !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
