@@ -402,32 +402,57 @@ function useBotStream() {
     return () => clearInterval(iv);
   }, []);
 
-  // ── Simulation stream events + live P&L drift ──
+  // ── Real signal stream from /api/sentinel/signals ──
   useEffect(() => {
-    const SIM_EVENTS = [
-      { type: 'SCAN', color: COLORS.amber, gen: () => `5m repriced` },
-      { type: 'SPREAD', color: COLORS.cyan, gen: () => {
-        const poly = refs.current.polymarkets[0];
-        return poly ? `pSum=${poly.pSum}, spread=${poly.spread}` : `pSum=null, spread=null`;
-      }},
-      { type: 'LMSR', color: COLORS.blue, gen: () => `b=${(Math.random()*2).toFixed(1)}, impact=${(Math.random()*5).toFixed(3)}` },
-      { type: 'HEDGE', color: COLORS.amber, gen: () => `delta=${(Math.random()*0.5).toFixed(3)}` },
-      { type: 'ARB', color: COLORS.greenBright, gen: () => {
-        const arbs = refs.current.polymarkets.filter(m => m.pSum < 0.98);
-        return arbs.length > 0 ? `+${((1 - arbs[0].pSum) * 100).toFixed(1)}% edge` : `+100.0% edge`;
-      }},
-      { type: 'EV', color: COLORS.text, gen: () => `net=${(Math.random()*0.12).toFixed(4)}` },
-    ];
+    let active = true;
+    const lastSeen = { ts: null };
 
-    let st;
-    const emit = () => {
-      const e = SIM_EVENTS[Math.random() * SIM_EVENTS.length | 0];
-      pushEvent(e.type, e.color, e.gen());
-      st = setTimeout(emit, 300 + Math.random() * 700);
+    const formatSignal = (sig) => {
+      const sym = sig.symbol?.replace('/USD','') || '';
+      if (sig.type === 'SCAN') return `${sym} ${sig.timeframe || '5min'} scanned`;
+      if (sig.type === 'BAYES_REJECT') return `${sym} post=${sig.bayesian?.posterior?.toFixed(2)} REJECTED`;
+      if (sig.type === 'EDGE_REJECT') return `${sym} EV=${sig.edge?.ev?.toFixed(3)} NO EDGE`;
+      if (sig.type === 'TRADE_FIRED') return `${sig.direction} ${sym} score=${sig.score}`;
+      return `${sig.type} ${sym}`;
     };
-    st = setTimeout(emit, 500);
 
-    return () => { clearTimeout(st); };
+    const expandToEvents = (sig) => {
+      const events = [];
+      const sym = sig.symbol?.replace('/USD','') || '';
+      if (sig.bayesian) events.push({ type: '[BAYES]', color: COLORS.cyan, text: `post=${sig.bayesian.posterior?.toFixed(2)}, ev=${sig.bayesian.ev?.toFixed(3)}` });
+      if (sig.edge) events.push({ type: '[EDGE]', color: sig.edge.pass ? COLORS.greenBright : COLORS.text, text: `EV=${sig.edge.ev?.toFixed(3)}${sig.edge.pass ? ' PASS' : ''}` });
+      if (sig.stoikov) events.push({ type: '[STOIKOV]', color: COLORS.blue, text: `r=$${sig.stoikov.reservation?.toFixed(0)}, size=${sig.stoikov.optimalSize}` });
+      if (sig.mc) events.push({ type: '[KELLY]', color: COLORS.amber, text: `f=${((sig.mc.kelly||0)*100).toFixed(1)}%, DD=${sig.mc.maxDd?.toFixed(1)}%` });
+      events.push({
+        type: sig.fired ? '[EXEC]' : `[${(sig.type || 'SCAN').replace('_REJECT','')}]`,
+        color: sig.fired ? COLORS.greenBright : COLORS.amber,
+        text: formatSignal(sig),
+      });
+      return events;
+    };
+
+    const poll = async () => {
+      if (!active) return;
+      try {
+        const url = lastSeen.ts
+          ? `/api/sentinel/signals?limit=20&since=${encodeURIComponent(lastSeen.ts)}`
+          : '/api/sentinel/signals?limit=50';
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.signals?.length > 0) {
+          if (data.latestModels) refs.current.latestModels = data.latestModels;
+          for (const sig of data.signals.reverse()) {
+            for (const ev of expandToEvents(sig)) pushEvent(ev.type, ev.color, ev.text);
+          }
+          lastSeen.ts = data.signals[data.signals.length - 1]?.t || lastSeen.ts;
+        }
+      } catch { /* silent */ }
+    };
+
+    poll();
+    const iv = setInterval(poll, 10000);
+    return () => { active = false; clearInterval(iv); };
   }, [pushEvent]);
 
   // Update connection status from WS

@@ -208,6 +208,27 @@ Rules:
       last_updated: new Date().toISOString(),
     }).eq('id', 1);
 
+    // Update model weights for Bayesian priors (feedback loop)
+    // Convert setup_weights into Bayesian priors (0-1 range)
+    const setupPriors = {};
+    for (const [setup, weight] of Object.entries(mergedSetupWeights)) {
+      // Weight is typically -20 to +20, convert to 0.3-0.7 prior range
+      setupPriors[setup] = Math.min(0.8, Math.max(0.2, 0.5 + (weight / 100)));
+    }
+    const symbolWeightsNormalized = {};
+    for (const [sym, weight] of Object.entries(mergedTickerWeights)) {
+      symbolWeightsNormalized[sym] = Math.min(1.5, Math.max(0.5, 1.0 + (weight / 50)));
+    }
+
+    await supabase.from('sentinel_model_weights').update({
+      setup_priors: setupPriors,
+      symbol_weights: symbolWeightsNormalized,
+      regime_weights: mergedRegimeFilters,
+      timeframe_weights: mergedTimeframeWeights,
+      sessions_analyzed: (memory.sessions_processed || 0) + 1,
+      updated_at: new Date().toISOString(),
+    }).eq('id', 1);
+
     // Update session with full analysis
     const sessionUpdate = {
       claude_analysis: rawText,

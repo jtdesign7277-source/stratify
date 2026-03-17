@@ -477,7 +477,17 @@ export default async function handler(req, res) {
           log.push(`${job.symbol} ${job.timeframe}: cached — ${signal.direction} conf ${signal.confidence}`);
         }
 
-        if (signal.direction === 'WAIT') continue;
+        if (signal.direction === 'WAIT') {
+          // Log SCAN evaluation even when no signal
+          await supabase.from('sentinel_signals').insert({
+            symbol: job.symbol, timeframe: job.timeframe,
+            signal_type: 'SCAN', direction: null,
+            price_at_signal: signal.entry || 0,
+            regime: signal.regime ? `${signal.regime.trend}/${signal.regime.type}` : null,
+            composite_score: 0, trade_fired: false,
+          }).catch(() => {});
+          continue;
+        }
 
         // ── STEP 1: Check suspended conditions (brain veto) ──────────────────
         const suspendKey = `${signal.setup}_${signal.regime?.trend}`;
@@ -496,6 +506,13 @@ export default async function handler(req, res) {
         // Require posterior > 0.45 to proceed (Bayesian gate)
         if (bayes.posterior < 0.45) {
           log.push(`[BAYES] Rejected — posterior ${bayes.posterior} below threshold`);
+          await supabase.from('sentinel_signals').insert({
+            symbol: job.symbol, timeframe: job.timeframe, signal_type: 'BAYES_REJECT',
+            direction: signal.direction, bayesian_prior: bayes.prior, bayesian_posterior: bayes.posterior,
+            bayesian_ev: bayes.ev, composite_score: Math.round(bayes.posterior * 100),
+            price_at_signal: signal.entry, regime: `${signal.regime.trend}/${signal.regime.type}`,
+            trade_fired: false,
+          }).catch(() => {});
           continue;
         }
 
@@ -505,6 +522,13 @@ export default async function handler(req, res) {
 
         if (!edge.pass) {
           log.push(`[EDGE] Rejected — no mathematical edge (EV=${edge.ev})`);
+          await supabase.from('sentinel_signals').insert({
+            symbol: job.symbol, timeframe: job.timeframe, signal_type: 'EDGE_REJECT',
+            direction: signal.direction, bayesian_prior: bayes.prior, bayesian_posterior: bayes.posterior,
+            bayesian_ev: bayes.ev, edge_ev_net: edge.ev, edge_cost: edge.cost, edge_z_score: edge.zScore,
+            price_at_signal: signal.entry, regime: `${signal.regime.trend}/${signal.regime.type}`,
+            composite_score: Math.round(bayes.posterior * 50), trade_fired: false,
+          }).catch(() => {});
           continue;
         }
 
@@ -617,9 +641,42 @@ export default async function handler(req, res) {
         openSymbols.add(job.symbol);
         log.push(`✓ OPENED ${signal.direction} ${job.symbol} ${job.timeframe} @ ${entryPrice} conf=${finalConf} EV=${edge.ev} Kelly=${kelly.f}`);
 
+        // Store signal in sentinel_signals for Training Stream UI
+        await supabase.from('sentinel_signals').insert({
+          symbol: job.symbol,
+          timeframe: job.timeframe,
+          signal_type: 'TRADE_FIRED',
+          direction: signal.direction,
+          bayesian_prior: bayes.prior,
+          bayesian_posterior: bayes.posterior,
+          bayesian_ev: bayes.ev,
+          bayesian_confidence: finalConf,
+          edge_ev_net: edge.ev,
+          edge_cost: edge.cost,
+          edge_z_score: edge.zScore,
+          edge_p_sum: edge.q,
+          edge_pass: edge.pass,
+          stoikov_q: stoikov.q,
+          stoikov_gamma: stoikov.gamma,
+          stoikov_sigma_sq: stoikov.sigma2,
+          stoikov_reservation: stoikov.reservationPrice,
+          stoikov_optimal_size: parseFloat(size.toFixed(2)),
+          mc_paths_simulated: 500,
+          mc_kelly_fraction: kelly.f,
+          mc_max_dd_pct: kelly.dd,
+          composite_score: finalConf,
+          trade_fired: true,
+          trade_id: newTrade?.id || null,
+          price_at_signal: entryPrice,
+          regime: `${signal.regime.trend}/${signal.regime.type}`,
+        }).catch(e => log.push(`Signal store error: ${e.message}`));
+
         await sleep(200);
       } catch (err) { log.push(`Error scanning ${job.symbol} ${job.timeframe}: ${err.message}`); }
     }
+
+    // Also store SCAN signals (evaluations that didn't fire) for Training Stream
+    // This shows the models are working even when no trade fires
 
     // ── Daily session rollover + trigger learn ────────────────────────────────
     const etHour = getETHour();
