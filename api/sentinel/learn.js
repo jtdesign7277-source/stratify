@@ -203,9 +203,8 @@ Rules:
       confidence_adjustments: mergedConfAdjustments,
       suspended_conditions: mergedSuspended,
       sessions_processed: (memory.sessions_processed || 0) + 1,
-      brain_summary: freshSummary,
-      latest_report: report,         // store full report for status endpoint
-      latest_report_date: today,
+      // Store summary + latest report date as JSON in brain_summary for status endpoint
+      brain_summary: JSON.stringify({ text: freshSummary, report, date: today }),
       last_updated: new Date().toISOString(),
     }).eq('id', 1);
 

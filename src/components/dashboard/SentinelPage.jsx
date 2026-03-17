@@ -432,7 +432,20 @@ function SentinelPageInner() {
   const openTradeCount = openTrades.length;
   const closedTradeCount = recentClosedTrades.length;
   const unifiedTotalTrades = closedTradeCount + openTradeCount;
-  const memory = data?.memory || {};
+  const rawMemory = data?.memory || {};
+  // brain_summary may be JSON string containing {text, report, date} or plain text
+  const memory = (() => {
+    const m = { ...rawMemory };
+    if (m.brain_summary && typeof m.brain_summary === 'string' && m.brain_summary.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(m.brain_summary);
+        m.brain_summary = parsed.text || m.brain_summary;
+        m.latest_report = parsed.report || null;
+        m.latest_report_date = parsed.date || null;
+      } catch {}
+    }
+    return m;
+  })();
   const unlock = data?.unlockStatus || {};
   const isSubscribed = userSettings?.subscription_status === 'active' || userSettings?.subscription_status === 'trialing';
   const yoloActive = userSettings?.yolo_active || false;
