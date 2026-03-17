@@ -604,18 +604,20 @@ const SophiaPanel = ({
       style={{ width: PANEL_WIDTHS[panelState], ...panelStyle }}
       className="h-full flex flex-col overflow-hidden"
     >
-      <div className="flex items-center justify-between pl-4 pr-3 py-2 border-b border-[#1f1f1f]">
-        <div className="flex items-center gap-2">
-          <SophiaMark className="w-4 h-4" />
-          <span className="text-white font-semibold text-sm">Sophia</span>
-          <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center pl-4 pr-3 py-2 border-b border-[#1f1f1f] gap-3">
+        {/* Logo + name */}
+        <SophiaMark className="w-4 h-4 flex-shrink-0" />
+        <span className="text-white font-semibold text-sm flex-shrink-0">Sophia</span>
+        <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)] flex-shrink-0" />
 
-          {/* Trading Mode toggle */}
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Controls — all left-aligned in a row with even spacing */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => { setTradingMode(v => !v); if (!tradingMode) setActiveTab('trade'); else setActiveTab('sophia'); }}
-            title={tradingMode ? 'Trading Mode ON — click to disable' : 'Enable Trading Mode'}
+            title={tradingMode ? 'Trading Mode ON' : 'Enable Trading Mode'}
             className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-all duration-200 border ${
               tradingMode
                 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
@@ -624,11 +626,10 @@ const SophiaPanel = ({
           >
             ⚡ Trade
           </button>
-          {/* Sentinel context toggle — only visible in Trade mode */}
           {tradingMode && (
             <button
               onClick={() => setSentinelMode(v => !v)}
-              title={sentinelMode ? 'Sentinel context ON' : 'Add Sentinel context'}
+              title={sentinelMode ? 'Sentinel ON' : 'Sentinel context'}
               className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-all duration-200 border ${
                 sentinelMode
                   ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
@@ -638,10 +639,10 @@ const SophiaPanel = ({
               🤖 Sentinel
             </button>
           )}
-          <button onClick={cyclePanel} className="p-1 text-emerald-300/70 hover:text-emerald-300 transition-colors" title="Resize">
+          <button onClick={cyclePanel} className="p-1.5 text-emerald-300/70 hover:text-emerald-300 transition-colors" title="Resize">
             <ChevronsRight className="w-3.5 h-3.5" />
           </button>
-          <button onClick={clearChat} className="p-1 text-gray-500 hover:text-white transition-colors" title="Clear chat">
+          <button onClick={clearChat} className="p-1.5 text-gray-500 hover:text-white transition-colors" title="Clear chat">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
