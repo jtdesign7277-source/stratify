@@ -11,7 +11,7 @@ const supabase = createClient(
   { auth: { persistSession: false } }
 );
 
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY_SOPHIA;
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY_SOPHIA || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY_XPOST;
 const TWELVE_DATA_KEY = process.env.TWELVE_DATA_API_KEY || process.env.VITE_TWELVE_DATA_WS_KEY;
 
 async function getUserFromToken(req) {
@@ -107,20 +107,24 @@ Sentinel account context: ${JSON.stringify(portfolio || {})}`;
       ? `\nLive prices from Twelve Data: ${Object.entries(livePrices).map(([s, p]) => `${s}: $${p}`).join(', ')}`
       : '';
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 14000);
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 400,
+        model: 'claude-haiku-4-5',
+        max_tokens: 300,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt + priceContext }],
       }),
     });
+    clearTimeout(timeout);
 
     const aiData = await anthropicRes.json();
     const rawText = aiData.content?.[0]?.text?.trim() || '{}';

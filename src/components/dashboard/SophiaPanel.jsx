@@ -219,17 +219,31 @@ const SophiaPanel = ({
     setTradeResult(null);
 
     try {
-      // Get live BTC price for context
-      const priceRes = await fetch('/api/sentinel/status').then(r => r.json()).catch(() => ({}));
-      const portfolioSnap = priceRes?.account || {};
+      // Get auth token first
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes?.data?.session?.access_token;
+
+      if (!token) {
+        setTradeMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Please sign in to use Trading Mode.' }]);
+        setTradeLoading(false);
+        return;
+      }
 
       const resp = await fetch('/api/sophia-trade', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${(await supabase.auth.getSession()).data?.session?.access_token}` },
-        body: JSON.stringify({ message: text.trim(), portfolio: portfolioSnap }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: text.trim(), portfolio: {} }),
       });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        setTradeMessages(prev => [...prev, { role: 'assistant', content: `❌ ${errData.error || `Server error ${resp.status}`}` }]);
+        setTradeLoading(false);
+        return;
+      }
+
       const data = await resp.json();
-      const reply = data.reply || data.error || 'Trade processed.';
+      const reply = data.reply || data.error || 'Done.';
       setTradeMessages(prev => [...prev, { role: 'assistant', content: reply }]);
       if (data.order) setTradeResult(data.order);
     } catch (err) {
