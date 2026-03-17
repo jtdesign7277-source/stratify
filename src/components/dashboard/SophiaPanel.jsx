@@ -8,12 +8,15 @@ import {
   ChevronsRight,
   ChevronsLeft,
   Bookmark,
+  Zap,
 } from 'lucide-react';
 import { useSophiaChat } from '../../hooks/useSophiaChat';
 import BacktestWizard from './BacktestWizard';
 import SophiaMark from './SophiaMark';
 import { tokenizeTickerText } from '../../lib/tickerStyling';
 import { saveWarRoomIntel } from '../../lib/warRoomIntel';
+import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
 const STRATEGY_PRESETS = [
   {
@@ -174,7 +177,69 @@ const SophiaPanel = ({
     }
   });
 
+  // Trading Mode + YOLO state
+  const { user } = useAuth();
+  const [tradingMode, setTradingMode] = useState(false);
+  const [yoloActive, setYoloActive] = useState(false);
+  const [yoloLoading, setYoloLoading] = useState(false);
+  const [tradeInput, setTradeInput] = useState('');
+  const [tradeLoading, setTradeLoading] = useState(false);
+  const [tradeResult, setTradeResult] = useState(null);
+  const [tradeMessages, setTradeMessages] = useState([
+    { role: 'assistant', content: '⚡ Trading Mode active. I can read your portfolio, check live prices, and execute paper trades. Try: "buy 10 shares of AAPL" or "what\'s my P&L today?" or "close my TSLA position".' }
+  ]);
+
+  // Load YOLO state from Supabase on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from('sentinel_user_settings').select('yolo_active').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => { if (data) setYoloActive(data.yolo_active || false); })
+      .catch(() => {});
+  }, [user?.id]);
+
+  const toggleYolo = useCallback(async () => {
+    if (!user?.id || yoloLoading) return;
+    setYoloLoading(true);
+    const next = !yoloActive;
+    try {
+      await supabase.from('sentinel_user_settings').upsert({
+        user_id: user.id, yolo_active: next, updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      setYoloActive(next);
+    } catch {}
+    setYoloLoading(false);
+  }, [user?.id, yoloActive, yoloLoading]);
+
+  const sendTradeMessage = useCallback(async (text) => {
+    if (!text.trim() || tradeLoading) return;
+    const userMsg = { role: 'user', content: text.trim() };
+    setTradeMessages(prev => [...prev, userMsg]);
+    setTradeInput('');
+    setTradeLoading(true);
+    setTradeResult(null);
+
+    try {
+      // Get live BTC price for context
+      const priceRes = await fetch('/api/sentinel/status').then(r => r.json()).catch(() => ({}));
+      const portfolioSnap = priceRes?.account || {};
+
+      const resp = await fetch('/api/sophia-trade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${(await supabase.auth.getSession()).data?.session?.access_token}` },
+        body: JSON.stringify({ message: text.trim(), portfolio: portfolioSnap }),
+      });
+      const data = await resp.json();
+      const reply = data.reply || data.error || 'Trade processed.';
+      setTradeMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+      if (data.order) setTradeResult(data.order);
+    } catch (err) {
+      setTradeMessages(prev => [...prev, { role: 'assistant', content: `❌ Error: ${err.message}` }]);
+    }
+    setTradeLoading(false);
+  }, [tradeLoading]);
+
   const messagesEndRef = useRef(null);
+  const tradeMessagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const unreadTrumpAlerts = Math.max(0, trumpAlerts.length - lastSeenCount);
   const hasUnreadTrumpAlerts = unreadTrumpAlerts > 0;
@@ -190,6 +255,10 @@ const SophiaPanel = ({
       localStorage.setItem(PANEL_STATE_STORAGE_KEY, panelState);
     } catch {}
   }, [panelState]);
+
+  useEffect(() => {
+    tradeMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [tradeMessages]);
 
   useEffect(() => {
     try {
@@ -402,25 +471,43 @@ const SophiaPanel = ({
       style={{ width: PANEL_WIDTHS[panelState], ...panelStyle }}
       className="h-full flex flex-col overflow-hidden"
     >
-      <div className="flex items-center justify-between pl-4 pr-6 py-2 border-b border-[#1f1f1f]">
+      <div className="flex items-center justify-between pl-4 pr-3 py-2 border-b border-[#1f1f1f]">
         <div className="flex items-center gap-2">
           <SophiaMark className="w-4 h-4" />
           <span className="text-white font-semibold text-sm">Sophia</span>
           <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {/* YOLO toggle */}
           <button
-            onClick={clearChat}
-            className="p-1 text-gray-500 hover:text-white transition-colors"
-            title="Clear chat"
+            onClick={toggleYolo}
+            disabled={yoloLoading || !user?.id}
+            title={yoloActive ? 'YOLO ON — copying Sentinel trades to your account' : 'YOLO OFF — enable to copy Sentinel trades'}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-all duration-200 border ${
+              yoloActive
+                ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                : 'bg-white/[0.04] text-zinc-500 border-white/[0.08] hover:text-zinc-300'
+            }`}
           >
+            {yoloLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Zap className="w-2.5 h-2.5" />}
+            YOLO
+          </button>
+          {/* Trading Mode toggle */}
+          <button
+            onClick={() => { setTradingMode(v => !v); if (!tradingMode) setActiveTab('trade'); else setActiveTab('sophia'); }}
+            title={tradingMode ? 'Trading Mode ON — click to disable' : 'Enable Trading Mode'}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-all duration-200 border ${
+              tradingMode
+                ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
+                : 'bg-white/[0.04] text-zinc-500 border-white/[0.08] hover:text-zinc-300'
+            }`}
+          >
+            ⚡ Trade
+          </button>
+          <button onClick={clearChat} className="p-1 text-gray-500 hover:text-white transition-colors" title="Clear chat">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={cyclePanel}
-            className="p-1 text-emerald-300/70 hover:text-emerald-300 transition-colors"
-            title="Resize"
-          >
+          <button onClick={cyclePanel} className="p-1 text-emerald-300/70 hover:text-emerald-300 transition-colors" title="Resize">
             <ChevronsRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -433,6 +520,12 @@ const SophiaPanel = ({
             className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${activeTab === 'sophia' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
             💬 Sophia
           </button>
+          {tradingMode && (
+            <button onClick={() => handleTabSelect('trade')}
+              className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${activeTab === 'trade' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+              ⚡ Trade
+            </button>
+          )}
           <button onClick={() => handleTabSelect('trump')}
             className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all relative ${activeTab === 'trump' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : hasUnreadTrumpAlerts ? 'text-orange-400 animate-pulse ring-2 ring-orange-500/50 bg-orange-500/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
             🇺🇸 Trump Intel
@@ -484,6 +577,75 @@ const SophiaPanel = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ⚡ TRADING MODE PANEL */}
+      {activeTab === 'trade' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* YOLO status banner */}
+          <div className={`px-4 py-2 text-[10px] font-mono flex items-center gap-2 border-b border-[#1f1f1f] ${yoloActive ? 'text-red-400' : 'text-zinc-500'}`}>
+            <Zap className="w-3 h-3" />
+            {yoloActive
+              ? 'YOLO ON — Sentinel trades copying to your account automatically'
+              : 'YOLO OFF — toggle YOLO above to auto-copy Sentinel trades'}
+          </div>
+
+          {/* Trade conversation */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {tradeMessages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-amber-500/20 text-amber-100 border border-amber-500/20'
+                    : 'bg-white/[0.05] text-zinc-200 border border-white/[0.06]'
+                }`}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            {tradeLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white/[0.05] border border-white/[0.06] rounded-2xl px-3 py-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                </div>
+              </div>
+            )}
+            {tradeResult && (
+              <div className="bg-emerald-500/[0.08] border border-emerald-500/20 rounded-xl p-3 text-xs font-mono">
+                <div className="text-emerald-400 font-bold mb-1">✓ Order Executed</div>
+                <div className="text-zinc-300">{tradeResult.side?.toUpperCase()} {tradeResult.qty} {tradeResult.symbol} @ ${tradeResult.price?.toFixed(2)}</div>
+              </div>
+            )}
+            <div ref={tradeMessagesEndRef} />
+          </div>
+
+          {/* Quick commands */}
+          <div className="px-3 pb-1 flex gap-1 flex-wrap">
+            {['Check portfolio', 'Today\'s P&L', 'Open positions'].map(cmd => (
+              <button key={cmd} onClick={() => sendTradeMessage(cmd)}
+                className="px-2 py-0.5 rounded-full text-[10px] text-zinc-500 border border-white/[0.06] hover:text-amber-400 hover:border-amber-500/30 transition-all">
+                {cmd}
+              </button>
+            ))}
+          </div>
+
+          {/* Trade input */}
+          <div className="px-3 pb-3 pt-1">
+            <div className="flex items-center gap-2 bg-black/40 rounded-xl border border-white/[0.06] px-3 py-2">
+              <input
+                value={tradeInput}
+                onChange={e => setTradeInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTradeMessage(tradeInput); } }}
+                placeholder="Try: buy 10 AAPL, sell TSLA, show portfolio"
+                className="flex-1 bg-transparent text-xs text-zinc-200 placeholder-zinc-600 outline-none"
+              />
+              <button onClick={() => sendTradeMessage(tradeInput)} disabled={tradeLoading || !tradeInput.trim()}
+                className="text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-30">
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
