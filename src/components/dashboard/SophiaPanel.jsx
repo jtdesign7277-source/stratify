@@ -513,27 +513,8 @@ const SophiaPanel = ({
         </div>
       </div>
 
-      {/* Tab pills */}
-      <div className="flex items-center justify-between gap-2 pl-4 pr-6 py-1.5 border-b border-[#1f1f1f]">
-        <div className="flex gap-1">
-          <button onClick={() => handleTabSelect('sophia')}
-            className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${activeTab === 'sophia' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-            💬 Sophia
-          </button>
-          {tradingMode && (
-            <button onClick={() => handleTabSelect('trade')}
-              className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${activeTab === 'trade' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-              ⚡ Trade
-            </button>
-          )}
-          <button onClick={() => handleTabSelect('trump')}
-            className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all relative ${activeTab === 'trump' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : hasUnreadTrumpAlerts ? 'text-orange-400 animate-pulse ring-2 ring-orange-500/50 bg-orange-500/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-            🇺🇸 Trump Intel
-            {hasUnreadTrumpAlerts && activeTab !== 'trump' && (
-              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{unreadTrumpAlerts > 99 ? '99+' : unreadTrumpAlerts}</span>
-            )}
-          </button>
-        </div>
+      {/* Strategy checkbox row — no tabs */}
+      <div className="flex items-center justify-end gap-2 pl-4 pr-6 py-1.5 border-b border-[#1f1f1f]">
         {activeTab === 'sophia' && (
           <label className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
             <input
