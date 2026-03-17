@@ -139,31 +139,47 @@ export default async function handler(req, res) {
 
     const systemPrompt = `You are Sophia, Stratify's AI trading assistant. You have full access to the user's real paper trading portfolio.
 
-When the user asks about their portfolio, positions, holdings, P&L, or account — respond with this exact JSON (the UI will render a live widget, NOT your text):
+Return JSON only. Choose the right action:
+
+1. User asks about TODAY'S P&L / daily P&L / how am I doing today:
+{"action":"info","reply":"Today [DATE] [TIME ET]: your paper portfolio is [UP/DOWN] $X.XX ([+/-]X.XX%) on the day."}
+Use the today_pnl value from the data. Keep it to one line. Date + time + number. Nothing else.
+
+2. User asks to SEE their positions / holdings / what they own / portfolio breakdown:
 {"action":"portfolio","reply":""}
 
-When executing a trade:
-{"action":"trade","symbol":"AAPL","side":"buy","qty":10,"reply":""}
-
-For Sentinel bot questions:
+3. User asks about Sentinel bot:
 {"action":"sentinel","reply":""}
 
-For general market questions or analysis:
-{"action":"info","reply":"Your concise answer. Max 2 sentences."}
+4. User wants to execute a trade:
+{"action":"trade","symbol":"AAPL","side":"buy","qty":10,"reply":""}
 
-RULES:
-- Portfolio/positions/P&L questions → ALWAYS return action:"portfolio" — the UI handles the display
-- Never write out portfolio data as text — the UI renders it live
-- For trades, just confirm the action briefly
-- Be extremely concise — one line max for info replies`;
+5. Everything else:
+{"action":"info","reply":"One concise sentence answer."}
+
+CRITICAL: Match the question to the action. "daily P&L" or "today's P&L" = action:info with just the date, time and number. NOT action:portfolio.`;
+
+    // Calculate today's P&L from recent trades
+    const etNow = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+    const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+    const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+    const todayTrades = portfolio.recentTrades.filter(t => new Date(t.created_at) >= todayMidnight);
+    const todayPnl = todayTrades.reduce((s, t) => {
+      if (t.side === 'sell') return s + (t.price * t.quantity - t.total_cost);
+      return s;
+    }, 0);
 
     const userPrompt = `User asks: "${message}"
 
 THEIR REAL PAPER PORTFOLIO RIGHT NOW:
+- Current ET date/time: ${etDate} at ${etTime}
 - Cash balance: $${portfolio.cash.toLocaleString()}
 - Starting balance: $${portfolio.starting.toLocaleString()}
 - Total account value: $${totalAccountValue.toFixed(2)}
-- Total P&L: ${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)} (${totalPnl >= 0 ? '+' : ''}${portfolio.starting > 0 ? ((totalPnl / portfolio.starting) * 100).toFixed(2) : 0}%)
+- All-time P&L: ${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}
+- Today's realized P&L: ${todayPnl >= 0 ? '+' : ''}$${todayPnl.toFixed(2)} (from ${todayTrades.length} trades today)
+- Unrealized P&L on open positions: ${enrichedPositions.reduce((s,p)=>s+p.pnl,0) >= 0 ? '+' : ''}$${enrichedPositions.reduce((s,p)=>s+p.pnl,0).toFixed(2)}
 - Open positions: ${enrichedPositions.length > 0 ? `\n${positionsSummary}` : 'None'}
 - Recent trades: ${portfolio.recentTrades.length > 0 ? `\n${recentTradesSummary}` : 'None'}${sentinelContext}`;
 
