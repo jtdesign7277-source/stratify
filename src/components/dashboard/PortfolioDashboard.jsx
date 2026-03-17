@@ -653,6 +653,26 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
   const syncedScenarioIdsRef = useRef(new Set());
   const lastSyncedScenarioSignatureRef = useRef('');
 
+  // Sentinel all-time P&L — shared brain, same for all users
+  const [sentinelPnl, setSentinelPnl] = useState(null);
+  const [sentinelLoading, setSentinelLoading] = useState(true);
+  useEffect(() => {
+    fetch('/api/sentinel/status')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.account) {
+          setSentinelPnl({
+            totalPnl: d.account.total_pnl || 0,
+            winRate: d.account.win_rate || 0,
+            totalTrades: d.account.total_trades || 0,
+            balance: d.account.current_balance || 2000000,
+          });
+        }
+        setSentinelLoading(false);
+      })
+      .catch(() => setSentinelLoading(false));
+  }, []);
+
   // Throttled price updates — buffer ticks in a ref, flush to portfolio every 3s
   const pendingPriceUpdatesRef = useRef(new Map());
   const priceFlushTimerRef = useRef(null);
@@ -2102,6 +2122,42 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
                   </tr>
                 </React.Fragment>
               ))}
+
+                  {/* SENTINEL SECTION — after all other sections */}
+                  <tr>
+                    <td colSpan={7} className="border-t border-white/[0.06] px-0 py-0" />
+                  </tr>
+                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                    <td colSpan={7} className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                      Sentinel AI
+                    </td>
+                  </tr>
+                  <tr className="border-b border-white/[0.05]">
+                    <td className="px-2 py-2 font-mono text-white/70" colSpan={4}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-gray-500">Autonomous crypto trading bot · 24/7 live</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 text-right font-mono text-white/50 text-xs">
+                      {sentinelLoading ? '—' : sentinelPnl ? `${sentinelPnl.totalTrades} trades` : '—'}
+                    </td>
+                    <td className={`pl-2 pr-3 py-2 text-right font-mono ${!sentinelPnl || sentinelPnl.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {sentinelLoading ? '—' : sentinelPnl ? `${sentinelPnl.totalPnl >= 0 ? '+' : ''}${fmtMoney(sentinelPnl.totalPnl)}` : '—'}
+                    </td>
+                    <td className={`pl-2 pr-3 py-2 text-right font-mono text-xs ${!sentinelPnl || sentinelPnl.winRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {sentinelLoading ? '—' : sentinelPnl ? `${sentinelPnl.winRate.toFixed(1)}% WR` : '—'}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-white/[0.06] bg-white/[0.03]">
+                    <td className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400" colSpan={4}>
+                      Sentinel AI Totals
+                    </td>
+                    <td className="px-2 py-2 text-right font-mono text-[#f8fbff]">—</td>
+                    <td className={`pl-2 pr-3 py-2 text-right font-mono ${!sentinelPnl || sentinelPnl.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {sentinelLoading ? '—' : sentinelPnl ? `${sentinelPnl.totalPnl >= 0 ? '+' : ''}${fmtMoney(sentinelPnl.totalPnl)}` : '—'}
+                    </td>
+                    <td className="pl-2 pr-3 py-2 text-right font-mono text-gray-500">all-time</td>
+                  </tr>
             </tbody>
           </table>
         </div>
@@ -2153,9 +2209,15 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
             <span className="font-mono text-sm text-[#f8fbff] shrink-0 pl-2" style={{ transition: 'all 0.6s ease' }}>{fmtMoney(cashBalance)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
-            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Total P&L</span>
+            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Equity + Crypto P&L</span>
             <span className={`font-mono text-sm shrink-0 pl-2 ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
               {totalPnl >= 0 ? '+' : ''}{fmtMoney(totalPnl)}
+            </span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Sentinel AI P&L</span>
+            <span className={`font-mono text-sm shrink-0 pl-2 ${!sentinelPnl || sentinelPnl.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+              {sentinelLoading ? '—' : sentinelPnl ? `${sentinelPnl.totalPnl >= 0 ? '+' : ''}${fmtMoney(sentinelPnl.totalPnl)}` : '—'}
             </span>
           </div>
           <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
@@ -2164,12 +2226,20 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
               {fmtPct(totalPnlPct)}
             </span>
           </div>
-          <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2 text-xs">
-            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Total gain / loss</span>
-            <span className={`font-mono text-sm shrink-0 pl-2 ${(Number(paperTotalGainLoss?.dollar) ?? totalPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
-              {(Number(paperTotalGainLoss?.dollar) ?? totalPnl) >= 0 ? '+' : ''}{fmtMoney(Number(paperTotalGainLoss?.dollar) ?? totalPnl)} ({((Number(paperTotalGainLoss?.percent) ?? totalPnlPct) >= 0 ? '+' : '')}{fmtPct(Number(paperTotalGainLoss?.percent) ?? totalPnlPct)})
-            </span>
-          </div>
+          {(() => {
+            const combinedPnl = totalPnl + (sentinelPnl?.totalPnl || 0);
+            const paperGainLoss = Number(paperTotalGainLoss?.dollar) ?? totalPnl;
+            const combinedWithSentinel = paperGainLoss + (sentinelPnl?.totalPnl || 0);
+            return (
+              <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2 text-xs">
+                <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Total gain / loss (all)</span>
+                <span className={`font-mono text-sm shrink-0 pl-2 ${combinedWithSentinel >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
+                  {combinedWithSentinel >= 0 ? '+' : ''}{fmtMoney(combinedWithSentinel)}
+                  {sentinelPnl && <span className="text-[10px] text-gray-500 ml-1">(incl. Sentinel)</span>}
+                </span>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="mt-5 pt-5 border-t border-white/[0.06]">
