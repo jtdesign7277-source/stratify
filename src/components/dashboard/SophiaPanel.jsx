@@ -341,7 +341,10 @@ const SophiaPanel = ({
       const resp = await fetch('/api/sophia-trade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: text.trim(), includeSentinel: sentinelMode }),
+        body: JSON.stringify({
+          message: text.trim(),
+          includeSentinel: sentinelMode || text.toLowerCase().includes('sentinel'),
+        }),
       });
 
       if (!resp.ok) {
@@ -738,7 +741,8 @@ const SophiaPanel = ({
               'What\'s my daily P&L?',
               'Show my positions',
               'What am I holding?',
-              ...(sentinelMode ? ['Sentinel P&L', 'Sentinel open trades'] : [])
+              'Sentinel P&L',
+              'Sentinel open trades',
             ].map(cmd => (
               <button key={cmd} onClick={() => sendTradeMessage(cmd)}
                 className="px-3 py-1.5 rounded-full text-xs text-white border border-white/20 hover:bg-white/10 hover:border-white/40 transition-all font-medium">

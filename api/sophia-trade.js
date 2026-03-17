@@ -122,7 +122,7 @@ export default async function handler(req, res) {
 
   if (quickType === 'daily_pnl') {
     // Try cache first (60s TTL per user)
-    const cacheKey = `sophia:daily_pnl:${user.id}`;
+    const cacheKey = `sophia:daily_pnl:v3:${user.id}`;
     const cached = await redisGet(cacheKey);
     if (cached) return res.status(200).json(cached);
 
@@ -159,7 +159,7 @@ export default async function handler(req, res) {
   }
 
   if (quickType === 'portfolio') {
-    const cacheKey = `sophia:portfolio:${user.id}`;
+    const cacheKey = `sophia:portfolio:v3:${user.id}`;
     const cached = await redisGet(cacheKey);
     if (cached) return res.status(200).json(cached);
 
