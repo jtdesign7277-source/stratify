@@ -133,14 +133,26 @@ export default async function handler(req, res) {
     }));
     const totalAccountValue = portfolio.cash + enriched.reduce((s,p)=>s+p.market_value,0);
     const totalPnl = totalAccountValue - portfolio.starting;
+    const totalMarketValueFast = enriched.reduce((s,p)=>s+p.market_value,0);
+    const totalAccountValue = portfolio.cash + totalMarketValueFast;
     const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
     const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
     const todayTrades = portfolio.recentTrades.filter(t => new Date(t.created_at) >= todayMidnight);
-    const todayPnl = todayTrades.reduce((s,t) => t.side==='sell' ? s+(t.price*t.quantity - t.total_cost) : s, 0);
+    const todayRealized = todayTrades.reduce((s,t) => t.side==='sell' ? s+(t.price*t.quantity - t.total_cost) : s, 0);
     const unrealized = enriched.reduce((s,p)=>s+p.pnl,0);
-    const dayTotal = todayPnl + unrealized;
-    const reply = `${etDate} · ${etTime} ET\nRealized today: ${todayPnl>=0?'+':''}$${todayPnl.toFixed(2)} · Unrealized: ${unrealized>=0?'+':''}$${unrealized.toFixed(2)}\nTotal P&L today: ${dayTotal>=0?'+':''}$${dayTotal.toFixed(2)}`;
+    const allTimePnl = totalAccountValue - portfolio.starting;
+
+    let reply;
+    if (enriched.length === 0 && todayTrades.length === 0) {
+      reply = `${etDate} · ${etTime} ET\nNo positions or trades today. Cash balance: $${portfolio.cash.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    } else {
+      const lines = [`${etDate} · ${etTime} ET`];
+      if (unrealized !== 0) lines.push(`Unrealized P&L: ${unrealized>=0?'+':''}$${Math.abs(unrealized).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`);
+      if (todayRealized !== 0) lines.push(`Realized today: ${todayRealized>=0?'+':''}$${Math.abs(todayRealized).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`);
+      lines.push(`All-time P&L: ${allTimePnl>=0?'+':''}$${Math.abs(allTimePnl).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`);
+      reply = lines.join('\n');
+    }
     const result = { action: 'info', reply };
     await redisSet(cacheKey, result, 60);
     return res.status(200).json(result);
