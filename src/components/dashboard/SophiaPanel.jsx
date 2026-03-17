@@ -178,7 +178,7 @@ const SophiaPanel = ({
   });
 
   // Trading Mode + YOLO state
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [tradingMode, setTradingMode] = useState(false);
   const [yoloActive, setYoloActive] = useState(false);
   const [yoloLoading, setYoloLoading] = useState(false);
@@ -219,9 +219,8 @@ const SophiaPanel = ({
     setTradeResult(null);
 
     try {
-      // Get auth token first
-      const sessionRes = await supabase.auth.getSession();
-      const token = sessionRes?.data?.session?.access_token;
+      // Use token from auth context — no async call needed
+      const token = session?.access_token;
 
       if (!token) {
         setTradeMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Please sign in to use Trading Mode.' }]);
@@ -250,7 +249,7 @@ const SophiaPanel = ({
       setTradeMessages(prev => [...prev, { role: 'assistant', content: `❌ Error: ${err.message}` }]);
     }
     setTradeLoading(false);
-  }, [tradeLoading]);
+  }, [tradeLoading, session]);
 
   const messagesEndRef = useRef(null);
   const tradeMessagesEndRef = useRef(null);
