@@ -98,10 +98,6 @@
             "schedule": "5 20 * * 1-5"
         },
         {
-            "path": "/api/x-bot-v2?type=sentinel",
-            "schedule": "15 20 * * 1-5"
-        },
-        {
             "path": "/api/x-bot-v2?type=breaking",
             "schedule": "0 23 * * 1-5"
         },
@@ -112,6 +108,22 @@
         {
             "path": "/api/x-bot-v2?type=trump-watch",
             "schedule": "*/30 13-22 * * *"
+        },
+        {
+            "path": "/api/x-bot-v2?type=thought-leader",
+            "schedule": "0 14 * * 1-5"
+        },
+        {
+            "path": "/api/x-bot-v2?type=hot-take",
+            "schedule": "0 18 * * 1-5"
+        },
+        {
+            "path": "/api/x-bot-v2?type=funny",
+            "schedule": "0 22 * * *"
+        },
+        {
+            "path": "/api/x-bot-v2?type=sentinel-pnl",
+            "schedule": "15 21 * * 1-5"
         },
         {
             "path": "/api/cron/market-summary?period=close",

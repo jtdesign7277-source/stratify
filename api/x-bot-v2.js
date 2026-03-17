@@ -434,10 +434,9 @@ ABSOLUTE RULES:
 12. NEVER write about NFL, football, Super Bowl, or any sport that is currently out of season (it is March 2026 — NFL season ended in February).
 13. NEVER write about sports betting, line movement, point spreads, sharp money, moneylines, parlays, or sportsbook content. Stratify is a trading platform, not a sportsbook.
 14. If you find yourself writing anything sports-related, stop and return an empty response instead.
-15. NEVER use phrases like "the best traders", "top traders", "most traders miss", "what traders don't know", "smart money", "retail traders miss", "most people miss", "seasoned traders", "professional traders know" — this sounds arrogant and fake. Just report the data.
-16. NEVER mention win rate, accuracy rate, or performance statistics unless they are explicitly in the REAL DATA provided. Do NOT make up or estimate any performance metric.
 
-TONE: Think Bloomberg terminal meets fintwit. Smart, fast, credible. Data reporter, not a hype man. No superiority complex.`;
+TONE: Think Bloomberg terminal meets fintwit. Smart, fast, credible.
+You are a data reporter, not a hype man.`;
 
 async function formatWithClaude(prompt) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -944,59 +943,6 @@ async function generateTrumpWatch() {
   return { tweet, hook: parsed.hook, score: parsed.score };
 }
 
-async function generateSentinelUpdate() {
-  try {
-    const res = await fetch('https://stratifymarket.com/api/sentinel/status');
-    if (!res.ok) return null;
-    const data = await res.json();
-
-    const account = data?.account || {};
-    const recentSessions = data?.recentSessions || [];
-    const todaySession = data?.todaySession || null;
-
-    const totalPnl = account.total_pnl || 0;
-    const balance = account.current_balance || 0;
-    const closedTrades = account.closed_trades || 0;
-    const winRate = account.win_rate || 0;
-    const wins = account.wins || 0;
-    const losses = account.losses || 0;
-
-    // Today's session stats
-    const todayPnl = todaySession?.gross_pnl || 0;
-    const todayTrades = todaySession?.trades_closed || 0;
-    const todayWins = todaySession?.wins || 0;
-    const todayLosses = todaySession?.losses || 0;
-
-    // Need at least some closed trades to post
-    if (closedTrades < 1) return null;
-
-    const sign = (n) => n >= 0 ? '+' : '';
-
-    const dataBlock = `SENTINEL LIVE STATS:
-Today: ${todayTrades} trades | ${todayWins}W / ${todayLosses}L | ${sign(todayPnl)}$${Math.abs(todayPnl).toFixed(0)} P&L
-All-time: ${closedTrades} trades | ${wins}W / ${losses}L | ${winRate.toFixed(1)}% win rate
-Balance: $${balance.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-Total P&L: ${sign(totalPnl)}$${Math.abs(totalPnl).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-
-    const prompt = `REAL DATA (use ONLY this):
-${dataBlock}
-
-Write a tweet reporting Sentinel's live trading performance. Lead with the most impressive real number from the data. Keep it factual and punchy. Mention stratifymarket.com at the end naturally. Under 240 characters.`;
-
-    const tweet = await formatWithClaude(prompt);
-    if (!tweet) return null;
-
-    // Must not contain any hallucinated numbers
-    const verification = verifyTweet(tweet, {});
-    if (!verification.approved) return null;
-
-    return tweet;
-  } catch (e) {
-    console.error('[generateSentinelUpdate] error:', e.message);
-    return null;
-  }
-}
-
 async function generateMarketClose() {
   const watchlist = [...APPROVED_TICKERS.mag7, ...APPROVED_TICKERS.indices];
   const quotes = await fetchTwelveDataQuotes(watchlist);
@@ -1053,6 +999,179 @@ Keep it factual and tight.`;
 }
 
 // ============================================================
+// PERSONALITY POSTS — Thought leadership, hot takes, humor
+// These don't need market data. Pure voice.
+// ============================================================
+
+const PERSONALITY_SYSTEM = `You are @stratify_hq on Twitter/X. You're the founder-voice of Stratify, an AI-powered trading platform.
+
+Your personality:
+- Confident, sharp, slightly cocky but self-aware
+- You actually trade and build software — you're not a guru or influencer
+- Dry humor. Never corny. If something's funny it's because it's painfully true.
+- You think in systems, edges, and probabilities — not hopes and dreams
+- You've lost money before and you're honest about it
+- You respect the craft of trading but roast the culture around it
+- You're building in public and not afraid to talk about it
+- Sometimes profound, sometimes a shitpost, always authentic
+- You read widely: Nassim Taleb, Ray Dalio, Paul Graham, but you'd never name-drop
+- NEVER use hashtags. NEVER sound like a LinkedIn post. NEVER be motivational-poster energy.
+- NEVER pitch Stratify directly. Your presence IS the pitch.
+- NEVER use emojis except very rarely and only 🚨 or 💀 when absolutely warranted
+- Keep it under 280 characters. Brevity is everything.
+- Lowercase is fine for casual feel. Not every tweet needs perfect grammar.
+
+The tweet from Feb 24 that went viral:
+"Speed without structure is just expensive chaos. Most startups die from self-inflicted wounds, not external attacks. Your incident response framework better account for the fact that 80% of outages come from deployments pushed at 2am by sleep-deprived devs, not sophisticated hack"
+
+That's the energy. Sharp observation → universal truth → specific detail that proves you've been there.`;
+
+async function generateThoughtLeader() {
+  const topics = [
+    'building trading systems', 'why most traders lose', 'the difference between edge and luck',
+    'what retail traders get wrong', 'algo trading vs manual trading', 'risk management',
+    'why backtesting lies to you', 'position sizing', 'the psychology of drawdowns',
+    'building in public as a fintech', 'why speed matters in markets', 'data vs intuition in trading',
+    'the myth of passive income from trading', 'how institutions actually trade',
+    'why most trading bots fail', 'the real cost of slippage', 'market structure',
+    'why volatility is opportunity', 'compounding small edges', 'the sleep-deprived coder problem',
+    'technical debt in trading systems', 'why your stop loss placement sucks',
+    'the difference between a strategy and a system', 'survivorship bias in trading results',
+    'why paper trading matters more than people think', 'building resilient infrastructure',
+  ];
+  const topic = topics[Math.floor(Math.random() * topics.length)];
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY_XPOST,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: PERSONALITY_SYSTEM,
+      messages: [{ role: 'user', content: `Write a thought-leader tweet about: ${topic}\n\nThis should sound like a sharp observation from someone who's actually in the trenches building trading systems. Not advice — an observation. The kind of tweet that makes people screenshot it.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
+    }),
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text?.trim() || null;
+}
+
+async function generateHotTake() {
+  const takes = [
+    'unpopular opinion about retail trading', 'hot take about crypto culture',
+    'contrarian view on a popular trading strategy', 'why a common market belief is wrong',
+    'something most traders are afraid to say', 'a hard truth about algo trading',
+    'why most fintwit advice is dangerous', 'the uncomfortable truth about win rates',
+    'why following trades is a losing strategy', 'what people get wrong about AI in trading',
+    'why your favorite indicator is useless', 'the real reason most traders quit',
+    'why trading is harder than people think', 'hot take on meme stocks',
+    'why most trading courses are scams', 'unpopular opinion about diversification',
+  ];
+  const take = takes[Math.floor(Math.random() * takes.length)];
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY_XPOST,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: PERSONALITY_SYSTEM,
+      messages: [{ role: 'user', content: `Write a spicy hot take tweet about: ${take}\n\nThis should be the kind of tweet that gets quote-tweeted with "he's not wrong" or starts a debate. Confident, slightly provocative, but backed by real experience. Not rage-bait — just a hard truth that most people dance around.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
+    }),
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text?.trim() || null;
+}
+
+async function generateFunnyTweet() {
+  const themes = [
+    'the pain of watching your position go red immediately after entry',
+    'refreshing your portfolio 47 times a day', 'the copium of bag holders',
+    'explaining to your partner why you need another monitor',
+    'the duality of being a dev and a trader', 'when your algo does the exact opposite of what you coded',
+    'checking futures at 3am', 'the stages of grief during a drawdown',
+    'when someone asks what you do and you say algo trading', 'paper trading confidence vs real money anxiety',
+    'the audacity of people who say trading is easy', 'when your backtest shows 90% win rate',
+    'portfolio screenshots on green days only', 'the market closing right before your setup triggers',
+    'when you build a bot that loses money faster than you can manually',
+    'buying the dip that keeps dipping', 'telling yourself this time is different',
+  ];
+  const theme = themes[Math.floor(Math.random() * themes.length)];
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY_XPOST,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: PERSONALITY_SYSTEM,
+      messages: [{ role: 'user', content: `Write a funny/relatable tweet about: ${theme}\n\nThis should make traders exhale through their nose. Dry humor, self-deprecating but still confident. Think trader meme culture meets actual builder. The kind of tweet that gets "😂😂😂" and "why is this so accurate" in the replies.\n\nNO emojis in the tweet itself. Let the humor speak for itself.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
+    }),
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text?.trim() || null;
+}
+
+async function generateSentinelPnl() {
+  const supabase = (await import('@supabase/supabase-js')).createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const [accountRes, todaySessionRes] = await Promise.all([
+    supabase.from('sentinel_account').select('*').eq('id', '00000000-0000-0000-0000-000000000001').single(),
+    supabase.from('sentinel_sessions').select('*').eq('session_date', new Date().toISOString().slice(0, 10)).maybeSingle(),
+  ]);
+
+  const account = accountRes.data;
+  const session = todaySessionRes.data;
+  if (!account || !session) return null;
+  if (session.trades_closed === 0) return null; // No trades today, skip
+
+  const totalPnl = account.total_pnl || 0;
+  const winRate = account.win_rate || 0;
+  const todayPnl = session.gross_pnl || 0;
+  const todayTrades = session.trades_closed || 0;
+  const todayWins = session.wins || 0;
+
+  const prompt = `Write a short tweet reporting Sentinel's daily trading results. Use ONLY this data:
+
+TODAY: ${todayPnl >= 0 ? '+' : ''}$${todayPnl.toFixed(2)} P&L | ${todayTrades} trades | ${todayWins} wins
+ALL-TIME: ${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)} total P&L | ${winRate.toFixed(1)}% win rate
+
+This is Sentinel, our AI trading bot learning to trade in real time. Be honest about the results — if it's a bad day, own it with humor. If it's a good day, flex modestly.
+Start with "Sentinel daily report:" or similar. Keep it real. Under 280 chars.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY_XPOST,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: PERSONALITY_SYSTEM,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text?.trim() || null;
+}
+
+// ============================================================
 // TIME-AWARENESS — ET session: premarket / regular / afterhours / closed
 // ============================================================
 function getETSession() {
@@ -1106,29 +1225,15 @@ export default async function handler(req, res) {
   const redisLock = getRedis();
   if (redisLock) {
     try {
-      // Per-type lock: prevent same type from firing within 10 minutes
       const lockKey = `xbot:lock:${type}`;
       const existing = await redisLock.get(lockKey);
       if (existing != null) {
         return res.status(200).json({
           status: 'skipped',
-          reason: `Duplicate post prevented — ${type} locked for 10 min`,
+          reason: 'Duplicate post prevented (lock active)',
         });
       }
-      await redisLock.set(lockKey, '1', { ex: 600 }); // 10 minute lock
-
-      // Global cooldown: no two posts within 90 seconds regardless of type
-      const globalCooldownKey = 'xbot:global:last_post';
-      const lastPost = await redisLock.get(globalCooldownKey);
-      if (lastPost) {
-        const elapsed = Date.now() - parseInt(lastPost, 10);
-        if (elapsed < 90000) {
-          return res.status(200).json({
-            status: 'skipped',
-            reason: `Global cooldown — last post was ${Math.round(elapsed / 1000)}s ago`,
-          });
-        }
-      }
+      await redisLock.set(lockKey, '1', { ex: 60 });
     } catch {
       // proceed without lock if Redis fails
     }
@@ -1159,12 +1264,21 @@ export default async function handler(req, res) {
       case 'market-close':
         tweet = await generateMarketClose();
         break;
-      case 'sentinel':
-        tweet = await generateSentinelUpdate();
-        break;
       case 'trump-watch':
         const trumpResult = await generateTrumpWatch();
         tweet = trumpResult?.tweet || null;
+        break;
+      case 'thought-leader':
+        tweet = await generateThoughtLeader();
+        break;
+      case 'hot-take':
+        tweet = await generateHotTake();
+        break;
+      case 'funny':
+        tweet = await generateFunnyTweet();
+        break;
+      case 'sentinel-pnl':
+        tweet = await generateSentinelPnl();
         break;
       default:
         return res.status(400).json({ error: `Unknown type: ${type}` });
@@ -1178,13 +1292,6 @@ export default async function handler(req, res) {
     }
 
     // Post to X
-    // Stamp global cooldown before posting
-    if (redisLock) {
-      try {
-        await redisLock.set('xbot:global:last_post', String(Date.now()), { ex: 300 });
-      } catch { /* ignore */ }
-    }
-
     const result = await postTweet(tweet);
 
     let webhookUrl;
@@ -1193,6 +1300,8 @@ export default async function handler(req, res) {
     } else if (type === 'breaking') {
       webhookUrl = process.env.DISCORD_WEBHOOK_ANNOUNCEMENTS;
     } else if (type === 'signal' || type === 'trade-setup') {
+      webhookUrl = process.env.DISCORD_WEBHOOK_TRADE_SETUPS;
+    } else if (type === 'sentinel-pnl') {
       webhookUrl = process.env.DISCORD_WEBHOOK_TRADE_SETUPS;
     } else {
       webhookUrl = process.env.DISCORD_WEBHOOK_MARKET_TALK;
