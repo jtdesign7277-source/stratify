@@ -757,7 +757,7 @@ const SophiaPanel = ({
               ...(sentinelMode ? ['Sentinel P&L', 'Sentinel open trades'] : [])
             ].map(cmd => (
               <button key={cmd} onClick={() => sendTradeMessage(cmd)}
-                className="px-2 py-0.5 rounded-full text-[10px] text-zinc-500 border border-white/[0.06] hover:text-amber-400 hover:border-amber-500/30 transition-all">
+                className="px-3 py-1.5 rounded-full text-xs text-white border border-white/20 hover:bg-white/10 hover:border-white/40 transition-all font-medium">
                 {cmd}
               </button>
             ))}
