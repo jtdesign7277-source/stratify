@@ -2214,12 +2214,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
               {totalPnl >= 0 ? '+' : ''}{fmtMoney(totalPnl)}
             </span>
           </div>
-          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
-            <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Sentinel AI P&L</span>
-            <span className={`font-mono text-sm shrink-0 pl-2 ${!sentinelPnl || sentinelPnl.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
-              {sentinelLoading ? '—' : sentinelPnl ? `${sentinelPnl.totalPnl >= 0 ? '+' : ''}${fmtMoney(sentinelPnl.totalPnl)}` : '—'}
-            </span>
-          </div>
+
           <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
             <span className="uppercase tracking-[0.12em] text-gray-500 min-w-0 truncate">Total P&L %</span>
             <span className={`font-mono text-sm shrink-0 pl-2 ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ transition: 'all 0.6s ease' }}>
