@@ -115,7 +115,14 @@ Respond with this exact JSON structure:
     "biggest_mistake": "the single most costly error today and exactly why it happened",
     "adjustment": "one specific rule change Sentinel will implement tomorrow",
     "tomorrow_focus": "one clear tactical priority for tomorrow's trading session",
-    "path_to_greatness": "1-2 sentences on what separates today's performance from world-class trading and what it will take to close that gap"
+    "path_to_greatness": "1-2 sentences on what separates today's performance from world-class trading and what it will take to close that gap",
+    "signal_health": {
+      "bayesian": "1 sentence: how well the Bayesian model's posterior probabilities predicted actual outcomes today. Was the model overconfident? Underconfident? What needs recalibration?",
+      "edge_filter": "1 sentence: did the Edge Filter correctly gate bad trades? Were any high-EV trades missed? Any false positives (PASS but lost)?",
+      "spread": "1 sentence: were spreads normal or elevated? Did spread conditions affect entry quality?",
+      "stoikov": "1 sentence: how did reservation price entries perform vs market entries? Better fills or worse?",
+      "monte_carlo": "1 sentence: was Kelly sizing appropriate given today's outcomes? Did actual drawdown match simulated expectations?"
+    }
   },
   "weekly_summary": ${isFriday ? '"3-4 sentence weekly review — wins, losses, trend, what changes next week"' : 'null'}
 }
@@ -168,6 +175,9 @@ Rules:
     const mergedSuspended = [...new Set([...existingSuspended, ...(parsed.suspended_conditions || [])])];
 
     // Update memory
+    // Always replace brain_summary with today's fresh summary (not append)
+    const freshSummary = parsed.plain_english_summary || memory.brain_summary;
+
     await supabase.from('sentinel_memory').update({
       setup_weights: mergedSetupWeights,
       regime_filters: mergedRegimeFilters,
@@ -176,7 +186,9 @@ Rules:
       confidence_adjustments: mergedConfAdjustments,
       suspended_conditions: mergedSuspended,
       sessions_processed: (memory.sessions_processed || 0) + 1,
-      brain_summary: parsed.plain_english_summary || memory.brain_summary,
+      brain_summary: freshSummary,
+      latest_report: report,         // store full report for status endpoint
+      latest_report_date: today,
       last_updated: new Date().toISOString(),
     }).eq('id', 1);
 
@@ -195,19 +207,22 @@ Rules:
       await supabase.from('sentinel_sessions').update(sessionUpdate).eq('id', session.id);
     }
 
-    // Build notification body from daily report
-    const notifTitle = report.headline || `Sentinel Daily Report — ${today}`;
-    const notifBody = [
-      report.what_worked?.length ? `✅ What worked: ${report.what_worked[0]}` : null,
-      report.biggest_mistake ? `❌ Biggest mistake: ${report.biggest_mistake}` : null,
-      report.adjustment ? `🔧 Tomorrow: ${report.adjustment}` : null,
-    ].filter(Boolean).join('\n');
+    // Build notification body — brief summary for the notifications panel
+    const notifTitle = `📊 ${today} — ${report.headline || 'Daily Report'}`;
+    const notifBody = parsed.plain_english_summary || report.headline || 'Daily report ready.';
 
-    // Notify ALL users
-    const { data: allUsers } = await supabase.from('sentinel_user_settings').select('user_id');
-    if (allUsers?.length) {
-      const notifications = allUsers.map((u) => ({
-        user_id: u.user_id,
+    // Notify ALL authenticated users (not just YOLO subscribers)
+    // First delete any existing daily_report notifications for today to avoid duplicates
+    await supabase.from('sentinel_notifications')
+      .delete()
+      .eq('type', 'daily_report')
+      .like('title', `%${today}%`);
+
+    const { data: allUsers } = await supabase.from('profiles').select('id');
+    const userIds = (allUsers || []).map(u => u.id).filter(Boolean);
+    if (userIds.length) {
+      const notifications = userIds.map((uid) => ({
+        user_id: uid,
         type: 'daily_report',
         title: notifTitle,
         body: notifBody,

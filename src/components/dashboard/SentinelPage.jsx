@@ -1178,8 +1178,26 @@ function SentinelPageInner() {
                 {unreadCount > 0 && <span className="text-xs text-gray-500 font-mono">{unreadCount} unread</span>}
               </div>
               <div className="max-h-64 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
-                {notifications.length === 0 && (
-                  <p className="text-xs text-gray-600 font-mono py-2">No notifications yet</p>
+                {/* Always show latest daily report from brain even if no per-user notification */}
+                {notifications.length === 0 && memory.latest_report && memory.latest_report_date && (
+                  <motion.div
+                    whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                    onClick={() => {
+                      const sess = recentSessions.find(s => s.session_date === memory.latest_report_date);
+                      setBrainModalSession(sess || { session_date: memory.latest_report_date, gross_pnl: 0, adjustments_made: { daily_report: memory.latest_report } });
+                    }}
+                    className="text-xs py-1.5 rounded-xl px-2 cursor-pointer transition-all duration-200 text-gray-300"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>📊</span>
+                      <span className="font-mono font-semibold flex-1 truncate">{memory.latest_report_date} — Daily Report</span>
+                    </div>
+                    <p className="text-gray-400 mt-1 ml-6 leading-relaxed text-[11px]">{memory.brain_summary}</p>
+                    <span className="text-emerald-500/60 text-[10px] ml-6">tap to read full report →</span>
+                  </motion.div>
+                )}
+                {notifications.length === 0 && !memory.latest_report && (
+                  <p className="text-xs text-gray-600 font-mono py-2">First report fires at 8pm ET</p>
                 )}
                 {notifications.map((notif) => {
                   const isReport = notif.type === 'daily_report' && notif.metadata?.report;
@@ -1523,6 +1541,25 @@ function SentinelPageInner() {
                         <div>
                           <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Tomorrow's Focus</span>
                           <p className="mt-1.5 text-sm text-gray-300 font-mono leading-relaxed">{report.tomorrow_focus}</p>
+                        </div>
+                      )}
+                      {report.signal_health && (
+                        <div className="border-t border-white/[0.06] pt-3">
+                          <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Signal Health — 5 Models</span>
+                          <div className="mt-2 space-y-2">
+                            {[
+                              { key: 'bayesian', label: 'Bayesian', color: 'text-cyan-400' },
+                              { key: 'edge_filter', label: 'Edge Filter', color: 'text-emerald-400' },
+                              { key: 'spread', label: 'Spread/LMSR', color: 'text-amber-400' },
+                              { key: 'stoikov', label: 'Stoikov', color: 'text-purple-400' },
+                              { key: 'monte_carlo', label: 'Monte Carlo', color: 'text-red-400' },
+                            ].filter(m => report.signal_health[m.key]).map(m => (
+                              <div key={m.key} className="flex gap-2">
+                                <span className={`text-[10px] font-mono font-bold flex-shrink-0 w-24 ${m.color}`}>{m.label}</span>
+                                <span className="text-[11px] text-gray-300 font-mono leading-relaxed">{report.signal_health[m.key]}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                       {report.path_to_greatness && (

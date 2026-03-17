@@ -61,7 +61,7 @@ export default async function handler(req, res) {
               supabase.from('sentinel_sessions').select('*').order('session_date', { ascending: false }).limit(10),
               supabase.from('sentinel_trades').select('*').eq('status', 'open').order('opened_at', { ascending: false }),
               supabase.from('sentinel_trades').select('*').eq('status', 'closed').order('closed_at', { ascending: false }).limit(100),
-              supabase.from('sentinel_memory').select('brain_summary, sessions_processed, suspended_conditions').eq('id', 1).single(),
+              supabase.from('sentinel_memory').select('brain_summary, sessions_processed, suspended_conditions, latest_report, latest_report_date').eq('id', 1).single(),
               supabase.from('sentinel_polymarket_trades').select('*').eq('status', 'open').order('opened_at', { ascending: false }),
               supabase.from('sentinel_polymarket_trades').select('*').eq('status', 'resolved').order('resolved_at', { ascending: false }).limit(50),
             ]);
