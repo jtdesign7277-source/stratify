@@ -638,11 +638,11 @@ const SophiaPanel = ({
               🤖 Sentinel
             </button>
           )}
-          <button onClick={clearChat} className="p-1 text-gray-500 hover:text-white transition-colors" title="Clear chat">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
           <button onClick={cyclePanel} className="p-1 text-emerald-300/70 hover:text-emerald-300 transition-colors" title="Resize">
             <ChevronsRight className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={clearChat} className="p-1 text-gray-500 hover:text-white transition-colors" title="Clear chat">
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
