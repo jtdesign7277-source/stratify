@@ -463,7 +463,7 @@ function useBotStream() {
     }
   }, [wsConnected, dataSource]);
 
-  return { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected, dataSource, btcPrice: wsPrice || refs.current.btcPrice };
+  return { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, setPnl, pnlFull, pnlDaily, pnlView, setPnlView, stream, connected, dataSource, btcPrice: wsPrice || refs.current.btcPrice };
 }
 
 // ─── Monte Carlo Canvas — animated fan with distribution histogram ─────────
@@ -887,7 +887,7 @@ const PnlCanvas = memo(function PnlCanvas({ data }) {
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sentinelAccount, sentinelTotalTrades, sentinelOpenCount }) {
-  const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, stream, connected, dataSource, btcPrice } = useBotStream();
+  const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, setPnl, pnlFull, pnlDaily, pnlView, setPnlView, stream, connected, dataSource, btcPrice } = useBotStream();
   const totalPnl = sentinelTotalPnl != null ? sentinelTotalPnl : (metrics.balance - metrics.deposit);
   const dailyPnl = sentinelDailyPnl != null ? sentinelDailyPnl : 0;
   // Use shared account stats when available (single source of truth with Overview)
