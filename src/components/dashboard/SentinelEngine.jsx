@@ -109,6 +109,9 @@ function useBotStream() {
     status: { polymarket: 'CONNECTING', scanner: 'SCAN', bayes: 'CONNECTING', kelly: 'CONNECTING', slippage: 'ACTIVE', sync: 0 },
   });
   const [pnl, setPnl] = useState([]);
+  const [pnlFull, setPnlFull] = useState([]); // all-time equity curve
+  const [pnlDaily, setPnlDaily] = useState([]); // today's trades only
+  const [pnlView, setPnlView] = useState('total'); // 'total' | 'daily'
   const [stream, setStream] = useState([]);
   const [connected, setConnected] = useState(false);
   const [dataSource, setDataSource] = useState('connecting'); // 'live' | 'sim' | 'connecting'
@@ -196,8 +199,22 @@ function useBotStream() {
 
           // Seed equity curve from real trade history
           if (data.equityCurve && data.equityCurve.length > 0) {
+            setPnlFull(data.equityCurve);
             setPnl(data.equityCurve);
             refs.current.equitySeeded = true;
+
+            // Build daily curve: only trades from today (ET)
+            const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+            const todayStart = new Date(todayET + 'T00:00:00-05:00').getTime();
+            const todayTrades = data.equityCurve.filter(p => p.t >= todayStart);
+            if (todayTrades.length > 0) {
+              // Rebase daily to start from 0
+              const baseVal = todayTrades[0].v - (data.equityCurve.find(p => p.t < todayStart && data.equityCurve.indexOf(p) === data.equityCurve.length - todayTrades.length - 1)?.v || todayTrades[0].v);
+              const prevClose = data.equityCurve.length > todayTrades.length
+                ? data.equityCurve[data.equityCurve.length - todayTrades.length - 1].v
+                : 0;
+              setPnlDaily(todayTrades.map(p => ({ t: p.t, v: Math.round((p.v - prevClose) * 100) / 100 })));
+            }
           }
 
           // Push EXEC events from recent signals
@@ -1141,10 +1158,10 @@ Why it matters: Most traders blow up because they size too large. Monte Carlo pr
             <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ height: 24, borderBottom: `1px solid ${COLORS.border}` }}>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold tracking-widest" style={{ color: COLORS.dim }}>
-                  {vizMode === 'mc' ? 'MONTE CARLO' : 'EQUITY CURVE'}
+                  {vizMode === 'mc' ? 'MONTE CARLO' : vizMode === 'equity' ? (pnlView === 'daily' ? 'DAILY EQUITY' : 'EQUITY CURVE') : 'MODELS'}
                 </span>
                 {vizMode === 'equity' && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: COLORS.green, color: '#000' }}>LIVE</span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: COLORS.green, color: '#000' }}>{pnlView === 'daily' ? 'TODAY' : 'LIVE'}</span>
                 )}
               </div>
               <div className="flex items-center gap-1" style={{ background: COLORS.bg, borderRadius: 4, padding: 2 }}>
@@ -1196,20 +1213,36 @@ Why it matters: Most traders blow up because they size too large. Monte Carlo pr
             </div>
           </div>
 
-          {/* P&L — compact below visualization */}
+          {/* P&L — clickable toggle for equity curve view */}
           <div className="flex items-center justify-between px-3" style={{ ...panelStyle, height: 36 }}>
-            <div className="flex items-center gap-4">
-              <span className="text-[10px] tracking-widest font-bold" style={{ color: COLORS.dim }}>TOTAL P&L</span>
+            <button
+              onClick={() => { setPnlView('total'); setPnl(pnlFull); if (vizMode !== 'equity') setVizMode('equity'); }}
+              className="flex items-center gap-3 transition-all duration-200"
+              style={{
+                cursor: 'pointer', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 6,
+                outline: pnlView === 'total' ? `1px solid ${totalPnl >= 0 ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)'}` : 'none',
+                boxShadow: pnlView === 'total' ? `0 0 12px ${totalPnl >= 0 ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)'}` : 'none',
+              }}
+            >
+              <span className="text-[10px] tracking-widest font-bold" style={{ color: pnlView === 'total' ? COLORS.white : COLORS.dim }}>TOTAL P&L</span>
               <span className="text-[13px] font-bold tabular-nums" style={{ color: totalPnl >= 0 ? COLORS.green : COLORS.red }}>
                 {totalPnl >= 0 ? '+' : ''}${Math.abs(totalPnl) < 1 ? totalPnl.toFixed(2) : totalPnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-[10px] tracking-widest font-bold" style={{ color: COLORS.dim }}>DAILY P&L</span>
+            </button>
+            <button
+              onClick={() => { setPnlView('daily'); setPnl(pnlDaily.length > 0 ? pnlDaily : [{ t: Date.now(), v: dailyPnl }]); if (vizMode !== 'equity') setVizMode('equity'); }}
+              className="flex items-center gap-3 transition-all duration-200"
+              style={{
+                cursor: 'pointer', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 6,
+                outline: pnlView === 'daily' ? `1px solid ${dailyPnl >= 0 ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)'}` : 'none',
+                boxShadow: pnlView === 'daily' ? `0 0 12px ${dailyPnl >= 0 ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)'}` : 'none',
+              }}
+            >
+              <span className="text-[10px] tracking-widest font-bold" style={{ color: pnlView === 'daily' ? COLORS.white : COLORS.dim }}>DAILY P&L</span>
               <span className="text-[13px] font-bold tabular-nums" style={{ color: dailyPnl >= 0 ? COLORS.green : COLORS.red }}>
                 {dailyPnl >= 0 ? '+' : ''}${Math.abs(dailyPnl) < 1 ? dailyPnl.toFixed(2) : dailyPnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </span>
-            </div>
+            </button>
           </div>
         </div>
 
