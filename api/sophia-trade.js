@@ -5,7 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mszilrexlupzthauoaxb.supabase.co',
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }
 );
@@ -109,6 +109,11 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  try { return await handleRequest(req, res); }
+  catch (err) { console.error('[sophia-trade] TOP CRASH:', err.message); return res.status(200).json({ reply: `❌ ${err.message}`, action: 'error' }); }
+}
+
+async function handleRequest(req, res) {
 
   const user = await getUserFromToken(req);
   if (!user) return res.status(401).json({ reply: '⚠️ Please sign in to use Trading Mode.', action: 'error' });
@@ -191,6 +196,7 @@ export default async function handler(req, res) {
   // ── END FAST PATH ────────────────────────────────────────────────────────
 
   try {
+    console.log('[sophia-trade] Processing message:', message.slice(0,50), '| user:', user.id.slice(0,8));
     // Load real portfolio + optionally Sentinel data in parallel
     const [portfolio, sentinelData] = await Promise.all([
       getRealPortfolio(user.id),
@@ -424,7 +430,7 @@ THEIR REAL PAPER PORTFOLIO RIGHT NOW:
     return res.status(200).json({ reply: parsed.reply || rawText, action: parsed.action || 'info' });
 
   } catch (err) {
-    console.error('[sophia-trade] Error:', err.message);
+    console.error('[sophia-trade] CRASH:', err.message, err.stack?.slice(0,300));
     return res.status(200).json({ reply: `❌ Error: ${err.message}`, action: 'error' });
   }
 }
