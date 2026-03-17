@@ -239,7 +239,7 @@ const modalPanelMotion = {
 
 const UP_COLOR = '#34d399';
 const DOWN_COLOR = '#ef4444';
-const PRICE_LINE_BLUE = '#10b981';
+const PRICE_LINE_BLUE = '#166534';
 const TRADER_CANDLE_PALETTE_KEY = 'stratify-trader-candle-palette';
 const TRADER_CHART_DISPLAY_KEY = 'stratify-trader-chart-display';
 const VOLUME_UP = 'rgba(52, 211, 153, 0.2)';
