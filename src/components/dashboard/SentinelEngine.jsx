@@ -1172,8 +1172,8 @@ Why it matters: Most traders blow up because they size too large. Monte Carlo pr
                         <span className="text-[12px] font-bold tracking-wider" style={{ color: model.color }}>{model.title.toUpperCase()}</span>
                         <span className="text-[9px] font-mono" style={{ color: COLORS.dimmer }}>tap to learn →</span>
                       </div>
-                      <div className="mt-1 text-[10px] font-mono" style={{ color: COLORS.dim }}>{model.subtitle}</div>
-                      <div className="mt-1.5 text-[10px] leading-relaxed" style={{ color: COLORS.dimmer }}>
+                      <div className="mt-1 text-[11px] font-mono" style={{ color: COLORS.dim }}>{model.subtitle}</div>
+                      <div className="mt-1.5 text-[12px] leading-relaxed" style={{ color: COLORS.text }}>
                         {model.description.split('\n')[0]}
                       </div>
                     </button>
@@ -1276,14 +1276,14 @@ Why it matters: Most traders blow up because they size too large. Monte Carlo pr
                 if (line.startsWith('•')) return (
                   <div key={i} className="flex gap-2 mb-1">
                     <span style={{ color: MODEL_DOCS[modelModal].color, flexShrink: 0 }}>•</span>
-                    <span className="text-[12px] font-mono leading-relaxed" style={{ color: COLORS.text }}>{line.slice(1).trim()}</span>
+                    <span className="text-[13px] font-mono leading-relaxed" style={{ color: '#e8e8e8' }}>{line.slice(1).trim()}</span>
                   </div>
                 );
                 // Section headers (lines ending with colon)
                 if (line.endsWith(':') && !line.startsWith(' ')) return (
                   <div key={i} className="text-[11px] font-bold tracking-widest mt-3 mb-1.5" style={{ color: COLORS.dim }}>{line.toUpperCase()}</div>
                 );
-                return <p key={i} className="text-[12px] font-mono leading-relaxed mb-1" style={{ color: COLORS.text }}>{line}</p>;
+                return <p key={i} className="text-[13px] font-mono leading-relaxed mb-1" style={{ color: '#e8e8e8' }}>{line}</p>;
               })}
             </div>
             {/* Nav between models */}
