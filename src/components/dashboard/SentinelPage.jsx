@@ -818,16 +818,33 @@ function SentinelPageInner() {
                 {/* Compact view — always visible, IB-style */}
                 <div className="mt-3 grid grid-cols-4 gap-3">
                   {[
-                    { label: 'KELLY', value: `${((riskData.kelly?.recommended || 0) * 100).toFixed(1)}%`, color: 'text-cyan-400' },
-                    { label: 'DRAWDOWN', value: `${riskData.drawdown?.currentDrawdownPct || 0}%`, color: (riskData.drawdown?.currentDrawdownPct || 0) > 10 ? 'text-red-400' : 'text-emerald-400' },
-                    { label: 'VAR 95%', value: `$${(riskData.var?.var95 || 0).toLocaleString()}`, color: 'text-amber-400' },
-                    { label: 'LEVERAGE', value: `${riskData.exposure?.leverageRatio || 0}x`, color: (riskData.exposure?.leverageRatio || 0) > 1.5 ? 'text-red-400' : 'text-emerald-400' },
+                    { label: 'KELLY', value: `${((riskData.kelly?.recommended || 0) * 100).toFixed(1)}%`, color: 'text-cyan-400',
+                      desc: 'Optimal bet size per trade. Based on your win rate and avg win/loss ratio. Higher = more edge. Target: 2-5%. Below 1% means weak edge.' },
+                    { label: 'DRAWDOWN', value: `${riskData.drawdown?.currentDrawdownPct || 0}%`, color: (riskData.drawdown?.currentDrawdownPct || 0) > 10 ? 'text-red-400' : 'text-emerald-400',
+                      desc: 'How far you are from your peak balance. Green under 5%, yellow 5-10%, red above 10%. At 15% trading halts automatically. Lower is better.' },
+                    { label: 'VAR 95%', value: `$${(riskData.var?.var95 || 0).toLocaleString()}`, color: 'text-amber-400',
+                      desc: 'Max expected daily loss with 95% confidence. On 19 out of 20 days, your loss won\'t exceed this number. Keep under 3% of portfolio.' },
+                    { label: 'LEVERAGE', value: `${riskData.exposure?.leverageRatio || 0}x`, color: (riskData.exposure?.leverageRatio || 0) > 1.5 ? 'text-red-400' : 'text-emerald-400',
+                      desc: 'Total position size divided by account balance. 1.0x = fully invested. Under 0.5x is conservative. Over 1.5x is aggressive. Max allowed: 2.0x.' },
                   ].map(m => (
-                    <div key={m.label} className="text-center">
+                    <div key={m.label} className="text-center group relative">
                       <div className={`text-[15px] font-mono font-bold ${m.color}`}>{m.value}</div>
                       <div className="text-[10px] text-white/40 uppercase tracking-widest font-semibold mt-0.5">{m.label}</div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 rounded-xl bg-black/95 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.6)] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-50">
+                        <p className="text-[11px] text-white/70 leading-relaxed font-mono">{m.desc}</p>
+                      </div>
                     </div>
                   ))}
+                </div>
+
+                {/* Quick guide — always visible */}
+                <div className="mt-3 pt-3 border-t border-white/[0.06] text-[11px] font-mono text-white/30 leading-relaxed">
+                  <span className="text-white/50 font-semibold">How to read this:</span>{' '}
+                  <span className="text-cyan-400/60">Kelly</span> = how much to bet per trade (higher = stronger edge).{' '}
+                  <span className={`${(riskData.drawdown?.currentDrawdownPct || 0) > 10 ? 'text-red-400/60' : 'text-emerald-400/60'}`}>Drawdown</span> = distance from peak (want this near 0%).{' '}
+                  <span className="text-amber-400/60">VaR</span> = worst expected daily loss.{' '}
+                  <span className={`${(riskData.exposure?.leverageRatio || 0) > 1.5 ? 'text-red-400/60' : 'text-emerald-400/60'}`}>Leverage</span> = total exposure vs balance (under 1x is safe).
+                  <span className="text-white/20 ml-1">Hover any metric for details.</span>
                 </div>
 
                 <AnimatePresence>
