@@ -218,6 +218,10 @@ function SentinelPageInner() {
   const [sortLargest, setSortLargest] = useState(false);
   const [showCryptoPnl, setShowCryptoPnl] = useState(false);
   const [showEquityPnl, setShowEquityPnl] = useState(false);
+  const [yoloTrades, setYoloTrades] = useState([]);
+  const [yoloActive, setYoloActive] = useState(false);
+  const [yoloFilterStatus, setYoloFilterStatus] = useState('All');
+  const [yoloTodayOnly, setYoloTodayOnly] = useState(false);
   const [alpacaExpanded, setAlpacaExpanded] = useState(false);
   const [ibkrExpanded, setIbkrExpanded] = useState(false);
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
@@ -278,7 +282,17 @@ function SentinelPageInner() {
         setTakeProfitRR(settings.take_profit_rr || 2);
         setMaxPositions(settings.max_positions || 3);
         setDisclaimerAccepted(settings.legal_disclaimer_accepted || false);
+        setYoloActive(settings.yolo_active || false);
       }
+      // Load user's YOLO copied trades
+      const { data: copiedTrades } = await supabase
+        .from('sentinel_copied_trades')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'closed')
+        .order('closed_at', { ascending: false })
+        .limit(200);
+      if (copiedTrades) setYoloTrades(copiedTrades);
     } catch (err) {
       if (err?.name === 'AbortError') return;
       console.warn('[SentinelPage] fetchUserSettings error:', err?.message || err);
@@ -448,7 +462,6 @@ function SentinelPageInner() {
   })();
   const unlock = data?.unlockStatus || {};
   const isSubscribed = userSettings?.subscription_status === 'active' || userSettings?.subscription_status === 'trialing';
-  const yoloActive = userSettings?.yolo_active || false;
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   // Group closed trades by session_date for Session History expansion
@@ -840,7 +853,10 @@ function SentinelPageInner() {
               })()}
             </motion.div>
 
-            {/* SESSION HISTORY */}
+            {/* SESSION HISTORY — SPLIT VIEW */}
+            <div className={`grid gap-4 ${yoloActive || yoloTrades.length > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+
+            {/* LEFT — SENTINEL BRAIN TRADES */}
             <motion.div
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1049,6 +1065,103 @@ function SentinelPageInner() {
               </>);
               })()}
             </motion.div>
+
+            {/* RIGHT — YOLO MY TRADES (shows when YOLO active or has history) */}
+            {(yoloActive || yoloTrades.length > 0) && (() => {
+              const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+              let filtered = [...yoloTrades];
+              if (yoloTodayOnly) filtered = filtered.filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts) >= todayStart; });
+              if (yoloFilterStatus === 'Wins') filtered = filtered.filter(t => t.win);
+              else if (yoloFilterStatus === 'Losses') filtered = filtered.filter(t => !t.win);
+              const wins = filtered.filter(t => t.win).length;
+              const winRate = filtered.length > 0 ? (wins / filtered.length) * 100 : 0;
+              const winTrades = filtered.filter(t => t.win && t.pnl > 0);
+              const avgWin = winTrades.length > 0 ? winTrades.reduce((s,t) => s+(t.pnl||0),0)/winTrades.length : 0;
+              const netPnl = filtered.reduce((s,t) => s+(t.pnl||0),0);
+              return (
+                <motion.div
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3, ...SPRING }}
+                  className={`${GLASS} p-5 transition-all duration-300`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: yoloActive ? '#ef4444' : '#6b7280' }}>
+                      {yoloActive ? '⚡ YOLO — LIVE' : '⚡ YOLO HISTORY'}
+                    </span>
+                    {yoloActive && <span className="text-[10px] font-mono text-red-400 animate-pulse">● Copying trades</span>}
+                  </div>
+                  {yoloTrades.length === 0 && yoloActive && (
+                    <p className="text-xs text-gray-600 font-mono py-3">Waiting for Sentinel's next trade...</p>
+                  )}
+                  {(yoloTrades.length > 0 || !yoloActive) && (<>
+                  {/* STAT CARDS */}
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    {[
+                      { label: 'Trades', value: filtered.length, fmt: v => v.toString(), color: 'text-white' },
+                      { label: 'Win Rate', value: winRate, fmt: v => `${v.toFixed(1)}%`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                      { label: 'Avg Win', value: avgWin, fmt: v => `$${v.toFixed(2)}`, color: 'text-emerald-400' },
+                      { label: 'Net P&L', value: netPnl, fmt: v => `${v>=0?'+':''}$${v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                    ].map(stat => (
+                      <div key={stat.label} className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] p-2.5">
+                        <div className="text-[10px] uppercase tracking-[0.4px] text-white/30">{stat.label}</div>
+                        <div className={`text-sm font-mono font-bold mt-0.5 ${stat.color}`}>{stat.fmt(stat.value)}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* FILTERS */}
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {['Today', 'All', 'Wins', 'Losses'].map(pill => {
+                      const active = pill === 'Today' ? yoloTodayOnly : pill === 'All' ? (!yoloTodayOnly && yoloFilterStatus === 'All') : yoloFilterStatus === pill;
+                      return (
+                        <button key={pill} onClick={() => {
+                          if (pill === 'Today') { setYoloTodayOnly(true); setYoloFilterStatus('All'); }
+                          else if (pill === 'All') { setYoloTodayOnly(false); setYoloFilterStatus('All'); }
+                          else { setYoloTodayOnly(false); setYoloFilterStatus(prev => prev === pill ? 'All' : pill); }
+                        }} className={`rounded-full px-2.5 py-1 text-[11px] transition-all ${active ? 'bg-white text-[#0a0a0f] font-medium' : 'border border-white/10 text-white/50 hover:text-white/70'}`}>
+                          {pill}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* GRID HEADER */}
+                  <div className="grid mt-3 mb-1 px-1 text-[10px] uppercase tracking-[0.4px] text-white/30" style={{ gridTemplateColumns: '16px 80px 1fr 80px 80px 80px' }}>
+                    <span></span><span>Pair</span><span>Time</span><span>Entry</span><span>Exit</span><span className="text-right">P&L</span>
+                  </div>
+                  {/* TRADE ROWS */}
+                  <div className="mt-1 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                    {filtered.length === 0 ? (
+                      <p className="text-xs text-gray-600 font-mono py-2">No trades match filters</p>
+                    ) : filtered.map(trade => {
+                      const isWin = trade.win || (trade.pnl||0) >= 0;
+                      const openTime = trade.opened_at ? new Date(trade.opened_at) : null;
+                      const closeTime = trade.closed_at ? new Date(trade.closed_at) : null;
+                      const timeFmt = d => d ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '—';
+                      return (
+                        <div key={trade.id} className="grid items-center py-2 px-1 border-b border-white/[0.06] text-xs font-mono" style={{ gridTemplateColumns: '16px 80px 1fr 80px 80px 80px' }}>
+                          <div className="flex justify-center"><div className="w-[3px] h-5 rounded-full" style={{ backgroundColor: isWin ? 'rgba(52,211,153,0.7)' : 'rgba(248,113,113,0.5)' }} /></div>
+                          <span className="text-white font-medium text-[11px]">{trade.symbol?.replace('/USD','')}</span>
+                          <span className="text-white/30 text-[10px]">{timeFmt(openTime)}</span>
+                          <span className="text-white/50 text-[10px]">${trade.entry != null ? Number(trade.entry).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</span>
+                          <span className="text-white/50 text-[10px]">${trade.exit_price != null ? Number(trade.exit_price).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</span>
+                          <span className={`text-right font-medium text-[11px] ${isWin ? 'text-emerald-400' : 'text-red-400'}`}>{(trade.pnl||0)>=0?'+':''}${(trade.pnl||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* FOOTER */}
+                  {filtered.length > 0 && (
+                    <div className="flex items-center justify-between pt-2 mt-1 border-t border-white/[0.06] px-1 text-xs font-mono">
+                      <span className="text-white/30">Net P&L</span>
+                      <span className={`font-medium ${netPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{netPnl>=0?'+':''}${netPnl.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                    </div>
+                  )}
+                  </>)}
+                </motion.div>
+              );
+            })()}
+
+            </div> {/* end split grid */}
           </div>
 
           {/* RIGHT COLUMN */}
