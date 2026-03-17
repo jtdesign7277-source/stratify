@@ -431,6 +431,9 @@ ABSOLUTE RULES:
 9. Be punchy, direct, confident — not hype-y or clickbait-y
 10. No hashtags. They look desperate.
 11. Start with the exact opener provided in the user message (do not add 🚨 unless the opener contains it).
+12. NEVER write about NFL, football, Super Bowl, or any sport that is currently out of season (it is March 2026 — NFL season ended in February).
+13. NEVER write about sports betting, line movement, point spreads, sharp money, moneylines, parlays, or sportsbook content. Stratify is a trading platform, not a sportsbook.
+14. If you find yourself writing anything sports-related, stop and return an empty response instead.
 
 TONE: Think Bloomberg terminal meets fintwit. Smart, fast, credible.
 You are a data reporter, not a hype man.`;
@@ -483,6 +486,21 @@ function verifyTweet(tweet, rawData) {
   for (const phrase of banned) {
     if (tweet.toLowerCase().includes(phrase)) {
       errors.push(`Banned phrase: "${phrase}"`);
+    }
+  }
+
+  // Hard block: NFL/sports betting content — Stratify is a trading platform
+  const sportsBanned = [
+    'nfl game', 'nfl season', 'nfl week', 'tonight\'s nfl', 'tonight\'s game',
+    'football game', 'super bowl', 'touchdown', 'quarterback',
+    'line movement', 'point spread', 'sharp money', 'public money',
+    'moneyline', 'parlay', 'prop bet', 'over/under', 'sportsbook',
+    'cover the spread', 'ats', 'opening line', 'closing line',
+    'mlb game', 'baseball game',
+  ];
+  for (const phrase of sportsBanned) {
+    if (tweet.toLowerCase().includes(phrase)) {
+      errors.push(`Sports/betting content not allowed: "${phrase}"`);
     }
   }
 
