@@ -9,6 +9,8 @@ const TWELVE_DATA_KEY =
   process.env.VITE_TWELVE_DATA_API_KEY;
 
 const supabase = createClient(
+
+const getETDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }
@@ -250,7 +252,7 @@ export default async function handler(req, res) {
             result_r: +resultR.toFixed(2),
             pnl: +pnl.toFixed(2),
             win,
-            session_date: new Date().toISOString().split('T')[0],
+            session_date: getETDate(),
           }).eq('id', trade.id);
 
           // Recompute all account metrics from actual closed trades
@@ -456,7 +458,7 @@ export default async function handler(req, res) {
     }
 
     // === UPDATE SESSION ===
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getETDate();
     const { data: existingSession } = await supabase.from('sentinel_sessions')
       .select('*')
       .eq('session_date', today)

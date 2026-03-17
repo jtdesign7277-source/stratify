@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // ET date, not UTC
 
     // Load all data in parallel
     const [sessionRes, tradesRes, memoryRes, recentSessionsRes, accountRes] = await Promise.all([

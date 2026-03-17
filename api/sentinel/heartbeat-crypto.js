@@ -47,6 +47,17 @@ async function redisSet(key, value, ttlSeconds) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// Always use Eastern Time for session dates — never UTC (avoids date flip at 7-8pm ET)
+function getETDate() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // YYYY-MM-DD
+}
+function getETHour() {
+  return parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }), 10);
+}
+function getETMinute() {
+  return parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }), 10);
+}
+
 // ─── Market data ─────────────────────────────────────────────────────────────
 async function fetchBars(symbol, interval = '1h') {
   const intervalMap = { '5m': '5min', '15m': '15min', '1h': '1h', '4h': '4h', '1D': '1day' };
@@ -375,7 +386,7 @@ export default async function handler(req, res) {
             status: 'closed', closed_at: new Date().toISOString(),
             exit_price: exitPrice, result_r: resultR,
             pnl: parseFloat(pnl.toFixed(2)), win,
-            session_date: new Date().toISOString().split('T')[0],
+            session_date: getETDate(),
           }).eq('id', trade.id);
 
           // Recompute account metrics
@@ -583,7 +594,7 @@ export default async function handler(req, res) {
             `Kelly size: ${(kelly.f * 100).toFixed(1)}%`,
           ],
           status: 'open',
-          session_date: new Date().toISOString().split('T')[0],
+          session_date: getETDate(),
           opened_at: new Date().toISOString(),
         }).select().single();
 
@@ -611,9 +622,10 @@ export default async function handler(req, res) {
     }
 
     // ── Daily session rollover + trigger learn ────────────────────────────────
-    const nowUTC = new Date();
-    if (nowUTC.getUTCHours() === 0 && nowUTC.getUTCMinutes() < 2) {
-      const today = nowUTC.toISOString().split('T')[0];
+    const etHour = getETHour();
+    const etMinute = getETMinute();
+    if (etHour === 0 && etMinute < 2) {
+      const today = getETDate();
       const { data: sess } = await supabase.from('sentinel_sessions').select('session_ended_at').eq('session_date', today).single();
       if (!sess?.session_ended_at) {
         await supabase.from('sentinel_sessions').upsert({ session_date: today, session_ended_at: new Date().toISOString() }, { onConflict: 'session_date' });
@@ -623,7 +635,7 @@ export default async function handler(req, res) {
     }
 
     // ── Update session record ─────────────────────────────────────────────────
-    const today = new Date().toISOString().split('T')[0];
+    const today = getETDate();
     const { data: existingSession } = await supabase.from('sentinel_sessions').select('*').eq('session_date', today).maybeSingle();
     if (existingSession) {
       await supabase.from('sentinel_sessions').update({
