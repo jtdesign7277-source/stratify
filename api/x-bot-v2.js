@@ -434,9 +434,10 @@ ABSOLUTE RULES:
 12. NEVER write about NFL, football, Super Bowl, or any sport that is currently out of season (it is March 2026 — NFL season ended in February).
 13. NEVER write about sports betting, line movement, point spreads, sharp money, moneylines, parlays, or sportsbook content. Stratify is a trading platform, not a sportsbook.
 14. If you find yourself writing anything sports-related, stop and return an empty response instead.
+15. NEVER use phrases like "the best traders", "top traders", "most traders miss", "what traders don't know", "smart money", "retail traders miss", "most people miss", "seasoned traders", "professional traders know" — this sounds arrogant and fake. Just report the data.
+16. NEVER mention win rate, accuracy rate, or performance statistics unless they are explicitly in the REAL DATA provided. Do NOT make up or estimate any performance metric.
 
-TONE: Think Bloomberg terminal meets fintwit. Smart, fast, credible.
-You are a data reporter, not a hype man.`;
+TONE: Think Bloomberg terminal meets fintwit. Smart, fast, credible. Data reporter, not a hype man. No superiority complex.`;
 
 async function formatWithClaude(prompt) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -943,6 +944,59 @@ async function generateTrumpWatch() {
   return { tweet, hook: parsed.hook, score: parsed.score };
 }
 
+async function generateSentinelUpdate() {
+  try {
+    const res = await fetch('https://stratifymarket.com/api/sentinel/status');
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    const account = data?.account || {};
+    const recentSessions = data?.recentSessions || [];
+    const todaySession = data?.todaySession || null;
+
+    const totalPnl = account.total_pnl || 0;
+    const balance = account.current_balance || 0;
+    const closedTrades = account.closed_trades || 0;
+    const winRate = account.win_rate || 0;
+    const wins = account.wins || 0;
+    const losses = account.losses || 0;
+
+    // Today's session stats
+    const todayPnl = todaySession?.gross_pnl || 0;
+    const todayTrades = todaySession?.trades_closed || 0;
+    const todayWins = todaySession?.wins || 0;
+    const todayLosses = todaySession?.losses || 0;
+
+    // Need at least some closed trades to post
+    if (closedTrades < 1) return null;
+
+    const sign = (n) => n >= 0 ? '+' : '';
+
+    const dataBlock = `SENTINEL LIVE STATS:
+Today: ${todayTrades} trades | ${todayWins}W / ${todayLosses}L | ${sign(todayPnl)}$${Math.abs(todayPnl).toFixed(0)} P&L
+All-time: ${closedTrades} trades | ${wins}W / ${losses}L | ${winRate.toFixed(1)}% win rate
+Balance: $${balance.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+Total P&L: ${sign(totalPnl)}$${Math.abs(totalPnl).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+
+    const prompt = `REAL DATA (use ONLY this):
+${dataBlock}
+
+Write a tweet reporting Sentinel's live trading performance. Lead with the most impressive real number from the data. Keep it factual and punchy. Mention stratifymarket.com at the end naturally. Under 240 characters.`;
+
+    const tweet = await formatWithClaude(prompt);
+    if (!tweet) return null;
+
+    // Must not contain any hallucinated numbers
+    const verification = verifyTweet(tweet, {});
+    if (!verification.approved) return null;
+
+    return tweet;
+  } catch (e) {
+    console.error('[generateSentinelUpdate] error:', e.message);
+    return null;
+  }
+}
+
 async function generateMarketClose() {
   const watchlist = [...APPROVED_TICKERS.mag7, ...APPROVED_TICKERS.indices];
   const quotes = await fetchTwelveDataQuotes(watchlist);
@@ -1052,15 +1106,29 @@ export default async function handler(req, res) {
   const redisLock = getRedis();
   if (redisLock) {
     try {
+      // Per-type lock: prevent same type from firing within 10 minutes
       const lockKey = `xbot:lock:${type}`;
       const existing = await redisLock.get(lockKey);
       if (existing != null) {
         return res.status(200).json({
           status: 'skipped',
-          reason: 'Duplicate post prevented (lock active)',
+          reason: `Duplicate post prevented — ${type} locked for 10 min`,
         });
       }
-      await redisLock.set(lockKey, '1', { ex: 60 });
+      await redisLock.set(lockKey, '1', { ex: 600 }); // 10 minute lock
+
+      // Global cooldown: no two posts within 90 seconds regardless of type
+      const globalCooldownKey = 'xbot:global:last_post';
+      const lastPost = await redisLock.get(globalCooldownKey);
+      if (lastPost) {
+        const elapsed = Date.now() - parseInt(lastPost, 10);
+        if (elapsed < 90000) {
+          return res.status(200).json({
+            status: 'skipped',
+            reason: `Global cooldown — last post was ${Math.round(elapsed / 1000)}s ago`,
+          });
+        }
+      }
     } catch {
       // proceed without lock if Redis fails
     }
@@ -1091,6 +1159,9 @@ export default async function handler(req, res) {
       case 'market-close':
         tweet = await generateMarketClose();
         break;
+      case 'sentinel':
+        tweet = await generateSentinelUpdate();
+        break;
       case 'trump-watch':
         const trumpResult = await generateTrumpWatch();
         tweet = trumpResult?.tweet || null;
@@ -1107,6 +1178,13 @@ export default async function handler(req, res) {
     }
 
     // Post to X
+    // Stamp global cooldown before posting
+    if (redisLock) {
+      try {
+        await redisLock.set('xbot:global:last_post', String(Date.now()), { ex: 300 });
+      } catch { /* ignore */ }
+    }
+
     const result = await postTweet(tweet);
 
     let webhookUrl;
