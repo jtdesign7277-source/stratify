@@ -29,6 +29,10 @@ const ALL_STOCK_TICKERS = [
 
 const ALL_CRYPTO_TICKERS = APPROVED_TICKERS.crypto;
 const ET_TIME_ZONE = 'America/New_York';
+const WEBSITE_URL = 'stratifymarket.com';
+const WEBSITE_POST_TYPES = new Set(['thought-leader', 'hot-take']);
+const WEBSITE_POST_CADENCE = 4;
+const WEBSITE_COUNTER_KEY = 'xbot:website:personality_counter';
 const SINGLE_POST_PER_DAY_TYPES = new Set([
   'market-open',
   'premarket',
@@ -197,6 +201,47 @@ function buildStructuredTweet(header, lines = [], footer = '') {
   }
 
   return tweet.length <= 280 ? tweet : `${tweet.slice(0, 277)}…`;
+}
+
+function stripWebsiteMentions(text = '') {
+  return String(text || '')
+    .replace(/\s*(?:https?:\/\/)?(?:www\.)?stratifymarket\.com\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function appendWebsite(text = '') {
+  const body = stripWebsiteMentions(text);
+  const suffix = `\n\n${WEBSITE_URL}`;
+  const maxBodyLength = 280 - suffix.length;
+  if (body.length <= maxBodyLength) {
+    return `${body}${suffix}`;
+  }
+  const trimmed = `${body.slice(0, Math.max(maxBodyLength - 1, 0)).trimEnd()}…`;
+  return `${trimmed}${suffix}`;
+}
+
+async function shouldIncludeWebsite(type) {
+  if (!WEBSITE_POST_TYPES.has(type)) return false;
+
+  const redis = getRedis();
+  if (!redis) return false;
+
+  try {
+    const count = await redis.incr(WEBSITE_COUNTER_KEY);
+    return count % WEBSITE_POST_CADENCE === 0;
+  } catch (error) {
+    console.error('[xbot] Website cadence counter failed:', error?.message || error);
+    return false;
+  }
+}
+
+async function applyWebsitePlacement(type, tweet) {
+  const cleaned = stripWebsiteMentions(tweet);
+  if (await shouldIncludeWebsite(type)) {
+    return appendWebsite(cleaned);
+  }
+  return cleaned;
 }
 
 async function fetchVerifiedStockQuotes(symbols, options = {}) {
@@ -373,10 +418,9 @@ Your voice:
 - If the tweet is about sports betting or off-season sports, return null
 
 LINK STRATEGY:
-- Only mention Stratify or stratifymarket.com when it fits naturally
-- Good moments: someone asks about tooling, signals, infra, market data, or workflow
-- Bad moments: pure market opinion, victory-lap posts, or anything where the link would feel promotional
-- If you include the link, keep it understated and matter-of-fact
+- Do not include links, URLs, or product plugs in replies
+- Do not mention stratifymarket.com in replies
+- Keep the reply focused on the market point, process point, or argument at hand
 
 Examples of acceptable replies:
 "Reasonable view. The part people miss is how often good setups fail when participation is thin."
@@ -410,6 +454,10 @@ Never invent facts. Never invent price levels. Never sound theatrical.`;
   const numericDollar = /\$\d[\d,]*(\.\d+)?/.test(text);
   if (numericDollar) {
     console.log('[engagement] Rejected reply with hallucinated price:', text);
+    return null;
+  }
+  if (/stratifymarket\.com/i.test(text)) {
+    console.log('[engagement] Rejected reply with website link:', text);
     return null;
   }
   const toneCheck = verifyTweet(text, { professionalTone: true });
@@ -1101,7 +1149,7 @@ Your personality:
 - Keep it under 280 characters
 - Avoid filler. Every sentence should earn its place
 - Avoid chest-thumping phrases like "smart money", "the crowd", "everyone's screaming", "what they're missing", or other retail-theater language
-- About 1 in 5 tweets, you may mention stratifymarket.com, but only when it fits naturally and never as a hard sell
+- Do not include links or URLs in the draft. Website placement is handled separately by the publisher
 - ABSOLUTELY NEVER write about sports betting, point spreads, parlays, Vegas odds, NFL, MLB, or gambling culture
 - NEVER compare trading to sports betting
 - NEVER FABRICATE TRADE DATA. Do not invent P&L, win rates, trade counts, or personal trade stories
@@ -1408,6 +1456,8 @@ export default async function handler(req, res) {
         reason: 'No data available or verification failed',
       });
     }
+
+    tweet = await applyWebsitePlacement(type, tweet);
 
     // ── GLOBAL VERIFICATION — catches sports/betting content from ALL post types ──
     const verifyData = {
