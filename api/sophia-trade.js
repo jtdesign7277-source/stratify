@@ -41,8 +41,10 @@ const QUICK_COMMANDS = {
   "what's my p&l?": 'daily_pnl',
   'show my positions': 'portfolio',
   'what am i holding?': 'portfolio',
-  'sentinel p&l': 'sentinel',
-  'sentinel open trades': 'sentinel',
+  'sentinel p&l': 'sentinel_pnl',
+  'sentinel daily p&l': 'sentinel_daily',
+  'sentinel open trades': 'sentinel_trades',
+  'market sentiment': 'market_sentiment',
 };
 
 async function getUserFromToken(req) {
@@ -179,17 +181,96 @@ async function handleRequest(req, res) {
     return res.status(200).json(result);
   }
 
-  if (quickType === 'sentinel') {
-    const cacheKey = `sophia:sentinel`;
-    const cached = await redisGet(cacheKey);
-    if (cached) return res.status(200).json(cached);
-
+  if (quickType === 'sentinel_pnl') {
     const sentinelData = await getSentinelStatus();
     if (!sentinelData) return res.status(200).json({ action: 'info', reply: 'Sentinel data unavailable right now.' });
     const acc = sentinelData.account || {};
-    const result = { action: 'sentinel', reply: '', sentinel: { balance: acc.current_balance||0, totalPnl: acc.total_pnl||0, winRate: acc.win_rate||0, totalTrades: acc.total_trades||0, openTrades: sentinelData.openTrades||[], todaySession: sentinelData.todaySession||null } };
-    await redisSet(cacheKey, result, 60);
-    return res.status(200).json(result);
+    const totalPnl = acc.total_pnl || 0;
+    const winRate = acc.win_rate || 0;
+    const totalTrades = acc.closed_trades || 0;
+    const unrealized = sentinelData.totalUnrealizedPnl || 0;
+    const livePnl = totalPnl + unrealized;
+    const reply = `Sentinel All-Time P&L\nRealized: ${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toLocaleString('en-US', {minimumFractionDigits:2})}\nUnrealized: ${unrealized >= 0 ? '+' : ''}$${Math.abs(unrealized).toLocaleString('en-US', {minimumFractionDigits:2})}\nLive Total: ${livePnl >= 0 ? '+' : ''}$${Math.abs(livePnl).toLocaleString('en-US', {minimumFractionDigits:2})}\nWin Rate: ${winRate.toFixed(1)}% · ${totalTrades} closed trades`;
+    return res.status(200).json({ action: 'info', reply });
+  }
+
+  if (quickType === 'sentinel_daily') {
+    const sentinelData = await getSentinelStatus();
+    if (!sentinelData) return res.status(200).json({ action: 'info', reply: 'Sentinel data unavailable right now.' });
+    const session = sentinelData.todaySession;
+    const unrealized = sentinelData.totalUnrealizedPnl || 0;
+    const realized = session?.gross_pnl || 0;
+    const todayTotal = realized + unrealized;
+    const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' });
+    const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+    const reply = `Sentinel Daily P&L · ${etDate}\n${etTime} ET\nRealized: ${realized >= 0 ? '+' : ''}$${Math.abs(realized).toLocaleString('en-US', {minimumFractionDigits:2})} (${session?.trades_closed || 0} trades closed)\nUnrealized: ${unrealized >= 0 ? '+' : ''}$${Math.abs(unrealized).toLocaleString('en-US', {minimumFractionDigits:2})} (${sentinelData.openTrades?.length || 0} open)\nToday Total: ${todayTotal >= 0 ? '+' : ''}$${Math.abs(todayTotal).toLocaleString('en-US', {minimumFractionDigits:2})}`;
+    return res.status(200).json({ action: 'info', reply });
+  }
+
+  if (quickType === 'sentinel_trades') {
+    const sentinelData = await getSentinelStatus();
+    if (!sentinelData) return res.status(200).json({ action: 'info', reply: 'Sentinel data unavailable right now.' });
+    const trades = sentinelData.openTrades || [];
+    if (trades.length === 0) return res.status(200).json({ action: 'info', reply: 'No open Sentinel positions right now.' });
+    const lines = trades.map(t => {
+      const dir = t.direction === 'LONG' ? 'LONG' : 'SHORT';
+      const sym = t.symbol.replace('/USD', '');
+      const pnl = t.unrealized_pnl || 0;
+      return `${dir} $${sym} · Entry $${parseFloat(t.entry).toLocaleString()} · Live $${(t.current_price || 0).toLocaleString()} · ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+    });
+    const totalUnrealized = trades.reduce((s, t) => s + (t.unrealized_pnl || 0), 0);
+    const reply = `Sentinel Open Positions (${trades.length})\n${lines.join('\n')}\nTotal Unrealized: ${totalUnrealized >= 0 ? '+' : ''}$${Math.abs(totalUnrealized).toFixed(2)}`;
+    return res.status(200).json({ action: 'info', reply });
+  }
+
+  if (quickType === 'market_sentiment') {
+    const cacheKey = `sophia:sentiment:v1`;
+    const cached = await redisGet(cacheKey);
+    if (cached) return res.status(200).json(cached);
+
+    // Fetch live market data for sentiment analysis
+    const symbols = 'SPY,QQQ,DIA,AAPL,NVDA,TSLA,BTC/USD,VIX';
+    let quotes = {};
+    try {
+      const r = await fetch(`https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${TWELVE_DATA_KEY}`);
+      quotes = await r.json();
+    } catch {}
+
+    // Build context for Claude
+    const marketContext = Object.entries(quotes).map(([sym, q]) => {
+      if (!q?.close) return null;
+      return `${sym}: $${parseFloat(q.close).toFixed(2)} (${parseFloat(q.percent_change) >= 0 ? '+' : ''}${parseFloat(q.percent_change).toFixed(2)}%)`;
+    }).filter(Boolean).join('\n');
+
+    const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+    const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'short', day: 'numeric' });
+
+    try {
+      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 300,
+          messages: [{
+            role: 'user',
+            content: `You are Sophia, a sharp trading AI. Give a concise real-time market sentiment reading based on this live data:\n\n${marketContext}\n\nTime: ${etTime} ET, ${etDate}\n\nRespond in this exact format:\n1. One word: BULLISH, BEARISH, or NEUTRAL\n2. One sentence explaining why based on the actual numbers above\n3. One sentence on what to watch next\n\nBe specific — cite the actual tickers and percentages. No fluff. Under 280 chars total after the sentiment word.`
+          }],
+        }),
+      });
+      const aiData = await aiRes.json();
+      const sentimentText = aiData.content?.[0]?.text?.trim() || 'Market data unavailable.';
+      const reply = `Market Sentiment · ${etDate} ${etTime} ET\n\n${sentimentText}`;
+      const result = { action: 'info', reply };
+      await redisSet(cacheKey, result, 120); // 2 min cache
+      return res.status(200).json(result);
+    } catch {
+      return res.status(200).json({ action: 'info', reply: 'Could not fetch market sentiment right now. Try again in a minute.' });
+    }
   }
   // ── END FAST PATH ────────────────────────────────────────────────────────
 

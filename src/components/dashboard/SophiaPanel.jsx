@@ -741,9 +741,9 @@ const SophiaPanel = ({
             {[
               'What\'s my daily P&L?',
               'Show my positions',
-              'What am I holding?',
               'Sentinel P&L',
-              'Sentinel open trades',
+              'Sentinel daily P&L',
+              'Market sentiment',
             ].map(cmd => (
               <button key={cmd} onClick={() => sendTradeMessage(cmd)}
                 className="px-3 py-1.5 rounded-full text-xs text-white border border-white/20 hover:bg-white/10 hover:border-white/40 transition-all font-medium">
