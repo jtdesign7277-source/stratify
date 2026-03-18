@@ -503,8 +503,10 @@ export default async function handler(req, res) {
         const bayes = bayesianScore(signal.setup, signal.regime, job.timeframe, brain, closedForBayes);
         log.push(`[BAYES] ${job.symbol} ${signal.setup}: prior=${bayes.prior} post=${bayes.posterior} n=${bayes.sampleSize}`);
 
-        // Require posterior > 0.45 to proceed (Bayesian gate)
-        if (bayes.posterior < 0.45) {
+        // Bayesian gate — LEARNING PHASE: threshold 0.30 until 100+ crypto trades
+        // Once Sentinel has enough data to make informed decisions, raise to 0.45
+        const BAYES_THRESHOLD = closedForBayes.length < 100 ? 0.30 : 0.45;
+        if (bayes.posterior < BAYES_THRESHOLD) {
           log.push(`[BAYES] Rejected — posterior ${bayes.posterior} below threshold`);
           try { await supabase.from('sentinel_signals').insert({
             symbol: job.symbol, timeframe: job.timeframe, signal_type: 'BAYES_REJECT',
