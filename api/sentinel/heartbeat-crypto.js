@@ -600,18 +600,23 @@ export default async function handler(req, res) {
         );
         log.push(`[KELLY] f*=${kelly.fStar} f=${kelly.f} dd=${kelly.dd}% safe=${kelly.safe}`);
 
-        // If Monte Carlo says max drawdown too high — reduce size or skip
-        if (!kelly.safe && kelly.dd > 25) {
+        // LEARNING PHASE: Don't let MC block trades — just cap position size conservatively
+        // Once we have 200+ trades, MC has enough data to trust its DD estimates
+        const isLearningPhase = closedForBayes.length < 200;
+        if (!isLearningPhase && !kelly.safe && kelly.dd > 25) {
           log.push(`[KELLY] Skipping — Monte Carlo DD ${kelly.dd}% exceeds 25% limit`);
           continue;
+        }
+        if (isLearningPhase && !kelly.safe) {
+          log.push(`[KELLY] Learning phase — MC DD ${kelly.dd}% high but proceeding with conservative sizing`);
         }
 
         // ── STEP 7: Size the trade ────────────────────────────────────────────
         const bal = account.current_balance || 500000;
         const stopDist = Math.abs(entryPrice - signal.stop);
 
-        // Kelly-informed risk: use kelly.riskPct but cap at hardcoded MAX_POSITION_PCT
-        const kellyRiskPct = kelly.f > 0 ? Math.min(kelly.riskPct / 100, 0.02) : (job.timeframe === '5min' ? 0.005 : 0.01);
+        // Learning phase: use conservative fixed 0.5% risk. Production: Kelly-informed capped at 2%
+        const kellyRiskPct = isLearningPhase ? 0.005 : (kelly.f > 0 ? Math.min(kelly.riskPct / 100, 0.02) : (job.timeframe === '5min' ? 0.005 : 0.01));
         const riskAmt = bal * kellyRiskPct;
         let size = stopDist > 0 ? riskAmt / stopDist : 0;
         let dollarSize = size * entryPrice;
