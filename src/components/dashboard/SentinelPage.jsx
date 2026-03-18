@@ -837,14 +837,14 @@ function SentinelPageInner() {
                   ))}
                 </div>
 
-                {/* Quick guide — always visible */}
-                <div className="mt-3 pt-3 border-t border-white/[0.06] text-[11px] font-mono text-white/30 leading-relaxed">
-                  <span className="text-white/50 font-semibold">How to read this:</span>{' '}
-                  <span className="text-cyan-400/60">Kelly</span> = how much to bet per trade (higher = stronger edge).{' '}
-                  <span className={`${(riskData.drawdown?.currentDrawdownPct || 0) > 10 ? 'text-red-400/60' : 'text-emerald-400/60'}`}>Drawdown</span> = distance from peak (want this near 0%).{' '}
-                  <span className="text-amber-400/60">VaR</span> = worst expected daily loss.{' '}
-                  <span className={`${(riskData.exposure?.leverageRatio || 0) > 1.5 ? 'text-red-400/60' : 'text-emerald-400/60'}`}>Leverage</span> = total exposure vs balance (under 1x is safe).
-                  <span className="text-white/20 ml-1">Hover any metric for details.</span>
+                {/* Quick guide — always visible, matching Polymarket text size */}
+                <div className="mt-3 pt-3 border-t border-white/[0.06] text-[13px] font-mono text-white/40 leading-relaxed">
+                  <span className="text-white/70 font-bold">How to read this:</span>{' '}
+                  <span className="text-cyan-400">Kelly</span> = how much to bet per trade (higher = stronger edge).{' '}
+                  <span className={`${(riskData.drawdown?.currentDrawdownPct || 0) > 10 ? 'text-red-400' : 'text-emerald-400'}`}>Drawdown</span> = distance from peak (want this near 0%).{' '}
+                  <span className="text-amber-400">VaR</span> = worst expected daily loss.{' '}
+                  <span className={`${(riskData.exposure?.leverageRatio || 0) > 1.5 ? 'text-red-400' : 'text-emerald-400'}`}>Leverage</span> = total exposure vs balance (under 1x is safe).
+                  <span className="text-white/25 ml-1">Hover any metric for details.</span>
                 </div>
 
                 <AnimatePresence>
@@ -1897,19 +1897,35 @@ function SentinelPageInner() {
               style={{ scrollbarWidth: 'none' }}
             >
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-white font-mono font-bold text-lg">
-                    {new Date(brainModalSession.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                  </h3>
-                  <div className="flex items-center gap-3 mt-1 text-xs font-mono">
-                    <span className="text-white">{brainModalSession.trades_fired || 0} trades</span>
-                    <span className="text-emerald-400">{brainModalSession.wins || 0}W</span>
-                    <span className="text-red-400">{brainModalSession.losses || 0}L</span>
-                    <span className={`font-semibold ${(brainModalSession.gross_pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      P&L: {(brainModalSession.gross_pnl || 0) >= 0 ? '+' : ''}${(brainModalSession.gross_pnl || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const isToday = brainModalSession.session_date === new Date().toISOString().slice(0, 10);
+                  const realized = brainModalSession.gross_pnl || 0;
+                  const unrealized = isToday ? liveUnrealizedPnl : 0;
+                  const displayPnl = realized + unrealized;
+                  const openCount = isToday ? openTrades.length : 0;
+                  return (
+                    <div>
+                      <h3 className="text-white font-mono font-bold text-lg">
+                        {new Date(brainModalSession.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                      </h3>
+                      <div className="flex items-center gap-3 mt-1 text-xs font-mono">
+                        <span className="text-white">{brainModalSession.trades_closed || brainModalSession.trades_fired || 0} closed</span>
+                        <span className="text-emerald-400">{brainModalSession.wins || 0}W</span>
+                        <span className="text-red-400">{brainModalSession.losses || 0}L</span>
+                        {openCount > 0 && <span className="text-amber-400">{openCount} open</span>}
+                        <span className={`font-semibold ${displayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          P&L: {displayPnl >= 0 ? '+' : ''}${displayPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      {isToday && unrealized !== 0 && (
+                        <div className="flex items-center gap-3 mt-0.5 text-[10px] font-mono text-white/30">
+                          <span>Realized: {fmtDollar(realized)}</span>
+                          <span>Unrealized: {fmtDollar(unrealized)}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <button onClick={() => setBrainModalSession(null)} className="text-gray-500 hover:text-white transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -2006,6 +2022,40 @@ function SentinelPageInner() {
                   );
                 }
 
+                // No report yet — show live data if today, or pending message for past dates
+                const isToday = brainModalSession.session_date === new Date().toISOString().slice(0, 10);
+                if (isToday && openTrades.length > 0) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-[10px] text-amber-400 uppercase tracking-widest font-semibold">Live Open Positions</div>
+                      <div className="space-y-2">
+                        {openTrades.map((trade) => {
+                          const { livePrice, pnl: tradePnl } = computePnl(trade, livePrices);
+                          return (
+                            <div key={trade.id} className="flex items-center justify-between text-xs font-mono py-1.5 px-2 rounded-lg bg-white/[0.02]">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${trade.direction === 'LONG' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
+                                  {trade.direction}
+                                </span>
+                                <span className="text-white font-semibold">${trade.symbol.replace('/USD', '')}</span>
+                                <span className="text-white/25">{trade.size > 1 ? Math.round(trade.size).toLocaleString() : trade.size?.toFixed(4)} sh</span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`font-semibold ${tradePnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtDollar(tradePnl)}</span>
+                                <div className="text-[9px] text-white/20">Entry {fmtPrice(trade.entry)} · Live {fmtPrice(livePrice)}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-mono pt-2 border-t border-white/[0.06]">
+                        <span className="text-white/40">Total Unrealized</span>
+                        <span className={`font-bold ${liveUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtDollar(liveUnrealizedPnl)}</span>
+                      </div>
+                      <p className="text-[11px] text-white/20 font-mono mt-2">Full analysis at 11pm ET — Sentinel will review today's trades, update model weights, and adjust strategy.</p>
+                    </div>
+                  );
+                }
                 return <p className="text-sm text-gray-500 font-mono">Analysis pending — Sentinel reviews daily at 11pm ET.</p>;
               })()}
 
