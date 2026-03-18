@@ -210,7 +210,7 @@ function useBotStream() {
             const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
             const todayStart = new Date(todayET + 'T00:00:00-05:00').getTime();
             const todayTrades = data.equityCurve.filter(p => p.t >= todayStart);
-            if (todayTrades.length > 0) {
+            if (todayTrades.length >= 3) {
               const prevClose = data.equityCurve.length > todayTrades.length
                 ? data.equityCurve[data.equityCurve.length - todayTrades.length - 1].v
                 : 0;
@@ -219,6 +219,12 @@ function useBotStream() {
               // If user is viewing daily, update with fresh daily data
               if (refs.current.pnlViewRef === 'daily') {
                 setPnl(dailyData);
+              }
+            } else {
+              // Not enough daily trades for a chart — keep daily empty
+              setPnlDaily([]);
+              if (refs.current.pnlViewRef === 'daily') {
+                setPnl([]);
               }
             }
           }
@@ -759,10 +765,15 @@ const EquityCurveCanvas = memo(function EquityCurveCanvas({ data }) {
 
     // Use raw P&L data as-is — the real trading curve
     const vals = data.map(d => d.v);
-    if (vals.length < 2) {
+    if (vals.length < 3) {
+      ctx.font = '11px monospace';
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.textAlign = 'center';
+      ctx.fillText(vals.length === 0 ? 'No trades closed today — switch to Total P&L' : 'Not enough data points yet...', W / 2, H / 2 - 8);
       ctx.font = '9px monospace';
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.fillText('Waiting for trades...', pad.left, H / 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillText('Daily view requires closed trades during the current session', W / 2, H / 2 + 12);
+      ctx.textAlign = 'left';
       return;
     }
 
@@ -1307,7 +1318,7 @@ Why it matters: Most traders blow up because they size too large. Monte Carlo pr
               </span>
             </button>
             <button
-              onClick={() => { setPnlView('daily'); setPnl(pnlDaily.length > 0 ? pnlDaily : [{ t: Date.now(), v: dailyPnl }]); if (vizMode !== 'equity') setVizMode('equity'); }}
+              onClick={() => { setPnlView('daily'); setPnl(pnlDaily.length >= 3 ? pnlDaily : []); if (vizMode !== 'equity') setVizMode('equity'); }}
               className="flex items-center gap-3 transition-all duration-200"
               style={{
                 cursor: 'pointer', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 6,
