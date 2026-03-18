@@ -226,4 +226,4 @@ function r(v) {
   return v != null && isFinite(v) ? Math.round(v * 100000) / 100000 : 0;
 }
 
-module.exports = { computeFeatures };
+export { computeFeatures };
