@@ -128,37 +128,58 @@ async function handleRequest(req, res) {
   const quickType = QUICK_COMMANDS[cmdKey];
 
   if (quickType === 'daily_pnl') {
-    // Try cache first (60s TTL per user)
-    const cacheKey = `sophia:daily_pnl:v3:${user.id}`;
+    const cacheKey = `sophia:daily_pnl:v4:${user.id}`;
     const cached = await redisGet(cacheKey);
     if (cached) return res.status(200).json(cached);
 
-    const portfolio = await getRealPortfolio(user.id);
+    // Fetch both user portfolio AND Sentinel data in parallel
+    const [portfolio, sentinelData] = await Promise.all([
+      getRealPortfolio(user.id),
+      getSentinelStatus(),
+    ]);
+
+    const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+
+    const lines = [`${etDate} · ${etTime} ET`, ''];
+
+    // User's paper portfolio
     const enriched = await Promise.all((portfolio.positions || []).map(async p => {
       const price = await getLivePrice(p.symbol); const qty = parseFloat(p.quantity); const avg = parseFloat(p.avg_cost_basis); const cur = price || avg;
       return { ...p, current_price: cur, market_value: qty * cur, pnl: qty * cur - qty * avg };
     }));
-    const totalMarketValueFast = enriched.reduce((s,p)=>s+p.market_value,0);
-    const totalAccountValue = portfolio.cash + totalMarketValueFast;
-    const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-    const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
-    const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
-    const todayTrades = portfolio.recentTrades.filter(t => new Date(t.created_at) >= todayMidnight);
-    const todayRealized = todayTrades.reduce((s,t) => t.side==='sell' ? s+(t.price*t.quantity - t.total_cost) : s, 0);
-    const unrealized = enriched.reduce((s,p)=>s+p.pnl,0);
-    const allTimePnl = totalAccountValue - portfolio.starting;
 
-    let reply;
-    if (enriched.length === 0 && todayTrades.length === 0) {
-      reply = `${etDate} · ${etTime} ET\nNo positions or trades today. Cash balance: $${portfolio.cash.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-    } else {
-      const lines = [`${etDate} · ${etTime} ET`];
-      if (unrealized !== 0) lines.push(`Unrealized P&L: ${unrealized>=0?'+':''}$${Math.abs(unrealized).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`);
-      if (todayRealized !== 0) lines.push(`Realized today: ${todayRealized>=0?'+':''}$${Math.abs(todayRealized).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`);
-      lines.push(`All-time P&L: ${allTimePnl>=0?'+':''}$${Math.abs(allTimePnl).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`);
-      reply = lines.join('\n');
+    if (enriched.length > 0) {
+      const unrealized = enriched.reduce((s,p)=>s+p.pnl,0);
+      const totalMarketValue = enriched.reduce((s,p)=>s+p.market_value,0);
+      const totalAccountValue = portfolio.cash + totalMarketValue;
+      const allTimePnl = totalAccountValue - portfolio.starting;
+      lines.push('YOUR PORTFOLIO');
+      lines.push(`Unrealized: ${unrealized>=0?'+':''}$${Math.abs(unrealized).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`);
+      lines.push(`All-time: ${allTimePnl>=0?'+':''}$${Math.abs(allTimePnl).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`);
+      lines.push(`${enriched.length} positions · $${portfolio.cash.toLocaleString('en-US',{minimumFractionDigits:0})} cash`);
+      lines.push('');
     }
-    const result = { action: 'info', reply };
+
+    // Sentinel bot P&L (always show)
+    if (sentinelData?.account) {
+      const acc = sentinelData.account;
+      const session = sentinelData.todaySession;
+      const unrealized = sentinelData.totalUnrealizedPnl || 0;
+      const todayRealized = session?.gross_pnl || 0;
+      const todayTotal = todayRealized + unrealized;
+      const totalPnl = (acc.total_pnl || 0) + unrealized;
+
+      lines.push('SENTINEL BOT');
+      lines.push(`Today: ${todayTotal>=0?'+':''}$${Math.abs(todayTotal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} (${session?.trades_closed||0} closed, ${sentinelData.openTrades?.length||0} open)`);
+      lines.push(`All-time: ${totalPnl>=0?'+':''}$${Math.abs(totalPnl).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} · ${(acc.win_rate||0).toFixed(1)}% WR · ${acc.closed_trades||0} trades`);
+    }
+
+    if (lines.length <= 2) {
+      lines.push('No positions or Sentinel data available.');
+    }
+
+    const result = { action: 'info', reply: lines.join('\n') };
     await redisSet(cacheKey, result, 60);
     return res.status(200).json(result);
   }
