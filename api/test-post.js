@@ -1,11 +1,9 @@
 /**
  * Manually trigger one X bot post immediately.
- * Calls the x-bot-v2 handler with type=market-open (no changes to x-bot-v2.js).
- * Redis lock test:lock (TTL 30s) prevents duplicate firing.
+ * Protected in production by the same CRON_SECRET used by Vercel cron jobs.
  */
 import { Redis } from '@upstash/redis';
 
-const TEST_LOCK_KEY = 'test:lock';
 const TEST_LOCK_TTL = 30;
 
 function getRedis() {
@@ -24,20 +22,29 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const cronSecret = String(process.env.CRON_SECRET || '').trim();
+  const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  if (!cronSecret) {
+    if (isProduction) {
+      return res.status(500).json({ error: 'CRON_SECRET is required in production' });
+    }
+  } else if (req.headers.authorization !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const type = req.query.type || 'market-open';
+  const testLockKey = `test:lock:${type}`;
   const redis = getRedis();
   if (redis) {
     try {
-      const existing = await redis.get(TEST_LOCK_KEY);
-      if (existing != null) {
+      const locked = await redis.set(testLockKey, '1', { nx: true, ex: TEST_LOCK_TTL });
+      if (locked !== 'OK') {
         return res.status(200).json({ status: 'skipped', reason: 'already fired recently' });
       }
-      await redis.set(TEST_LOCK_KEY, 'true', { ex: TEST_LOCK_TTL });
     } catch {
       // proceed without lock if Redis fails
     }
   }
-
-  const type = req.query.type || 'market-open';
 
   try {
     const xBotHandler = (await import('./x-bot-v2.js')).default;

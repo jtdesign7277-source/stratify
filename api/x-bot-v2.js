@@ -5,6 +5,7 @@
 import crypto from 'crypto';
 import { Redis } from '@upstash/redis';
 import { postToDiscord } from './lib/discord.js';
+import { fetchSnapshotsFromTwelveData, mapSnapshotsToBars } from './lib/stocks-cache.js';
 
 // ============================================================
 // APPROVED TICKERS — Bot ONLY posts about these. Period.
@@ -27,6 +28,27 @@ const ALL_STOCK_TICKERS = [
 ];
 
 const ALL_CRYPTO_TICKERS = APPROVED_TICKERS.crypto;
+const ET_TIME_ZONE = 'America/New_York';
+const SINGLE_POST_PER_DAY_TYPES = new Set([
+  'market-open',
+  'premarket',
+  'mag7',
+  'top-movers',
+  'market-close',
+  'crypto',
+  'thought-leader',
+  'hot-take',
+  'funny',
+  'sentinel-pnl',
+]);
+const SESSION_RULES_BY_TYPE = {
+  'market-open': ['regular'],
+  premarket: ['premarket'],
+  mag7: ['regular'],
+  'top-movers': ['regular'],
+  'market-close': ['afterhours'],
+  'sentinel-pnl': ['afterhours', 'closed'],
+};
 
 // ============================================================
 // VERIFIED NEWS SOURCES — Only trust these for breaking news
@@ -102,6 +124,10 @@ function pickScheduledOpener(quotes = {}) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+function getETDateKey() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: ET_TIME_ZONE });
+}
+
 function getRedis() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -111,6 +137,111 @@ function getRedis() {
   } catch {
     return null;
   }
+}
+
+async function acquireLock(redis, key, ttlSeconds) {
+  if (!redis || !key || !ttlSeconds) return true;
+  const result = await redis.set(key, '1', { nx: true, ex: ttlSeconds });
+  return result === 'OK';
+}
+
+function getRunLockKey(type) {
+  return `xbot:run:${type}:${getETDateKey()}`;
+}
+
+function getPostedKey(type) {
+  return `xbot:posted:${type}:${getETDateKey()}`;
+}
+
+function getTypeSessionSkipReason(type, session) {
+  const allowedSessions = SESSION_RULES_BY_TYPE[type];
+  if (!allowedSessions || allowedSessions.includes(session)) return null;
+  return `${type} posts only run during ${allowedSessions.join('/')} ET (current: ${session})`;
+}
+
+function formatSignedPercent(value) {
+  const numeric = Number(value) || 0;
+  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(2)}%`;
+}
+
+function formatPrice(value) {
+  const numeric = Number(value) || 0;
+  return numeric.toFixed(2);
+}
+
+function formatTickerForTweet(symbol) {
+  return `$${String(symbol || '').replace('/USD', '').split('/')[0]}`;
+}
+
+function buildMarketLine(symbol, price, percentChange) {
+  return `${formatTickerForTweet(symbol)} ${formatPrice(price)} (${formatSignedPercent(percentChange)})`;
+}
+
+function composeTweet(header, lines = [], footer = '') {
+  return [header, ...lines, footer].filter(Boolean).join('\n').trim();
+}
+
+function buildStructuredTweet(header, lines = [], footer = '') {
+  let activeLines = [...lines].filter(Boolean);
+  let tweet = composeTweet(header, activeLines, footer);
+  if (tweet.length <= 280) return tweet;
+
+  if (footer) {
+    tweet = composeTweet(header, activeLines, '');
+    if (tweet.length <= 280) return tweet;
+  }
+
+  while (tweet.length > 280 && activeLines.length > 1) {
+    activeLines = activeLines.slice(0, -1);
+    tweet = composeTweet(header, activeLines, '');
+  }
+
+  return tweet.length <= 280 ? tweet : `${tweet.slice(0, 277)}…`;
+}
+
+async function fetchVerifiedStockQuotes(symbols, options = {}) {
+  const useExtended = options.useExtended === true;
+  const snapshots = await fetchSnapshotsFromTwelveData(symbols);
+  const bars = mapSnapshotsToBars(snapshots, symbols);
+  const quotes = {};
+
+  for (const bar of bars) {
+    const price = useExtended
+      ? (bar.preMarketPrice ?? bar.extendedPrice ?? null)
+      : bar.price;
+    const percentChange = useExtended
+      ? (bar.preMarketChangePercent ?? bar.extendedPercentChange ?? null)
+      : bar.changePercent;
+    const change = useExtended
+      ? (bar.preMarketChange ?? bar.extendedChange ?? null)
+      : bar.change;
+
+    if (!Number.isFinite(price) || !Number.isFinite(percentChange)) continue;
+
+    quotes[bar.symbol] = {
+      price,
+      close: price,
+      change,
+      percent_change: percentChange,
+      market_session: bar.marketSession,
+    };
+  }
+
+  return quotes;
+}
+
+function sortQuotesByAbsoluteMove(quotes, symbols) {
+  return (symbols || Object.keys(quotes))
+    .map((symbol) => [symbol, quotes[symbol]])
+    .filter(([_, quote]) => quote && Number.isFinite(Number(quote.percent_change)))
+    .sort((a, b) => Math.abs(Number(b[1].percent_change)) - Math.abs(Number(a[1].percent_change)));
+}
+
+function sortQuotesByDirectionalMove(quotes, symbols) {
+  return (symbols || Object.keys(quotes))
+    .map((symbol) => [symbol, quotes[symbol]])
+    .filter(([_, quote]) => quote && Number.isFinite(Number(quote.percent_change)))
+    .sort((a, b) => Number(b[1].percent_change) - Number(a[1].percent_change));
 }
 
 // ============================================================
@@ -569,50 +700,21 @@ function verifyTweet(tweet, rawData) {
 // ============================================================
 
 async function generateMarketOpen(options = {}) {
-  // Fetch Mag 7 + top retail (prepost=true for pre-market session)
+  const isPremarket = options.prepost === true;
   const watchlist = [...APPROVED_TICKERS.mag7, ...APPROVED_TICKERS.indices];
-  const quotes = await fetchTwelveDataQuotes(watchlist, { prepost: options.prepost === true });
+  const quotes = await fetchVerifiedStockQuotes(watchlist, { useExtended: isPremarket });
 
   if (Object.keys(quotes).length === 0) {
     console.log('No quote data available, skipping');
     return null;
   }
 
-  // Sort by percent change
-  const sorted = Object.entries(quotes)
-    .filter(([_, q]) => q.percent_change)
-    .sort((a, b) => Math.abs(parseFloat(b[1].percent_change)) - Math.abs(parseFloat(a[1].percent_change)));
+  const sorted = sortQuotesByAbsoluteMove(quotes, watchlist).slice(0, isPremarket ? 5 : 5);
+  if (sorted.length < 3) return null;
 
-  // Build data block for Claude
-  const dataBlock = sorted.slice(0, 8).map(([sym, q]) => {
-    const pct = parseFloat(q.percent_change).toFixed(2);
-    const price = parseFloat(q.close).toFixed(2);
-    const direction = pct >= 0 ? '+' : '';
-    return `${sym}: $${price} (${direction}${pct}%)`;
-  }).join('\n');
-
-  const opener = pickScheduledOpener(quotes);
-  const isPremarket = options.prepost === true;
-  const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
-  const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
-
-  const prompt = isPremarket
-    ? `REAL DATA (use ONLY this):
-${dataBlock}
-
-These are PRE-MARKET prices as of ${etTime} ET on ${etDate}. Friday's close is shown if no pre-market trading has occurred yet for that ticker.
-Start the tweet with exactly: ${opener}
-Then write a market update. Note if prices reflect Friday's close due to no pre-market activity.
-Show the top movers with their exact prices and percentages from the data above. Format prices cleanly. Keep it tight and punchy.`
-    : `REAL DATA (use ONLY this):
-${dataBlock}
-
-Start the tweet with exactly: ${opener}
-Then write a market update. Show the top movers with their exact prices and percentages from the data above.
-Format prices cleanly. Keep it tight and punchy.`;
-
-  const tweet = await formatWithClaude(prompt);
-  if (!tweet) return null;
+  const header = isPremarket ? 'Pre-market check:' : 'Opening watch:';
+  const lines = sorted.map(([symbol, quote]) => buildMarketLine(symbol, quote.price, quote.percent_change));
+  const tweet = buildStructuredTweet(header, lines);
 
   const verification = verifyTweet(tweet, { quotes });
   if (!verification.approved) {
@@ -624,37 +726,16 @@ Format prices cleanly. Keep it tight and punchy.`;
 }
 
 async function generateTopMovers() {
-  // Fetch retail favorites + meme stocks
   const watchlist = [...APPROVED_TICKERS.retail, ...APPROVED_TICKERS.meme];
-  const quotes = await fetchTwelveDataQuotes(watchlist);
+  const quotes = await fetchVerifiedStockQuotes(watchlist);
 
   if (Object.keys(quotes).length === 0) return null;
 
-  // Sort by biggest movers
-  const sorted = Object.entries(quotes)
-    .filter(([_, q]) => q.percent_change)
-    .sort((a, b) => Math.abs(parseFloat(b[1].percent_change)) - Math.abs(parseFloat(a[1].percent_change)));
-
-  const topMovers = sorted.slice(0, 5);
+  const topMovers = sortQuotesByAbsoluteMove(quotes, watchlist).slice(0, 5);
   if (topMovers.length === 0) return null;
 
-  const dataBlock = topMovers.map(([sym, q]) => {
-    const pct = parseFloat(q.percent_change).toFixed(2);
-    const price = parseFloat(q.close).toFixed(2);
-    const direction = pct >= 0 ? '+' : '';
-    return `${sym}: $${price} (${direction}${pct}%)`;
-  }).join('\n');
-
-  const opener = pickScheduledOpener(quotes);
-  const prompt = `REAL DATA (use ONLY this):
-${dataBlock}
-
-Start the tweet with exactly: ${opener}
-Then write about the top retail stock movers right now. Show each ticker with exact price and percentage from the data.
-These are the stocks retail traders actually care about.`;
-
-  const tweet = await formatWithClaude(prompt);
-  if (!tweet) return null;
+  const lines = topMovers.map(([symbol, quote]) => buildMarketLine(symbol, quote.price, quote.percent_change));
+  const tweet = buildStructuredTweet('Retail movers:', lines);
 
   const verification = verifyTweet(tweet, { quotes });
   if (!verification.approved) {
@@ -666,31 +747,13 @@ These are the stocks retail traders actually care about.`;
 }
 
 async function generateMag7Update() {
-  const quotes = await fetchTwelveDataQuotes(APPROVED_TICKERS.mag7);
+  const quotes = await fetchVerifiedStockQuotes(APPROVED_TICKERS.mag7);
 
   if (Object.keys(quotes).length === 0) return null;
 
-  const sorted = Object.entries(quotes)
-    .filter(([_, q]) => q.percent_change)
-    .sort((a, b) => parseFloat(b[1].percent_change) - parseFloat(a[1].percent_change));
-
-  const dataBlock = sorted.map(([sym, q]) => {
-    const pct = parseFloat(q.percent_change).toFixed(2);
-    const price = parseFloat(q.close).toFixed(2);
-    const direction = pct >= 0 ? '+' : '';
-    return `${sym}: $${price} (${direction}${pct}%)`;
-  }).join('\n');
-
-  const opener = pickScheduledOpener(quotes);
-  const prompt = `REAL DATA (use ONLY this):
-${dataBlock}
-
-Start the tweet with exactly: ${opener}
-Then write a Mag 7 update tweet. Show all 7 stocks with their exact prices and percentages.
-Note which are leading and lagging today.`;
-
-  const tweet = await formatWithClaude(prompt);
-  if (!tweet) return null;
+  const sorted = sortQuotesByDirectionalMove(quotes, APPROVED_TICKERS.mag7);
+  const lines = sorted.map(([symbol, quote]) => buildMarketLine(symbol, quote.price, quote.percent_change));
+  const tweet = buildStructuredTweet('Mag 7 check:', lines);
 
   const verification = verifyTweet(tweet, { quotes });
   if (!verification.approved) {
@@ -838,31 +901,13 @@ async function generateBreakingNews() {
 }
 
 async function generateCryptoUpdate() {
-  // Twelve Data crypto symbols
   const quotes = await fetchTwelveDataQuotes(ALL_CRYPTO_TICKERS);
 
   if (Object.keys(quotes).length === 0) return null;
 
-  const dataBlock = Object.entries(quotes)
-    .filter(([_, q]) => q.close)
-    .map(([sym, q]) => {
-      const pct = parseFloat(q.percent_change || 0).toFixed(2);
-      const price = parseFloat(q.close).toFixed(2);
-      const ticker = sym.split('/')[0];
-      const direction = pct >= 0 ? '+' : '';
-      return `${ticker}: $${price} (${direction}${pct}%)`;
-    }).join('\n');
-
-  const opener = pickScheduledOpener({}); // no SPY for crypto
-  const prompt = `REAL DATA (use ONLY this):
-${dataBlock}
-
-Start the tweet with exactly: ${opener}
-Then write a crypto market update. Show the prices and percentages for each coin from the data above.
-Keep it clean and factual.`;
-
-  const tweet = await formatWithClaude(prompt);
-  if (!tweet) return null;
+  const sorted = sortQuotesByAbsoluteMove(quotes, ALL_CRYPTO_TICKERS).slice(0, 5);
+  const lines = sorted.map(([symbol, quote]) => buildMarketLine(symbol, quote.close, quote.percent_change));
+  const tweet = buildStructuredTweet('Crypto check:', lines);
 
   const verification = verifyTweet(tweet, { quotes });
   if (!verification.approved) {
@@ -986,49 +1031,22 @@ async function generateTrumpWatch() {
 
 async function generateMarketClose() {
   const watchlist = [...APPROVED_TICKERS.mag7, ...APPROVED_TICKERS.indices];
-  const quotes = await fetchTwelveDataQuotes(watchlist);
+  const quotes = await fetchVerifiedStockQuotes(watchlist);
 
   if (Object.keys(quotes).length === 0) return null;
 
-  // Separate indices and stocks
-  const indices = {};
-  const stocks = {};
-  for (const [sym, q] of Object.entries(quotes)) {
-    if (APPROVED_TICKERS.indices.includes(sym)) {
-      indices[sym] = q;
-    } else {
-      stocks[sym] = q;
-    }
-  }
-
-  const indicesBlock = Object.entries(indices).map(([sym, q]) => {
-    const pct = parseFloat(q.percent_change).toFixed(2);
-    const price = parseFloat(q.close).toFixed(2);
-    const direction = pct >= 0 ? '+' : '';
-    return `${sym}: $${price} (${direction}${pct}%)`;
-  }).join('\n');
-
-  const sorted = Object.entries(stocks)
-    .filter(([_, q]) => q.percent_change)
-    .sort((a, b) => parseFloat(b[1].percent_change) - parseFloat(a[1].percent_change));
-
-  const winner = sorted[0];
-  const loser = sorted[sorted.length - 1];
-
-  const opener = pickScheduledOpener(quotes);
-  const prompt = `REAL DATA (use ONLY this):
-INDICES:
-${indicesBlock}
-
-TODAY'S MAG 7 WINNER: ${winner[0]}: $${parseFloat(winner[1].close).toFixed(2)} (${parseFloat(winner[1].percent_change) >= 0 ? '+' : ''}${parseFloat(winner[1].percent_change).toFixed(2)}%)
-TODAY'S MAG 7 LAGGARD: ${loser[0]}: $${parseFloat(loser[1].close).toFixed(2)} (${parseFloat(loser[1].percent_change) >= 0 ? '+' : ''}${parseFloat(loser[1].percent_change).toFixed(2)}%)
-
-Start the tweet with exactly: ${opener}
-Then write a market close recap. Show index performance, then call out the day's winner and laggard from Mag 7.
-Keep it factual and tight.`;
-
-  const tweet = await formatWithClaude(prompt);
-  if (!tweet) return null;
+  const mag7Sorted = sortQuotesByDirectionalMove(quotes, APPROVED_TICKERS.mag7);
+  const winner = mag7Sorted[0];
+  const loser = mag7Sorted[mag7Sorted.length - 1];
+  const lines = [
+    ...APPROVED_TICKERS.indices
+      .filter((symbol) => quotes[symbol])
+      .slice(0, 3)
+      .map((symbol) => buildMarketLine(symbol, quotes[symbol].price, quotes[symbol].percent_change)),
+    winner ? `Leader ${buildMarketLine(winner[0], winner[1].price, winner[1].percent_change)}` : null,
+    loser ? `Lag ${buildMarketLine(loser[0], loser[1].price, loser[1].percent_change)}` : null,
+  ].filter(Boolean);
+  const tweet = buildStructuredTweet('Closing tape:', lines);
 
   const verification = verifyTweet(tweet, { quotes });
   if (!verification.approved) {
@@ -1238,12 +1256,14 @@ function getETSession() {
 // MAIN HANDLER — Vercel serverless function
 // ============================================================
 export default async function handler(req, res) {
-  // Verify cron secret to prevent unauthorized triggers
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
-    // Also allow without auth for testing (remove in production)
-    if (req.method !== 'GET' && !req.query.type) {
-      return res.status(401).json({ error: 'Unauthorized' });
+  const cronSecret = String(process.env.CRON_SECRET || '').trim();
+  const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  if (!cronSecret) {
+    if (isProduction) {
+      return res.status(500).json({ error: 'CRON_SECRET is required in production' });
     }
+  } else if (req.headers.authorization !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   // Auto-engagement: run every 30 min via cron (?type=engagement); no session check
@@ -1266,23 +1286,45 @@ export default async function handler(req, res) {
   }
 
   let type = req.query.type || 'market-open';
-  
-  
+
+  const sessionSkipReason = getTypeSessionSkipReason(type, session);
+  if (sessionSkipReason) {
+    return res.status(200).json({
+      status: 'skipped',
+      reason: sessionSkipReason,
+    });
+  }
 
   const redisLock = getRedis();
-  if (redisLock) {
-    try {
-      const lockKey = `xbot:lock:${type}`;
-      const existing = await redisLock.get(lockKey);
-      if (existing != null) {
+  const runLockKey = getRunLockKey(type);
+  let runLockAcquired = false;
+  const postedKey = SINGLE_POST_PER_DAY_TYPES.has(type) ? getPostedKey(type) : null;
+
+  try {
+    if (redisLock && postedKey) {
+      const alreadyPosted = await redisLock.get(postedKey);
+      if (alreadyPosted != null) {
         return res.status(200).json({
           status: 'skipped',
-          reason: 'Duplicate post prevented (lock active)',
+          reason: `Daily post already sent for ${type}`,
         });
       }
-      await redisLock.set(lockKey, '1', { ex: 60 });
-    } catch {
-      // proceed without lock if Redis fails
+    }
+  } catch (error) {
+    console.error('[xbot] Posted-key check error:', error?.message || error);
+  }
+
+  if (redisLock) {
+    try {
+      runLockAcquired = await acquireLock(redisLock, runLockKey, 300);
+      if (!runLockAcquired) {
+        return res.status(200).json({
+          status: 'skipped',
+          reason: 'Duplicate post prevented (run lock active)',
+        });
+      }
+    } catch (error) {
+      console.error('[xbot] Run-lock error:', error?.message || error);
     }
   }
 
@@ -1380,6 +1422,14 @@ export default async function handler(req, res) {
     // Post to X
     const result = await postTweet(tweet);
 
+    if (redisLock && postedKey) {
+      try {
+        await redisLock.set(postedKey, result.data?.id || tweet, { ex: getMidnightTTL() });
+      } catch (error) {
+        console.error('[xbot] Failed to persist posted-key:', error?.message || error);
+      }
+    }
+
     let webhookUrl;
     if (type === 'premarket' || type === 'market-open' || type === 'midday' || type === 'market-close') {
       webhookUrl = process.env.DISCORD_WEBHOOK_MARKET_TALK;
@@ -1426,5 +1476,13 @@ export default async function handler(req, res) {
       status: 'error',
       error: error.message,
     });
+  } finally {
+    if (redisLock && runLockAcquired) {
+      try {
+        await redisLock.del(runLockKey);
+      } catch (error) {
+        console.error('[xbot] Failed to release run-lock:', error?.message || error);
+      }
+    }
   }
 }
