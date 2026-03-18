@@ -10,6 +10,20 @@ const supabase = createClient(
   );
 
 const TD_KEY = process.env.TWELVE_DATA_API_KEY;
+const SESSION_TIME_ZONE = 'America/New_York';
+
+function getDateKeyInTimeZone(value = Date.now(), timeZone = SESSION_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(value));
+  const year = parts.find((part) => part.type === 'year')?.value || '0000';
+  const month = parts.find((part) => part.type === 'month')?.value || '01';
+  const day = parts.find((part) => part.type === 'day')?.value || '01';
+  return `${year}-${month}-${day}`;
+}
 
 async function fetchCurrentPrices(symbols) {
     if (!symbols.length || !TD_KEY) return {};
@@ -53,7 +67,7 @@ export default async function handler(req, res) {
         const cached = await redis.get(cacheKey).catch(() => null);
         if (cached) { return res.status(200).json(cached); }
 
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getDateKeyInTimeZone();
 
       const [accountRes, sessionRes, recentSessionsRes, openTradesRes, closedTradesRes, allClosedPnlRes, memoryRes, polyOpenRes, polyClosedRes] = await Promise.all([
               supabase.from('sentinel_account').select('*').eq('id', '00000000-0000-0000-0000-000000000001').single(),

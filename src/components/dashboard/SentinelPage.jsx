@@ -22,9 +22,30 @@ const RISK_PRESET_CLASSES = {
   orange:  { active: 'text-orange-400 border-orange-500/30', inactive: 'text-gray-600 border-white/[0.06]' },
   red:     { active: 'text-red-400 border-red-500/30', inactive: 'text-gray-600 border-white/[0.06]' },
 };
+const SESSION_TIME_ZONE = 'America/New_York';
 
 const fmtDollar = (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtPrice = (v) => v != null ? `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+
+function getDateKeyInTimeZone(value = Date.now(), timeZone = SESSION_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(value));
+  const year = parts.find((part) => part.type === 'year')?.value || '0000';
+  const month = parts.find((part) => part.type === 'month')?.value || '01';
+  const day = parts.find((part) => part.type === 'day')?.value || '01';
+  return `${year}-${month}-${day}`;
+}
+
+function getTradeSessionDateKey(trade) {
+  if (trade?.session_date) return trade.session_date;
+  if (trade?.closed_at) return getDateKeyInTimeZone(trade.closed_at);
+  if (trade?.opened_at) return getDateKeyInTimeZone(trade.opened_at);
+  return null;
+}
 
 function computePnl(trade, livePrices) {
   const lp = livePrices[trade.symbol.toUpperCase()]?.price;
@@ -461,7 +482,8 @@ function SentinelPageInner() {
     return (realizedBase + liveUnrealizedPnl) - STARTING_BALANCE;
   }, [data?.account?.current_balance, liveUnrealizedPnl]);
 
-  const recentSessions = data?.recentSessions || [];
+  const currentSessionDate = getDateKeyInTimeZone();
+  const rawRecentSessions = data?.recentSessions || [];
   const recentClosedTrades = data?.recentClosedTrades || [];
   // Single source of truth: total trades = closed + open
   const openTradeCount = openTrades.length;
@@ -489,22 +511,44 @@ function SentinelPageInner() {
   const tradesBySession = useMemo(() => {
     const map = {};
     for (const trade of recentClosedTrades) {
-      const date = trade.session_date || (trade.closed_at ? trade.closed_at.slice(0, 10) : 'unknown');
+      const date = getTradeSessionDateKey(trade) || 'unknown';
       if (!map[date]) map[date] = [];
       map[date].push(trade);
     }
     return map;
   }, [recentClosedTrades]);
 
-  // Derive today's realized P&L using local midnight (consistent with todayLocalPnl)
-  const todayRealizedPnl = useMemo(() => {
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
-    const ms = midnight.getTime();
-    return recentClosedTrades
-      .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms; })
-      .reduce((sum, t) => sum + (t.pnl || 0), 0);
-  }, [recentClosedTrades]);
+  const sessionStatsByDate = useMemo(() => {
+    const stats = {};
+    Object.entries(tradesBySession).forEach(([date, trades]) => {
+      const grossPnl = trades.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
+      const wins = trades.filter((trade) => trade.win).length;
+      const tradesClosed = trades.length;
+      stats[date] = {
+        gross_pnl: Math.round(grossPnl * 100) / 100,
+        wins,
+        losses: tradesClosed - wins,
+        trades_closed: tradesClosed,
+        trades_fired: tradesClosed,
+      };
+    });
+    return stats;
+  }, [tradesBySession]);
+
+  const recentSessions = useMemo(() => (
+    rawRecentSessions.map((session) => {
+      const computed = sessionStatsByDate[session.session_date];
+      if (!computed) return session;
+      return {
+        ...session,
+        gross_pnl: computed.gross_pnl,
+        wins: computed.wins,
+        losses: computed.losses,
+        trades_closed: computed.trades_closed,
+        trades_fired: session.trades_fired ?? computed.trades_closed,
+      };
+    })
+  ), [rawRecentSessions, sessionStatsByDate]);
 
   // Classify trade as crypto or equity
   const isCryptoTrade = useCallback((trade) => {
@@ -520,33 +564,21 @@ function SentinelPageInner() {
   const cryptoOpenPnl = useMemo(() => cryptoOpenTrades.reduce((s, t) => s + computePnl(t, livePrices).pnl, 0), [cryptoOpenTrades, livePrices]);
   const equityOpenPnl = useMemo(() => equityOpenTrades.reduce((s, t) => s + computePnl(t, livePrices).pnl, 0), [equityOpenTrades, livePrices]);
 
-  // Today's P&L using local midnight (matches session history "Today" filter)
-  const todayLocalPnl = useMemo(() => {
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
-    const ms = midnight.getTime();
-    return recentClosedTrades
-      .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms; })
-      .reduce((sum, t) => sum + (t.pnl || 0), 0);
-  }, [recentClosedTrades]);
+  const todaySessionStats = sessionStatsByDate[currentSessionDate] || null;
+  const todaySessionRealizedPnl = todaySessionStats?.gross_pnl ?? todaySession.gross_pnl ?? 0;
+  const todaySessionTotalPnl = todaySessionRealizedPnl + liveUnrealizedPnl;
 
-  // Today's P&L split by crypto vs equity
+  // Today's ET session P&L split by crypto vs equity
   const todayCryptoPnl = useMemo(() => {
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
-    const ms = midnight.getTime();
     return recentClosedTrades
-      .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms && isCryptoTrade(t); })
+      .filter((trade) => getTradeSessionDateKey(trade) === currentSessionDate && isCryptoTrade(trade))
       .reduce((sum, t) => sum + (t.pnl || 0), 0);
-  }, [recentClosedTrades, isCryptoTrade]);
+  }, [recentClosedTrades, currentSessionDate, isCryptoTrade]);
   const todayEquityPnl = useMemo(() => {
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
-    const ms = midnight.getTime();
     return recentClosedTrades
-      .filter(t => { const ts = t.opened_at || t.closed_at; return ts && new Date(ts).getTime() >= ms && !isCryptoTrade(t); })
+      .filter((trade) => getTradeSessionDateKey(trade) === currentSessionDate && !isCryptoTrade(trade))
       .reduce((sum, t) => sum + (t.pnl || 0), 0);
-  }, [recentClosedTrades, isCryptoTrade]);
+  }, [recentClosedTrades, currentSessionDate, isCryptoTrade]);
 
   // All-time P&L split
   const allTimeCryptoPnl = useMemo(() => recentClosedTrades.filter(t => isCryptoTrade(t)).reduce((s, t) => s + (t.pnl || 0), 0), [recentClosedTrades, isCryptoTrade]);
@@ -612,7 +644,7 @@ function SentinelPageInner() {
           <AppErrorBoundary>
             <SentinelEngine
               sentinelTotalPnl={accountTotalPnl}
-              sentinelDailyPnl={todayCryptoPnl + todayEquityPnl + cryptoOpenPnl + equityOpenPnl}
+              sentinelDailyPnl={todaySessionTotalPnl}
               sentinelAccount={account}
               sentinelTotalTrades={unifiedTotalTrades}
               sentinelOpenCount={openTradeCount}
@@ -633,7 +665,7 @@ function SentinelPageInner() {
               </div>
               {(() => {
                 const pctChange = (accountTotalPnl / STARTING_BALANCE) * 100;
-                const todayTotal = todayCryptoPnl + todayEquityPnl + cryptoOpenPnl + equityOpenPnl;
+                const todayTotal = todaySessionTotalPnl;
                 const todayPct = (todayTotal / STARTING_BALANCE) * 100;
                 return (
                   <>
@@ -1054,19 +1086,13 @@ function SentinelPageInner() {
               {/* FILTERED TRADES — shared across stat cards, rows, and footer */}
               {(() => {
                 const CRYPTO_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOGE/USD', 'BTC', 'ETH', 'SOL'];
-                const todayStart = new Date();
-                todayStart.setHours(0, 0, 0, 0);
-                const todayStartMs = todayStart.getTime();
                 let filteredTrades = [...recentClosedTrades];
 
                 // Asset class filter
                 if (assetClassFilter === 'Crypto') filteredTrades = filteredTrades.filter(t => CRYPTO_SYMBOLS.some(c => t.symbol?.includes(c)));
                 else if (assetClassFilter === 'Equity') filteredTrades = filteredTrades.filter(t => !CRYPTO_SYMBOLS.some(c => t.symbol?.includes(c)));
 
-                if (todayOnly) filteredTrades = filteredTrades.filter(t => {
-                  const ts = t.opened_at || t.closed_at;
-                  return ts && new Date(ts).getTime() >= todayStartMs;
-                });
+                if (todayOnly) filteredTrades = filteredTrades.filter((trade) => getTradeSessionDateKey(trade) === currentSessionDate);
                 if (statusFilter === 'Wins') filteredTrades = filteredTrades.filter(t => t.win);
                 else if (statusFilter === 'Losses') filteredTrades = filteredTrades.filter(t => !t.win);
                 if (tickerFilter) filteredTrades = filteredTrades.filter(t => t.symbol?.includes(tickerFilter));
@@ -1082,15 +1108,29 @@ function SentinelPageInner() {
                 const winTrades = filteredTrades.filter(t => t.win && t.pnl > 0);
                 const avgWin = winTrades.length > 0 ? winTrades.reduce((s, t) => s + (t.pnl || 0), 0) / winTrades.length : 0;
                 const netPnl = filteredTrades.reduce((s, t) => s + (t.pnl || 0), 0);
+                const isTodaySessionRollup = todayOnly && statusFilter === 'All' && !tickerFilter;
+                const liveSessionPnl = assetClassFilter === 'Crypto'
+                  ? todayCryptoPnl + cryptoOpenPnl
+                  : assetClassFilter === 'Equity'
+                    ? todayEquityPnl + equityOpenPnl
+                    : todaySessionTotalPnl;
+                const realizedSessionPnl = assetClassFilter === 'Crypto'
+                  ? todayCryptoPnl
+                  : assetClassFilter === 'Equity'
+                    ? todayEquityPnl
+                    : todaySessionRealizedPnl;
+                const statNetPnl = isTodaySessionRollup ? liveSessionPnl : netPnl;
+                const statNetPnlLabel = isTodaySessionRollup ? 'Session P&L' : 'Net P&L';
+                const openPnlContribution = isTodaySessionRollup ? (liveSessionPnl - realizedSessionPnl) : 0;
 
                 return (<>
               {/* STAT CARDS */}
               <div className="grid grid-cols-4 gap-3 mt-4">
                 {[
                   { label: 'Trades', value: totalTrades, fmt: (v) => v.toString(), color: 'text-white' },
-                  { label: 'Win Rate', value: winRate, fmt: (v) => `${v.toFixed(1)}%`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                  { label: 'Win Rate', value: winRate, fmt: (v) => `${v.toFixed(1)}%`, color: statNetPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
                   { label: 'Avg Win', value: avgWin, fmt: (v) => `$${v.toFixed(2)}`, color: 'text-emerald-400' },
-                  { label: 'Net P&L', value: netPnl, fmt: (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: netPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                  { label: statNetPnlLabel, value: statNetPnl, fmt: (v) => `${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: statNetPnl >= 0 ? 'text-emerald-400' : 'text-red-400' },
                 ].map((stat) => (
                   <div key={stat.label} className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-xl rounded-2xl border border-white/[0.06] p-3">
                     <div className="text-[11px] uppercase tracking-[0.4px] text-white/30">{stat.label}</div>
@@ -1098,6 +1138,15 @@ function SentinelPageInner() {
                   </div>
                 ))}
               </div>
+
+              {isTodaySessionRollup && (
+                <div className="mt-3 px-1 text-[11px] font-mono text-white/35">
+                  Realized {fmtDollar(realizedSessionPnl)}{' '}
+                  <span className={openPnlContribution >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}>
+                    Open {fmtDollar(openPnlContribution)}
+                  </span>
+                </div>
+              )}
 
               {/* FILTER PILLS */}
               <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -1222,9 +1271,9 @@ function SentinelPageInner() {
 
               {/* TOTAL P&L FOOTER */}
               {filteredTrades.length > 0 && (() => {
-                const isFiltered = todayOnly || statusFilter !== 'All' || !!tickerFilter;
-                const footerValue = isFiltered ? netPnl : accountTotalPnl;
-                const footerLabel = isFiltered ? 'Filtered P&L' : 'Total P&L';
+                const isFiltered = todayOnly || statusFilter !== 'All' || !!tickerFilter || assetClassFilter !== 'All';
+                const footerValue = isTodaySessionRollup ? statNetPnl : (isFiltered ? netPnl : accountTotalPnl);
+                const footerLabel = isTodaySessionRollup ? 'Today Session Total' : (isFiltered ? 'Filtered P&L' : 'Total P&L');
                 return (
                   <div className="flex items-center justify-between pt-3 mt-2 border-t border-white/[0.06] px-1 text-xs font-mono">
                     <span className="text-white/30">{footerLabel}</span>
@@ -1410,9 +1459,8 @@ function SentinelPageInner() {
                             </span>
                             <div className="flex items-center gap-2">
                               {(() => {
-                                const today = new Date().toISOString().slice(0, 10);
-                                const isToday = session.session_date === today;
-                                const displayPnl = isToday ? (session.gross_pnl || 0) + liveUnrealizedPnl : (session.gross_pnl || 0);
+                                const isToday = session.session_date === currentSessionDate;
+                                const displayPnl = isToday ? todaySessionTotalPnl : (session.gross_pnl || 0);
                                 return (
                                   <span className={`${displayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {displayPnl >= 0 ? '+' : ''}${displayPnl.toFixed(0)}
@@ -1455,8 +1503,8 @@ function SentinelPageInner() {
                 {recentSessions.map((session) => {
                   const hasReport = !!session.claude_analysis;
                   const pnl = session.gross_pnl || 0;
-                  const isToday = session.session_date === new Date().toISOString().slice(0, 10);
-                  const displayPnl = isToday ? pnl + liveUnrealizedPnl : pnl;
+                  const isToday = session.session_date === currentSessionDate;
+                  const displayPnl = isToday ? todaySessionTotalPnl : pnl;
                   return (
                     <motion.button
                       key={session.id}
@@ -1922,7 +1970,7 @@ function SentinelPageInner() {
             >
               <div className="flex items-center justify-between mb-4">
                 {(() => {
-                  const isToday = brainModalSession.session_date === new Date().toISOString().slice(0, 10);
+                  const isToday = brainModalSession.session_date === currentSessionDate;
                   const realized = brainModalSession.gross_pnl || 0;
                   const unrealized = isToday ? liveUnrealizedPnl : 0;
                   const displayPnl = realized + unrealized;
@@ -2047,7 +2095,7 @@ function SentinelPageInner() {
                 }
 
                 // No report yet — show live data if today, or pending message for past dates
-                const isToday = brainModalSession.session_date === new Date().toISOString().slice(0, 10);
+                const isToday = brainModalSession.session_date === currentSessionDate;
                 if (isToday && openTrades.length > 0) {
                   return (
                     <div className="space-y-3">
