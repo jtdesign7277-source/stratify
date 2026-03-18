@@ -1505,33 +1505,34 @@ function SentinelPageInner() {
                   const pnl = session.gross_pnl || 0;
                   const isToday = session.session_date === currentSessionDate;
                   const displayPnl = isToday ? todaySessionTotalPnl : pnl;
+                  const sessionStatusLabel = hasReport ? 'Report ready' : isToday ? 'Live session' : 'Session recap';
                   return (
                     <motion.button
                       key={session.id}
                       onClick={(e) => { e.stopPropagation(); setBrainModalSession(session); }}
                       whileHover={{ x: 2, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                      className="flex items-center justify-between w-full py-2.5 px-3 rounded-xl text-xs font-mono transition-all duration-300 text-left"
+                      className="flex items-start justify-between w-full gap-3 py-2.5 px-3 rounded-xl text-xs font-mono transition-all duration-300 text-left"
                     >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span>{hasReport ? '📊' : isToday ? '⏳' : '⚠️'}</span>
+                      <div className="flex items-start gap-2 flex-1 min-w-0">
+                        <span className={`pt-0.5 flex-shrink-0 ${hasReport ? '' : isToday ? '' : 'text-white/25'}`}>
+                          {hasReport ? '📊' : isToday ? '⏳' : '•'}
+                        </span>
                         <div className="flex-1 min-w-0">
-                          <span className="text-gray-200">
+                          <div className="text-gray-200 leading-none">
                             {new Date(session.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                          </span>
-                          <span className="text-gray-600 ml-2">
-                            {session.trades_closed || 0}T · {session.wins || 0}W · {session.losses || 0}L
-                          </span>
+                          </div>
+                          <div className="text-[10px] text-gray-600 mt-1 leading-none truncate">
+                            {session.trades_closed || 0}T · {session.wins || 0}W · {session.losses || 0}L · {sessionStatusLabel}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0 pt-0.5">
                         <span className={`font-semibold ${displayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {displayPnl >= 0 ? '+' : ''}${displayPnl.toFixed(0)}
                         </span>
-                        {hasReport ? (
-                          <span className="text-emerald-500/60 text-[9px]">read →</span>
-                        ) : (
-                          <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                        )}
+                        <span className={`text-[9px] ${hasReport ? 'text-emerald-500/60' : 'text-white/25'}`}>
+                          {hasReport ? 'read →' : 'view →'}
+                        </span>
                       </div>
                     </motion.button>
                   );
@@ -2094,7 +2095,7 @@ function SentinelPageInner() {
                   );
                 }
 
-                // No report yet — show live data if today, or pending message for past dates
+                // No report yet — show live data if today, or a neutral recap for past dates
                 const isToday = brainModalSession.session_date === currentSessionDate;
                 if (isToday && openTrades.length > 0) {
                   return (
@@ -2128,7 +2129,44 @@ function SentinelPageInner() {
                     </div>
                   );
                 }
-                return <p className="text-sm text-gray-500 font-mono">Analysis pending — Sentinel reviews daily at 11pm ET.</p>;
+                const sessionTrades = tradesBySession[brainModalSession.session_date] || [];
+                const bestTrade = sessionTrades.length > 0 ? [...sessionTrades].sort((a, b) => (b.pnl || 0) - (a.pnl || 0))[0] : null;
+                const worstTrade = sessionTrades.length > 0 ? [...sessionTrades].sort((a, b) => (a.pnl || 0) - (b.pnl || 0))[0] : null;
+                const avgTradePnl = sessionTrades.length > 0
+                  ? sessionTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0) / sessionTrades.length
+                  : 0;
+                return (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+                      <div className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Session Recap</div>
+                      <p className="mt-2 text-sm text-gray-300 font-mono leading-relaxed">
+                        No saved AI report was found for this session. Trade results are still available below.
+                      </p>
+                    </div>
+                    {sessionTrades.length > 0 && (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                          <div className="text-[10px] text-gray-500 uppercase tracking-widest">Avg Trade</div>
+                          <div className={`mt-2 text-sm font-mono font-semibold ${avgTradePnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {fmtDollar(avgTradePnl)}
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                          <div className="text-[10px] text-gray-500 uppercase tracking-widest">Best Trade</div>
+                          <div className="mt-2 text-sm font-mono font-semibold text-emerald-400">
+                            {bestTrade ? `${bestTrade.symbol} ${fmtDollar(bestTrade.pnl || 0)}` : '—'}
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                          <div className="text-[10px] text-gray-500 uppercase tracking-widest">Worst Trade</div>
+                          <div className="mt-2 text-sm font-mono font-semibold text-red-400">
+                            {worstTrade ? `${worstTrade.symbol} ${fmtDollar(worstTrade.pnl || 0)}` : '—'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
               })()}
 
               {brainModalSession.adjustments_made && (
