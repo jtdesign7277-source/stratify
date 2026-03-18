@@ -49,8 +49,8 @@ function PositionRow({ trade, i, showDollar = false, livePrices }) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={`text-sm ${trade.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
-            {trade.direction === 'LONG' ? '↑' : '↓'}
+          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${trade.direction === 'LONG' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
+            {trade.direction === 'LONG' ? 'LONG' : 'SHORT'}
           </span>
           <span className="text-white font-bold text-[13px]">${trade.symbol.replace('/USD', '')}</span>
           <span className="text-white/25 text-[10px]">{shares > 1 ? Math.round(shares).toLocaleString() : shares.toFixed(4)} shares</span>

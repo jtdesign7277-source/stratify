@@ -136,8 +136,6 @@ async function handleRequest(req, res) {
       const price = await getLivePrice(p.symbol); const qty = parseFloat(p.quantity); const avg = parseFloat(p.avg_cost_basis); const cur = price || avg;
       return { ...p, current_price: cur, market_value: qty * cur, pnl: qty * cur - qty * avg };
     }));
-    const totalAccountValue = portfolio.cash + enriched.reduce((s,p)=>s+p.market_value,0);
-    const totalPnl = totalAccountValue - portfolio.starting;
     const totalMarketValueFast = enriched.reduce((s,p)=>s+p.market_value,0);
     const totalAccountValue = portfolio.cash + totalMarketValueFast;
     const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
