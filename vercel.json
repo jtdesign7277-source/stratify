@@ -110,6 +110,10 @@
             "schedule": "*/30 13-22 * * *"
         },
         {
+            "path": "/api/x-bot-v2?type=engagement",
+            "schedule": "*/30 13-23 * * *"
+        },
+        {
             "path": "/api/x-bot-v2?type=thought-leader",
             "schedule": "0 14 * * 1-5"
         },
