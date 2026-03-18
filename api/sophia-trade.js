@@ -170,9 +170,10 @@ async function handleRequest(req, res) {
       const todayTotal = todayRealized + unrealized;
       const totalPnl = (acc.total_pnl || 0) + unrealized;
 
+      const s = (v) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
       lines.push('SENTINEL BOT');
-      lines.push(`Today: ${todayTotal>=0?'+':''}$${Math.abs(todayTotal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} (${session?.trades_closed||0} closed, ${sentinelData.openTrades?.length||0} open)`);
-      lines.push(`All-time: ${totalPnl>=0?'+':''}$${Math.abs(totalPnl).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} · ${(acc.win_rate||0).toFixed(1)}% WR · ${acc.closed_trades||0} trades`);
+      lines.push(`Today: ${s(todayTotal)} (${session?.trades_closed||0} closed, ${sentinelData.openTrades?.length||0} open)`);
+      lines.push(`All-time: ${s(totalPnl)} · ${(acc.win_rate||0).toFixed(1)}% WR · ${acc.closed_trades||0} trades`);
     }
 
     if (lines.length <= 2) {
@@ -211,7 +212,8 @@ async function handleRequest(req, res) {
     const totalTrades = acc.closed_trades || 0;
     const unrealized = sentinelData.totalUnrealizedPnl || 0;
     const livePnl = totalPnl + unrealized;
-    const reply = `Sentinel All-Time P&L\nRealized: ${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toLocaleString('en-US', {minimumFractionDigits:2})}\nUnrealized: ${unrealized >= 0 ? '+' : ''}$${Math.abs(unrealized).toLocaleString('en-US', {minimumFractionDigits:2})}\nLive Total: ${livePnl >= 0 ? '+' : ''}$${Math.abs(livePnl).toLocaleString('en-US', {minimumFractionDigits:2})}\nWin Rate: ${winRate.toFixed(1)}% · ${totalTrades} closed trades`;
+    const fmt = (v) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+    const reply = `Sentinel All-Time P&L\nRealized: ${fmt(totalPnl)}\nUnrealized: ${fmt(unrealized)}\nLive Total: ${fmt(livePnl)}\nWin Rate: ${winRate.toFixed(1)}% · ${totalTrades} closed trades`;
     return res.status(200).json({ action: 'info', reply });
   }
 
@@ -224,7 +226,8 @@ async function handleRequest(req, res) {
     const todayTotal = realized + unrealized;
     const etDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' });
     const etTime = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
-    const reply = `Sentinel Daily P&L · ${etDate}\n${etTime} ET\nRealized: ${realized >= 0 ? '+' : ''}$${Math.abs(realized).toLocaleString('en-US', {minimumFractionDigits:2})} (${session?.trades_closed || 0} trades closed)\nUnrealized: ${unrealized >= 0 ? '+' : ''}$${Math.abs(unrealized).toLocaleString('en-US', {minimumFractionDigits:2})} (${sentinelData.openTrades?.length || 0} open)\nToday Total: ${todayTotal >= 0 ? '+' : ''}$${Math.abs(todayTotal).toLocaleString('en-US', {minimumFractionDigits:2})}`;
+    const f = (v) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+    const reply = `Sentinel Daily P&L · ${etDate}\n${etTime} ET\nRealized: ${f(realized)} (${session?.trades_closed || 0} trades closed)\nUnrealized: ${f(unrealized)} (${sentinelData.openTrades?.length || 0} open)\nToday Total: ${f(todayTotal)}`;
     return res.status(200).json({ action: 'info', reply });
   }
 
