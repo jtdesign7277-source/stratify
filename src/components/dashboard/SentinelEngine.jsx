@@ -29,6 +29,18 @@ const COLORS = {
   white: '#ffffff',
 };
 
+function getEtDateKey(value = Date.now()) {
+  return new Date(value).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
+function appendEquityPoint(series = [], nextValue) {
+  if (!Number.isFinite(Number(nextValue))) return series;
+  const normalizedValue = Math.round(Number(nextValue) * 100) / 100;
+  const last = series[series.length - 1];
+  if (last && Math.abs(last.v - normalizedValue) < 0.5) return series;
+  return [...series, { t: Date.now(), v: normalizedValue }].slice(-500);
+}
+
 // ─── Crypto.com WebSocket for real-time BTC ticks ──────────────────────────
 function useCryptoComWS() {
   const [price, setPrice] = useState(null);
@@ -95,7 +107,7 @@ function useCryptoComWS() {
 }
 
 // ─── Live data hook with simulation fallback ───────────────────────────────
-function useBotStream() {
+function useBotStream(liveTotalPnl, liveDailyPnl) {
   const [tick, setTick] = useState({ block: 0, vol: 0, edge: 0 });
   const [bayesian, setBayesian] = useState({ prior: 0.5, post: 0.5, ev: 0, epoch: 0, loss: 0, conf: 0 });
   const [edge, setEdge] = useState({ ev: 0, cost: 0, net: 0, pass: true });
@@ -116,8 +128,25 @@ function useBotStream() {
   const [connected, setConnected] = useState(false);
   const [dataSource, setDataSource] = useState('connecting'); // 'live' | 'sim' | 'connecting'
 
-  const refs = useRef({ block: 0, bal: 2000000, trades: 0, wins: 0, peak: 2000000, btcPrice: null, polymarkets: [], pnlViewRef: 'total' });
+  const refs = useRef({
+    block: 0,
+    bal: 2000000,
+    deposit: 2000000,
+    trades: 0,
+    wins: 0,
+    peak: 2000000,
+    btcPrice: null,
+    polymarkets: [],
+    pnlViewRef: 'total',
+    liveTotalPnl: null,
+    liveDailyPnl: null,
+  });
   const { price: wsPrice, bid: wsBid, ask: wsAsk, volume: wsVolume, wsConnected } = useCryptoComWS();
+
+  useEffect(() => {
+    refs.current.liveTotalPnl = liveTotalPnl;
+    refs.current.liveDailyPnl = liveDailyPnl;
+  }, [liveTotalPnl, liveDailyPnl]);
 
   // Helper: push event to stream
   const pushEvent = useCallback((type, color, detail) => {
@@ -194,6 +223,7 @@ function useBotStream() {
             status: data.status || prev.status,
           }));
           refs.current.bal = m.balance || refs.current.bal;
+          refs.current.deposit = m.deposit || refs.current.deposit;
           refs.current.trades = m.totalTrades || refs.current.trades;
           refs.current.peak = Math.max(refs.current.peak, m.balance || 0);
 
@@ -207,9 +237,8 @@ function useBotStream() {
             refs.current.equitySeeded = true;
 
             // Build daily curve: only trades from today (ET)
-            const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-            const todayStart = new Date(todayET + 'T00:00:00-05:00').getTime();
-            const todayTrades = data.equityCurve.filter(p => p.t >= todayStart);
+            const todayET = getEtDateKey();
+            const todayTrades = data.equityCurve.filter((point) => getEtDateKey(point.t) === todayET);
             if (todayTrades.length >= 3) {
               const prevClose = data.equityCurve.length > todayTrades.length
                 ? data.equityCurve[data.equityCurve.length - todayTrades.length - 1].v
@@ -401,15 +430,17 @@ function useBotStream() {
   useEffect(() => {
     const iv = setInterval(() => {
       if (!refs.current.equitySeeded) return; // Wait for real data before appending
-      const bal = refs.current.bal;
-      const deposit = refs.current.deposit || 2000000;
-      const liveVal = bal - deposit;
-      setPnl(prev => {
-        const last = prev[prev.length - 1];
-        // Only append if value changed meaningfully (avoid flat line spam)
-        if (last && Math.abs(last.v - liveVal) < 0.5) return prev;
-        return [...prev, { t: Date.now(), v: liveVal }].slice(-500);
-      });
+      const fallbackTotal = refs.current.bal - (refs.current.deposit || 2000000);
+      const nextTotal = Number.isFinite(Number(refs.current.liveTotalPnl))
+        ? Number(refs.current.liveTotalPnl)
+        : fallbackTotal;
+      const nextDaily = Number.isFinite(Number(refs.current.liveDailyPnl))
+        ? Number(refs.current.liveDailyPnl)
+        : nextTotal;
+
+      setPnlFull(prev => appendEquityPoint(prev, nextTotal));
+      setPnlDaily(prev => (prev.length > 0 ? appendEquityPoint(prev, nextDaily) : prev));
+      setPnl(prev => appendEquityPoint(prev, refs.current.pnlViewRef === 'daily' ? nextDaily : nextTotal));
     }, 2000);
     return () => clearInterval(iv);
   }, []);
@@ -950,7 +981,7 @@ const PnlCanvas = memo(function PnlCanvas({ data }) {
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export default function SentinelEngine({ sentinelTotalPnl, sentinelDailyPnl, sentinelAccount, sentinelTotalTrades, sentinelOpenCount }) {
-  const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, setPnl, pnlFull, pnlDaily, pnlView, setPnlView, stream, connected, dataSource, btcPrice } = useBotStream();
+  const { tick, bayesian, edge, spread, stoikov, mc, metrics, pnl, setPnl, pnlFull, pnlDaily, pnlView, setPnlView, stream, connected, dataSource, btcPrice } = useBotStream(sentinelTotalPnl, sentinelDailyPnl);
   const totalPnl = sentinelTotalPnl != null ? sentinelTotalPnl : (metrics.balance - metrics.deposit);
   const dailyPnl = sentinelDailyPnl != null ? sentinelDailyPnl : 0;
   // Use shared account stats when available (single source of truth with Overview)
