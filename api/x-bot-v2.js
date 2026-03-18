@@ -508,6 +508,10 @@ function verifyTweet(tweet, rawData) {
     'moneyline', 'parlay', 'prop bet', 'over/under', 'sportsbook',
     'cover the spread', 'ats', 'opening line', 'closing line',
     'mlb game', 'baseball game',
+    'vegas', 'odds shifted', 'live odds', 'injury report',
+    'lakers', 'celtics', 'warriors', 'knicks', 'nets',
+    'fade the public', 'sports betting', 'betting market',
+    'point spreads', 'spread movement', 'handicap',
   ];
   for (const phrase of sportsBanned) {
     if (tweet.toLowerCase().includes(phrase)) {
@@ -1031,6 +1035,8 @@ Your personality:
 - NEVER use emojis except very rarely and only 🚨 or 💀 when absolutely warranted
 - Keep it under 280 characters. Brevity is everything.
 - Lowercase is fine for casual feel. Not every tweet needs perfect grammar.
+- ABSOLUTELY NEVER write about sports betting, line movement, point spreads, Vegas odds, sharp money, parlays, Lakers, NFL, or any sports gambling content. Stratify is a STOCK AND CRYPTO trading platform. If you catch yourself writing about sports betting, STOP and write about trading instead.
+- NEVER compare stock trading to sports betting. They are completely different things. Do not draw parallels between them.
 
 The tweet from Feb 24 that went viral:
 "Speed without structure is just expensive chaos. Most startups die from self-inflicted wounds, not external attacks. Your incident response framework better account for the fact that 80% of outages come from deployments pushed at 2am by sleep-deprived devs, not sophisticated hack"
@@ -1300,6 +1306,44 @@ export default async function handler(req, res) {
         status: 'skipped',
         reason: 'No data available or verification failed',
       });
+    }
+
+    // ── GLOBAL VERIFICATION — catches sports/betting content from ALL post types ──
+    const verification = verifyTweet(tweet, {});
+    if (!verification.approved) {
+      console.log(`[xbot] Tweet REJECTED by global verify (${type}):`, verification.errors, tweet.slice(0, 100));
+      return res.status(200).json({ status: 'skipped', reason: `Global verification failed: ${verification.errors.join(', ')}` });
+    }
+
+    // ── GLOBAL DEDUP — prevent posting similar content back to back ──
+    const redisDedup = getRedis();
+    if (redisDedup) {
+      try {
+        // Check last 3 tweets for similarity
+        const lastTweetsKey = 'xbot:recent_tweets';
+        const recentRaw = await redisDedup.get(lastTweetsKey);
+        const recentTweets = recentRaw ? (typeof recentRaw === 'string' ? JSON.parse(recentRaw) : recentRaw) : [];
+
+        // Simple keyword overlap check — extract key words and compare
+        const getKeywords = (text) => text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 4);
+        const tweetWords = new Set(getKeywords(tweet));
+
+        for (const prev of recentTweets) {
+          const prevWords = new Set(getKeywords(prev));
+          const overlap = [...tweetWords].filter(w => prevWords.has(w)).length;
+          const similarity = overlap / Math.max(tweetWords.size, 1);
+          if (similarity > 0.4) {
+            console.log(`[xbot] Tweet REJECTED — too similar to recent post (${(similarity * 100).toFixed(0)}% overlap)`);
+            return res.status(200).json({ status: 'skipped', reason: `Too similar to recent tweet (${(similarity * 100).toFixed(0)}% keyword overlap)` });
+          }
+        }
+
+        // Store this tweet in recent list (keep last 5, expire in 6 hours)
+        recentTweets.unshift(tweet);
+        await redisDedup.set(lastTweetsKey, JSON.stringify(recentTweets.slice(0, 5)), { ex: 21600 });
+      } catch (e) {
+        console.error('[xbot] Dedup check error:', e.message);
+      }
     }
 
     // Post to X
