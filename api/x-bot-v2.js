@@ -519,6 +519,32 @@ function verifyTweet(tweet, rawData) {
     }
   }
 
+  // Hard block: Options trading content — Stratify does NOT offer options
+  const optionsBanned = ['calls', 'puts', 'options', 'strike', 'expiry', 'contracts', 'premium', 'iron condor', 'straddle', 'strangle', 'covered call', 'naked put'];
+  for (const phrase of optionsBanned) {
+    if (tweet.toLowerCase().includes(phrase)) {
+      errors.push(`Options content not allowed (Stratify doesn't offer options): "${phrase}"`);
+    }
+  }
+
+  // Hard block: Fabricated trade stats — if tweet claims specific win rates or P&L without real data
+  const fabricatedPatterns = [
+    /\d+%\s*win\s*rate/i,
+    /win\s*rate[:\s]*\d+/i,
+    /\d+\s*trades?[:\s]*\d+\s*wins?/i,
+    /paper\s*trading\s*stats/i,
+    /today'?s?\s*paper\s*trading/i,
+    /total\s*p&?l[:\s]*[+\-]?\$[\d,]+/i,
+  ];
+  // Only allow these patterns if rawData explicitly contains trade stats
+  if (!rawData?.sentinelStats) {
+    for (const pattern of fabricatedPatterns) {
+      if (pattern.test(tweet)) {
+        errors.push(`Possible fabricated trade stats (no real data provided): ${pattern}`);
+      }
+    }
+  }
+
   // Verify numbers match raw data (spot check prices)
   if (rawData?.quotes) {
     const priceRegex = /\$([A-Z]{1,5})\s+.*?\$?([\d,]+\.?\d*)/g;
@@ -1037,6 +1063,10 @@ Your personality:
 - Lowercase is fine for casual feel. Not every tweet needs perfect grammar.
 - ABSOLUTELY NEVER write about sports betting, line movement, point spreads, Vegas odds, sharp money, parlays, Lakers, NFL, or any sports gambling content. Stratify is a STOCK AND CRYPTO trading platform. If you catch yourself writing about sports betting, STOP and write about trading instead.
 - NEVER compare stock trading to sports betting. They are completely different things. Do not draw parallels between them.
+- NEVER FABRICATE TRADE DATA. Do NOT invent win rates, P&L numbers, trade counts, or specific trade results. Do NOT claim "73% win rate" or "$2,847 profit on NVDA calls" or any specific numbers unless they are provided to you in real data. If you want to talk about trading performance, speak in general terms about concepts, NOT fake statistics.
+- NEVER mention options trading (calls, puts, options, strikes, expiry, contracts). Stratify does NOT offer options trading. Only stocks and crypto.
+- NEVER post fake performance screenshots, fake trade results, or claim specific dollar amounts were made or lost unless the data is explicitly provided to you.
+- When in doubt about whether something is real data vs made up: DO NOT POST IT.
 
 The tweet from Feb 24 that went viral:
 "Speed without structure is just expensive chaos. Most startups die from self-inflicted wounds, not external attacks. Your incident response framework better account for the fact that 80% of outages come from deployments pushed at 2am by sleep-deprived devs, not sophisticated hack"
@@ -1309,7 +1339,8 @@ export default async function handler(req, res) {
     }
 
     // ── GLOBAL VERIFICATION — catches sports/betting content from ALL post types ──
-    const verification = verifyTweet(tweet, {});
+    const verifyData = type === 'sentinel-pnl' ? { sentinelStats: true } : {};
+    const verification = verifyTweet(tweet, verifyData);
     if (!verification.approved) {
       console.log(`[xbot] Tweet REJECTED by global verify (${type}):`, verification.errors, tweet.slice(0, 100));
       return res.status(200).json({ status: 'skipped', reason: `Global verification failed: ${verification.errors.join(', ')}` });
