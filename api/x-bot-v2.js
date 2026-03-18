@@ -325,6 +325,20 @@ function getOAuthHeader(method, baseUrl, extraParams = {}) {
     .join(', ');
 }
 
+function formatXApiError(data, status) {
+  const raw = JSON.stringify(data);
+  if (status === 401) {
+    return `X API 401 Unauthorized. The configured X credentials or app permissions were rejected. Check X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET, and regenerate access tokens after any app permission changes. Raw: ${raw}`;
+  }
+  if (status === 403) {
+    return `X API 403 Forbidden. The app is authenticated but lacks permission for this action. Check X app read/write permissions. Raw: ${raw}`;
+  }
+  if (status === 429) {
+    return `X API 429 Rate limit hit. Raw: ${raw}`;
+  }
+  return `X API error: ${raw}`;
+}
+
 async function xApiGet(baseUrl, queryParams = {}) {
   const qs = new URLSearchParams(queryParams).toString();
   const fullUrl = qs ? `${baseUrl}?${qs}` : baseUrl;
@@ -334,7 +348,7 @@ async function xApiGet(baseUrl, queryParams = {}) {
     headers: { Authorization: authHeader },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(`X API error: ${JSON.stringify(data)}`);
+  if (!response.ok) throw new Error(formatXApiError(data, response.status));
   return data;
 }
 
@@ -349,7 +363,7 @@ async function xApiPost(url, body) {
     body: JSON.stringify(body),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(`X API error: ${JSON.stringify(data)}`);
+  if (!response.ok) throw new Error(formatXApiError(data, response.status));
   return data;
 }
 

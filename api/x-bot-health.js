@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 function isPresent(value) {
   return String(value || '').trim().length > 0;
 }
@@ -79,6 +81,108 @@ function getAuthorizationState(req, cronSecretConfigured) {
   };
 }
 
+function generateOAuthSignature(method, url, params, consumerSecret, tokenSecret) {
+  const signatureBase = `${method}&${encodeURIComponent(url)}&${encodeURIComponent(
+    Object.keys(params).sort().map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&')
+  )}`;
+  const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(tokenSecret)}`;
+  return crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64');
+}
+
+function getXOAuthHeader(method, baseUrl, extraParams = {}) {
+  const oauthParams = {
+    oauth_consumer_key: process.env.X_API_KEY,
+    oauth_nonce: crypto.randomBytes(16).toString('hex'),
+    oauth_signature_method: 'HMAC-SHA1',
+    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+    oauth_token: process.env.X_ACCESS_TOKEN,
+    oauth_version: '1.0',
+  };
+  const allParams = { ...oauthParams, ...extraParams };
+  const signature = generateOAuthSignature(
+    method,
+    baseUrl,
+    allParams,
+    process.env.X_API_SECRET,
+    process.env.X_ACCESS_TOKEN_SECRET
+  );
+
+  return `OAuth ${Object.entries({ ...oauthParams, oauth_signature: signature })
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${encodeURIComponent(key)}="${encodeURIComponent(value)}"`)
+    .join(', ')}`;
+}
+
+async function validateXCredentials() {
+  const configured = [
+    process.env.X_API_KEY,
+    process.env.X_API_SECRET,
+    process.env.X_ACCESS_TOKEN,
+    process.env.X_ACCESS_TOKEN_SECRET,
+  ].every(isPresent);
+
+  if (!configured) {
+    return {
+      performed: false,
+      validated: false,
+      status: null,
+      detail: 'X credentials are not fully configured',
+      userId: null,
+    };
+  }
+
+  const baseUrl = 'https://api.twitter.com/2/users/me';
+  const queryParams = { 'user.fields': 'id' };
+  const fullUrl = `${baseUrl}?${new URLSearchParams(queryParams).toString()}`;
+
+  try {
+    const response = await fetch(fullUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: getXOAuthHeader('GET', baseUrl, queryParams),
+      },
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (response.ok) {
+      return {
+        performed: true,
+        validated: true,
+        status: response.status,
+        detail: 'X API credentials accepted',
+        userId: data?.data?.id || null,
+      };
+    }
+
+    const apiDetail = data?.detail || data?.title || `HTTP ${response.status}`;
+    const detail = response.status === 401
+      ? 'X API rejected the configured credentials or app permissions'
+      : apiDetail;
+
+    return {
+      performed: true,
+      validated: false,
+      status: response.status,
+      detail,
+      userId: null,
+    };
+  } catch (error) {
+    return {
+      performed: true,
+      validated: false,
+      status: null,
+      detail: error?.message || 'X credential validation request failed',
+      userId: null,
+    };
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -87,7 +191,7 @@ export default async function handler(req, res) {
   const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
   const checks = buildEnvChecks();
   const auth = getAuthorizationState(req, checks.cronSecretConfigured);
-  const missing = getMissingRequirements(checks, isProduction);
+  let missing = getMissingRequirements(checks, isProduction);
 
   if (isProduction && checks.cronSecretConfigured && !auth.authorized) {
     return res.status(401).json({
@@ -103,6 +207,23 @@ export default async function handler(req, res) {
     });
   }
 
+  let xAuth = {
+    performed: false,
+    validated: false,
+    status: null,
+    detail: checks.xCredentialsConfigured
+      ? 'Validation skipped'
+      : 'X credentials are not fully configured',
+    userId: null,
+  };
+  if (checks.xCredentialsConfigured) {
+    xAuth = await validateXCredentials();
+    if (xAuth.performed && !xAuth.validated) {
+      const suffix = xAuth.status ? ` (${xAuth.status})` : '';
+      missing.push(`X API authentication failed${suffix}: ${xAuth.detail}`);
+    }
+  }
+
   const response = {
     ok: missing.length === 0,
     status: missing.length === 0 ? 'ok' : 'misconfigured',
@@ -116,8 +237,11 @@ export default async function handler(req, res) {
       headerPresent: auth.headerPresent,
       authorized: checks.cronSecretConfigured ? auth.authorized : false,
     },
+    xAuth,
     checks: {
-      xPostingReady: checks.xCredentialsConfigured,
+      xPostingReady: checks.xCredentialsConfigured && xAuth.validated,
+      xCredentialsConfigured: checks.xCredentialsConfigured,
+      xAuthValidated: xAuth.validated,
       redisReady: checks.redisConfigured,
       marketDataReady: checks.twelveDataConfigured,
       aiPostingReady: checks.anthropicXpostConfigured,
@@ -127,6 +251,7 @@ export default async function handler(req, res) {
     missing,
     notes: [
       'This endpoint never posts to X.',
+      'When X credentials are configured, this endpoint validates them against GET /2/users/me before reporting healthy.',
       'In production, once CRON_SECRET is configured, this route also requires Authorization: Bearer <CRON_SECRET>.',
     ],
     timestamp: new Date().toISOString(),
