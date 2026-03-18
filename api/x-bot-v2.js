@@ -884,7 +884,7 @@ async function generateBreakingNews() {
       const count = parseInt(await redis.get(BREAKING_HOURLY_COUNT_KEY), 10) || 0;
       if (count >= 2) {
         console.log('Max 2 breaking posts per hour, skipping');
-        return null;
+        return { skipReason: 'Hourly breaking limit reached' };
       }
     } catch {
       // continue
@@ -892,7 +892,9 @@ async function generateBreakingNews() {
   }
 
   const articles = await fetchMarketauxNews();
-  if (!articles || articles.length === 0) return null;
+  if (!articles || articles.length === 0) {
+    return { skipReason: 'No MarketAux articles available' };
+  }
 
   const trusted = articles.filter(a => {
     const source = (a.source || '').toLowerCase();
@@ -902,11 +904,13 @@ async function generateBreakingNews() {
   const article = trusted[0] || null;
   if (!article) {
     console.log('No trusted source articles found, skipping breaking news');
-    return null;
+    return { skipReason: 'No trusted source articles found' };
   }
 
   const headline = (article.title || '').trim();
-  if (!headline) return null;
+  if (!headline) {
+    return { skipReason: 'Trusted article missing headline' };
+  }
 
   const headlineHash = crypto.createHash('sha256').update(headline.toLowerCase()).digest('hex').slice(0, 16);
   if (redis) {
@@ -914,7 +918,7 @@ async function generateBreakingNews() {
       const seen = await redis.get(BREAKING_SEEN_PREFIX + headlineHash);
       if (seen) {
         console.log('Breaking headline already posted (dedupe), skipping');
-        return null;
+        return { skipReason: 'Breaking headline already posted recently' };
       }
       await redis.set(BREAKING_SEEN_PREFIX + headlineHash, '1', { ex: BREAKING_SEEN_TTL });
     } catch {
@@ -940,7 +944,9 @@ async function generateBreakingNews() {
   if (tweet.length > 280) {
     const truncated = tweet.slice(0, 277) + '…';
     const verification = verifyTweet(truncated, {});
-    if (!verification.approved) return null;
+    if (!verification.approved) {
+      return { skipReason: `Breaking tweet failed verification: ${verification.errors.join(', ')}` };
+    }
     if (redis) {
       try {
         const key = BREAKING_HOURLY_COUNT_KEY;
@@ -950,13 +956,13 @@ async function generateBreakingNews() {
         // ignore
       }
     }
-    return truncated;
+    return { tweet: truncated };
   }
 
   const verification = verifyTweet(tweet, {});
   if (!verification.approved) {
     console.log('Tweet failed verification:', verification.errors);
-    return null;
+    return { skipReason: `Breaking tweet failed verification: ${verification.errors.join(', ')}` };
   }
 
   if (redis) {
@@ -969,7 +975,7 @@ async function generateBreakingNews() {
     }
   }
 
-  return tweet;
+  return { tweet };
 }
 
 async function generateCryptoUpdate() {
@@ -1422,7 +1428,15 @@ export default async function handler(req, res) {
         tweet = await generateTopMovers();
         break;
       case 'breaking':
-        tweet = await generateBreakingNews();
+        const breakingResult = await generateBreakingNews();
+        if (breakingResult?.skipReason) {
+          return res.status(200).json({
+            status: 'skipped',
+            reason: breakingResult.skipReason,
+            type,
+          });
+        }
+        tweet = breakingResult?.tweet || null;
         break;
       case 'crypto':
         tweet = await generateCryptoUpdate();
