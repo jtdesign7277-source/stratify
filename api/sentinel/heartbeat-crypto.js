@@ -4,6 +4,7 @@
 // Pipeline: Bayesian → Edge Filter → Stoikov → Kelly/Monte Carlo → Execute
 
 import { createClient } from '@supabase/supabase-js';
+import { computeFeatures } from '../lib/feature-engine.js';
 
 const TWELVE_DATA_API_KEY = process.env.VITE_TWELVE_DATA_WS_KEY || process.env.TWELVE_DATA_API_KEY;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -473,6 +474,25 @@ export default async function handler(req, res) {
           signal = generateSignal(job.symbol, bars, job.timeframe);
           await redisSet(cacheKey, signal, cacheTTL);
           log.push(`${job.symbol} ${job.timeframe}: fresh — ${signal.direction} conf ${signal.confidence}`);
+
+          // Phase 0: Store ML features for every fresh scan (builds training dataset)
+          try {
+            const features = computeFeatures(bars, {
+              symbol: job.symbol,
+              timeframe: job.timeframe,
+              bayesianPosterior: 0.5, // will be updated after Bayesian step
+              setupWinRate: accountWinRate,
+              recentStreak: 0,
+            });
+            if (features) {
+              await supabase.from('sentinel_features').insert({
+                symbol: job.symbol,
+                timeframe: job.timeframe,
+                ...features,
+              });
+            }
+          } catch (e) { log.push(`Feature store: ${e.message}`); }
+
         } else {
           log.push(`${job.symbol} ${job.timeframe}: cached — ${signal.direction} conf ${signal.confidence}`);
         }
