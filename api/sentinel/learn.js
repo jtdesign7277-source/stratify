@@ -26,7 +26,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // ET date, not UTC
+    // Support ?date=YYYY-MM-DD for backfilling missing reports
+    const today = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
     // Load all data in parallel
     const [sessionRes, tradesRes, memoryRes, recentSessionsRes, accountRes] = await Promise.all([
@@ -34,7 +35,7 @@ export default async function handler(req, res) {
       supabase.from('sentinel_trades').select('*').eq('session_date', today).eq('status', 'closed'),
       supabase.from('sentinel_memory').select('*').eq('id', 1).single(),
       supabase.from('sentinel_sessions').select('*').order('session_date', { ascending: false }).limit(14),
-      supabase.from('sentinel_accounts').select('*').eq('id', '00000000-0000-0000-0000-000000000001').single(),
+      supabase.from('sentinel_account').select('*').eq('id', '00000000-0000-0000-0000-000000000001').single(),
     ]);
 
     const session = sessionRes.data;
