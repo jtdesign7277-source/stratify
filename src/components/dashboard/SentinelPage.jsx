@@ -233,6 +233,7 @@ function SentinelPageInner() {
   const [alpacaExpanded, setAlpacaExpanded] = useState(false);
   const [riskData, setRiskData] = useState(null);
   const [riskExpanded, setRiskExpanded] = useState(false);
+  const [assetClassFilter, setAssetClassFilter] = useState('All'); // 'All' | 'Crypto' | 'Equity'
   const [ibkrExpanded, setIbkrExpanded] = useState(false);
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
   const [connectedBrokers, setConnectedBrokers] = useState([]);
@@ -1031,14 +1032,37 @@ function SentinelPageInner() {
               transition={{ delay: 0.25, ...SPRING }}
               className={`${GLASS} p-5 transition-all duration-300`}
             >
-              <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SESSION HISTORY</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">SESSION HISTORY</span>
+                <div className="flex items-center gap-1 bg-white/[0.03] rounded-lg p-0.5">
+                  {['All', 'Crypto', 'Equity'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setAssetClassFilter(tab)}
+                      className={`px-3 py-1 rounded-md text-[10px] font-mono font-semibold tracking-wider transition-all duration-200 ${
+                        assetClassFilter === tab
+                          ? 'bg-white/10 text-white'
+                          : 'text-white/30 hover:text-white/50'
+                      }`}
+                    >
+                      {tab.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* FILTERED TRADES — shared across stat cards, rows, and footer */}
               {(() => {
+                const CRYPTO_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOGE/USD', 'BTC', 'ETH', 'SOL'];
                 const todayStart = new Date();
                 todayStart.setHours(0, 0, 0, 0);
                 const todayStartMs = todayStart.getTime();
                 let filteredTrades = [...recentClosedTrades];
+
+                // Asset class filter
+                if (assetClassFilter === 'Crypto') filteredTrades = filteredTrades.filter(t => CRYPTO_SYMBOLS.some(c => t.symbol?.includes(c)));
+                else if (assetClassFilter === 'Equity') filteredTrades = filteredTrades.filter(t => !CRYPTO_SYMBOLS.some(c => t.symbol?.includes(c)));
+
                 if (todayOnly) filteredTrades = filteredTrades.filter(t => {
                   const ts = t.opened_at || t.closed_at;
                   return ts && new Date(ts).getTime() >= todayStartMs;
