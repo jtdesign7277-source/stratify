@@ -6,17 +6,31 @@ function isPresent(value) {
   return String(value || '').trim().length > 0;
 }
 
+function getTrimmedEnv(name) {
+  return String(process.env[name] || '').trim();
+}
+
+function getXCredentials() {
+  return {
+    apiKey: getTrimmedEnv('X_API_KEY'),
+    apiSecret: getTrimmedEnv('X_API_SECRET'),
+    accessToken: getTrimmedEnv('X_ACCESS_TOKEN'),
+    accessTokenSecret: getTrimmedEnv('X_ACCESS_TOKEN_SECRET'),
+  };
+}
+
 function getCombinedPresence(...values) {
   return values.some((value) => isPresent(value));
 }
 
 function buildEnvChecks() {
+  const xCreds = getXCredentials();
   const cronSecretConfigured = isPresent(process.env.CRON_SECRET);
   const xCredentialsConfigured = [
-    process.env.X_API_KEY,
-    process.env.X_API_SECRET,
-    process.env.X_ACCESS_TOKEN,
-    process.env.X_ACCESS_TOKEN_SECRET,
+    xCreds.apiKey,
+    xCreds.apiSecret,
+    xCreds.accessToken,
+    xCreds.accessTokenSecret,
   ].every(isPresent);
   const redisConfigured = [
     process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
@@ -92,12 +106,13 @@ function generateOAuthSignature(method, url, params, consumerSecret, tokenSecret
 }
 
 function getXOAuthHeader(method, baseUrl, extraParams = {}) {
+  const xCreds = getXCredentials();
   const oauthParams = {
-    oauth_consumer_key: process.env.X_API_KEY,
+    oauth_consumer_key: xCreds.apiKey,
     oauth_nonce: crypto.randomBytes(16).toString('hex'),
     oauth_signature_method: 'HMAC-SHA1',
     oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_token: process.env.X_ACCESS_TOKEN,
+    oauth_token: xCreds.accessToken,
     oauth_version: '1.0',
   };
   const allParams = { ...oauthParams, ...extraParams };
@@ -105,8 +120,8 @@ function getXOAuthHeader(method, baseUrl, extraParams = {}) {
     method,
     baseUrl,
     allParams,
-    process.env.X_API_SECRET,
-    process.env.X_ACCESS_TOKEN_SECRET
+    xCreds.apiSecret,
+    xCreds.accessTokenSecret
   );
 
   return `OAuth ${Object.entries({ ...oauthParams, oauth_signature: signature })
@@ -116,11 +131,12 @@ function getXOAuthHeader(method, baseUrl, extraParams = {}) {
 }
 
 async function validateXCredentials() {
+  const xCreds = getXCredentials();
   const configured = [
-    process.env.X_API_KEY,
-    process.env.X_API_SECRET,
-    process.env.X_ACCESS_TOKEN,
-    process.env.X_ACCESS_TOKEN_SECRET,
+    xCreds.apiKey,
+    xCreds.apiSecret,
+    xCreds.accessToken,
+    xCreds.accessTokenSecret,
   ].every(isPresent);
 
   if (!configured) {

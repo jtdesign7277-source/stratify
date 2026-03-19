@@ -118,6 +118,19 @@ const SCHEDULED_OPENERS_NEUTRAL = [
 const SCHEDULED_OPENER_RED = '📉 Tech under pressure:';
 const SCHEDULED_OPENER_GREEN = '📈 Markets moving:';
 
+function getTrimmedEnv(name) {
+  return String(process.env[name] || '').trim();
+}
+
+function getXCredentials() {
+  return {
+    apiKey: getTrimmedEnv('X_API_KEY'),
+    apiSecret: getTrimmedEnv('X_API_SECRET'),
+    accessToken: getTrimmedEnv('X_ACCESS_TOKEN'),
+    accessTokenSecret: getTrimmedEnv('X_ACCESS_TOKEN_SECRET'),
+  };
+}
+
 function pickScheduledOpener(quotes = {}) {
   const spy = quotes?.SPY;
   const pct = spy && spy.percent_change != null ? parseFloat(spy.percent_change) : null;
@@ -306,19 +319,20 @@ async function postTweet(text) {
 }
 
 function getOAuthHeader(method, baseUrl, extraParams = {}) {
+  const xCreds = getXCredentials();
   const oauthParams = {
-    oauth_consumer_key: process.env.X_API_KEY,
+    oauth_consumer_key: xCreds.apiKey,
     oauth_nonce: crypto.randomBytes(16).toString('hex'),
     oauth_signature_method: 'HMAC-SHA1',
     oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_token: process.env.X_ACCESS_TOKEN,
+    oauth_token: xCreds.accessToken,
     oauth_version: '1.0',
   };
   const allParams = { ...oauthParams, ...extraParams };
   const signature = generateOAuthSignature(
     method, baseUrl, allParams,
-    process.env.X_API_SECRET,
-    process.env.X_ACCESS_TOKEN_SECRET
+    xCreds.apiSecret,
+    xCreds.accessTokenSecret
   );
   return 'OAuth ' + Object.entries({ ...oauthParams, oauth_signature: signature })
     .sort(([a], [b]) => a.localeCompare(b))
