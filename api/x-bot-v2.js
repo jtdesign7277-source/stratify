@@ -29,6 +29,7 @@ const ALL_STOCK_TICKERS = [
 
 const ALL_CRYPTO_TICKERS = APPROVED_TICKERS.crypto;
 const ET_TIME_ZONE = 'America/New_York';
+const X_API_BASE = 'https://api.x.com';
 const WEBSITE_URL = 'stratifymarket.com';
 const WEBSITE_POST_TYPES = new Set(['thought-leader', 'hot-take']);
 const WEBSITE_POST_CADENCE = 4;
@@ -301,7 +302,7 @@ function generateOAuthSignature(method, url, params, consumerSecret, tokenSecret
 }
 
 async function postTweet(text) {
-  return xApiPost('https://api.twitter.com/2/tweets', { text });
+  return xApiPost(`${X_API_BASE}/2/tweets`, { text });
 }
 
 function getOAuthHeader(method, baseUrl, extraParams = {}) {
@@ -368,19 +369,19 @@ async function xApiPost(url, body) {
 }
 
 async function postReply(inReplyToTweetId, text) {
-  return xApiPost('https://api.twitter.com/2/tweets', {
+  return xApiPost(`${X_API_BASE}/2/tweets`, {
     text,
     reply: { in_reply_to_tweet_id: inReplyToTweetId },
   });
 }
 
 async function getMe() {
-  const data = await xApiGet('https://api.twitter.com/2/users/me', { 'user.fields': 'id' });
+  const data = await xApiGet(`${X_API_BASE}/2/users/me`, { 'user.fields': 'id' });
   return data.data?.id || null;
 }
 
 async function searchTweets(query, maxResults = 5) {
-  const data = await xApiGet('https://api.twitter.com/2/tweets/search/recent', {
+  const data = await xApiGet(`${X_API_BASE}/2/tweets/search/recent`, {
     query,
     'tweet.fields': 'public_metrics,text',
     max_results: String(Math.min(maxResults, 10)),
@@ -389,7 +390,7 @@ async function searchTweets(query, maxResults = 5) {
 }
 
 async function likeTweet(userId, tweetId) {
-  return xApiPost(`https://api.twitter.com/2/users/${userId}/liking`, { tweet_id: tweetId });
+  return xApiPost(`${X_API_BASE}/2/users/${userId}/liking`, { tweet_id: tweetId });
 }
 
 // ============================================================
@@ -1030,7 +1031,7 @@ async function generateTrumpWatch() {
 
   let tweets = [];
   try {
-    const data = await xApiGet('https://api.twitter.com/2/users/25073877/tweets', {
+    const data = await xApiGet(`${X_API_BASE}/2/users/25073877/tweets`, {
       max_results: '10',
       'tweet.fields': 'created_at,text,id',
       exclude: 'retweets,replies',

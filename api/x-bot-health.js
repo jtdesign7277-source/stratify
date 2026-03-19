@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 
+const X_API_BASE = 'https://api.x.com';
+
 function isPresent(value) {
   return String(value || '').trim().length > 0;
 }
@@ -131,7 +133,7 @@ async function validateXCredentials() {
     };
   }
 
-  const baseUrl = 'https://api.twitter.com/2/users/me';
+  const baseUrl = `${X_API_BASE}/2/users/me`;
   const queryParams = { 'user.fields': 'id' };
   const fullUrl = `${baseUrl}?${new URLSearchParams(queryParams).toString()}`;
 
