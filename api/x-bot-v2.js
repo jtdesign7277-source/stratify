@@ -146,6 +146,28 @@ function getETDateKey() {
   return new Date().toLocaleDateString('en-CA', { timeZone: ET_TIME_ZONE });
 }
 
+function getETDateContext() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', {
+    timeZone: ET_TIME_ZONE,
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const timeStr = now.toLocaleTimeString('en-US', {
+    timeZone: ET_TIME_ZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `Today is ${dateStr}. Current time: ${timeStr} ET. Only reference current events and markets. Never reference holidays, seasons, or events that are not happening today.`;
+}
+
+function buildSystemWithDate(baseSystem) {
+  return `${getETDateContext()}\n\n${baseSystem}`;
+}
+
 function getRedis() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -469,7 +491,7 @@ Never invent facts. Never invent price levels. Never sound theatrical.`;
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 150,
-      system,
+      system: buildSystemWithDate(system),
       messages: [{
         role: 'user',
         content: `Reply to this tweet in 1-2 sentences max: ${tweetText}`,
@@ -663,7 +685,7 @@ async function formatWithClaude(prompt) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: SYSTEM_PROMPT,
+      system: buildSystemWithDate(SYSTEM_PROMPT),
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -1082,6 +1104,7 @@ async function generateTrumpWatch() {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 400,
+      system: getETDateContext(),
       messages: [{
         role: 'user',
         content: `You monitor Trump tweets for Stratify, a trading platform. Pick the single most market-relevant tweet. Score 1-10. If score < 7, return null.\n\nTweets:\n${tweetList}\n\nReturn ONLY valid JSON, no markdown:\n{"tweetId": "...", "score": 8, "hook": "JUST IN: 8-10 word teaser", "body": "Full post under 280 chars. Start with his exact quote in quotes, then 1 line on market angle — NO PRICES, NO PRICE LEVELS, NO NUMBERS. Only mention direction and ticker. End with $SPY or relevant ticker.", "tickers": ["SPY"]}\n\nCRITICAL: Do NOT include any stock prices, price levels, or numeric targets in body. Never write things like 'TSLA at $220' or 'rejected $400'. Price data is forbidden — direction only.\n\nIf no tweet scores 7+, return: {"tweetId": null, "score": 0}`,
@@ -1228,7 +1251,7 @@ async function generateThoughtLeader() {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: PERSONALITY_SYSTEM,
+      system: buildSystemWithDate(PERSONALITY_SYSTEM),
       messages: [{ role: 'user', content: `Write a thought-leader tweet about: ${topic}\n\nThis should read like a disciplined operator memo, not a guru thread. Make one sharp observation, explain the implication cleanly, and stop. Professional, concise, screenshot-worthy, zero bravado.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
     }),
   });
@@ -1259,7 +1282,7 @@ async function generateHotTake() {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: PERSONALITY_SYSTEM,
+      system: buildSystemWithDate(PERSONALITY_SYSTEM),
       messages: [{ role: 'user', content: `Write a sharp contrarian tweet about: ${take}\n\nBe firm and intelligent, not loud. Challenge lazy consensus without sounding smug or juvenile. No fake edge, no rage-bait, no caricature.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
     }),
   });
@@ -1292,7 +1315,7 @@ async function generateFunnyTweet() {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: PERSONALITY_SYSTEM,
+      system: buildSystemWithDate(PERSONALITY_SYSTEM),
       messages: [{ role: 'user', content: `Write a dry, understated trading tweet about: ${theme}\n\nThe humor should come from recognition, not exaggeration. Keep it professional and smart. No meme-account voice, no clowning, no cringe, no emojis.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
     }),
   });
@@ -1346,7 +1369,7 @@ async function generateCustomTweet(prompt, style = 'thought-leader') {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: PERSONALITY_SYSTEM,
+      system: buildSystemWithDate(PERSONALITY_SYSTEM),
       messages: [{
         role: 'user',
         content: `Write a ${style} tweet about this exact subject:\n${prompt}\n\n${styleInstructions[style]}\n\nStay under 280 characters. Just the tweet text, nothing else.`,
@@ -1397,7 +1420,7 @@ Start with "Sentinel daily report:" or similar. Under 280 chars.`;
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: PERSONALITY_SYSTEM,
+      system: buildSystemWithDate(PERSONALITY_SYSTEM),
       messages: [{ role: 'user', content: prompt }],
     }),
   });
