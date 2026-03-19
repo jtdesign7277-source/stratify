@@ -1300,6 +1300,63 @@ async function generateFunnyTweet() {
   return data.content?.[0]?.text?.trim() || null;
 }
 
+function getRequestJsonBody(req) {
+  if (!req?.body) return {};
+  if (typeof req.body === 'string') {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  if (typeof req.body === 'object') return req.body;
+  return {};
+}
+
+function normalizeCustomStyle(value) {
+  const style = String(value || '').trim().toLowerCase();
+  if (style === 'hot-take' || style === 'funny') return style;
+  return 'thought-leader';
+}
+
+function getCustomPostRequest(req) {
+  const body = getRequestJsonBody(req);
+  return {
+    prompt: String(body.prompt || body.topic || req.query.prompt || req.query.topic || '').trim(),
+    style: normalizeCustomStyle(body.style || req.query.style),
+  };
+}
+
+async function generateCustomTweet(prompt, style = 'thought-leader') {
+  if (!prompt) return null;
+
+  const styleInstructions = {
+    'thought-leader': 'Write this like a disciplined operator memo: one sharp observation, one implication, no bravado.',
+    'hot-take': 'Write this as a sharp contrarian view: firm and intelligent, not loud, not smug, not rage-bait.',
+    funny: 'Write this with dry, understated humor: smart, restrained, recognizably true, never clownish.',
+  };
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY_XPOST,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: PERSONALITY_SYSTEM,
+      messages: [{
+        role: 'user',
+        content: `Write a ${style} tweet about this exact subject:\n${prompt}\n\n${styleInstructions[style]}\n\nStay under 280 characters. Just the tweet text, nothing else.`,
+      }],
+    }),
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text?.trim() || null;
+}
+
 async function generateSentinelPnl() {
   const supabase = (await import('@supabase/supabase-js')).createClient(
     process.env.SUPABASE_URL,
@@ -1389,20 +1446,20 @@ export default async function handler(req, res) {
     }
   }
 
+  let type = req.query.type || 'market-open';
   const session = getETSession();
-  const isAuthenticated = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
-  const forcePost = req.query.force === 'true' && isAuthenticated;
+  const customRequest = type === 'custom' ? getCustomPostRequest(req) : null;
+  const forcePost = req.query.force === 'true';
+  const anytimeTypes = new Set(['thought-leader', 'hot-take', 'funny', 'breaking', 'trump-watch', 'crypto', 'custom']);
 
-  if (session === 'closed' && !forcePost) {
+  if (session === 'closed' && !forcePost && !anytimeTypes.has(type)) {
     return res.status(200).json({
       status: 'skipped',
       reason: 'Outside posting hours (8:01PM–3:59AM ET)',
     });
   }
 
-  let type = req.query.type || 'market-open';
-
-  const sessionSkipReason = getTypeSessionSkipReason(type, session);
+  const sessionSkipReason = forcePost ? null : getTypeSessionSkipReason(type, session);
   if (sessionSkipReason) {
     return res.status(200).json({
       status: 'skipped',
@@ -1445,6 +1502,7 @@ export default async function handler(req, res) {
 
   try {
     let tweet = null;
+    let placementType = type;
 
     switch (type) {
       case 'market-open':
@@ -1492,6 +1550,13 @@ export default async function handler(req, res) {
       case 'sentinel-pnl':
         tweet = await generateSentinelPnl();
         break;
+      case 'custom':
+        if (!customRequest?.prompt) {
+          return res.status(400).json({ error: 'Custom posts require a prompt or topic in the JSON body or query string' });
+        }
+        tweet = await generateCustomTweet(customRequest.prompt, customRequest.style);
+        placementType = customRequest.style;
+        break;
       default:
         return res.status(400).json({ error: `Unknown type: ${type}` });
     }
@@ -1503,7 +1568,7 @@ export default async function handler(req, res) {
       });
     }
 
-    tweet = await applyWebsitePlacement(type, tweet);
+    tweet = await applyWebsitePlacement(placementType, tweet);
 
     // ── GLOBAL VERIFICATION — catches sports/betting content from ALL post types ──
     const verifyData = {
@@ -1596,6 +1661,7 @@ export default async function handler(req, res) {
       tweet,
       tweetId: result.data?.id,
       type,
+      style: type === 'custom' ? customRequest?.style : undefined,
     });
 
   } catch (error) {
