@@ -385,10 +385,11 @@ const ChatInputBar = ({
     : streamStatus?.connecting
       ? 'Connecting live tape...'
       : 'Live tape offline';
-  const canUseInput = searchMode || Boolean(currentUser?.id);
+  // Tweet drafts are saved locally — no auth required for post mode
+  const canUseInput = searchMode || true;
   const hasMessage = Boolean(String(message || '').trim());
   const hasTweetDraft = !searchMode && hasMessage;
-  const canUseAiRewriteTransfer = !searchMode && canUseInput && hasMessage;
+  const canUseAiRewriteTransfer = !searchMode && hasMessage;
 
   // Search suggestions render only in web search mode.
   const suggestionOpen = searchMode
@@ -430,10 +431,22 @@ const ChatInputBar = ({
                   type="button"
                   onClick={() => {
                     setShowFeedHashtags(false);
-                    switchToPostMode();
+                    if (onOpenComposer) {
+                      const draft = String(message || '').trim();
+                      setMessage('');
+                      setDebouncedMessage('');
+                      setSuggestions([]);
+                      setActiveSuggestion(0);
+                      setSelectedHashtags([]);
+                      setShowSaveFolderPicker(false);
+                      onOpenComposer('general', draft ? { prefilledText: draft } : {});
+                      if (!searchMode) onModeChange?.(false, { source: 'post-toggle' });
+                    } else {
+                      switchToPostMode();
+                    }
                   }}
                   className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5' : 'text-[#58a6ff] bg-[#58a6ff]/10'}`}
-                  title="Post mode"
+                  title="Compose tweet"
                 >
                   <XLogoIcon className="w-4 h-4" />
                 </button>
