@@ -161,11 +161,7 @@ function getETDateContext() {
     minute: '2-digit',
     hour12: true,
   });
-  return `Today is ${dateStr}. Current time: ${timeStr} ET. Only reference current events and markets. Never reference holidays, seasons, or events that are not happening today.`;
-}
-
-function buildSystemWithDate(baseSystem) {
-  return `${getETDateContext()}\n\n${baseSystem}`;
+  return `Today is ${dateStr}. The current time is ${timeStr} ET. Only reference current events, markets, and news from today or this week. Never reference holidays, seasons, or events that are not happening right now.`;
 }
 
 function getRedis() {
@@ -491,7 +487,7 @@ Never invent facts. Never invent price levels. Never sound theatrical.`;
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 150,
-      system: buildSystemWithDate(system),
+      system,
       messages: [{
         role: 'user',
         content: `Reply to this tweet in 1-2 sentences max: ${tweetText}`,
@@ -651,7 +647,10 @@ async function fetchMarketauxNews() {
 // ============================================================
 // AI FORMATTER — Claude formats data into tweets, nothing more
 // ============================================================
-const SYSTEM_PROMPT = `You are the social media writer for @stratify_hq, an AI-powered trading platform.
+function getSystemPrompt() {
+  return `You are the social media writer for @stratify_hq, an AI-powered trading platform.
+
+${getETDateContext()}
 
 ABSOLUTE RULES:
 1. ONLY use numbers, prices, percentages, and facts from the REAL DATA section provided
@@ -665,7 +664,7 @@ ABSOLUTE RULES:
 9. Be punchy, direct, confident — not hype-y or clickbait-y
 10. No hashtags. They look desperate.
 11. Start with the exact opener provided in the user message (do not add 🚨 unless the opener contains it).
-12. NEVER write about NFL, football, Super Bowl, or any sport that is currently out of season (it is March 2026 — NFL season ended in February).
+12. NEVER write about sports, holidays, seasons, or any event not currently happening. Check the current date above before writing anything time-sensitive.
 13. NEVER write about sports betting, line movement, point spreads, sharp money, moneylines, parlays, or sportsbook content. Stratify is a trading platform, not a sportsbook.
 14. If you find yourself writing anything sports-related, stop and return an empty response instead.
 
@@ -673,6 +672,7 @@ TONE: Think Bloomberg terminal meets fintwit. Smart, fast, credible.
 You are a data reporter, not a hype man.
 
 LINK RULE: About 1 in 4 posts, end with "via @stratify_hq" or add "stratifymarket.com" at the very end. ONLY when the tweet is strong enough to stand alone. Never start with the link. Never make the link the focus.`;
+}
 
 async function formatWithClaude(prompt) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -685,7 +685,7 @@ async function formatWithClaude(prompt) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: buildSystemWithDate(SYSTEM_PROMPT),
+      system: getSystemPrompt(),
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -1104,7 +1104,6 @@ async function generateTrumpWatch() {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 400,
-      system: getETDateContext(),
       messages: [{
         role: 'user',
         content: `You monitor Trump tweets for Stratify, a trading platform. Pick the single most market-relevant tweet. Score 1-10. If score < 7, return null.\n\nTweets:\n${tweetList}\n\nReturn ONLY valid JSON, no markdown:\n{"tweetId": "...", "score": 8, "hook": "JUST IN: 8-10 word teaser", "body": "Full post under 280 chars. Start with his exact quote in quotes, then 1 line on market angle — NO PRICES, NO PRICE LEVELS, NO NUMBERS. Only mention direction and ticker. End with $SPY or relevant ticker.", "tickers": ["SPY"]}\n\nCRITICAL: Do NOT include any stock prices, price levels, or numeric targets in body. Never write things like 'TSLA at $220' or 'rejected $400'. Price data is forbidden — direction only.\n\nIf no tweet scores 7+, return: {"tweetId": null, "score": 0}`,
@@ -1192,7 +1191,10 @@ async function generateMarketClose() {
 // These don't need market data. Pure voice.
 // ============================================================
 
-const PERSONALITY_SYSTEM = `You are @stratify_hq on Twitter/X. Write like a serious market operator and builder with real judgment.
+function getPersonalitySystem() {
+  return `You are @stratify_hq on Twitter/X. Write like a serious market operator and builder with real judgment.
+
+${getETDateContext()}
 
 Your personality:
 - Professional, high-IQ, precise, calm under pressure
@@ -1210,6 +1212,7 @@ Your personality:
 - Do not include links or URLs in the draft. Website placement is handled separately by the publisher
 - ABSOLUTELY NEVER write about sports betting, point spreads, parlays, Vegas odds, NFL, MLB, or gambling culture
 - NEVER compare trading to sports betting
+- NEVER reference holidays, seasonal events, or anything not currently happening — check the current date above
 - NEVER FABRICATE TRADE DATA. Do not invent P&L, win rates, trade counts, or personal trade stories
 - NEVER mention options trading. Stratify does not offer options
 - NEVER post fake screenshots, fake fills, fake wins, or fake losses
@@ -1225,6 +1228,7 @@ What good looks like:
 - grounded implication
 - no bravado
 - no cosplay`;
+}
 
 async function generateThoughtLeader() {
   const topics = [
@@ -1251,7 +1255,7 @@ async function generateThoughtLeader() {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: buildSystemWithDate(PERSONALITY_SYSTEM),
+      system: getPersonalitySystem(),
       messages: [{ role: 'user', content: `Write a thought-leader tweet about: ${topic}\n\nThis should read like a disciplined operator memo, not a guru thread. Make one sharp observation, explain the implication cleanly, and stop. Professional, concise, screenshot-worthy, zero bravado.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
     }),
   });
@@ -1282,7 +1286,7 @@ async function generateHotTake() {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: buildSystemWithDate(PERSONALITY_SYSTEM),
+      system: getPersonalitySystem(),
       messages: [{ role: 'user', content: `Write a sharp contrarian tweet about: ${take}\n\nBe firm and intelligent, not loud. Challenge lazy consensus without sounding smug or juvenile. No fake edge, no rage-bait, no caricature.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
     }),
   });
@@ -1315,7 +1319,7 @@ async function generateFunnyTweet() {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: buildSystemWithDate(PERSONALITY_SYSTEM),
+      system: getPersonalitySystem(),
       messages: [{ role: 'user', content: `Write a dry, understated trading tweet about: ${theme}\n\nThe humor should come from recognition, not exaggeration. Keep it professional and smart. No meme-account voice, no clowning, no cringe, no emojis.\n\nJust the tweet text, nothing else. Under 280 chars.` }],
     }),
   });
@@ -1369,7 +1373,7 @@ async function generateCustomTweet(prompt, style = 'thought-leader') {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: buildSystemWithDate(PERSONALITY_SYSTEM),
+      system: getPersonalitySystem(),
       messages: [{
         role: 'user',
         content: `Write a ${style} tweet about this exact subject:\n${prompt}\n\n${styleInstructions[style]}\n\nStay under 280 characters. Just the tweet text, nothing else.`,
@@ -1420,7 +1424,7 @@ Start with "Sentinel daily report:" or similar. Under 280 chars.`;
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: buildSystemWithDate(PERSONALITY_SYSTEM),
+      system: getPersonalitySystem(),
       messages: [{ role: 'user', content: prompt }],
     }),
   });
