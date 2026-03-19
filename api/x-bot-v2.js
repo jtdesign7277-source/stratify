@@ -1390,7 +1390,10 @@ export default async function handler(req, res) {
   }
 
   const session = getETSession();
-  if (session === 'closed') {
+  const isAuthenticated = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  const forcePost = req.query.force === 'true' && isAuthenticated;
+
+  if (session === 'closed' && !forcePost) {
     return res.status(200).json({
       status: 'skipped',
       reason: 'Outside posting hours (8:01PM–3:59AM ET)',
