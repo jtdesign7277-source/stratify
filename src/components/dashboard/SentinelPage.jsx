@@ -49,7 +49,7 @@ function getTradeSessionDateKey(trade) {
 }
 
 function computePnl(trade, livePrices) {
-  const lp = livePrices[trade.symbol.toUpperCase()]?.price;
+  const lp = trade.symbol ? livePrices[trade.symbol.toUpperCase()]?.price : undefined;
   const cp = lp || trade.current_price;
   const pnl = cp && trade.entry && trade.size
     ? (cp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1)
@@ -466,7 +466,7 @@ function SentinelPageInner() {
     let total = 0;
     let hasLive = false;
     for (const trade of openTrades) {
-      const lp = livePrices[trade.symbol.toUpperCase()]?.price;
+      const lp = trade.symbol ? livePrices[trade.symbol.toUpperCase()]?.price : undefined;
       if (lp && trade.entry && trade.size) {
         hasLive = true;
         total += (lp - trade.entry) * trade.size * (trade.direction === 'SHORT' ? -1 : 1);
@@ -1116,6 +1116,7 @@ function SentinelPageInner() {
                 const avgWin = winTrades.length > 0 ? winTrades.reduce((s, t) => s + (t.pnl || 0), 0) / winTrades.length : 0;
                 const netPnl = filteredTrades.reduce((s, t) => s + (t.pnl || 0), 0);
                 const isTodaySessionRollup = todayOnly && statusFilter === 'All' && !tickerFilter;
+                const isAllUnfiltered = !todayOnly && statusFilter === 'All' && !tickerFilter && assetClassFilter === 'All';
                 const liveSessionPnl = assetClassFilter === 'Crypto'
                   ? todayCryptoPnl + cryptoOpenPnl
                   : assetClassFilter === 'Equity'
@@ -1126,8 +1127,8 @@ function SentinelPageInner() {
                   : assetClassFilter === 'Equity'
                     ? todayEquityPnl
                     : todaySessionRealizedPnl;
-                const statNetPnl = isTodaySessionRollup ? liveSessionPnl : netPnl;
-                const statNetPnlLabel = isTodaySessionRollup ? 'Session P&L' : 'Net P&L';
+                const statNetPnl = isTodaySessionRollup ? liveSessionPnl : isAllUnfiltered ? accountTotalPnl : netPnl;
+                const statNetPnlLabel = isTodaySessionRollup ? 'Session P&L' : isAllUnfiltered ? 'Total P&L' : 'Net P&L';
                 const openPnlContribution = isTodaySessionRollup ? (liveSessionPnl - realizedSessionPnl) : 0;
 
                 return (<>
@@ -2117,7 +2118,7 @@ function SentinelPageInner() {
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${trade.direction === 'LONG' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
                                   {trade.direction}
                                 </span>
-                                <span className="text-white font-semibold">${trade.symbol.replace('/USD', '')}</span>
+                                <span className="text-white font-semibold">${trade.symbol?.replace('/USD', '') ?? trade.symbol}</span>
                                 <span className="text-white/25">{trade.size > 1 ? Math.round(trade.size).toLocaleString() : trade.size?.toFixed(4)} sh</span>
                               </div>
                               <div className="text-right">
