@@ -372,37 +372,47 @@ async function fetchCandles() {
 
 // ─── Load / save best params in Supabase ─────────────────────────────────────
 
-async function loadBestParams(tag) {
+async function loadBestParams() {
   const { data } = await supabase
     .from('sentinel_best_params')
     .select('*')
-    .eq('tag', tag)
+    .order('composite_score', { ascending: false })
+    .limit(1)
     .single();
-  return data ? data.params : getDefaults();
+  return data ? data.parameters : getDefaults();
 }
 
-async function saveBestParams(tag, params, score, meta) {
+async function saveBestParams(params, score, meta) {
   await supabase.from('sentinel_best_params').upsert(
-    { tag, params, score, updated_at: new Date().toISOString(), ...meta },
-    { onConflict: 'tag' }
+    { id: 1, parameters: params, composite_score: score, updated_at: new Date().toISOString(), ...meta },
+    { onConflict: 'id' }
   );
 }
 
-async function logExperiment(tag, iteration, tweakedKey, tweakedVal, result, score, status, params) {
-  await supabase.from('sentinel_experiments').insert({
-    tag,
+async function logExperiment(tag, iteration, tweakedKey, tweakedVal, result, score, status, newParams, prevParams) {
+  const wins = result.trades ? result.trades.filter(t => t.win).length : 0;
+  const losses = result.trades ? result.trades.filter(t => !t.win).length : 0;
+  const { error } = await supabase.from('sentinel_experiments').insert({
+    experiment_tag: tag,
     iteration,
-    tweaked_key: tweakedKey,
-    tweaked_val: tweakedVal,
-    win_rate: result.winRate,
-    total_pnl: result.totalPnl,
-    max_drawdown: result.maxDrawdown,
-    trade_count: result.tradeCount,
-    score,
+    parameters: newParams,
+    previous_parameters: prevParams || null,
+    changed_param: tweakedKey,
+    changed_from: prevParams ? prevParams[tweakedKey] : null,
+    changed_to: tweakedVal,
+    backtest_window_days: 7,
+    backtest_trades: result.tradeCount,
+    backtest_wins: wins,
+    backtest_losses: losses,
+    backtest_win_rate: result.winRate,
+    backtest_total_pnl: result.totalPnl,
+    backtest_max_drawdown: result.maxDrawdown,
+    backtest_avg_r: null,
+    composite_score: score,
     status,
-    params,
     created_at: new Date().toISOString(),
   });
+  if (error) console.error('[autoresearch] logExperiment error:', error.message, error.details);
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -437,7 +447,7 @@ export default async function handler(req, res) {
     log.push(`Fetched ${bars.length} candles`);
 
     // 2. Load current best params
-    let bestParams = await loadBestParams(tag);
+    let bestParams = await loadBestParams();
     log.push(`Loaded params for tag="${tag}"`);
 
     // 3. Baseline backtest
@@ -453,10 +463,11 @@ export default async function handler(req, res) {
     let currentParams = { ...bestParams };
 
     for (let iter = 1; iter <= maxIter; iter++) {
+      const prevParams = { ...currentParams };
       const { newParams, tweakedKey, tweakedVal } = applyTweak(currentParams);
       const result = runBacktest(bars, newParams);
       allPnls.push(result.totalPnl);
-      iterData.push({ iter, newParams, tweakedKey, tweakedVal, result });
+      iterData.push({ iter, newParams, tweakedKey, tweakedVal, result, prevParams });
     }
 
     const pnlMin = Math.min(...allPnls);
@@ -468,7 +479,7 @@ export default async function handler(req, res) {
     // Second pass: apply keep/discard logic and persist
     const summary = { kept: 0, discarded: 0, iterations: maxIter };
 
-    for (const { iter, newParams, tweakedKey, tweakedVal, result } of iterData) {
+    for (const { iter, newParams, tweakedKey, tweakedVal, result, prevParams } of iterData) {
       const score = computeScore(result, pnlMin, pnlMax);
       const improved = score > bestScore;
       const status = improved ? 'keep' : 'discard';
@@ -482,7 +493,7 @@ export default async function handler(req, res) {
       }
 
       // Log to sentinel_experiments
-      await logExperiment(tag, iter, tweakedKey, tweakedVal, result, score, status, newParams);
+      await logExperiment(tag, iter, tweakedKey, tweakedVal, result, score, status, newParams, prevParams);
 
       log.push(
         `[${iter}/${maxIter}] tweak ${tweakedKey}=${tweakedVal} → WR=${(result.winRate * 100).toFixed(1)}% PnL=${result.totalPnl.toFixed(4)} DD=${(result.maxDrawdown * 100).toFixed(1)}% score=${score.toFixed(4)} → ${status.toUpperCase()}`
@@ -492,12 +503,8 @@ export default async function handler(req, res) {
     // Save best params if improved
     if (summary.kept > 0) {
       const finalResult = runBacktest(bars, currentParams);
-      await saveBestParams(tag, currentParams, bestScore, {
-        run_id: runId,
+      await saveBestParams(currentParams, bestScore, {
         win_rate: finalResult.winRate,
-        total_pnl: finalResult.totalPnl,
-        max_drawdown: finalResult.maxDrawdown,
-        trade_count: finalResult.tradeCount,
       });
       log.push(`Saved improved params (score=${bestScore.toFixed(4)})`);
     } else {
