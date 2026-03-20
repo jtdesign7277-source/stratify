@@ -24,6 +24,15 @@ function winRateColor(wr) {
   return 'text-red-400';
 }
 
+function dangerColors(label) {
+  switch (label) {
+    case 'EXTREME': return { text: 'text-red-400', border: 'border-red-500/50', dot: 'bg-red-500', glow: 'shadow-[0_0_12px_rgba(239,68,68,0.3)]' };
+    case 'HIGH':    return { text: 'text-orange-400', border: 'border-orange-500/40', dot: 'bg-orange-500', glow: 'shadow-[0_0_8px_rgba(249,115,22,0.2)]' };
+    case 'ELEVATED':return { text: 'text-yellow-400', border: 'border-yellow-500/30', dot: 'bg-yellow-500', glow: '' };
+    default:        return { text: 'text-gray-500', border: 'border-white/[0.06]', dot: 'bg-gray-600', glow: '' };
+  }
+}
+
 const PARAM_LABELS = {
   bayes_threshold: 'Bayes Threshold',
   min_confidence_scalp: 'Min Confidence',
@@ -201,9 +210,10 @@ function BrainStatusBar({ bestParams, experiments, isPaused, onTogglePause, onAp
 
 // ─── TradingView Chart (BTC/USD 5-min) ───────────────────────────────────────
 
-function BTCChart({ bestParams, experiments }) {
+function BTCChart({ bestParams, experiments, dangerLevel }) {
   const containerRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { price: btcPrice, change: btcChange } = useBTCPrice();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -251,29 +261,79 @@ function BTCChart({ bestParams, experiments }) {
     };
   }, []);
 
+  const dl = dangerLevel;
+  const dlColors = dangerColors(dl?.danger_label);
+
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 z-50 bg-[#0a0a0f] flex flex-col">
-        {/* Compact metrics bar when fullscreen */}
-        <div className="flex-shrink-0 flex items-center gap-6 px-5 py-2.5 border-b border-white/[0.06] bg-[#0a0a0f]">
-          <span className="text-[11px] text-gray-500 uppercase tracking-widest font-mono">BINANCE:BTCUSDT · 5-min · Training Universe</span>
-          <div className="flex items-center gap-5 ml-2">
-            {experiments[0] && (
-              <>
-                <span className="text-[11px] text-gray-500">Win Rate: <span className={`font-mono font-medium ${winRateColor(bestParams?.win_rate ?? experiments[0]?.win_rate)}`}>{fmtPct(bestParams?.win_rate ?? experiments[0]?.win_rate)}</span></span>
-                <span className="text-[11px] text-gray-500">Score: <span className="font-mono font-medium text-blue-400">{fmtNum(bestParams?.score ?? 0, 4)}</span></span>
-                <span className="text-[11px] text-gray-500">Experiments: <span className="font-mono font-medium text-white">{experiments.length}</span></span>
-              </>
+        {/* Compact metrics bar — always visible in fullscreen */}
+        <div className="flex-shrink-0 flex items-center gap-5 px-5 border-b border-white/[0.06] bg-[#0c0c14]/90 backdrop-blur-md" style={{ height: 42 }}>
+          {/* BTC price */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-gray-600 uppercase tracking-widest font-mono">BTC</span>
+            <span className="text-[12px] font-mono font-medium text-white">
+              {btcPrice != null ? `$${btcPrice.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'}
+            </span>
+            {btcChange != null && (
+              <span className={`text-[10px] font-mono ${btcChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {btcChange >= 0 ? '+' : ''}{btcChange.toFixed(2)}%
+              </span>
             )}
           </div>
+
+          <div className="w-px h-4 bg-white/[0.06]" />
+
+          {/* Win rate */}
+          {(bestParams?.win_rate ?? experiments[0]?.win_rate) != null && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-gray-600">Win Rate</span>
+                <span className={`text-[11px] font-mono font-medium ${winRateColor(bestParams?.win_rate ?? experiments[0]?.win_rate)}`}>
+                  {fmtPct(bestParams?.win_rate ?? experiments[0]?.win_rate)}
+                </span>
+              </div>
+              <div className="w-px h-4 bg-white/[0.06]" />
+            </>
+          )}
+
+          {/* Danger level */}
+          {dl && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${dlColors.dot} ${dl.danger_label === 'EXTREME' ? 'animate-pulse' : ''}`} />
+                <span className={`text-[11px] font-mono font-medium ${dlColors.text}`}>{dl.danger_label ?? 'NORMAL'}</span>
+                <span className="text-[10px] text-gray-600 font-mono">{dl.danger_score}/100</span>
+              </div>
+              <div className="w-px h-4 bg-white/[0.06]" />
+            </>
+          )}
+
+          {/* Composite score */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-600">Score</span>
+            <span className="text-[11px] font-mono font-medium text-blue-400">{fmtNum(bestParams?.score ?? 0, 4)}</span>
+          </div>
+
+          <div className="w-px h-4 bg-white/[0.06]" />
+
+          {/* Experiments */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-600">Experiments</span>
+            <span className="text-[11px] font-mono font-medium text-white">{experiments.length}</span>
+          </div>
+
+          {/* Exit button */}
           <button
             onClick={() => setIsFullscreen(false)}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-gray-400 border border-white/[0.06] hover:bg-white/[0.06] transition-colors"
+            className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] text-gray-400 border border-white/[0.06] hover:bg-white/[0.06] transition-colors"
           >
             <Minimize2 className="w-3.5 h-3.5" strokeWidth={1.5} />
             Exit Fullscreen
           </button>
         </div>
+
+        {/* Chart fills remaining space */}
         <div ref={containerRef} className="flex-1 min-h-0" />
       </div>
     );
@@ -292,6 +352,211 @@ function BTCChart({ bestParams, experiments }) {
         </button>
       </div>
       <div ref={containerRef} style={{ height: 480, width: '100%' }} />
+    </div>
+  );
+}
+
+// ─── Danger Level Indicator ───────────────────────────────────────────────────
+
+function DangerIndicator({ dangerLevel }) {
+  if (!dangerLevel) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+        <div className="w-2.5 h-2.5 rounded-full bg-gray-600" />
+        <span className="text-sm font-semibold font-mono tracking-widest text-gray-500">NORMAL</span>
+        <span className="text-[11px] text-gray-600 font-mono ml-1">0/100</span>
+      </div>
+    );
+  }
+
+  const { danger_score, danger_label, contributing_factors, pattern_match } = dangerLevel;
+  const dc = dangerColors(danger_label);
+  const isExtreme = danger_label === 'EXTREME';
+
+  return (
+    <div className={`flex flex-wrap items-center gap-4 px-4 py-2.5 rounded-xl border ${dc.border} ${dc.glow} bg-white/[0.02]`}>
+      <div className="flex items-center gap-2.5">
+        <div className={`w-2.5 h-2.5 rounded-full ${dc.dot} ${isExtreme ? 'animate-pulse' : ''}`} />
+        <span className={`text-sm font-semibold font-mono tracking-widest ${dc.text}`}>{danger_label ?? 'NORMAL'}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] text-gray-600">Score</span>
+        <span className={`text-[12px] font-mono font-medium ${dc.text}`}>{danger_score ?? 0}/100</span>
+      </div>
+      {pattern_match && (
+        <>
+          <div className="w-px h-4 bg-white/[0.06]" />
+          <span className="text-[11px] text-gray-400">
+            <span className="font-mono">{pattern_match.similarity}%</span> similar to {pattern_match.date}{' '}
+            <span className={pattern_match.type === 'CRASH' ? 'text-red-400' : 'text-emerald-400'}>{pattern_match.type}</span>
+          </span>
+        </>
+      )}
+      {contributing_factors?.length > 0 && (
+        <>
+          <div className="w-px h-4 bg-white/[0.06] hidden sm:block" />
+          <span className="text-[11px] text-gray-600 truncate hidden sm:block">
+            {contributing_factors.slice(0, 3).join(' · ')}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Extreme Move Row ─────────────────────────────────────────────────────────
+
+function ExtremeMoveRow({ move, index }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const isRip = move.direction === 'RIP' || move.direction === 'UP';
+  const dateStr = move.timestamp
+    ? new Date(move.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+    : '—';
+
+  const topConditions = move.top_conditions || (move.pre_conditions || []).slice(0, 4);
+  const allConditions = move.pre_conditions || move.features || [];
+
+  let sentinelImpact = null;
+  if (move.sentinel_pnl != null) {
+    const pnl = move.sentinel_pnl;
+    sentinelImpact = { label: `Had position: ${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toLocaleString()}`, positive: pnl >= 0 };
+  } else if (move.had_position === false) {
+    sentinelImpact = { label: 'No position', positive: null };
+  }
+
+  return (
+    <div
+      className="border-b border-white/[0.03] hover:bg-white/[0.015] transition-colors cursor-pointer"
+      onClick={() => setExpanded(e => !e)}
+    >
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <span className="text-[11px] text-gray-700 font-mono w-5 shrink-0 text-right">{index + 1}</span>
+        <span className="text-[11px] text-gray-500 font-mono whitespace-nowrap w-[115px] shrink-0">{dateStr}</span>
+        <span className={`text-[12px] font-mono font-semibold w-12 shrink-0 ${isRip ? 'text-emerald-400' : 'text-red-400'}`}>
+          {isRip ? 'RIP' : 'CRASH'}
+        </span>
+        <span className={`text-[12px] font-mono font-medium w-[120px] shrink-0 ${isRip ? 'text-emerald-400' : 'text-red-400'}`}>
+          {move.magnitude != null
+            ? `${isRip ? '+' : ''}${typeof move.magnitude === 'number' ? move.magnitude.toFixed(1) : move.magnitude}% / ${move.duration_min ?? '?'}min`
+            : '—'}
+        </span>
+        <span className="text-[11px] text-gray-500 flex-1 min-w-0 truncate leading-relaxed">
+          {topConditions.join(' · ') || '—'}
+        </span>
+        {sentinelImpact && (
+          <span className={`text-[11px] font-mono whitespace-nowrap shrink-0 ${
+            sentinelImpact.positive === true ? 'text-emerald-400/70' :
+            sentinelImpact.positive === false ? 'text-red-400/70' :
+            'text-gray-600'
+          }`}>
+            {sentinelImpact.label}
+          </span>
+        )}
+        <ChevronRight
+          className={`w-3.5 h-3.5 text-gray-700 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          strokeWidth={1.5}
+        />
+      </div>
+
+      {expanded && allConditions.length > 0 && (
+        <div className="px-4 pb-3 bg-white/[0.01] border-t border-white/[0.03]">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 pl-[calc(1.25rem+3px+115px+3px+3rem+3px)]">
+            {allConditions.map((cond, i) => (
+              <span key={i} className="text-[11px] text-gray-500 font-mono">{cond}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Market Memory Section ────────────────────────────────────────────────────
+
+function MarketMemory({ onDangerLevel }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMoves = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sentinel/extreme-moves?limit=20');
+      if (!res.ok) return;
+      const json = await res.json();
+      setData(json);
+      if (json.dangerLevel && onDangerLevel) onDangerLevel(json.dangerLevel);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [onDangerLevel]);
+
+  useEffect(() => {
+    fetchMoves();
+    const timer = setInterval(fetchMoves, 30_000);
+    return () => clearInterval(timer);
+  }, [fetchMoves]);
+
+  const moves = data?.moves || [];
+  const dangerLevel = data?.dangerLevel;
+  const stats = data?.stats;
+
+  return (
+    <div className={`${GLASS} mb-5 overflow-hidden`}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+        <span className="text-xs font-semibold tracking-widest text-gray-500 uppercase">Market Memory</span>
+        {stats && (
+          <div className="flex items-center gap-4 text-[11px] text-gray-600">
+            <span><span className="font-mono text-gray-400">{stats.totalMoves}</span> events</span>
+            <span>
+              <span className="font-mono text-red-400">{stats.crashes}</span> crashes
+              {' · '}
+              <span className="font-mono text-emerald-400">{stats.rips}</span> rips
+            </span>
+            {stats.avgMagnitude != null && (
+              <span>avg <span className="font-mono text-gray-400">{Number(stats.avgMagnitude).toFixed(1)}%</span></span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Danger indicator */}
+      <div className="px-4 pt-3 pb-2">
+        {loading ? (
+          <div className="flex items-center gap-2 h-10">
+            <RefreshCw className="w-3.5 h-3.5 text-gray-600 animate-spin" />
+            <span className="text-[11px] text-gray-600">Loading extreme moves…</span>
+          </div>
+        ) : (
+          <DangerIndicator dangerLevel={dangerLevel} />
+        )}
+      </div>
+
+      {/* Timeline */}
+      {!loading && moves.length === 0 ? (
+        <div className="flex items-center justify-center h-20 text-gray-600 text-[13px]">
+          No extreme moves recorded yet
+        </div>
+      ) : moves.length > 0 ? (
+        <>
+          {/* Column headers */}
+          <div className="flex items-center gap-3 px-4 py-1.5 border-t border-white/[0.04]">
+            <span className="text-[10px] text-gray-700 font-medium w-5 shrink-0">#</span>
+            <span className="text-[10px] text-gray-700 font-medium w-[115px] shrink-0">Date / Time</span>
+            <span className="text-[10px] text-gray-700 font-medium w-12 shrink-0">Dir</span>
+            <span className="text-[10px] text-gray-700 font-medium w-[120px] shrink-0">Magnitude</span>
+            <span className="text-[10px] text-gray-700 font-medium flex-1">Pre-move Conditions</span>
+            <span className="text-[10px] text-gray-700 font-medium pr-6">Sentinel Impact</span>
+          </div>
+          <div className="overflow-y-auto max-h-[400px]">
+            {moves.map((move, i) => (
+              <ExtremeMoveRow key={move.id ?? i} move={move} index={i} />
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -502,6 +767,7 @@ export default function HeartbeatPage() {
   const [loading, setLoading] = useState(true);
   const [lastFetch, setLastFetch] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [dangerLevel, setDangerLevel] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -566,7 +832,10 @@ export default function HeartbeatPage() {
         />
 
         {/* BTC Chart */}
-        <BTCChart bestParams={bestParams} experiments={experiments} />
+        <BTCChart bestParams={bestParams} experiments={experiments} dangerLevel={dangerLevel} />
+
+        {/* Market Memory — between chart and experiment feed */}
+        <MarketMemory onDangerLevel={setDangerLevel} />
 
         {/* Main grid: feed + params */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-4">
