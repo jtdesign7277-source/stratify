@@ -356,6 +356,21 @@ export default async function handler(req, res) {
       .limit(100);
     const closedForBayes = recentClosedTrades || [];
 
+    // ── LOAD DANGER LEVEL ────────────────────────────────────────────────────
+    // Populated by extreme-moves.js after each heartbeat. Used to gate entries.
+    const { data: dangerData } = await supabase
+      .from('sentinel_danger_level')
+      .select('score, label, factors')
+      .eq('id', 1)
+      .single();
+    const dangerLevel = dangerData || { score: 0, label: 'NORMAL', factors: [] };
+    if (dangerLevel.label !== 'NORMAL') {
+      log.push(`[DANGER] ${dangerLevel.label} score=${dangerLevel.score} — ${(dangerLevel.factors || [])[0] || ''}`);
+    }
+    // EXTREME: skip all new entries this heartbeat
+    const skipNewEntries = dangerLevel.label === 'EXTREME';
+    if (skipNewEntries) log.push('⚠️ EXTREME danger level — skipping all new crypto entries');
+
     // Compute account-level stats for Kelly
     const allWins = closedForBayes.filter(t => t.win);
     const allLosses = closedForBayes.filter(t => !t.win);
@@ -464,6 +479,7 @@ export default async function handler(req, res) {
 
     for (const job of cryptoJobs) {
       if (totalOpenCrypto + newSignals >= MAX_OPEN_CRYPTO) break;
+      if (skipNewEntries) { log.push(`⚠️ Skipping ${job.symbol} ${job.timeframe} — EXTREME danger level`); continue; }
       try {
         const cacheKey = `sentinel:crypto:signal:${job.symbol}:${job.timeframe}`;
         const cacheTTL = job.timeframe === '5min' ? 60 : 300;
@@ -565,6 +581,10 @@ export default async function handler(req, res) {
         // Setup-specific confidence adjustment from memory
         const confAdj = confAdjustments[signal.setup] || 0;
         finalConf = Math.min(100, Math.max(0, finalConf + confAdj));
+
+        // Danger level confidence penalty (HIGH: -20, ELEVATED: -10)
+        if (dangerLevel.label === 'HIGH') finalConf = Math.max(0, finalConf - 20);
+        else if (dangerLevel.label === 'ELEVATED') finalConf = Math.max(0, finalConf - 10);
 
         // Boost confidence when Bayesian posterior is strong
         if (bayes.posterior > 0.65) finalConf = Math.min(100, finalConf + 5);
@@ -702,8 +722,32 @@ export default async function handler(req, res) {
       } catch (err) { log.push(`Error scanning ${job.symbol} ${job.timeframe}: ${err.message}`); }
     }
 
-    // Also store SCAN signals (evaluations that didn't fire) for Training Stream
-    // This shows the models are working even when no trade fires
+    // ── EXTREME MOVE DETECTION ───────────────────────────────────────────────
+    // Post BTC/USD 5-min bars to extreme-moves to detect crashes/rips and refresh danger level.
+    // Fire-and-forget: don't let a failure here block the main response.
+    try {
+      const btcBars = await fetchBars('BTC/USD', '5m');
+      if (btcBars.length >= 10) {
+        const proto = req.headers['x-forwarded-proto'] || 'https';
+        const host = req.headers.host;
+        fetch(`${proto}://${host}/api/sentinel/extreme-moves`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.CRON_SECRET}`,
+          },
+          body: JSON.stringify({
+            symbol: 'BTC/USD',
+            bars: btcBars,
+            currentPrice: btcBars[btcBars.length - 1].close,
+          }),
+        }).then(r => r.json()).then(d => {
+          if (d.detected) log.push(`[EXTREME-MOVES] ${d.moveType} detected — ${d.magnitude_pct?.toFixed(2)}%`);
+          if (d.dangerLevel && d.dangerLevel.label !== 'NORMAL') log.push(`[EXTREME-MOVES] Danger refreshed: ${d.dangerLevel.label}`);
+        }).catch(() => {});
+        log.push('[EXTREME-MOVES] BTC/USD scan submitted');
+      }
+    } catch (emErr) { log.push(`[EXTREME-MOVES] Error: ${emErr.message}`); }
 
     // ── Daily session rollover + trigger learn ────────────────────────────────
     const etHour = getETHour();
