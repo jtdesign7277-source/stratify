@@ -408,16 +408,21 @@ async function logExperiment(tag, iteration, tweakedKey, tweakedVal, result, sco
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    return res.status(405).json({ error: 'POST or GET only' });
+  }
 
-  // Auth
+  // Auth — accept Bearer token (POST) or x-vercel-cron-secret header (GET cron)
   const auth = req.headers.authorization || '';
+  const cronHeader = req.headers['x-vercel-cron-secret'] || '';
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || (auth !== `Bearer ${cronSecret}` && cronHeader !== cronSecret)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { tag = 'default', iterations = 10 } = req.body || {};
+  // For GET (cron), read params from query string; for POST, read from body
+  const source = req.method === 'GET' ? req.query : (req.body || {});
+  const { tag = 'default', iterations = 10 } = source;
   const maxIter = Math.min(100, Math.max(1, parseInt(iterations, 10) || 10));
 
   if (!TWELVE_DATA_API_KEY) return res.status(500).json({ error: 'Missing TWELVE_DATA_API_KEY' });

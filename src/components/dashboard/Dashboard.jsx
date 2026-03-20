@@ -114,6 +114,7 @@ import EconomicsCalendarPage from './EconomicsCalendarPage';
 import XRayPage from '../xray/XRayPage';
 import SportsOddsPage from '../../pages/SportsOddsPage';
 import SentinelPage from './SentinelPage';
+import HeartbeatPage from './HeartbeatPage';
 import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
@@ -2858,6 +2859,7 @@ export default function Dashboard({
           {activeTab === 'sentinel' && (
             <SentinelPage />
           )}
+          {activeTab === 'heartbeat' && <HeartbeatPage />}
           {activeTab === 'more' && <MoreInfoPage />}
               </motion.div>
             )}

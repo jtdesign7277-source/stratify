@@ -25,6 +25,7 @@ import {
   Terminal,
   MessageCircle,
   LogOut,
+  Activity,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -99,6 +100,7 @@ const Sidebar = ({
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
     { id: 'sentinel', label: 'Sentinel', icon: Radar, sentinelDot: true },
+    { id: 'heartbeat', label: 'Heartbeat', icon: Activity },
     { id: 'sports', label: 'Sports', icon: Trophy },
   ];
 
