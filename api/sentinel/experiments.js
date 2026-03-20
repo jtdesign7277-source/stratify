@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     // Recent experiments — select actual DB column names
     const { data: rawExps, error: expErr } = await supabase
       .from('sentinel_experiments')
-      .select('id, iteration, changed_param, changed_to, backtest_win_rate, backtest_total_pnl, backtest_max_drawdown, backtest_trades, composite_score, status, parameters, created_at')
+      .select('id, iteration, changed_param, changed_from, changed_to, backtest_win_rate, backtest_total_pnl, backtest_max_drawdown, backtest_trades, composite_score, status, parameters, created_at')
       .eq('experiment_tag', tag)
       .order('created_at', { ascending: false })
       .limit(maxRows);
@@ -34,12 +34,13 @@ export default async function handler(req, res) {
       id: e.id,
       iteration: e.iteration,
       tweaked_key: e.changed_param,
+      tweaked_from: e.changed_from,
       tweaked_val: e.changed_to,
-      win_rate: e.backtest_win_rate,
-      total_pnl: e.backtest_total_pnl,
+      win_rate: e.backtest_win_rate != null ? parseFloat(e.backtest_win_rate) : null,
+      total_pnl: e.backtest_total_pnl != null ? parseFloat(e.backtest_total_pnl) : null,
       max_drawdown: e.backtest_max_drawdown,
       trade_count: e.backtest_trades,
-      score: e.composite_score,
+      score: e.composite_score != null ? parseFloat(e.composite_score) : null,
       status: e.status,
       params: e.parameters,
       created_at: e.created_at,
@@ -54,9 +55,15 @@ export default async function handler(req, res) {
 
     if (bpErr && bpErr.code !== 'PGRST116') throw bpErr; // ignore not-found
 
-    // Remap best_params: composite_score → score
+    // Remap best_params: composite_score → score, parameters → params
     const bestParams = bestRaw
-      ? { ...bestRaw, score: bestRaw.composite_score }
+      ? {
+          params: bestRaw.parameters || {},
+          win_rate: bestRaw.win_rate != null ? parseFloat(bestRaw.win_rate) : null,
+          score: bestRaw.composite_score != null ? parseFloat(bestRaw.composite_score) : null,
+          experiment_id: bestRaw.experiment_id,
+          updated_at: bestRaw.updated_at,
+        }
       : null;
 
     return res.status(200).json({
