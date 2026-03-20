@@ -1577,7 +1577,7 @@ function SentinelPageInner() {
                     <motion.div
                       key={notif.id}
                       whileHover={isReport ? { x: 2, backgroundColor: 'rgba(255,255,255,0.04)' } : {}}
-                      onClick={isReport ? (e) => { e.stopPropagation(); setBrainModalSession(sessionForReport || { session_date: reportDate, claude_analysis: JSON.stringify(notif.metadata?.report, null, 2), gross_pnl: notif.metadata?.pnl, adjustments_made: notif.metadata }); } : undefined}
+                      onClick={isReport && reportDate ? (e) => { e.stopPropagation(); setBrainModalSession(sessionForReport || { session_date: reportDate, claude_analysis: JSON.stringify(notif.metadata?.report, null, 2), gross_pnl: notif.metadata?.pnl, adjustments_made: notif.metadata }); } : undefined}
                       className={`text-xs py-1.5 rounded-xl px-2 transition-all duration-200 ${notif.read ? 'text-gray-600' : 'text-gray-300'} ${isReport ? 'cursor-pointer' : ''}`}
                     >
                       <div className="flex items-center gap-2">
@@ -1961,7 +1961,7 @@ function SentinelPageInner() {
 
       {/* BRAIN ANALYSIS MODAL */}
       <AnimatePresence>
-        {brainModalSession && (
+        {brainModalSession && brainModalSession.session_date && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
