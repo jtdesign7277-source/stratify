@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getApiUrl } from '../../lib/api'
 import {
   Newspaper,
   TrendingUp,
@@ -232,7 +233,6 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp, hideHead
 
   // When hideHeader is set, force collapsed to false so body always shows
   const isCollapsed = hideHeader ? false : collapsed;
-import { getApiUrl } from '../../lib/api';
 
   return (
     <div className={`h-full min-h-0 flex flex-col overflow-hidden ${hideHeader ? '' : 'bg-[#0a1628] border border-[#1a2538] rounded-lg'}`}>
