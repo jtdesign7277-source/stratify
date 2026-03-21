@@ -4,6 +4,7 @@ const RAILWAY_API_BASE_URL = String(import.meta.env.VITE_API_URL || '').replace(
 export const API_ROUTES = Object.freeze({
   watchlistQuotes: '/api/watchlist/quotes',
   quote: '/api/quote',
+  xray: '/api/xray',
   xrayQuote: '/api/xray/quote',
   chat: '/api/chat',
   chatV1: '/api/v1/chat',
@@ -12,6 +13,7 @@ export const API_ROUTES = Object.freeze({
 const EDGE_ROUTE_MAP = new Map([
   [API_ROUTES.watchlistQuotes, `${SUPABASE_FUNCTIONS_BASE_URL}/watchlist-quotes`],
   [API_ROUTES.quote, `${SUPABASE_FUNCTIONS_BASE_URL}/quote`],
+  [API_ROUTES.xray, `${SUPABASE_FUNCTIONS_BASE_URL}/xray`],
   [API_ROUTES.xrayQuote, `${SUPABASE_FUNCTIONS_BASE_URL}/xray-quote`],
   [API_ROUTES.chat, `${SUPABASE_FUNCTIONS_BASE_URL}/chat`],
   [API_ROUTES.chatV1, `${SUPABASE_FUNCTIONS_BASE_URL}/chat`],

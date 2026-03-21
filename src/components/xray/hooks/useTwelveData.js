@@ -1,9 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
+import { getApiUrl } from '../../../lib/api';
 import { normalizeSymbol } from '../../../lib/twelvedata';
 
-const API_BASE = '/api/xray';
+const API_BASE = getApiUrl('xray');
+const DEFAULT_PERIOD = 'annual';
 
 const ENDPOINTS_WITHOUT_PERIOD = new Set(['statistics', 'quote', 'profile']);
+const XRAY_SECTION_MAP = Object.freeze({
+  quote: 'quote',
+  statistics: 'statistics',
+  profile: 'profile',
+  'income-statement': 'income_statement',
+  'balance-sheet': 'balance_sheet',
+  'cash-flow': 'cash_flow',
+});
+const EMPTY_BUNDLE_SNAPSHOT = Object.freeze({
+  status: 'idle',
+  data: null,
+  error: null,
+  source: null,
+});
+const xrayBundleStore = new Map();
 
 const hasValue = (value) => value !== null && value !== undefined && value !== '';
 
@@ -306,62 +323,146 @@ const normalizeFundamentalRows = (endpoint, payloadData) => {
   return payloadData;
 };
 
-export function useFundamentals(symbol, endpoint, period = 'annual') {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [source, setSource] = useState(null);
+const createBundleEntry = () => ({
+  status: 'idle',
+  data: null,
+  error: null,
+  source: null,
+  promise: null,
+  listeners: new Set(),
+});
 
-  const normalizedSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
+const getRequestPeriod = (endpoint, period) => (
+  ENDPOINTS_WITHOUT_PERIOD.has(endpoint) ? DEFAULT_PERIOD : (period || DEFAULT_PERIOD)
+);
 
-  useEffect(() => {
-    if (!normalizedSymbol || !endpoint) {
-      setLoading(false);
-      setData(null);
-      setError(null);
-      setSource(null);
-      return;
-    }
+const getBundleKey = (symbol, period = DEFAULT_PERIOD) => `${symbol}::${period}`;
 
-    const controller = new AbortController();
+const getOrCreateBundleEntry = (symbol, period = DEFAULT_PERIOD) => {
+  const key = getBundleKey(symbol, period);
+  let entry = xrayBundleStore.get(key);
+  if (!entry) {
+    entry = createBundleEntry();
+    xrayBundleStore.set(key, entry);
+  }
+  return entry;
+};
 
-    const query = new URLSearchParams({ symbol: normalizedSymbol });
-    if (!ENDPOINTS_WITHOUT_PERIOD.has(endpoint) && period) {
-      query.set('period', period);
-    }
+const toBundleSnapshot = (entry) => (
+  entry
+    ? {
+        status: entry.status,
+        data: entry.data,
+        error: entry.error,
+        source: entry.source,
+      }
+    : EMPTY_BUNDLE_SNAPSHOT
+);
 
-    setLoading(true);
-    setError(null);
+const emitBundleChange = (entry) => {
+  entry.listeners.forEach((listener) => listener());
+};
 
-    fetch(`${API_BASE}/${endpoint}?${query.toString()}`, {
-      signal: controller.signal,
-      cache: 'no-store',
+const getBundleSnapshot = (symbol, period = DEFAULT_PERIOD) => {
+  if (!symbol) return EMPTY_BUNDLE_SNAPSHOT;
+  return toBundleSnapshot(getOrCreateBundleEntry(symbol, period));
+};
+
+const subscribeToBundle = (symbol, period = DEFAULT_PERIOD, listener) => {
+  if (!symbol) return () => {};
+  const entry = getOrCreateBundleEntry(symbol, period);
+  entry.listeners.add(listener);
+  return () => {
+    entry.listeners.delete(listener);
+  };
+};
+
+const requestXrayBundle = (symbol, period = DEFAULT_PERIOD) => {
+  if (!symbol) return Promise.resolve(null);
+
+  const entry = getOrCreateBundleEntry(symbol, period);
+  if (entry.status === 'success') return Promise.resolve(entry.data);
+  if (entry.promise) return entry.promise;
+
+  entry.status = 'pending';
+  entry.error = null;
+  emitBundleChange(entry);
+
+  const query = new URLSearchParams({
+    symbol,
+    section: 'all',
+    period,
+  });
+
+  entry.promise = fetch(`${API_BASE}?${query.toString()}`, {
+    cache: 'no-store',
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
     })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((payload) => {
-        setData(normalizeFundamentalRows(endpoint, payload?.data ?? null));
-        setSource(payload?.source ?? null);
-      })
-      .catch((fetchError) => {
-        if (fetchError.name === 'AbortError') return;
-        console.error(`[xray/useFundamentals] ${endpoint} error:`, fetchError);
-        setError(fetchError.message || 'Request failed');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      });
+    .then((payload) => {
+      entry.status = 'success';
+      entry.data = payload?.data ?? null;
+      entry.error = null;
+      entry.source = payload?.source ?? payload?.data?.source ?? null;
+      entry.promise = null;
+      emitBundleChange(entry);
+      return entry.data;
+    })
+    .catch((fetchError) => {
+      entry.status = 'error';
+      entry.error = fetchError.message || 'Request failed';
+      entry.promise = null;
+      emitBundleChange(entry);
+      console.error(`[xray/useFundamentals] bundle error for ${symbol} (${period}):`, fetchError);
+      throw fetchError;
+    });
 
-    return () => controller.abort();
-  }, [endpoint, normalizedSymbol, period]);
+  return entry.promise;
+};
 
-  return { data, loading, error, source };
+const getSectionData = (endpoint, payloadData) => {
+  if (!payloadData || typeof payloadData !== 'object') return null;
+  const sectionKey = XRAY_SECTION_MAP[endpoint];
+  return sectionKey ? (payloadData[sectionKey] ?? null) : null;
+};
+
+export function useFundamentals(symbol, endpoint, period = DEFAULT_PERIOD) {
+  const normalizedSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
+  const requestPeriod = useMemo(() => getRequestPeriod(endpoint, period), [endpoint, period]);
+
+  const bundleSnapshot = useSyncExternalStore(
+    (onStoreChange) => {
+      if (!normalizedSymbol || !endpoint) return () => {};
+      const unsubscribe = subscribeToBundle(normalizedSymbol, requestPeriod, onStoreChange);
+      requestXrayBundle(normalizedSymbol, requestPeriod).catch(() => {});
+      return unsubscribe;
+    },
+    () => (
+      normalizedSymbol && endpoint
+        ? getBundleSnapshot(normalizedSymbol, requestPeriod)
+        : EMPTY_BUNDLE_SNAPSHOT
+    ),
+    () => EMPTY_BUNDLE_SNAPSHOT
+  );
+
+  const data = useMemo(
+    () => normalizeFundamentalRows(endpoint, getSectionData(endpoint, bundleSnapshot.data)),
+    [endpoint, bundleSnapshot.data]
+  );
+  const loading = Boolean(normalizedSymbol && endpoint) && (
+    bundleSnapshot.status === 'idle' || bundleSnapshot.status === 'pending'
+  );
+
+  return {
+    data,
+    loading,
+    error: bundleSnapshot.error,
+    source: bundleSnapshot.source,
+  };
 }
 
 export function useIncomeStatement(symbol, period = 'annual') {
