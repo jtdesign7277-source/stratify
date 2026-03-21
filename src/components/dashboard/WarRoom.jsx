@@ -32,6 +32,7 @@ import {
   WAR_ROOM_SAVED_EVENT,
   WAR_ROOM_STORAGE_KEYS,
 } from '../../lib/warRoomIntel';
+import { getApiUrl } from '../../lib/api';
 
 const QUICK_SCANS = [
   {
@@ -1103,9 +1104,9 @@ export default function WarRoom({ onClose }) {
     };
 
     const financialsPromise = Promise.allSettled([
-      fetch(`/api/xray/balance-sheet?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/xray/income-statement?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/xray/cash-flow?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
+      fetch(`${getApiUrl('/api/xray/balance-sheet')}?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
+      fetch(`${getApiUrl('/api/xray/income-statement')}?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
+      fetch(`${getApiUrl('/api/xray/cash-flow')}?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
     ]).then(([bs, is, cf]) => {
       setFinancials({
         balanceSheet: extractData(bs.status === 'fulfilled' ? bs.value : null),

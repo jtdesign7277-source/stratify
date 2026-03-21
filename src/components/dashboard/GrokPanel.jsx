@@ -260,7 +260,7 @@ const detectBacktestRequest = (message, previousContext = null) => {
 const runRealBacktest = async (params) => {
   const { ticker, period, timeframe, strategyType, stopLoss, positionSize, originalMessage } = params;
   
-  const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
+  const response = await fetch(getApiUrl('/api/backtest/ai'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -604,7 +604,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
       try {
         let apiResults = [];
         try {
-          const response = await fetch('/api/stock/search?q=' + encodeURIComponent(tickerSearch));
+          const response = await fetch(`${getApiUrl('stockSearch')}?q=${encodeURIComponent(tickerSearch)}`);
           if (response.ok) { const data = await response.json(); if (data.results) { apiResults = data.results.slice(0, 8).map(r => ({ symbol: r.symbol, name: r.shortname || r.longname || r.name || r.symbol, exchange: r.exchDisp || r.exchange || '' })); } }
         } catch (e) {}
         if (apiResults.length === 0) {
@@ -711,7 +711,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
     
     try {
       // Use AI-powered backtest endpoint
-      const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
+      const response = await fetch(getApiUrl('/api/backtest/ai'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -798,7 +798,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
             
             setIsBacktesting(true);
             try {
-              const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
+              const response = await fetch(getApiUrl('/api/backtest/ai'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, ClipboardList, X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { calcPayout } from '../../lib/sportsUtils';
+import { getApiUrl } from '../../lib/api';
 
-const ODDS_API = '/api/odds/events';
+const ODDS_API = getApiUrl('oddsEvents');
 const DRAFTKINGS_URL = 'https://draftkings.com';
 
 // ESPN scoreboard — same source as the top ESPN ticker pills

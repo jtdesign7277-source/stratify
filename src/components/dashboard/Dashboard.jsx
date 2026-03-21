@@ -39,6 +39,7 @@ import WatchlistPage from './WatchlistPage';
 import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioDashboard';
 import MarketMoversPage from './MarketMoversPage';
+import { getApiUrl } from '../../lib/api';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
 const tradePageModules = import.meta.glob('./TradePage.jsx');
@@ -1310,7 +1311,7 @@ export default function Dashboard({
 
       try {
         const params = new URLSearchParams({ symbols: symbolsForQuoteFetch.join(',') });
-        const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+        const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, { cache: 'no-store' });
         if (!response.ok) {
           throw new Error(`Failed to fetch quotes: ${response.status}`);
         }
@@ -1562,7 +1563,7 @@ export default function Dashboard({
 
     try {
       const params = new URLSearchParams({ symbols: normalized });
-      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) return null;
       const rows = await response.json().catch(() => []);
       const quote = Array.isArray(rows)
@@ -1584,7 +1585,7 @@ export default function Dashboard({
 
     try {
       const params = new URLSearchParams({ symbols: uniqueSymbols.join(',') });
-      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, { cache: 'no-store' });
       if (response.ok) {
         const snapshots = await response.json().catch(() => []);
         if (Array.isArray(snapshots)) {
@@ -2084,7 +2085,7 @@ export default function Dashboard({
     setIsTerminalLoading(true);
     
     try {
-      const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
+      const response = await fetch(getApiUrl('/api/backtest/ai'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,6 +4,7 @@ import { getExtendedHoursStatus, getMarketStatus } from '../../lib/marketHours';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import SimpleWatchlistTable from './SimpleWatchlistTable';
 import './AnalyticsWatchlistGrid.css';
+import { getApiUrl } from '../../lib/api';
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -414,7 +415,7 @@ export default function AnalyticsPage() {
 
     try {
       const params = new URLSearchParams({ symbols: symbols.join(',') });
-      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, { cache: 'no-store' });
 
       const payload = await response.json().catch(() => []);
       if (!response.ok) {
@@ -763,7 +764,7 @@ export default function AnalyticsPage() {
 
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}`, {
+        const response = await fetch(`${getApiUrl('stockSearch')}?q=${encodeURIComponent(query)}`, {
           signal: controller.signal,
         });
         const payload = await response.json().catch(() => ({}));

@@ -1,51 +1,60 @@
-const SUPABASE_FUNCTIONS_BASE_URL = 'https://mszilrexlupzthauoaxb.supabase.co/functions/v1';
-const RAILWAY_API_BASE_URL = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const SB = 'https://mszilrexlupzthauoaxb.supabase.co/functions/v1';
+const RW = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+const EDGE_MAP = {
+  '/api/stocks': SB + '/stocks',
+  '/api/bars': SB + '/bars',
+  '/api/chart/candles': SB + '/chart-candles',
+  '/api/stock/search': SB + '/stock-search',
+  '/api/search': SB + '/news',
+  '/api/news': SB + '/news',
+  '/api/quote': SB + '/quote',
+  '/api/latest-quote': SB + '/latest-quote',
+  '/api/sparkline': SB + '/sparkline',
+  '/api/crypto/twelve-data-price': SB + '/crypto-price',
+  '/api/xray': SB + '/xray',
+  '/api/xray/quote': SB + '/xray-quote',
+  '/api/xray/statistics': SB + '/xray',
+  '/api/xray/profile': SB + '/xray',
+  '/api/xray/income-statement': SB + '/xray',
+  '/api/xray/balance-sheet': SB + '/xray',
+  '/api/xray/cash-flow': SB + '/xray',
+  '/api/chat': SB + '/chat',
+  '/api/v1/chat': SB + '/chat',
+  '/api/v1/chat/': SB + '/chat',
+  '/api/sophia-chat': SB + '/chat',
+  '/api/watchlist/quotes': SB + '/watchlist-quotes',
+  '/api/odds/events': SB + '/odds-events',
+};
 
 export const API_ROUTES = Object.freeze({
-  watchlistQuotes: '/api/watchlist/quotes',
+  stocks: '/api/stocks',
+  bars: '/api/bars',
+  chartCandles: '/api/chart/candles',
+  stockSearch: '/api/stock/search',
+  search: '/api/search',
+  news: '/api/news',
   quote: '/api/quote',
+  latestQuote: '/api/latest-quote',
+  sparkline: '/api/sparkline',
+  cryptoPrice: '/api/crypto/twelve-data-price',
   xray: '/api/xray',
   xrayQuote: '/api/xray/quote',
   chat: '/api/chat',
   chatV1: '/api/v1/chat',
+  sophiaChat: '/api/sophia-chat',
+  watchlistQuotes: '/api/watchlist/quotes',
+  oddsEvents: '/api/odds/events',
 });
 
-const EDGE_ROUTE_MAP = new Map([
-  [API_ROUTES.watchlistQuotes, `${SUPABASE_FUNCTIONS_BASE_URL}/watchlist-quotes`],
-  [API_ROUTES.quote, `${SUPABASE_FUNCTIONS_BASE_URL}/quote`],
-  [API_ROUTES.xray, `${SUPABASE_FUNCTIONS_BASE_URL}/xray`],
-  [API_ROUTES.xrayQuote, `${SUPABASE_FUNCTIONS_BASE_URL}/xray-quote`],
-  [API_ROUTES.chat, `${SUPABASE_FUNCTIONS_BASE_URL}/chat`],
-  [API_ROUTES.chatV1, `${SUPABASE_FUNCTIONS_BASE_URL}/chat`],
-]);
-
-const resolveRoutePath = (route) => (
-  Object.prototype.hasOwnProperty.call(API_ROUTES, route) ? API_ROUTES[route] : route
-);
-
-const splitRoute = (route) => {
-  const trimmedRoute = String(route || '').trim();
-  if (!trimmedRoute) return { path: '', query: '' };
-  if (/^https?:\/\//i.test(trimmedRoute)) return { path: trimmedRoute, query: '', isAbsolute: true };
-
-  const [rawPath, ...queryParts] = trimmedRoute.split('?');
-  return {
-    path: rawPath.replace(/\/+$/, '') || '/',
-    query: queryParts.length > 0 ? `?${queryParts.join('?')}` : '',
-    isAbsolute: false,
-  };
-};
-
 export const getApiUrl = (route) => {
-  const routePath = resolveRoutePath(route);
-  const { path, query, isAbsolute } = splitRoute(routePath);
-
-  if (isAbsolute || !path) return path;
-
-  const edgeUrl = EDGE_ROUTE_MAP.get(path);
-  if (edgeUrl) {
-    return `${edgeUrl}${query}`;
-  }
-
-  return RAILWAY_API_BASE_URL ? `${RAILWAY_API_BASE_URL}${path}${query}` : `${path}${query}`;
+  const path = API_ROUTES[route] || route;
+  const clean = String(path || '').trim();
+  if (/^https?:\/\//i.test(clean)) return clean;
+  const [basePath, ...qParts] = clean.split('?');
+  const normalized = basePath.replace(/\/+$/, '');
+  const qs = qParts.length > 0 ? '?' + qParts.join('?') : '';
+  const edgeUrl = EDGE_MAP[normalized];
+  if (edgeUrl) return edgeUrl + qs;
+  return RW ? RW + normalized + qs : normalized + qs;
 };

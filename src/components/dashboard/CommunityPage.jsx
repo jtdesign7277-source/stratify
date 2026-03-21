@@ -135,6 +135,7 @@ import { DiscoverView, FinanceView, RightSidebar } from './community/ExploreView
 import LeftRail from './community/LeftRail';
 import StockDetailView from './community/StockDetailView';
 import PriceAlertToasts from './community/PriceAlertToasts';
+import { getApiUrl } from '../../lib/api';
 
 const DEFAULT_TWEET_FOLDERS = Object.freeze([
   { id: 'tweet-folder-drafts', name: 'Drafts' },
@@ -1132,7 +1133,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setMarketauxLoading(true);
     setMarketauxResults([]);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`${getApiUrl('search')}?q=${encodeURIComponent(q)}`);
       if (!res.ok) throw new Error('search failed');
       const data = await res.json();
       setMarketauxResults(Array.isArray(data.articles) ? data.articles : []);

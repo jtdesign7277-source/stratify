@@ -28,6 +28,7 @@ import CountUp from 'react-countup';
 import useTwelveDataWS from '../xray/hooks/useTwelveDataWS';
 import { normalizeSymbol as normalizeTicker } from '../../lib/twelvedata';
 import CreateAlertModal from './CreateAlertModal';
+import { getApiUrl } from '../../lib/api';
 
 // Supabase client imported from shared singleton (src/lib/supabaseClient.js)
 
@@ -457,7 +458,7 @@ async function fetchCandles(ticker, timeframe) {
   try {
     const interval = TIMEFRAME_MAP[timeframe] || '5min';
     const outputsize = interval === '1day' ? 365 : 500;
-    const res = await fetch(`/api/chart/candles?symbol=${encodeURIComponent(ticker)}&interval=${interval}&outputsize=${outputsize}`);
+    const res = await fetch(`${getApiUrl('chartCandles')}?symbol=${encodeURIComponent(ticker)}&interval=${interval}&outputsize=${outputsize}`);
     const data = await res.json();
     const values = Array.isArray(data?.values) ? data.values : [];
     if (values.length === 0) return [];

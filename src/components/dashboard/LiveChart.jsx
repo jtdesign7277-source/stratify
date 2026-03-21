@@ -6,8 +6,9 @@ import {
   ColorType,
   CrosshairMode,
 } from 'lightweight-charts';
+import { getApiUrl } from '../../lib/api';
 
-const CHART_CANDLES_URL = '/api/chart/candles';
+const CHART_CANDLES_URL = getApiUrl('chartCandles');
 const WS_CONFIG_URL = '/api/lse/ws-config';
 
 const UP_COLOR = '#22c55e';

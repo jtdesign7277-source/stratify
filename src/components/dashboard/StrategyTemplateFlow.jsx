@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { getApiUrl } from '../../lib/api';
 
 /* ═══════════════════════════════════════════════════════════════
    STRATIFY — Strategy Template Detail Flow
@@ -508,7 +509,7 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
     const candleCount = months * 22; // ~22 trading days per month
 
     Promise.all([
-      fetch(`/api/chart/candles?symbol=${ticker}&interval=1day&outputsize=${candleCount}`).then((r) => r.json()),
+      fetch(`${getApiUrl('chartCandles')}?symbol=${ticker}&interval=1day&outputsize=${candleCount}`).then((r) => r.json()),
       fetchBacktest(ticker, template.id, period, capital),
     ]).then(([candleData, btResult]) => {
       if (cancelled) return;

@@ -4,6 +4,7 @@ import HighchartsReact from 'highcharts-react-official';
 import IndicatorsAll from 'highcharts/indicators/indicators-all';
 import AnnotationsAdvanced from 'highcharts/modules/annotations-advanced';
 import StockTools from 'highcharts/modules/stock-tools';
+import { getApiUrl } from '../../lib/api';
 
 const initModule = (mod) => {
   try {
@@ -142,7 +143,7 @@ async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500) 
     timeframe: timeframeByInterval[interval] || '1Day',
     limit: String(outputsize),
   });
-  const res = await fetch(`/api/bars?${params.toString()}`, { cache: 'no-store' });
+  const res = await fetch(`${getApiUrl('bars')}?${params.toString()}`, { cache: 'no-store' });
   const data = await res.json().catch(() => []);
 
   if (!res.ok || !Array.isArray(data)) {

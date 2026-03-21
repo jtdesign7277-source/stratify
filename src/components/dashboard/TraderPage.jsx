@@ -26,6 +26,7 @@ import { getStoredDrawings, saveDrawings } from '../../lib/chartDrawingsStorage'
 import { CANDLE_PALETTES, CHART_DISPLAY_OPTIONS } from './ChartDisplayIcons';
 import LiveOddsPanel from './LiveOddsPanel';
 import CreateAlertModal from './CreateAlertModal';
+import { getApiUrl } from '../../lib/api';
 
 function newsTimeAgo(dateStr) {
   if (!dateStr) return '';
@@ -56,7 +57,7 @@ function isGenericSourceImage(url) {
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const API_BASE = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 const withApiBase = (path) => `${API_BASE}${path}`;
-const CHART_CANDLES_ENDPOINT = withApiBase('/api/chart/candles');
+const CHART_CANDLES_ENDPOINT = getApiUrl('chartCandles');
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const WATCHLIST_ORDER_STORAGE_KEY = 'watchlist_order';
@@ -2412,7 +2413,7 @@ export default function TraderPage({
         if (apiMatches.length === 0) {
           try {
             const legacyResponse = await fetch(
-              withApiBase(`/api/stock/search?q=${encodeURIComponent(query)}`),
+              `${getApiUrl('stockSearch')}?q=${encodeURIComponent(query)}`,
               {
                 cache: 'no-store',
                 signal: controller.signal,
@@ -2556,7 +2557,7 @@ export default function TraderPage({
 
     try {
       const params = new URLSearchParams({ symbols: symbols.join(',') });
-      const response = await fetch(withApiBase(`/api/stocks?${params.toString()}`), { cache: 'no-store' });
+      const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => []);
       if (!response.ok) return;
 

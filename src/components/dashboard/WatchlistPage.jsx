@@ -17,6 +17,7 @@ import LightweightChart from './LightweightChart';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import useTradingMode from '../../hooks/useTradingMode';
 import TickerHoverCard from '../shared/TickerHoverCard';
+import { getApiUrl } from '../../lib/api';
 
 const MAX_SYMBOLS = 120;
 
@@ -478,7 +479,7 @@ const WatchlistPage = ({
 
     try {
       const params = new URLSearchParams({ symbols: activeSymbols.join(',') });
-      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => []);
 
       if (!response.ok) {

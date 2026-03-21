@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Send, Bot, User, Loader2, Play } from 'lucide-react';
+import { getApiUrl } from '../../lib/api';
 
 export default function AIChat() {
   const [messages, setMessages] = useState([
@@ -16,7 +17,7 @@ export default function AIChat() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
     try {
-      const res = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/claude', {
+      const res = await fetch(getApiUrl('/api/claude'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage }),

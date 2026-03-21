@@ -5,6 +5,7 @@ import { HOVER_LIFT } from './communityConstants';
 import TodaysNews from 'components/dashboard/TodaysNews';
 import WatchlistPanel from './WatchlistPanel';
 import IndexCards from './IndexCards';
+import { getApiUrl } from '../../../lib/api';
 
 const dedupeArticles = (rows = []) => {
   const seen = new Set();
@@ -259,7 +260,7 @@ export const FinanceView = ({ onArticleClick }) => {
       must_have_entities: 'true',
     });
 
-    const res = await fetch(`/api/search?${params.toString()}`);
+    const res = await fetch(`${getApiUrl('search')}?${params.toString()}`);
     if (!res.ok) throw new Error('failed');
     const data = await res.json();
     const rows = Array.isArray(data.articles) ? data.articles : [];

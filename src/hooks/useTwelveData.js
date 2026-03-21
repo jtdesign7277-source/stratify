@@ -4,6 +4,7 @@ import {
   subscribeTwelveDataQuotes,
   subscribeTwelveDataStatus,
 } from '../services/twelveDataWebSocket';
+import { getApiUrl } from '../lib/api';
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -40,7 +41,7 @@ export default function useTwelveData({ symbols = [], labelsBySymbol = {} } = {}
     setLoadingQuotes(true);
     try {
       const params = new URLSearchParams({ symbols: targetSymbols.join(',') });
-      const response = await fetch(`/api/stocks?${params.toString()}`, {
+      const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, {
         cache: 'no-store',
       });
       const payload = await response.json().catch(() => []);

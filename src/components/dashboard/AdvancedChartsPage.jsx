@@ -12,6 +12,7 @@ import {
   subscribeTwelveDataStatus,
 } from '../../services/twelveDataWebSocket';
 import useTradingMode from '../../hooks/useTradingMode';
+import { getApiUrl } from '../../lib/api';
 
 const PAGE_TRANSITION = {
   initial: { opacity: 0, y: 12 },
@@ -290,7 +291,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
         setQuoteStatus({ state: 'loading', message: '' });
         const normalizedTicker = String(ticker || '').trim().toUpperCase().replace(/^\$/, '');
         const params = new URLSearchParams({ symbols: normalizedTicker });
-        const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+        const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, { cache: 'no-store' });
         const data = await response.json().catch(() => []);
         if (!response.ok) {
           throw new Error('Failed to fetch quote');
@@ -341,7 +342,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     setSearchStatus('loading');
     const handle = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`${getApiUrl('stockSearch')}?q=${encodeURIComponent(query)}`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data?.error || 'Search failed');

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
 import IndicatorsAll from 'highcharts/indicators/indicators-all';
+import { getApiUrl } from '../../lib/api';
 
 const initModule = (mod) => {
   try { const fn = mod?.default || mod; if (typeof fn === 'function') fn(Highcharts); } catch (e) { console.warn('HC module init:', e); }
@@ -65,7 +66,7 @@ async function fetchData(symbol, interval, outputsize = 500) {
     timeframe: timeframeByInterval[interval] || '1Day',
     limit: String(outputsize),
   });
-  const res = await fetch(`/api/bars?${params.toString()}`, { cache: 'no-store' });
+  const res = await fetch(`${getApiUrl('bars')}?${params.toString()}`, { cache: 'no-store' });
   const data = await res.json().catch(() => []);
   if (!res.ok || !Array.isArray(data)) return { ohlc: [], volume: [] };
   const ohlc = [], volume = [];

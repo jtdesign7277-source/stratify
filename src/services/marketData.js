@@ -68,7 +68,7 @@ export async function getTrending() {
 // Get broker quotes (requires server-side auth)
 export async function getAlpacaQuotes() {
   try {
-    const response = await fetch(`${API_BASE}/api/stocks`);
+    const response = await fetch(getApiUrl('stocks'));
     if (!response.ok) throw new Error('Failed to fetch broker quotes');
     return await response.json();
   } catch (error) {

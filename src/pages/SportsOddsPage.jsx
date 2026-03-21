@@ -21,6 +21,7 @@ import BetHistoryTab from '../components/dashboard/BetHistoryTab';
 import { useBetHistory } from '../hooks/useBetHistory';
 import { supabase } from '../lib/supabaseClient';
 import { calcPayout } from '../lib/sportsUtils';
+import { getApiUrl } from '../lib/api';
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
 
@@ -799,7 +800,7 @@ function GamesPanel({ sportKey, bookKey, bookLabel, refreshKey, addBetToSlip, on
     let cancelled = false;
     setLoading(true);
     setError('');
-    fetch(`/api/odds/events?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
+    fetch(`${getApiUrl('oddsEvents')}?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
@@ -1169,7 +1170,7 @@ function LiveInGameLines({ sportKey, onPaperBet }) {
     let cancelled = false;
     setLoading(true);
     const doFetch = () =>
-      fetch(`/api/odds/events?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
+      fetch(`${getApiUrl('oddsEvents')}?sport=${encodeURIComponent(sportKey)}&regions=us&oddsFormat=american`)
         .then((r) => r.json())
         .then((data) => {
           if (cancelled) return;

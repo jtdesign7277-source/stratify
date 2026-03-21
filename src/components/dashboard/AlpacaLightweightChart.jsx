@@ -5,6 +5,7 @@ import {
   HistogramSeries,
   ColorType,
 } from 'lightweight-charts';
+import { getApiUrl } from '../../lib/api';
 
 const UP_COLOR = '#22c55e';
 const DOWN_COLOR = '#ef4444';
@@ -206,7 +207,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day', livePrice = nu
           end: end.toISOString(),
         });
 
-        const response = await fetch(`/api/bars?${params.toString()}`);
+        const response = await fetch(`${getApiUrl('bars')}?${params.toString()}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -417,7 +418,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day', livePrice = nu
       if (!lastBarRef.current) return;
 
       try {
-        const response = await fetch(`/api/latest-quote?symbol=${encodeURIComponent(symbol)}`);
+        const response = await fetch(`${getApiUrl('latestQuote')}?symbol=${encodeURIComponent(symbol)}`);
         const data = await response.json();
 
         if (!response.ok || cancelled) return;

@@ -8,6 +8,7 @@ import PriceIndicator from 'highcharts/modules/price-indicator';
 import FullScreen from 'highcharts/modules/full-screen';
 import Heikinashi from 'highcharts/modules/heikinashi';
 import HollowCandlestick from 'highcharts/modules/hollowcandlestick';
+import { getApiUrl } from '../../lib/api';
 
 // Init modules once (wrapped to prevent crash on load)
 try {
@@ -105,7 +106,7 @@ async function fetchHistorical(symbol, interval = '1day', outputsize = 200) {
     timeframe: timeframeByInterval[interval] || '1Day',
     limit: String(outputsize),
   });
-  const res = await fetch(`/api/bars?${params.toString()}`, { cache: 'no-store' });
+  const res = await fetch(`${getApiUrl('bars')}?${params.toString()}`, { cache: 'no-store' });
   const data = await res.json().catch(() => []);
   if (!res.ok) {
     const message = typeof data?.error === 'string' ? data.error : `Bars request failed (${res.status})`;

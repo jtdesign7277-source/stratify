@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import SophiaMark from './SophiaMark';
+import { getApiUrl } from '../../lib/api';
 
 // Brain icon SVG
 const BrainIcon = ({ className }) => <SophiaMark className={className} />;
@@ -71,7 +72,7 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
       setIsLoadingSuggestions(true);
       try {
         // Try our API first
-        const response = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`${getApiUrl('stockSearch')}?q=${encodeURIComponent(query)}`);
         if (response.ok) {
           const data = await response.json();
           if (data.results) {

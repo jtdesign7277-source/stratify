@@ -158,7 +158,7 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp, hideHead
 
     try {
       // Deduped fetch — repeated calls return the same promise
-      const data = await dedupFetch('/api/news')
+      const data = await dedupFetch(getApiUrl('news'))
 
       if (!mountedRef.current) return
 
@@ -232,6 +232,7 @@ export default function TodaysNews({ onClose, collapsed: collapsedProp, hideHead
 
   // When hideHeader is set, force collapsed to false so body always shows
   const isCollapsed = hideHeader ? false : collapsed;
+import { getApiUrl } from '../../lib/api';
 
   return (
     <div className={`h-full min-h-0 flex flex-col overflow-hidden ${hideHeader ? '' : 'bg-[#0a1628] border border-[#1a2538] rounded-lg'}`}>

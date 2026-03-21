@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { CandlestickSeries, ColorType, HistogramSeries, createChart } from 'lightweight-charts';
+import { getApiUrl } from '../../lib/api';
 
 const UP_COLOR = '#26a69a';
 const DOWN_COLOR = '#ef5350';
@@ -566,7 +567,7 @@ const LightweightChart = forwardRef(function LightweightChart(
           limit: config?.limit || DEFAULT_HISTORY_LIMIT,
         });
 
-        const response = await fetch(`/api/bars?${params.toString()}`, {
+        const response = await fetch(`${getApiUrl('bars')}?${params.toString()}`, {
           cache: 'no-store',
           signal: controller.signal,
         });

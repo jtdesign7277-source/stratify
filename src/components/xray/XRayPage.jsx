@@ -17,6 +17,7 @@ import {
   normalizeSymbol,
   toNumber,
 } from '../../lib/twelvedata';
+import { getApiUrl } from '../../lib/api';
 
 const TABS = [
   { id: 'income', label: 'Income Statement' },
@@ -241,7 +242,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}`, {
+        const response = await fetch(`${getApiUrl('stockSearch')}?q=${encodeURIComponent(query)}`, {
           cache: 'no-store',
         });
         const payload = await response.json().catch(() => ({}));

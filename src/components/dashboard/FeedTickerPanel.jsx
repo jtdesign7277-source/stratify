@@ -148,7 +148,7 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
     async function loadPrices() {
       if (equityTickers.length > 0) {
         try {
-          const res = await fetch(`/api/stocks?symbols=${equityTickers.join(',')}`)
+          const res = await fetch(`${getApiUrl('stocks')}?symbols=${equityTickers.join(',')}`)
           if (res.ok) {
             const data = await res.json()
             if (mounted) {
@@ -173,7 +173,7 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
       if (cryptoTickers.length > 0) {
         try {
           const symbols = cryptoTickers.map(t => t.replace('-USD', '/USD')).join(',')
-          const res = await fetch(`/api/stocks?symbols=${symbols}`)
+          const res = await fetch(`${getApiUrl('stocks')}?symbols=${symbols}`)
           if (res.ok) {
             const data = await res.json()
             if (mounted) {
@@ -210,7 +210,7 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
       const results = await Promise.all(
         allTickers.map(async (symbol) => {
           try {
-            const res = await fetch(`/api/sparkline?symbol=${encodeURIComponent(symbol)}`)
+            const res = await fetch(`${getApiUrl('sparkline')}?symbol=${encodeURIComponent(symbol)}`)
             if (!res.ok) return [symbol, null]
             const payload = await res.json()
             const values = toNumericArray(payload)
@@ -327,6 +327,7 @@ export default function FeedTickerPanel({ feedName, mentionedTickers = [] }) {
 
       <style>{`
         .ticker-scroll::-webkit-scrollbar { width: 3px; }
+import { getApiUrl } from '../../lib/api';
         .ticker-scroll::-webkit-scrollbar-track { background: transparent; }
         .ticker-scroll::-webkit-scrollbar-thumb { background: #1a2538; border-radius: 2px; }
       `}</style>

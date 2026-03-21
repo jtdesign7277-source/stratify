@@ -12,6 +12,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
+import { getApiUrl } from '../../lib/api';
 
 const MARKETS = [
   {
@@ -362,7 +363,7 @@ const GlobalMarketsPage = ({
       const params = new URLSearchParams({
         symbols: symbols.join(','),
       });
-      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const response = await fetch(`${getApiUrl('stocks')}?${params.toString()}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => []);
 
       if (!response.ok) {

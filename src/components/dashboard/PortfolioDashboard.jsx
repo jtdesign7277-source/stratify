@@ -11,6 +11,7 @@ import { getMarketStatus } from '../../lib/marketHours';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { getApiUrl } from '../../lib/api';
 
 const STARTING_BALANCE = 100000;
 const GOAL_TARGET = 150000;
@@ -1131,7 +1132,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           interval: '1day',
           outputsize: '420',
         });
-        const response = await fetch(`/api/chart/candles?${params.toString()}`, {
+        const response = await fetch(`${getApiUrl('chartCandles')}?${params.toString()}`, {
           method: 'GET',
           headers: { Accept: 'application/json' },
           cache: 'no-store',
@@ -1745,7 +1746,7 @@ export default function PortfolioDashboard({ paperTotalGainLoss = null }) {
           });
 
           try {
-            const response = await fetch(`/api/chart/candles?${params.toString()}`, {
+            const response = await fetch(`${getApiUrl('chartCandles')}?${params.toString()}`, {
               method: 'GET',
               headers: { Accept: 'application/json' },
               cache: 'no-store',

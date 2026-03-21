@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getApiUrl } from '../../lib/api';
 
 const REFRESH_MS = 5 * 60 * 1000;
 const STORED_HEADLINES_KEY = 'stratify-live-headline-tape-v2';
@@ -162,7 +163,7 @@ const LiveAlertsTicker = () => {
 
     const fetchLatestHeadlinesFallback = async () => {
       try {
-        const response = await fetch('/api/news', { cache: 'no-store' });
+        const response = await fetch(getApiUrl('news'), { cache: 'no-store' });
         if (!response.ok) return [];
         const payload = await response.json().catch(() => ({}));
         return mapNewsArticlesToTickerItems(payload?.articles);

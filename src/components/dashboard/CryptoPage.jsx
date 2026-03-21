@@ -9,6 +9,7 @@ import { usePaperTrading } from '../../hooks/usePaperTrading';
 // SUPABASE CLIENT (uses existing app client)
 // ═══════════════════════════════════════════════════════════════════════════════
 import { supabase } from '../../lib/supabaseClient';
+import { getApiUrl } from '../../lib/api';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TRADINGVIEW WIDGET LOADER
@@ -215,7 +216,7 @@ function useCryptoOrderbook(tradeSymbol) {
     const fetchInitialPrice = async () => {
       try {
         console.log('[CryptoPrice] Fetching initial price for:', normalizedSymbol);
-        const response = await fetch(`/api/crypto/twelve-data-price?symbol=${encodeURIComponent(normalizedSymbol)}`);
+        const response = await fetch(`${getApiUrl('cryptoPrice')}?symbol=${encodeURIComponent(normalizedSymbol)}`);
         
         if (response.ok) {
           const data = await response.json();

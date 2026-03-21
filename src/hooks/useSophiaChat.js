@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getApiUrl } from '../lib/api';
 
 const createMessageId = () => `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -236,7 +237,7 @@ export function useSophiaChat() {
       }
 
       try {
-        const res = await fetch('/api/sophia-chat', {
+        const res = await fetch(getApiUrl('sophiaChat'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

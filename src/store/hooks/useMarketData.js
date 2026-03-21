@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getApiUrl } from '../../lib/api';
 
-const API_BASE = '';
 const WS_URL = `wss://ws.twelvedata.com/v1/quotes/price?apikey=${import.meta.env.VITE_TWELVE_DATA_API_KEY}`;
 
 const INITIAL_RECONNECT_DELAY = 1000;
@@ -125,7 +125,7 @@ export const useMarketData = () => {
       setLoading(true);
 
       try {
-        const response = await fetch(`${API_BASE}/api/stocks`, { signal: controller.signal });
+        const response = await fetch(getApiUrl('stocks'), { signal: controller.signal });
 
         if (!response.ok) {
           throw new Error('Failed to load market data.');
