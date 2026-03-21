@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Send, Loader2, X, Bot, GripVertical } from 'lucide-react';
-
-const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
+import { getApiUrl } from '../../lib/api';
 const STORAGE_KEY = 'stratify-chat-v4';
 const DEFAULT_WIDTH = 380;
 const DEFAULT_HEIGHT = 480;
@@ -172,7 +171,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(API_BASE + '/api/v1/chat/', {
+      const response = await fetch(getApiUrl('chatV1'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg, session_id: getSessionId() }),

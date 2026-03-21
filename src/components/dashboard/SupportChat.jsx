@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Loader2, Bot, User } from 'lucide-react';
-
-const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
+import { getApiUrl } from '../../lib/api';
 
 const getSessionId = () => {
   let id = sessionStorage.getItem('support-session-id');
@@ -37,7 +36,7 @@ export default function SupportChat({ compact = false }) {
 
     try {
       const contextualMessage = 'You are Stratify Support. Use ONLY this information to answer: Stratify is an AI trading platform at https://stratifymarket.com. Contact email: jeff@stratify-associates.com. Twitter: @stratify_hq. Pricing: Free plan and Pro at $19.99/month. Features: Paper Trading, AI Strategy Builder, Backtesting, Analytics, Advanced Charts, Trend Scanner, Portfolio Management. Strategy templates: Momentum, RSI, Mean Reversion, Breakout, MACD, Scalping. For billing issues direct to contact form or jeff@stratify-associates.com.\n\nUser question: ' + text;
-      const response = await fetch(`${API_BASE}/api/v1/chat/`, {
+      const response = await fetch(getApiUrl('chatV1'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

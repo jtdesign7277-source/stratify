@@ -1,4 +1,6 @@
 // Market Data Service - connects to Stratify backend
+import { getApiUrl } from '../lib/api';
+
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
 // Fetch a single stock quote
@@ -137,7 +139,7 @@ export async function getAlpacaPositions() {
 // Chat with Grok AI
 export async function chatWithGrok(message, strategyName) {
   try {
-    const response = await fetch(`${API_BASE}/api/v1/chat/`, {
+    const response = await fetch(getApiUrl('chatV1'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, strategy_name: strategyName }),

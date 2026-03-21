@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Activity, Brain, Zap, TrendingUp, CheckCircle, XCircle, RefreshCw, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
+import { getApiUrl } from '../../lib/api';
 
 // âââ Helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
@@ -61,7 +62,7 @@ function useBTCPrice() {
     let cancelled = false;
     async function fetchPrice() {
       try {
-        const res = await fetch('/api/xray/quote?symbol=BTC%2FUSD');
+        const res = await fetch(`${getApiUrl('xrayQuote')}?symbol=BTC%2FUSD`);
         if (!res.ok) return;
         const json = await res.json();
         if (cancelled) return;

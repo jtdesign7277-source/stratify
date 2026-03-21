@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import SophiaMark from './SophiaMark';
 import { useAuth } from '../../context/AuthContext';
+import { getApiUrl } from '../../lib/api';
 
 const GROK_LOADING_STEPS = ['Analyzing', 'Building', 'Testing'];
 const GROK_WELCOME_MESSAGE = "Hey there! How can I help you today? Whether you need assistance with generating a trading strategy, executing a trade, or have questions about the markets, I'm here to help.";
@@ -770,7 +771,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
       if (selectedStrategy) { const strat = STRATEGY_TYPES.find(s => s.id === selectedStrategy); contextMsg += '\nStrategy type: ' + (strat?.name || selectedStrategy); }
       if (selectedTimeframe) { const tf = TIMEFRAMES.find(t => t.id === selectedTimeframe); contextMsg += '\nTimeframe: ' + (tf?.label || selectedTimeframe); }
       try {
-        const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg, stream: true }) });
+        const response = await fetch(getApiUrl('chatV1'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg, stream: true }) });
         if (!response.ok) throw new Error('Failed');
         let accumulated = '';
         await streamGrokResponse(response, {
@@ -904,7 +905,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
       }, 12);
       
       try {
-        const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: userMsg, stream: true }) });
+        const response = await fetch(getApiUrl('chatV1'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: userMsg, stream: true }) });
         if (!response.ok) throw new Error('Failed');
         await streamGrokResponse(response, {
           onFirstToken: () => setIsAwaitingFirstToken(false),
@@ -943,7 +944,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
     const contextMsg = 'Current strategy:\n' + activeTabData.content + '\n\nModification request: ' + modifyRequest + '\n\nProvide the updated strategy in the same format (summary fields + Python code).';
     try {
       setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: '', parsed: null, isTyping: true } : t));
-      const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg, stream: true }) });
+      const response = await fetch(getApiUrl('chatV1'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg, stream: true }) });
       if (!response.ok) throw new Error('Failed');
       let accumulated = '';
       await streamGrokResponse(response, {

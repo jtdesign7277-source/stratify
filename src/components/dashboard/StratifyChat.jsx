@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getApiUrl } from '../../lib/api';
 
 const QUICK_ACTIONS = ['Analyze $TSLA', 'Build Strategy', 'What can you do?', 'Backtest RSI'];
 const WELCOME_MESSAGE = "Welcome to Stratify AI. I'm your trading copilot — I can analyze markets, build strategies, run backtests, and help you make smarter trades. What are you looking at today?";
@@ -141,7 +142,7 @@ export default function StratifyChat() {
     setStreamingContent('');
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(getApiUrl('chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages.map(m => ({ role: m.role, content: m.content })) }),
